@@ -1702,7 +1702,7 @@ function generateAndApplyRandomSound() {
                 { id: 0, value: Math.random() < 0.2 ? Math.random() * 0.4 : 0 }, { id: 1, value: Math.random() * Math.random() }, { id: 2, value: 0.5 + Math.random() * 0.5 },
                 { id: 3, value: Math.random() }, { id: 4, value: Math.random() * 0.6 }, { id: 5, value: Math.random() < 0.3 ? Math.random() : 0 }, { id: 6, value: Math.random() * 0.8 },
                 { id: 12, value: Math.random() * 0.8 }, { id: 13, value: Math.random() }, { id: 14, value: Math.random() * 0.7 }, { id: 15, value: Math.random() },
-                { id: 20, value: Math.random() }, { id: 21, value: Math.random() }, { id: 28, value: Math.random() }, { id: 29, value: Math.random() }
+                { id: 20, value: Math.random() * 0.5 + 0.5 }, { id: 21, value: Math.random() * 0.5 + 0.5 }, { id: 28, value: Math.random() }, { id: 29, value: Math.random() }
             ];
 
             const randomPreset = {
@@ -2228,3 +2228,4 @@ function generateAndApplyRandomSound() {
        }
       
        init();
+
