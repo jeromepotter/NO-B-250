@@ -2,8 +2,6 @@
 
 All notable changes to NO-B 250 will be documented in this file.
 
-## [Unreleased]
-
 ## [11.17] - 2025-11-17
 ### Changed
 - Repositioned reverb and delay in FX chain
