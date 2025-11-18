@@ -1777,6 +1777,7 @@ function generateAndApplyRandomSound() {
             const cable = document.getElementById(`lfo-cable-${index}`);
             if (!cable) return;
 
+            // State 1: LFO is OFF. No cable is drawn.
             if (lfo.dest === 0) {
                 cable.setAttribute('d', '');
                 return;
@@ -1795,13 +1796,14 @@ function generateAndApplyRandomSound() {
                 
                 let endX, endY;
 
+                // State 2: Cable is "Parked". Draw it off to the side.
                 if (lfo.dest === -1) {
-                    const direction = (index < 2) ? -1 : 1;
+                    const direction = (index < 2) ? -1 : 1; // LFO 1/2 go left, 3/4 go right
                     endX = startX + (500 * direction);
-                    endY = startY + 100;
+                    endY = startY + 100; // Give it a slight droop
                 } 
+                // State 3: Cable is patched to a destination.
                 else { 
-                    // --- FIND THE DESTINATION (FX OR MAIN) ---
                     let destKnobEl;
                     const destId = lfo.dest;
 
@@ -1812,13 +1814,14 @@ function generateAndApplyRandomSound() {
                         destKnobEl = fxKnobData[destId]?.knobEl;
                     }
 
-                    // --- CHECK IF HIDDEN (Correct Logic) ---
+                    // --- NEW, ROBUST VISIBILITY CHECK ---
                     let shouldParkCable = false;
                     if (!destKnobEl) {
-                        shouldParkCable = true; 
+                        shouldParkCable = true; // Park if the element doesn't exist at all
                     } else {
                         const isArpKnob = destId >= 16 && destId <= 25;
                         if (isArpKnob) {
+                            // The reliable way to check: is the ARP section disabled?
                             const arpContainer = destKnobEl.closest('.arp-controls');
                             if (arpContainer && arpContainer.classList.contains('arp-disabled')) {
                                 shouldParkCable = true;
@@ -1831,12 +1834,14 @@ function generateAndApplyRandomSound() {
                          endX = startX + (250 * direction);
                          endY = startY + 80;
                     } else {
+                        // Normal patching to a visible knob
                         const destRect = destKnobEl.getBoundingClientRect();
                         endX = destRect.left - containerRect.left + destRect.width / 2;
                         endY = destRect.top - containerRect.top + destRect.height / 2;
                     }
                 }
                 
+                // --- Draw the curve ---
                 const midX = (startX + endX) / 2;
                 const midY = (startY + endY) / 2;
                 const dx = endX - startX;
@@ -1850,6 +1855,7 @@ function generateAndApplyRandomSound() {
             }
         });
     }
+
 
        function init(){
            // --- Get all DOM elements ---
@@ -2291,8 +2297,6 @@ function generateAndApplyRandomSound() {
        }
       
        init();
-
-
 
 
 
