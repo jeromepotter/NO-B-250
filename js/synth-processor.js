@@ -114,8 +114,8 @@ case 'ping':
 
                process(i,o,p){
                    const oL=o[0][0]; const oR=o[0][1]; const sr=sampleRate;
-// --- NEW 11.17 LFO Processing (with LFO-to-LFO modulation) ---
 
+// --- FINAL CORRECTED LFO Processing Logic ---
 const LFO_KNOB_IDS = { 101: {lfo: 0, param: 'wave'}, 103: {lfo: 1, param: 'depth'}, 104: {lfo: 2, param: 'depth'}, 105: {lfo: 1, param: 'wave'}, 106: {lfo: 0, param: 'depth'}, 107: {lfo: 3, param: 'dest'}, 108: {lfo: 0, param: 'rate'}, 109: {lfo: 1, param: 'rate'}, 110: {lfo: 2, param: 'rate'}, 111: {lfo: 3, param: 'rate'}, 112: {lfo: 2, param: 'wave'}, 113: {lfo: 3, param: 'wave'}, 100: {lfo: 3, param: 'depth'}, 102: {lfo: 2, param: 'dest'}, 114: {lfo: 0, param: 'dest'}, 115: {lfo: 1, param: 'dest'} };
 
 // Step 1: Calculate the initial, unmodulated output of every LFO
@@ -148,12 +148,8 @@ for (let i = 0; i < 4; i++) {
             const targetLfoIndex = targetLfoInfo.lfo;
             
             let currentValue = modulatedParams[targetLfoIndex][paramToMod];
+            // The value is always kept in the 0.0 to 1.0 range
             let newValue = Math.max(0, Math.min(1, currentValue + modAmount));
-            
-            // For 'wave', we need to snap to an integer
-            if (paramToMod === 'wave') {
-                newValue = Math.floor(newValue * 6);
-            }
             
             modulatedParams[targetLfoIndex][paramToMod] = newValue;
         }
@@ -167,7 +163,8 @@ for (let i = 0; i < 4; i++) {
     const mParams = modulatedParams[i]; // Modulated params for calculation
     
     let val = 0;
-    switch (Math.floor(mParams.wave)) { // Use the modulated wave
+    // The conversion to an integer happens HERE, at the very last moment
+    switch (Math.floor(mParams.wave * 5.99)) {
         case 0: val = Math.sin(lfo.phase); break;
         case 1: val = Math.asin(Math.sin(lfo.phase)) * (2 / Math.PI); break;
         case 2: val = lfo.phase < Math.PI ? 1 : -1; break;
@@ -188,13 +185,14 @@ for (let i = 0; i < 4; i++) {
 }
 
 this.lfoOutputs = finalLfoOutputs;
-// --- END OF NEW LFO Logic ---
+// --- END OF LFO Logic ---
+
 
 // --- Modulation Destination Logic ---
 let modulatedFx = {};
 for (let l = 0; l < 4; l++) {
     const lfo = this.lfoParams[l];
-    if (lfo.dest !== 0) {
+    if (lfo.dest !== 0 && !LFO_KNOB_IDS[lfo.dest]) { // Only apply to non-LFO destinations
         if (!modulatedFx[lfo.dest]) modulatedFx[lfo.dest] = 0;
         modulatedFx[lfo.dest] += this.lfoOutputs[l];
     }
@@ -360,5 +358,6 @@ return true;
 }
 }
 registerProcessor('synth-processor', SynthProcessor);
+
 
 
