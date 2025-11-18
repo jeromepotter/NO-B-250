@@ -72,10 +72,10 @@ let liveLfoOutputs = [0, 0, 0, 0];
       
        // --- State for the two main knobs & Arps ---
      const knobState = [
-    { id: 0, isNoteOn: false, isHeld: false, totalAngle: Math.random()*MAX_TOTAL_ANGLE, lastDragAngle: 0, currentOctave: 3, dom: {}, touchId: null, baseColor: [0,0,0], baseAngle: 0,
+    { id: 0, isNoteOn: false, isHeld: false, totalAngle: Math.random()*MAX_TOTAL_ANGLE, lastDragAngle: 0, currentOctave: 3, dom: {}, touchId: null, baseColor: [0,0,0],
       isArpOn: false, isSweepMode: true, arpNotes: [], isArpHoldOn: false, arpRateMs: 51, arpOctaveRange: 0, feelKnobValue: 0.0, currentFeelPattern: EUCLIDEAN_PATTERNS[0], euclideanStepCounter: 0,
       arpTranspose: 0, arpRunning: false, lastArpStepTime: 0, currentArpNoteIndex: 0, currentOctaveStep: 0, arpDirection: 1, arpUpDownState: 0, arpRafId: null, lastPlayedMidi: null, arpLastVisualIndex: -1, lastNoteOnTime: 0 },
-    { id: 1, isNoteOn: false, isHeld: false, totalAngle: Math.random()*MAX_TOTAL_ANGLE, lastDragAngle: 0, currentOctave: 3, dom: {}, touchId: null, baseColor: [0,0,0], baseAngle: 0,
+    { id: 1, isNoteOn: false, isHeld: false, totalAngle: Math.random()*MAX_TOTAL_ANGLE, lastDragAngle: 0, currentOctave: 3, dom: {}, touchId: null, baseColor: [0,0,0],
       isArpOn: false, isSweepMode: true, arpNotes: [], isArpHoldOn: false, arpRateMs: 51, arpOctaveRange: 0, feelKnobValue: 0.0, currentFeelPattern: EUCLIDEAN_PATTERNS[0], euclideanStepCounter: 0,
       arpTranspose: 0, arpRunning: false, lastArpStepTime: 0, currentArpNoteIndex: 0, currentOctaveStep: 0, arpDirection: 1, arpUpDownState: 0, arpRafId: null, lastPlayedMidi: null, arpLastVisualIndex: -1, lastNoteOnTime: 0 }
 ];
@@ -649,7 +649,7 @@ function sendMidiMessage(message) {
            const handleFxTouchEnd = (e) => { for(const t of e.changedTouches){ const kE = Object.entries(fxKnobData).find(([id, data])=>data.touchId===t.identifier); if(kE){ kE[1].touchId = null; } } };
            document.querySelectorAll('.fx-knob-container').forEach(k => {
                const id = parseInt(k.dataset.fxId, 10);
-               fxKnobData[id] = { id:id, knobEl:k, indicator:k.querySelector('.indicator'), angle:MIN_FX_ANGLE, value:0.0, isDragging:false, startY:0, touchId:null, baseValue: 0.0 };
+               fxKnobData[id] = { id:id, knobEl:k, indicator:k.querySelector('.indicator'), angle:MIN_FX_ANGLE, value:0.0, isDragging:false, startY:0, touchId:null };
                if(id===2){fxKnobData[id].value=1.0;} else if(id===7){fxKnobData[id].value=0.5;} else if(id===8){fxKnobData[id].value=0.0045;}
                else if(id===9){fxKnobData[id].value=0.0995;} else if(id===10){fxKnobData[id].value=0.8;} else if(id===11){fxKnobData[id].value=0.2;}
                else if(id===13){fxKnobData[id].value=0.5;} else if(id===15){fxKnobData[id].value=0.25;} else if(id===16||id===17){fxKnobData[id].value=0.6463;}
@@ -673,9 +673,6 @@ function sendMidiMessage(message) {
        }
       
      function handleInteractionStart(e) {
-     if (isLfoMode && activePatchingLfo !== null) {
-        return; 
-    }
     // Prevent mouse events immediately after touch events (mobile double-trigger fix)
     if (e.type === 'touchstart') {
         e.preventDefault();
@@ -1275,41 +1272,37 @@ lfoState.forEach((lfo, lfoIndex) => {
            const orderCont = arpOrderSelector.parentElement;
            if(orderCont){orderCont.classList[anyOn?'remove':'add']('arp-disabled');}
        }
-     function updateLfoVisuals(lfoOutputs) {
-    lfoState.forEach((lfo, lfoIndex) => {
-        const destId = lfo.dest;
-        if (destId === 0) return; 
+        function updateLfoVisuals(lfoOutputs) {
+            const modulatedValues = {}; // key: fxId, value: total modulation amount
 
-        const lfoModValue = lfoOutputs[lfoIndex] || 0;
-        const depth = lfoState[lfoIndex].depth;
+            // Step 1: Accumulate modulation for each destination
+            lfoState.forEach((lfo, index) => {
+                if (lfo.dest !== 0) { // If not OFF
+                    if (!modulatedValues[lfo.dest]) {
+                        modulatedValues[lfo.dest] = 0;
+                    }
+                    modulatedValues[lfo.dest] += lfoOutputs[index];
+                }
+            });
 
-        // --- Case 1: Modulating a MAIN KNOB ---
-        if (destId >= 30) {
-            const knobIndex = destId - 30;
-            const knob = knobState[knobIndex];
-            
-            // UNIFIED LOGIC: All waves SET the angle relative to the start position.
-            // Sensitivity: 360 degrees (1 octave) per full depth amount.
-            const sensitivity = 360 * depth; 
-            knob.totalAngle = knob.baseAngle + (lfoModValue * sensitivity);
-            
-            updateStateFromTotalAngle(knobIndex);
-        }
-        // --- Case 2: Modulating an FX or LFO KNOB ---
-        else if (fxKnobData[destId]) {
-            const knobData = fxKnobData[destId];
-            
-            // UNIFIED LOGIC: Calculate new value relative to the snapshot "baseValue"
-            const finalValue = knobData.baseValue + (lfoModValue * depth);
+            // Step 2: Apply the final calculated value to each visual indicator
+            for (const knobIdStr in fxKnobData) {
+                const knobId = parseInt(knobIdStr, 10);
+                const knobData = fxKnobData[knobId];
+                let finalValue = knobData.value;
 
-            if (knobData.indicator) {
-                const clampedValue = Math.max(0, Math.min(1, finalValue));
-                const newAngle = MIN_FX_ANGLE + clampedValue * (MAX_FX_ANGLE - MIN_FX_ANGLE);
-                knobData.indicator.style.transform = `rotate(${newAngle}deg)`;
+                if (modulatedValues[knobId] !== undefined) {
+                    finalValue += modulatedValues[knobId];
+                }
+
+                // We only apply visual updates to knobs with indicators
+                if (knobData.indicator) {
+                    finalValue = Math.max(0, Math.min(1, finalValue));
+                    const newAngle = MIN_FX_ANGLE + finalValue * (MAX_FX_ANGLE - MIN_FX_ANGLE);
+                    knobData.indicator.style.transform = `rotate(${newAngle}deg)`;
+                }
             }
         }
-    });
-}
       
       function toggleEasterEggMode() {
         allowDuplicateNotesMode = !allowDuplicateNotesMode;
@@ -1777,6 +1770,7 @@ function generateAndApplyRandomSound() {
             const cable = document.getElementById(`lfo-cable-${index}`);
             if (!cable) return;
 
+            // State 1: LFO is OFF. No cable is drawn.
             if (lfo.dest === 0) {
                 cable.setAttribute('d', '');
                 return;
@@ -1795,48 +1789,29 @@ function generateAndApplyRandomSound() {
                 
                 let endX, endY;
 
+                // State 2: Cable is "Parked". Draw it off to the side.
                 if (lfo.dest === -1) {
-                    const direction = (index < 2) ? -1 : 1;
+                    const direction = (index < 2) ? -1 : 1; // LFO 1/2 go left, 3/4 go right
                     endX = startX + (500 * direction);
-                    endY = startY + 100;
+                    endY = startY + 100; // Give it a slight droop
                 } 
+                // State 3: Cable is patched to a destination.
                 else { 
-                    let destKnobEl;
-                    const destId = lfo.dest;
-
-                    // --- CHECK FOR MAIN KNOBS ---
-                    if (destId >= 30) {
-                        const knobIndex = destId - 30;
-                        destKnobEl = knobState[knobIndex]?.dom?.knob;
-                    } else {
-                        destKnobEl = fxKnobData[destId]?.knobEl;
-                    }
-
-                    let shouldParkCable = false;
-                    if (!destKnobEl) {
-                        shouldParkCable = true; 
-                    } else {
-                        // --- SMARTER VISIBILITY CHECK ---
-                        const isArpKnob = destId >= 16 && destId <= 25;
-                        if (isArpKnob) {
-                            const arpContainer = destKnobEl.closest('.arp-controls');
-                            if (arpContainer && arpContainer.classList.contains('arp-disabled')) {
-                                shouldParkCable = true;
-                            }
-                        }
-                    }
-
-                    if (shouldParkCable) {
+                    const destKnobEl = fxKnobData[lfo.dest]?.knobEl;
+                    // Also handles the ARP-off case where the element is hidden
+                    if (!destKnobEl || destKnobEl.offsetParent === null) {
                          const direction = (startX > containerRect.width / 2) ? 1 : -1;
                          endX = startX + (250 * direction);
                          endY = startY + 80;
                     } else {
+                        // Normal patching to a visible knob
                         const destRect = destKnobEl.getBoundingClientRect();
                         endX = destRect.left - containerRect.left + destRect.width / 2;
                         endY = destRect.top - containerRect.top + destRect.height / 2;
                     }
                 }
                 
+                // --- Draw the curve ---
                 const midX = (startX + endX) / 2;
                 const midY = (startY + endY) / 2;
                 const dx = endX - startX;
@@ -1913,74 +1888,48 @@ function generateAndApplyRandomSound() {
                 }
             });
 
-              KNOB_ID_TO_NAME_MAP[30] = 'KNOB 1';
-              KNOB_ID_TO_NAME_MAP[31] = 'KNOB 2';
-
 
             synthContainer.addEventListener('click', (e) => {
-    if (!isLfoMode || activePatchingLfo === null) return;
+                if (!isLfoMode || activePatchingLfo === null) return;
+                
+                const targetKnobEl = e.target.closest('.fx-knob-container');
+                if (!targetKnobEl) {
+                    // If user clicks outside a knob, cancel patching
+                    stopLfoPatching();
+                    return;
+                }
+                
+                const targetFxId = parseInt(targetKnobEl.dataset.fxId, 10);
+                const sourceKnobInfo = Object.values(LFO_KNOB_MAP).find(d => d.lfo === activePatchingLfo && d.param === 'dest');
+                const sourceFxId = parseInt(Object.keys(LFO_KNOB_MAP).find(key => LFO_KNOB_MAP[key] === sourceKnobInfo));
+                
+                // --- Validation ---
+                const ownLfoKnobs = Object.keys(LFO_KNOB_MAP).filter(id => LFO_KNOB_MAP[id].lfo === activePatchingLfo).map(id => parseInt(id));
+                
+                if (targetFxId === sourceFxId) {
+                    // Clicked the source knob again to cancel or reset
+                    lfoState[activePatchingLfo].dest = 0; // Set to OFF
+                    document.getElementById(`lfo-dest-display-${activePatchingLfo}`).textContent = 'OFF';
+                     if (synthNode) synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: activePatchingLfo, param: 'dest', value: 0 } });
+                    stopLfoPatching();
+                     drawLfoCables();
+                    return;
+                }
 
-    let targetId = null;
-    const fxKnob = e.target.closest('.fx-knob-container');
-    const mainKnob = e.target.closest('.main-knob');
+                if (ownLfoKnobs.includes(targetFxId)) {
+                    // Invalid target (one of its own knobs)
+                    return;
+                }
 
-    // 1. Identify the target ID (whether it's an FX knob or Main Knob)
-    if (fxKnob) {
-        targetId = parseInt(fxKnob.dataset.fxId, 10);
-    } else if (mainKnob) {
-        const knobIndex = parseInt(mainKnob.dataset.knobId, 10);
-        targetId = knobIndex === 0 ? 30 : 31; // Map 0/1 to 30/31
-    } else {
-        // User clicked empty space, cancel patching
-        stopLfoPatching();
-        return;
-    }
+                // --- Valid Target Selected ---
+                lfoState[activePatchingLfo].dest = targetFxId;
+                const targetName = KNOB_ID_TO_NAME_MAP[targetFxId] || "UNKNOWN";
+                document.getElementById(`lfo-dest-display-${activePatchingLfo}`).textContent = targetName;
+                 if (synthNode) synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: activePatchingLfo, param: 'dest', value: targetFxId } });
 
-    // Source info
-    const sourceKnobInfo = Object.values(LFO_KNOB_MAP).find(d => d.lfo === activePatchingLfo && d.param === 'dest');
-    const sourceFxId = parseInt(Object.keys(LFO_KNOB_MAP).find(key => LFO_KNOB_MAP[key] === sourceKnobInfo));
-
-    // 2. Handle clicking the source again (Unpatch/Reset)
-    if (targetId === sourceFxId) {
-        lfoState[activePatchingLfo].dest = 0; 
-        document.getElementById(`lfo-dest-display-${activePatchingLfo}`).textContent = 'OFF';
-        if (synthNode) synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: activePatchingLfo, param: 'dest', value: 0 } });
-        stopLfoPatching();
-        drawLfoCables();
-        return;
-    }
-
-    // 3. Validation: Prevent Self-Modulation
-    // (Get all IDs belonging to the current LFO)
-    const ownLfoKnobs = Object.keys(LFO_KNOB_MAP)
-        .filter(id => LFO_KNOB_MAP[id].lfo === activePatchingLfo)
-        .map(id => parseInt(id));
-    
-    if (ownLfoKnobs.includes(targetId)) {
-        return; // Invalid target, do nothing
-    }
-
-    // 4. Snapshot Position (The "Memory" Step)
-    if (targetId >= 30) {
-        // Main Knob: Save Angle
-        const knobIndex = targetId - 30;
-        knobState[knobIndex].baseAngle = knobState[knobIndex].totalAngle;
-    } else if (fxKnobData[targetId]) {
-        // FX Knob: Save Value
-        fxKnobData[targetId].baseValue = fxKnobData[targetId].value;
-    }
-    
-    // 5. Finalize the Patch
-    lfoState[activePatchingLfo].dest = targetId;
-    const targetName = KNOB_ID_TO_NAME_MAP[targetId] || "UNKNOWN";
-    document.getElementById(`lfo-dest-display-${activePatchingLfo}`).textContent = targetName;
-    if (synthNode) {
-        synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: activePatchingLfo, param: 'dest', value: targetId } });
-    }
-
-    stopLfoPatching();
-    drawLfoCables();
-});
+                stopLfoPatching();
+                 drawLfoCables();
+            });
 
 
             const mainHeader = document.querySelector('.main-header h1');
@@ -2292,8 +2241,6 @@ function generateAndApplyRandomSound() {
        }
       
        init();
-
-
 
 
 
