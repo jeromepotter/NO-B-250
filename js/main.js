@@ -1861,7 +1861,10 @@ function generateAndApplyRandomSound() {
                         destKnobEl = fxKnobData[lfo.dest]?.knobEl;
                     }
                     // Also handles the ARP-off case where the element is hidden
-                    if (!destKnobEl || destKnobEl.offsetParent === null) {
+                    const destId = lfo.dest;
+                   const isArpKnob = destId >= 16 && destId <= 25;
+
+                        if (!destKnobEl || (isArpKnob && destKnobEl.offsetParent === null)) {
                          const direction = (startX > containerRect.width / 2) ? 1 : -1;
                          endX = startX + (250 * direction);
                          endY = startY + 80;
@@ -2301,6 +2304,7 @@ function generateAndApplyRandomSound() {
            }
        });
        init();
+
 
 
 
