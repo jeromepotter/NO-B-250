@@ -2226,7 +2226,19 @@ function generateAndApplyRandomSound() {
            updateGlobalArpVisibility();
            randomizeSettings();
        }
-      
+      document.addEventListener('visibilitychange', () => {
+           if (!isPowerOn || !audioContext) return; // Do nothing if the synth is off
+
+           if (document.visibilityState === 'visible') {
+               // When the app becomes visible again, check if the audio was suspended
+               if (audioContext.state === 'suspended') {
+                   audioContext.resume().then(() => {
+                       console.log('AudioContext resumed successfully.');
+                   });
+               }
+           }
+       });
        init();
+
 
 
