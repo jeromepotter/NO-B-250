@@ -1772,42 +1772,39 @@ function generateAndApplyRandomSound() {
             activePatchingLfo = null;
         }
 
-        function startLfoPatching(lfoIndex) {
-            // If we're already patching, stop it first
-            if (activePatchingLfo !== null) {
-                stopLfoPatching();
-            }
-
-            activePatchingLfo = lfoIndex;
-            const sourceKnobInfo = Object.values(LFO_KNOB_MAP).find(d => d.lfo === lfoIndex && d.param === 'dest');
-            if (!sourceKnobInfo) return;
-
-            const sourceFxId = Object.keys(LFO_KNOB_MAP).find(key => LFO_KNOB_MAP[key] === sourceKnobInfo);
-            const sourceKnobEl = fxKnobData[sourceFxId].knobEl;
-            sourceKnobEl.classList.add('blinking-lfo-source');
-
-            // --- CORRECTED Validation Logic ---
-// Find only the source LFO's own DEST knob ID. This is the only invalid target.
-const ownDestKnobId = parseInt(Object.keys(LFO_KNOB_MAP).find(id => {
-    const info = LFO_KNOB_MAP[id];
-    return info.lfo === lfoIndex && info.param === 'dest';
-}));
-
-// Make potential targets blink
-for (const id in fxKnobData) {
-    const numId = parseInt(id, 10);
-    // A target is valid as long as it's NOT the source's own destination knob.
-    if (numId !== ownDestKnobId) {
-        fxKnobData[id].knobEl.classList.add('blinking-lfo-target');
+       function startLfoPatching(lfoIndex) {
+    // If we're already patching, stop it first
+    if (activePatchingLfo !== null) {
+        stopLfoPatching();
     }
+
+    activePatchingLfo = lfoIndex;
+    const sourceKnobInfo = Object.values(LFO_KNOB_MAP).find(d => d.lfo === lfoIndex && d.param === 'dest');
+    if (!sourceKnobInfo) return;
+
+    const sourceFxId = Object.keys(LFO_KNOB_MAP).find(key => LFO_KNOB_MAP[key] === sourceKnobInfo);
+    const sourceKnobEl = fxKnobData[sourceFxId].knobEl;
+    sourceKnobEl.classList.add('blinking-lfo-source');
+
+    // --- FIXED: Only exclude THIS LFO's destination selector (not all its knobs) ---
+    const invalidTargetId = parseInt(sourceFxId, 10);
+
+   // Make potential targets blink
+    for (const id in fxKnobData) {
+        const numId = parseInt(id, 10);
+        // A target is valid if it's NOT this LFO's own destination selector
+        if (numId !== invalidTargetId) {
+            fxKnobData[id].knobEl.classList.add('blinking-lfo-target');
+        }
+    } 
+
+    // Also make the main knobs blink
+    knobState.forEach(knob => {
+        if (knob.dom.knob) {
+            knob.dom.knob.classList.add('blinking-lfo-target');
+        }
+    });
 }
-            // Also make the main knobs blink
-            knobState.forEach(knob => {
-                if (knob.dom.knob) {
-                    knob.dom.knob.classList.add('blinking-lfo-target');
-                }
-            });
-        } 
       function drawLfoCables() {
         if (!isLfoMode) {
              for (let i = 0; i < 4; i++) {
@@ -2305,6 +2302,7 @@ for (const id in fxKnobData) {
            }
        });
        init();
+
 
 
 
