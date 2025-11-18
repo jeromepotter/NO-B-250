@@ -2,6 +2,14 @@
 
 All notable changes to NO-B 250 will be documented in this file.
 
+##Future Plans
+- Background Playback in desktop
+- User preset filename structure to include "n-ob" 
+
+## [11.18] - 2025-11-18
+### Added
+-tap to audio-resume feature on mobile devices. 
+
 ## [11.17] - 2025-11-17
 
 ### Changed
@@ -10,7 +18,6 @@ All notable changes to NO-B 250 will be documented in this file.
 - Updated Chorus to Juno-106 emulation
 - Discrete panning for the 2 oscillators
 - Random Arp and Random Sound default range
-- User preset filename structure to include "n-ob" 
 - Updated manual
 
 ### Fixed
@@ -19,9 +26,6 @@ All notable changes to NO-B 250 will be documented in this file.
 - Fixed pops in tremolo cycle
 - Fixed visual glitch with mobile knob artifacts
 - Added voice variance to detune knob
-
-### Added
--automatic audio-resume feature on mobile devices. 
 
 ## [11.16] - 2025-11-16
 ### Added
