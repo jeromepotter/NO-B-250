@@ -74,10 +74,10 @@ let liveLfoOutputs = [0, 0, 0, 0];
       
        // --- State for the two main knobs & Arps ---
      const knobState = [
-    { id: 0, isNoteOn: false, isHeld: false, totalAngle: Math.random()*MAX_TOTAL_ANGLE, lastDragAngle: 0, currentOctave: 3, dom: {}, touchId: null, baseColor: [0,0,0], baseAngle: 0,
+    { id: 0, isNoteOn: false, isHeld: false, totalAngle: Math.random()*MAX_TOTAL_ANGLE, lastDragAngle: 0, currentOctave: 3, dom: {}, touchId: null, baseColor: [0,0,0],
       isArpOn: false, isSweepMode: true, arpNotes: [], isArpHoldOn: false, arpRateMs: 51, arpOctaveRange: 0, feelKnobValue: 0.0, currentFeelPattern: EUCLIDEAN_PATTERNS[0], euclideanStepCounter: 0,
       arpTranspose: 0, arpRunning: false, lastArpStepTime: 0, currentArpNoteIndex: 0, currentOctaveStep: 0, arpDirection: 1, arpUpDownState: 0, arpRafId: null, lastPlayedMidi: null, arpLastVisualIndex: -1, lastNoteOnTime: 0 },
-    { id: 1, isNoteOn: false, isHeld: false, totalAngle: Math.random()*MAX_TOTAL_ANGLE, lastDragAngle: 0, currentOctave: 3, dom: {}, touchId: null, baseColor: [0,0,0], baseAngle: 0,
+    { id: 1, isNoteOn: false, isHeld: false, totalAngle: Math.random()*MAX_TOTAL_ANGLE, lastDragAngle: 0, currentOctave: 3, dom: {}, touchId: null, baseColor: [0,0,0],
       isArpOn: false, isSweepMode: true, arpNotes: [], isArpHoldOn: false, arpRateMs: 51, arpOctaveRange: 0, feelKnobValue: 0.0, currentFeelPattern: EUCLIDEAN_PATTERNS[0], euclideanStepCounter: 0,
       arpTranspose: 0, arpRunning: false, lastArpStepTime: 0, currentArpNoteIndex: 0, currentOctaveStep: 0, arpDirection: 1, arpUpDownState: 0, arpRafId: null, lastPlayedMidi: null, arpLastVisualIndex: -1, lastNoteOnTime: 0 }
 ];
@@ -651,7 +651,7 @@ function sendMidiMessage(message) {
            const handleFxTouchEnd = (e) => { for(const t of e.changedTouches){ const kE = Object.entries(fxKnobData).find(([id, data])=>data.touchId===t.identifier); if(kE){ kE[1].touchId = null; } } };
            document.querySelectorAll('.fx-knob-container').forEach(k => {
                const id = parseInt(k.dataset.fxId, 10);
-               fxKnobData[id] = { id:id, knobEl:k, indicator:k.querySelector('.indicator'), angle:MIN_FX_ANGLE, value:0.0, isDragging:false, startY:0, touchId:null, baseValue: 0.0 };
+               fxKnobData[id] = { id:id, knobEl:k, indicator:k.querySelector('.indicator'), angle:MIN_FX_ANGLE, value:0.0, isDragging:false, startY:0, touchId:null };
                if(id===2){fxKnobData[id].value=1.0;} else if(id===7){fxKnobData[id].value=0.5;} else if(id===8){fxKnobData[id].value=0.0045;}
                else if(id===9){fxKnobData[id].value=0.0995;} else if(id===10){fxKnobData[id].value=0.8;} else if(id===11){fxKnobData[id].value=0.2;}
                else if(id===13){fxKnobData[id].value=0.5;} else if(id===15){fxKnobData[id].value=0.25;} else if(id===16||id===17){fxKnobData[id].value=0.6463;}
@@ -682,7 +682,6 @@ function sendMidiMessage(message) {
 
                // Set the LFO destination
                lfoState[activePatchingLfo].dest = targetFxId;
-               knobState[knobId].baseAngle = knobState[knobId].totalAngle;
                const targetName = KNOB_ID_TO_NAME_MAP[targetFxId] || "UNKNOWN";
                document.getElementById(`lfo-dest-display-${activePatchingLfo}`).textContent = targetName;
                if (synthNode) {
@@ -1302,45 +1301,50 @@ lfoState.forEach((lfo, lfoIndex) => {
            if(orderCont){orderCont.classList[anyOn?'remove':'add']('arp-disabled');}
        }
         function updateLfoVisuals(lfoOutputs) {
-            // --- NEW UNIFIED MODULATION LOGIC ---
-            lfoState.forEach((lfo, lfoIndex) => {
-                const destId = lfo.dest;
-                if (destId === 0) return; // Skip if destination is OFF
+            const modulatedValues = {}; // key: fxId, value: total modulation amount
 
-                const lfoModValue = lfoOutputs[lfoIndex] || 0;
-
-                // --- Case 1: Modulating a MAIN KNOB ---
-                if (destId >= 30) {
-                    const knobIndex = destId - 30;
-                    const knob = knobState[knobIndex];
-                    const sensitivity = 360; // Jump range for Square/Random = 1 octave
-
-                    // Smooth waves (Sine, Tri, Saw) ADD to the angle for a sweep
-                    if (lfo.wave <= 1 || lfo.wave >= 3 && lfo.wave <= 4) {
-                         const sweepSpeed = 20;
-                         knob.totalAngle += lfoModValue * sweepSpeed;
+            // Step 1: Accumulate modulation for each destination
+            lfoState.forEach((lfo, index) => {
+                if (lfo.dest !== 0) { // If not OFF
+                    if (!modulatedValues[lfo.dest]) {
+                        modulatedValues[lfo.dest] = 0;
                     }
-                    // Stepped waves (Square, Random) SET the angle for a jump
-                    else if (lfo.wave === 2 || lfo.wave === 5) {
-                        knob.totalAngle = knob.baseAngle + (lfoModValue * sensitivity);
-                    }
-                    updateStateFromTotalAngle(knobIndex);
-                }
-                // --- Case 2: Modulating an FX KNOB ---
-                else if (fxKnobData[destId]) {
-                    const knobData = fxKnobData[destId];
-                    const depth = lfoState[lfoIndex].depth;
-                    
-                    // Calculate the new value based on the snapshot position
-                    const finalValue = knobData.baseValue + (lfoModValue * depth);
-
-                    if (knobData.indicator) {
-                        const clampedValue = Math.max(0, Math.min(1, finalValue));
-                        const newAngle = MIN_FX_ANGLE + clampedValue * (MAX_FX_ANGLE - MIN_FX_ANGLE);
-                        knobData.indicator.style.transform = `rotate(${newAngle}deg)`;
-                    }
+                    modulatedValues[lfo.dest] += lfoOutputs[index];
                 }
             });
+
+            // --- NEW: Handle Main Oscillator Modulation ---
+            if (modulatedValues[30] !== undefined) {
+                const knob = knobState[0];
+                const lfoModAmount = modulatedValues[30] * 20; // Adjust '20' to change sensitivity
+                knob.totalAngle += lfoModAmount;
+                updateStateFromTotalAngle(0);
+            }
+            if (modulatedValues[31] !== undefined) {
+                const knob = knobState[1];
+                const lfoModAmount = modulatedValues[31] * 20; // Adjust '20' to change sensitivity
+                knob.totalAngle += lfoModAmount;
+                updateStateFromTotalAngle(1);
+            }
+            // --- END OF NEW CODE ---
+
+
+            // Step 2: Apply the final calculated value to each visual indicator for FX knobs
+            for (const knobIdStr in fxKnobData) {
+                const knobId = parseInt(knobIdStr, 10);
+                const knobData = fxKnobData[knobId];
+                let finalValue = knobData.value;
+
+                if (modulatedValues[knobId] !== undefined) {
+                    finalValue += modulatedValues[knobId];
+                }
+
+                if (knobData.indicator) {
+                    finalValue = Math.max(0, Math.min(1, finalValue));
+                    const newAngle = MIN_FX_ANGLE + finalValue * (MAX_FX_ANGLE - MIN_FX_ANGLE);
+                    knobData.indicator.style.transform = `rotate(${newAngle}deg)`;
+                }
+            }
         }
       
       function toggleEasterEggMode() {
@@ -1950,14 +1954,7 @@ function generateAndApplyRandomSound() {
                 
                 // --- Validation ---
                 const ownLfoKnobs = Object.keys(LFO_KNOB_MAP).filter(id => LFO_KNOB_MAP[id].lfo === activePatchingLfo).map(id => parseInt(id));
-                if (targetFxId >= 30) {
-        // It's a main knob, so save its angle.
-        const knobIndex = targetFxId - 30;
-        knobState[knobIndex].baseAngle = knobState[knobIndex].totalAngle;
-    } else if (fxKnobData[targetFxId]) {
-        // It's a regular FX knob, so save its value (0.0 to 1.0).
-        fxKnobData[targetFxId].baseValue = fxKnobData[targetFxId].value;
-    }
+                
                 if (targetFxId === sourceFxId) {
                     // Clicked the source knob again to cancel or reset
                     lfoState[activePatchingLfo].dest = 0; // Set to OFF
@@ -2304,7 +2301,6 @@ function generateAndApplyRandomSound() {
            }
        });
        init();
-
 
 
 
