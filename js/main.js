@@ -26,7 +26,9 @@
         const LFO_WAVEFORMS = ['SINE', 'TRI', 'SQUARE', 'SAW UP', 'SAW DN', 'RANDOM'];
         let lfoAnimationId = null;
         let activePatchingLfo = null; // NEW: null or the index (0-3) of the LFO being patched
-        let KNOB_ID_TO_NAME_MAP = {}; // NEW: Populated at init
+        let KNOB_ID_TO_NAME_MAP = {}; 
+            KNOB_ID_TO_NAME_MAP[30] = 'KNOB 1;
+            KNOB_ID_TO_NAME_MAP[31] = 'KNOB 2';
         const lfoState = [
     { id: 0, rate: 0.5, depth: 0, wave: 0, dest: 0, phase: 0, lastRandom: 0, output: 0 },
     { id: 1, rate: 0.5, depth: 0, wave: 0, dest: 0, phase: 0, lastRandom: 0, output: 0 },
@@ -1285,7 +1287,23 @@ lfoState.forEach((lfo, lfoIndex) => {
                 }
             });
 
-            // Step 2: Apply the final calculated value to each visual indicator
+            // --- NEW: Handle Main Oscillator Modulation ---
+            if (modulatedValues[30] !== undefined) {
+                const knob = knobState[0];
+                const lfoModAmount = modulatedValues[30] * 20; // Adjust '20' to change sensitivity
+                knob.totalAngle += lfoModAmount;
+                updateStateFromTotalAngle(0);
+            }
+            if (modulatedValues[31] !== undefined) {
+                const knob = knobState[1];
+                const lfoModAmount = modulatedValues[31] * 20; // Adjust '20' to change sensitivity
+                knob.totalAngle += lfoModAmount;
+                updateStateFromTotalAngle(1);
+            }
+            // --- END OF NEW CODE ---
+
+
+            // Step 2: Apply the final calculated value to each visual indicator for FX knobs
             for (const knobIdStr in fxKnobData) {
                 const knobId = parseInt(knobIdStr, 10);
                 const knobData = fxKnobData[knobId];
@@ -1295,7 +1313,6 @@ lfoState.forEach((lfo, lfoIndex) => {
                     finalValue += modulatedValues[knobId];
                 }
 
-                // We only apply visual updates to knobs with indicators
                 if (knobData.indicator) {
                     finalValue = Math.max(0, Math.min(1, finalValue));
                     const newAngle = MIN_FX_ANGLE + finalValue * (MAX_FX_ANGLE - MIN_FX_ANGLE);
@@ -2239,6 +2256,7 @@ function generateAndApplyRandomSound() {
            }
        });
        init();
+
 
 
 
