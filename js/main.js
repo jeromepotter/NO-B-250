@@ -675,6 +675,24 @@ function sendMidiMessage(message) {
        }
       
      function handleInteractionStart(e) {
+            if (isLfoMode && activePatchingLfo !== null) {
+               const knobElement = e.currentTarget;
+               const knobId = parseInt(knobElement.dataset.knobId, 10);
+               const targetFxId = knobId === 0 ? 30 : 31; // Convert knob index to our new ID
+
+               // Set the LFO destination
+               lfoState[activePatchingLfo].dest = targetFxId;
+               const targetName = KNOB_ID_TO_NAME_MAP[targetFxId] || "UNKNOWN";
+               document.getElementById(`lfo-dest-display-${activePatchingLfo}`).textContent = targetName;
+               if (synthNode) {
+                   synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: activePatchingLfo, param: 'dest', value: targetFxId } });
+               }
+
+               // Stop patching mode and draw the cable
+               stopLfoPatching();
+               drawLfoCables();
+               return; 
+           }
     // Prevent mouse events immediately after touch events (mobile double-trigger fix)
     if (e.type === 'touchstart') {
         e.preventDefault();
@@ -1741,6 +1759,12 @@ function generateAndApplyRandomSound() {
             document.querySelectorAll('.blinking-lfo-source, .blinking-lfo-target').forEach(el => {
                 el.classList.remove('blinking-lfo-source', 'blinking-lfo-target');
             });
+            // Ensure it's also removed from main knobs
+            knobState.forEach(knob => {
+                if (knob.dom.knob) {
+                    knob.dom.knob.classList.remove('blinking-lfo-target');
+                }
+            });
             activePatchingLfo = null;
         }
 
@@ -1763,15 +1787,22 @@ function generateAndApplyRandomSound() {
                 .filter(id => LFO_KNOB_MAP[id].lfo === lfoIndex)
                 .map(id => parseInt(id, 10));
 
-            // Make potential targets blink
+           // Make potential targets blink
             for (const id in fxKnobData) {
                 const numId = parseInt(id, 10);
                 // A target is valid if it's NOT one of the current LFO's own knobs
                 if (!ownLfoKnobs.includes(numId)) {
                     fxKnobData[id].knobEl.classList.add('blinking-lfo-target');
                 }
-            }
-        }
+            } 
+
+            // Also make the main knobs blink
+            knobState.forEach(knob => {
+                if (knob.dom.knob) {
+                    knob.dom.knob.classList.add('blinking-lfo-target');
+                }
+            });
+        } 
       function drawLfoCables() {
         if (!isLfoMode) {
              for (let i = 0; i < 4; i++) {
@@ -1814,7 +1845,13 @@ function generateAndApplyRandomSound() {
                 } 
                 // State 3: Cable is patched to a destination.
                 else { 
-                    const destKnobEl = fxKnobData[lfo.dest]?.knobEl;
+                   let destKnobEl;
+                    if (lfo.dest >= 30) { // Check if the destination is a main knob
+                        const knobIndex = lfo.dest - 30; // Convert ID (30, 31) to index (0, 1)
+                        destKnobEl = knobState[knobIndex]?.dom?.knob;
+                    } else { // Otherwise, it's a regular FX knob
+                        destKnobEl = fxKnobData[lfo.dest]?.knobEl;
+                    }
                     // Also handles the ARP-off case where the element is hidden
                     if (!destKnobEl || destKnobEl.offsetParent === null) {
                          const direction = (startX > containerRect.width / 2) ? 1 : -1;
@@ -2256,6 +2293,7 @@ function generateAndApplyRandomSound() {
            }
        });
        init();
+
 
 
 
