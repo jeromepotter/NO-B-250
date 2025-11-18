@@ -170,8 +170,8 @@ for (let l = 0; l < 4; l++) {
                     case 5: val = targetLfo.lastRandom; break;
                 }
                 rawLfoOutputs[targetLfoInfo.lfo] = val * targetLfo.depth;
-            } else if (param === 'depth') {
-                const modulatedDepth = Math.max(0, Math.min(1, baseRate + rawLfoOutputs[l]));
+           } else if (param === 'depth') {
+                const modulatedDepth = Math.max(0, Math.min(1, targetLfo.depth + rawLfoOutputs[l]));
                 rawLfoOutputs[targetLfoInfo.lfo] = rawLfoOutputs[targetLfoInfo.lfo] * (modulatedDepth / (targetLfo.depth || 1));
             } else if (param === 'wave') {
                 const baseWave = targetLfo.wave;
@@ -364,3 +364,4 @@ return true;
 }
 }
 registerProcessor('synth-processor', SynthProcessor);
+
