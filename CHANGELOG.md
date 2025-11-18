@@ -3,18 +3,24 @@
 All notable changes to NO-B 250 will be documented in this file.
 
 ## [11.17] - 2025-11-17
+
 ### Changed
 - Repositioned reverb and delay in FX chain
 - Changed OSC 3 Mix to additive mode
 - Updated Chorus to Juno-106 emulation
 - Discrete panning for the 2 oscillators
+- Random Arp and Random Sound default range 
 - Updated manual
 
 ### Fixed
+- A bug where modulating an LFO's depth with another LFO would crash the audio engine
 - Removed pops from delay time changes
 - Fixed pops in tremolo cycle
 - Fixed visual glitch with mobile knob artifacts
 - Added voice variance to detune knob
+
+### Added
+-automatic audio-resume feature on mobile devices. 
 
 ## [11.16] - 2025-11-16
 ### Added
@@ -35,8 +41,3 @@ All notable changes to NO-B 250 will be documented in this file.
 
 ---
 
-## Version History
-
-- **11.17** - Latest release
-- **11.16** - Preset system improvements
-- **11.15** - Mobile and MIDI fixes
