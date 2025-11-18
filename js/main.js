@@ -1830,14 +1830,22 @@ function generateAndApplyRandomSound() {
        function init(){
            // --- Get all DOM elements ---
            synthContainer = document.getElementById('synth-container');
-              synthContainer.addEventListener('click', () => {
-           if (audioContext && audioContext.state === 'suspended') {
-               audioContext.resume();
-            }
-           });
            powerSwitch = document.getElementById('power-switch');
            keySelector = document.getElementById('keySelector');
            scaleSelector = document.getElementById('scaleSelector');
+              // --- ROBUST MOBILE AUDIO RESUME ---
+               // Listens for any touch or click anywhere on the screen to wake the engine
+          const resumeAudio = () => {
+        // Check for 'suspended' or 'interrupted' (iOS specific) states
+          if (isPowerOn && audioContext && (audioContext.state === 'suspended' || audioContext.state === 'interrupted')) {
+            audioContext.resume();
+        }
+    };
+    
+    // 'touchstart' is often required for iOS; 'click' covers desktop/other cases
+    document.addEventListener('touchstart', resumeAudio, { passive: true });
+    document.addEventListener('click', resumeAudio);
+    // --- END AUDIO RESUME ---
            modalOverlay = document.getElementById('how-to-modal-overlay');
            howToButton = document.getElementById('how-to-button-header');
            closeModalButton = document.getElementById('close-modal-button');
@@ -2233,6 +2241,7 @@ function generateAndApplyRandomSound() {
        }
       
        init();
+
 
 
 
