@@ -1786,20 +1786,21 @@ function generateAndApplyRandomSound() {
             const sourceKnobEl = fxKnobData[sourceFxId].knobEl;
             sourceKnobEl.classList.add('blinking-lfo-source');
 
-            // --- Define invalid targets for THIS LFO ---
-            const ownLfoKnobs = Object.keys(LFO_KNOB_MAP)
-                .filter(id => LFO_KNOB_MAP[id].lfo === lfoIndex)
-                .map(id => parseInt(id, 10));
+            // --- CORRECTED Validation Logic ---
+// Find only the source LFO's own DEST knob ID. This is the only invalid target.
+const ownDestKnobId = parseInt(Object.keys(LFO_KNOB_MAP).find(id => {
+    const info = LFO_KNOB_MAP[id];
+    return info.lfo === lfoIndex && info.param === 'dest';
+}));
 
-           // Make potential targets blink
-            for (const id in fxKnobData) {
-                const numId = parseInt(id, 10);
-                // A target is valid if it's NOT one of the current LFO's own knobs
-                if (!ownLfoKnobs.includes(numId)) {
-                    fxKnobData[id].knobEl.classList.add('blinking-lfo-target');
-                }
-            } 
-
+// Make potential targets blink
+for (const id in fxKnobData) {
+    const numId = parseInt(id, 10);
+    // A target is valid as long as it's NOT the source's own destination knob.
+    if (numId !== ownDestKnobId) {
+        fxKnobData[id].knobEl.classList.add('blinking-lfo-target');
+    }
+}
             // Also make the main knobs blink
             knobState.forEach(knob => {
                 if (knob.dom.knob) {
@@ -2304,6 +2305,7 @@ function generateAndApplyRandomSound() {
            }
        });
        init();
+
 
 
 
