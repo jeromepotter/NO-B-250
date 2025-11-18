@@ -1830,6 +1830,11 @@ function generateAndApplyRandomSound() {
        function init(){
            // --- Get all DOM elements ---
            synthContainer = document.getElementById('synth-container');
+              synthContainer.addEventListener('click', () => {
+              if (audioContext && audioContext.state === 'suspended') {
+             audioContext.resume();
+               }
+             });
            powerSwitch = document.getElementById('power-switch');
            keySelector = document.getElementById('keySelector');
            scaleSelector = document.getElementById('scaleSelector');
@@ -2228,4 +2233,5 @@ function generateAndApplyRandomSound() {
        }
       
        init();
+
 
