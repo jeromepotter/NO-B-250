@@ -26,9 +26,7 @@
         const LFO_WAVEFORMS = ['SINE', 'TRI', 'SQUARE', 'SAW UP', 'SAW DN', 'RANDOM'];
         let lfoAnimationId = null;
         let activePatchingLfo = null; // NEW: null or the index (0-3) of the LFO being patched
-        let KNOB_ID_TO_NAME_MAP = {}; 
-            KNOB_ID_TO_NAME_MAP[30] = 'KNOB 1';
-            KNOB_ID_TO_NAME_MAP[31] = 'KNOB 2';
+        let KNOB_ID_TO_NAME_MAP = {}; // NEW: Populated at init
         const lfoState = [
     { id: 0, rate: 0.5, depth: 0, wave: 0, dest: 0, phase: 0, lastRandom: 0, output: 0 },
     { id: 1, rate: 0.5, depth: 0, wave: 0, dest: 0, phase: 0, lastRandom: 0, output: 0 },
@@ -675,24 +673,6 @@ function sendMidiMessage(message) {
        }
       
      function handleInteractionStart(e) {
-            if (isLfoMode && activePatchingLfo !== null) {
-               const knobElement = e.currentTarget;
-               const knobId = parseInt(knobElement.dataset.knobId, 10);
-               const targetFxId = knobId === 0 ? 30 : 31; // Convert knob index to our new ID
-
-               // Set the LFO destination
-               lfoState[activePatchingLfo].dest = targetFxId;
-               const targetName = KNOB_ID_TO_NAME_MAP[targetFxId] || "UNKNOWN";
-               document.getElementById(`lfo-dest-display-${activePatchingLfo}`).textContent = targetName;
-               if (synthNode) {
-                   synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: activePatchingLfo, param: 'dest', value: targetFxId } });
-               }
-
-               // Stop patching mode and draw the cable
-               stopLfoPatching();
-               drawLfoCables();
-               return; 
-           }
     // Prevent mouse events immediately after touch events (mobile double-trigger fix)
     if (e.type === 'touchstart') {
         e.preventDefault();
@@ -1305,23 +1285,7 @@ lfoState.forEach((lfo, lfoIndex) => {
                 }
             });
 
-            // --- NEW: Handle Main Oscillator Modulation ---
-            if (modulatedValues[30] !== undefined) {
-                const knob = knobState[0];
-                const lfoModAmount = modulatedValues[30] * 20; // Adjust '20' to change sensitivity
-                knob.totalAngle += lfoModAmount;
-                updateStateFromTotalAngle(0);
-            }
-            if (modulatedValues[31] !== undefined) {
-                const knob = knobState[1];
-                const lfoModAmount = modulatedValues[31] * 20; // Adjust '20' to change sensitivity
-                knob.totalAngle += lfoModAmount;
-                updateStateFromTotalAngle(1);
-            }
-            // --- END OF NEW CODE ---
-
-
-            // Step 2: Apply the final calculated value to each visual indicator for FX knobs
+            // Step 2: Apply the final calculated value to each visual indicator
             for (const knobIdStr in fxKnobData) {
                 const knobId = parseInt(knobIdStr, 10);
                 const knobData = fxKnobData[knobId];
@@ -1331,6 +1295,7 @@ lfoState.forEach((lfo, lfoIndex) => {
                     finalValue += modulatedValues[knobId];
                 }
 
+                // We only apply visual updates to knobs with indicators
                 if (knobData.indicator) {
                     finalValue = Math.max(0, Math.min(1, finalValue));
                     const newAngle = MIN_FX_ANGLE + finalValue * (MAX_FX_ANGLE - MIN_FX_ANGLE);
@@ -1759,12 +1724,6 @@ function generateAndApplyRandomSound() {
             document.querySelectorAll('.blinking-lfo-source, .blinking-lfo-target').forEach(el => {
                 el.classList.remove('blinking-lfo-source', 'blinking-lfo-target');
             });
-            // Ensure it's also removed from main knobs
-            knobState.forEach(knob => {
-                if (knob.dom.knob) {
-                    knob.dom.knob.classList.remove('blinking-lfo-target');
-                }
-            });
             activePatchingLfo = null;
         }
 
@@ -1787,22 +1746,15 @@ function generateAndApplyRandomSound() {
                 .filter(id => LFO_KNOB_MAP[id].lfo === lfoIndex)
                 .map(id => parseInt(id, 10));
 
-           // Make potential targets blink
+            // Make potential targets blink
             for (const id in fxKnobData) {
                 const numId = parseInt(id, 10);
                 // A target is valid if it's NOT one of the current LFO's own knobs
                 if (!ownLfoKnobs.includes(numId)) {
                     fxKnobData[id].knobEl.classList.add('blinking-lfo-target');
                 }
-            } 
-
-            // Also make the main knobs blink
-            knobState.forEach(knob => {
-                if (knob.dom.knob) {
-                    knob.dom.knob.classList.add('blinking-lfo-target');
-                }
-            });
-        } 
+            }
+        }
       function drawLfoCables() {
         if (!isLfoMode) {
              for (let i = 0; i < 4; i++) {
@@ -1845,13 +1797,7 @@ function generateAndApplyRandomSound() {
                 } 
                 // State 3: Cable is patched to a destination.
                 else { 
-                   let destKnobEl;
-                    if (lfo.dest >= 30) { // Check if the destination is a main knob
-                        const knobIndex = lfo.dest - 30; // Convert ID (30, 31) to index (0, 1)
-                        destKnobEl = knobState[knobIndex]?.dom?.knob;
-                    } else { // Otherwise, it's a regular FX knob
-                        destKnobEl = fxKnobData[lfo.dest]?.knobEl;
-                    }
+                    const destKnobEl = fxKnobData[lfo.dest]?.knobEl;
                     // Also handles the ARP-off case where the element is hidden
                     if (!destKnobEl || destKnobEl.offsetParent === null) {
                          const direction = (startX > containerRect.width / 2) ? 1 : -1;
@@ -2293,7 +2239,6 @@ function generateAndApplyRandomSound() {
            }
        });
        init();
-
 
 
 
