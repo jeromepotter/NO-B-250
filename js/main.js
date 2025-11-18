@@ -1851,23 +1851,36 @@ function generateAndApplyRandomSound() {
                     endX = startX + (500 * direction);
                     endY = startY + 100; // Give it a slight droop
                 } 
-                // State 3: Cable is patched to a destination.
-                else { 
-                   let destKnobEl;
-                    if (lfo.dest >= 30) { // Check if the destination is a main knob
-                        const knobIndex = lfo.dest - 30; // Convert ID (30, 31) to index (0, 1)
-                        destKnobEl = knobState[knobIndex]?.dom?.knob;
-                    } else { // Otherwise, it's a regular FX knob
-                        destKnobEl = fxKnobData[lfo.dest]?.knobEl;
-                    }
-                    // Also handles the ARP-off case where the element is hidden
+                 else { // State 3: Cable is patched to a destination.
+                    let destKnobEl;
                     const destId = lfo.dest;
-                   const isArpKnob = destId >= 16 && destId <= 25;
 
-                        if (!destKnobEl || (isArpKnob && destKnobEl.offsetParent === null)) {
-                         const direction = (startX > containerRect.width / 2) ? 1 : -1;
-                         endX = startX + (250 * direction);
-                         endY = startY + 80;
+                    if (destId >= 30) {
+                        const knobIndex = destId - 30;
+                        destKnobEl = knobState[knobIndex]?.dom?.knob;
+                    } else {
+                        destKnobEl = fxKnobData[destId]?.knobEl;
+                    }
+
+                    // --- NEW, ROBUST VISIBILITY CHECK ---
+                    let shouldParkCable = false;
+                    if (!destKnobEl) {
+                        shouldParkCable = true; // Park if the element doesn't exist at all
+                    } else {
+                        const isArpKnob = destId >= 16 && destId <= 25;
+                        if (isArpKnob) {
+                            // The reliable way to check: is the ARP section disabled?
+                            const arpContainer = destKnobEl.closest('.arp-controls');
+                            if (arpContainer && arpContainer.classList.contains('arp-disabled')) {
+                                shouldParkCable = true;
+                            }
+                        }
+                    }
+
+                    if (shouldParkCable) {
+                        const direction = (startX > containerRect.width / 2) ? 1 : -1;
+                        endX = startX + (250 * direction);
+                        endY = startY + 80;
                     } else {
                         // Normal patching to a visible knob
                         const destRect = destKnobEl.getBoundingClientRect();
@@ -2304,6 +2317,7 @@ function generateAndApplyRandomSound() {
            }
        });
        init();
+
 
 
 
