@@ -27,6 +27,8 @@
         let lfoAnimationId = null;
         let activePatchingLfo = null; // NEW: null or the index (0-3) of the LFO being patched
         let KNOB_ID_TO_NAME_MAP = {}; // NEW: Populated at init
+         KNOB_ID_TO_NAME_MAP[200] = 'KNOB 1';
+         KNOB_ID_TO_NAME_MAP[201] = 'KNOB 2';
         const lfoState = [
     { id: 0, rate: 0.5, depth: 0, wave: 0, dest: 0, phase: 0, lastRandom: 0, output: 0 },
     { id: 1, rate: 0.5, depth: 0, wave: 0, dest: 0, phase: 0, lastRandom: 0, output: 0 },
@@ -45,6 +47,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             114: { lfo: 0, param: 'dest' }, 115: { lfo: 1, param: 'dest' }, 102: { lfo: 2, param: 'dest' }, 107: { lfo: 3, param: 'dest' },
         };
       
+
        // --- Constants ---
        const NOTES=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
        const SCALES={'Major':[0,2,4,5,7,9,11],'Minor':[0,2,3,5,7,8,10],'Dorian':[0,2,3,5,7,9,10],'Phrygian':[0,1,3,5,7,8,10],'Lydian':[0,2,4,6,7,9,11],'Mixolydian':[0,2,4,5,7,9,10],'Locrian':[0,1,3,5,6,8,10],'Harmonic Minor':[0,2,3,5,7,8,11],'Melodic Minor':[0,2,3,5,7,9,11],'Major Pentatonic':[0,2,4,7,9],'Minor Pentatonic':[0,3,5,7,10],'Blues':[0,3,5,6,7,10],'Whole Tone':[0,2,4,6,8,10],'Chromatic':[0,1,2,3,4,5,6,7,8,9,10,11]};
@@ -967,13 +970,13 @@ let modulatedFeelPattern = state.currentFeelPattern;
 lfoState.forEach((lfo, lfoIndex) => {
     if (lfo.dest === 0 || lfo.depth < 0.001) return;
 
-    // Use the LIVE output from the audio worklet
     const lfoModValue = liveLfoOutputs[lfoIndex] || 0;
     
     const destIsArpRate = lfo.dest === (16 + knobId);
     const destIsArpTranspose = lfo.dest === (24 + knobId);
     const destIsArpOcts = lfo.dest === (18 + knobId);
     const destIsArpFeel = lfo.dest === (22 + knobId);
+    const destIsMainKnob = lfo.dest === (200 + knobId); // NEW
 
     if (destIsArpRate) {
         const baseValue = fxKnobData[16 + knobId]?.value ?? 0.5;
@@ -984,14 +987,12 @@ lfoState.forEach((lfo, lfoIndex) => {
         const baseValue = fxKnobData[24 + knobId]?.value ?? 0.5;
         const finalValue = Math.max(0, Math.min(1, baseValue + lfoModValue));
         modulatedTranspose = Math.floor((finalValue * 24) - 12);
-        // Update the display to show live modulation
         if (state.dom.transposeDisplay) state.dom.transposeDisplay.textContent = modulatedTranspose;
     }
     if (destIsArpOcts) {
         const baseValue = fxKnobData[18 + knobId]?.value ?? 0;
         const finalValue = Math.max(0, Math.min(1, baseValue + lfoModValue));
         modulatedOctaveRange = Math.min(3, Math.floor(finalValue * 4));
-        // Update the display
         if (state.dom.octsDisplay) state.dom.octsDisplay.textContent = modulatedOctaveRange;
     }
     if (destIsArpFeel) {
@@ -999,8 +1000,14 @@ lfoState.forEach((lfo, lfoIndex) => {
         const finalValue = Math.max(0, Math.min(1, baseValue + lfoModValue));
         const pIndex = Math.min(NUM_FEEL_PATTERNS - 1, Math.floor(finalValue * NUM_FEEL_PATTERNS));
         modulatedFeelPattern = EUCLIDEAN_PATTERNS[pIndex];
-        // Update the display
         if (state.dom.feelDisplay) state.dom.feelDisplay.textContent = pIndex + 1;
+    }
+    // NEW: Handle main knob modulation
+    if (destIsMainKnob) {
+        // Convert LFO output to angle change (7 octaves = 2520 degrees)
+        const angleChange = lfoModValue * 2520;
+        state.totalAngle = Math.max(0, Math.min(MAX_TOTAL_ANGLE, state.totalAngle + angleChange));
+        updateStateFromTotalAngle(knobId);
     }
 });
 // --- End of Fix ---
@@ -2241,6 +2248,7 @@ function generateAndApplyRandomSound() {
        }
       
        init();
+
 
 
 
