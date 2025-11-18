@@ -1786,19 +1786,22 @@ function generateAndApplyRandomSound() {
     const sourceKnobEl = fxKnobData[sourceFxId].knobEl;
     sourceKnobEl.classList.add('blinking-lfo-source');
 
-    // --- FIXED: Only exclude THIS LFO's destination selector (not all its knobs) ---
-    const invalidTargetId = parseInt(sourceFxId, 10);
+    // --- FINAL CORRECTED Validation: Prevent an LFO from modulating itself ---
+    // Get all knob IDs that belong to the source LFO. These are all invalid targets.
+    const invalidTargetIds = Object.keys(LFO_KNOB_MAP)
+        .filter(id => LFO_KNOB_MAP[id].lfo === lfoIndex)
+        .map(id => parseInt(id, 10));
 
-   // Make potential targets blink
+    // Make potential targets blink
     for (const id in fxKnobData) {
         const numId = parseInt(id, 10);
-        // A target is valid if it's NOT this LFO's own destination selector
-        if (numId !== invalidTargetId) {
+        // A target is valid only if it's NOT one of the source LFO's own knobs.
+        if (!invalidTargetIds.includes(numId)) {
             fxKnobData[id].knobEl.classList.add('blinking-lfo-target');
         }
-    } 
+    }
 
-    // Also make the main knobs blink
+    // Also make the main knobs blink (as they are always valid targets)
     knobState.forEach(knob => {
         if (knob.dom.knob) {
             knob.dom.knob.classList.add('blinking-lfo-target');
@@ -1932,23 +1935,34 @@ function generateAndApplyRandomSound() {
             });
 
 
-            synthContainer.addEventListener('click', (e) => {
-                if (!isLfoMode || activePatchingLfo === null) return;
-                
-                const targetKnobEl = e.target.closest('.fx-knob-container');
-                if (!targetKnobEl) {
-                    // If user clicks outside a knob, cancel patching
-                    stopLfoPatching();
-                    return;
-                }
-                
-                const targetFxId = parseInt(targetKnobEl.dataset.fxId, 10);
-                const sourceKnobInfo = Object.values(LFO_KNOB_MAP).find(d => d.lfo === activePatchingLfo && d.param === 'dest');
-                const sourceFxId = parseInt(Object.keys(LFO_KNOB_MAP).find(key => LFO_KNOB_MAP[key] === sourceKnobInfo));
-                
-                // --- Validation ---
-                const ownLfoKnobs = Object.keys(LFO_KNOB_MAP).filter(id => LFO_KNOB_MAP[id].lfo === activePatchingLfo).map(id => parseInt(id));
-                if (targetFxId >= 30) {
+           synthContainer.addEventListener('click', (e) => {
+    if (!isLfoMode || activePatchingLfo === null) return;
+
+    const targetKnobEl = e.target.closest('.fx-knob-container');
+    if (!targetKnobEl) {
+        // If user clicks outside a knob, cancel patching
+        stopLfoPatching();
+        return;
+    }
+
+    const targetFxId = parseInt(targetKnobEl.dataset.fxId, 10);
+    const sourceKnobInfo = Object.values(LFO_KNOB_MAP).find(d => d.lfo === activePatchingLfo && d.param === 'dest');
+    const sourceFxId = parseInt(Object.keys(LFO_KNOB_MAP).find(key => LFO_KNOB_MAP[key] === sourceKnobInfo));
+
+    // --- FINAL CORRECTED Validation ---
+    // The only invalid target is the source knob itself.
+    if (targetFxId === sourceFxId) {
+        // Clicked the source knob again to cancel or reset
+        lfoState[activePatchingLfo].dest = 0; // Set to OFF
+        document.getElementById(`lfo-dest-display-${activePatchingLfo}`).textContent = 'OFF';
+        if (synthNode) synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: activePatchingLfo, param: 'dest', value: 0 } });
+        stopLfoPatching();
+        drawLfoCables();
+        return;
+    }
+
+    // --- "Snapshot" the starting position of the knob when the patch is made ---
+    if (targetFxId >= 30) {
         // It's a main knob, so save its angle.
         const knobIndex = targetFxId - 30;
         knobState[knobIndex].baseAngle = knobState[knobIndex].totalAngle;
@@ -1956,30 +1970,18 @@ function generateAndApplyRandomSound() {
         // It's a regular FX knob, so save its value (0.0 to 1.0).
         fxKnobData[targetFxId].baseValue = fxKnobData[targetFxId].value;
     }
-                if (targetFxId === sourceFxId) {
-                    // Clicked the source knob again to cancel or reset
-                    lfoState[activePatchingLfo].dest = 0; // Set to OFF
-                    document.getElementById(`lfo-dest-display-${activePatchingLfo}`).textContent = 'OFF';
-                     if (synthNode) synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: activePatchingLfo, param: 'dest', value: 0 } });
-                    stopLfoPatching();
-                     drawLfoCables();
-                    return;
-                }
+    
+    // --- Finalize the Patch ---
+    lfoState[activePatchingLfo].dest = targetFxId;
+    const targetName = KNOB_ID_TO_NAME_MAP[targetFxId] || "UNKNOWN";
+    document.getElementById(`lfo-dest-display-${activePatchingLfo}`).textContent = targetName;
+    if (synthNode) {
+        synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: activePatchingLfo, param: 'dest', value: targetFxId } });
+    }
 
-                if (ownLfoKnobs.includes(targetFxId)) {
-                    // Invalid target (one of its own knobs)
-                    return;
-                }
-
-                // --- Valid Target Selected ---
-                lfoState[activePatchingLfo].dest = targetFxId;
-                const targetName = KNOB_ID_TO_NAME_MAP[targetFxId] || "UNKNOWN";
-                document.getElementById(`lfo-dest-display-${activePatchingLfo}`).textContent = targetName;
-                 if (synthNode) synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: activePatchingLfo, param: 'dest', value: targetFxId } });
-
-                stopLfoPatching();
-                 drawLfoCables();
-            });
+    stopLfoPatching();
+    drawLfoCables();
+});
 
 
             const mainHeader = document.querySelector('.main-header h1');
@@ -2302,6 +2304,7 @@ function generateAndApplyRandomSound() {
            }
        });
        init();
+
 
 
 
