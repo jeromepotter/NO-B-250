@@ -9,7 +9,8 @@ All notable changes to NO-B 250 will be documented in this file.
 - Changed OSC 3 Mix to additive mode
 - Updated Chorus to Juno-106 emulation
 - Discrete panning for the 2 oscillators
-- Random Arp and Random Sound default range 
+- Random Arp and Random Sound default range
+- User preset filename structure to include "n-ob" 
 - Updated manual
 
 ### Fixed
