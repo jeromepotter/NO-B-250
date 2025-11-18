@@ -968,14 +968,6 @@ function sendMidiMessage(message) {
          function updateArpeggiator(knobId, timestamp) {
            const state = knobState[knobId];
            if (!state || !state.arpRunning || !synthNode) return;
-                // If in NOTE REPEAT mode, continuously update the note from the knob
-           if (!state.isSweepMode) {
-               const currentMidi = getMidiNote(knobId);
-               // Only update if the note has actually changed
-               if (state.arpNotes.length === 0 || state.arpNotes[0].midi !== currentMidi) {
-                   state.arpNotes = [{ midi: currentMidi, active: true }];
-               }
-           }
     
            if ((!state.isHeld && !state.isArpHoldOn) || state.arpNotes.length === 0) {
                stopArpeggiator(knobId);
@@ -1851,36 +1843,20 @@ function generateAndApplyRandomSound() {
                     endX = startX + (500 * direction);
                     endY = startY + 100; // Give it a slight droop
                 } 
-                 else { // State 3: Cable is patched to a destination.
-                    let destKnobEl;
-                    const destId = lfo.dest;
-
-                    if (destId >= 30) {
-                        const knobIndex = destId - 30;
+                // State 3: Cable is patched to a destination.
+                else { 
+                   let destKnobEl;
+                    if (lfo.dest >= 30) { // Check if the destination is a main knob
+                        const knobIndex = lfo.dest - 30; // Convert ID (30, 31) to index (0, 1)
                         destKnobEl = knobState[knobIndex]?.dom?.knob;
-                    } else {
-                        destKnobEl = fxKnobData[destId]?.knobEl;
+                    } else { // Otherwise, it's a regular FX knob
+                        destKnobEl = fxKnobData[lfo.dest]?.knobEl;
                     }
-
-                    // --- NEW, ROBUST VISIBILITY CHECK ---
-                    let shouldParkCable = false;
-                    if (!destKnobEl) {
-                        shouldParkCable = true; // Park if the element doesn't exist at all
-                    } else {
-                        const isArpKnob = destId >= 16 && destId <= 25;
-                        if (isArpKnob) {
-                            // The reliable way to check: is the ARP section disabled?
-                            const arpContainer = destKnobEl.closest('.arp-controls');
-                            if (arpContainer && arpContainer.classList.contains('arp-disabled')) {
-                                shouldParkCable = true;
-                            }
-                        }
-                    }
-
-                    if (shouldParkCable) {
-                        const direction = (startX > containerRect.width / 2) ? 1 : -1;
-                        endX = startX + (250 * direction);
-                        endY = startY + 80;
+                    // Also handles the ARP-off case where the element is hidden
+                    if (!destKnobEl || destKnobEl.offsetParent === null) {
+                         const direction = (startX > containerRect.width / 2) ? 1 : -1;
+                         endX = startX + (250 * direction);
+                         endY = startY + 80;
                     } else {
                         // Normal patching to a visible knob
                         const destRect = destKnobEl.getBoundingClientRect();
@@ -2317,11 +2293,6 @@ function generateAndApplyRandomSound() {
            }
        });
        init();
-
-
-
-
-
 
 
 
