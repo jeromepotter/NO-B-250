@@ -1302,34 +1302,34 @@ lfoState.forEach((lfo, lfoIndex) => {
            if(orderCont){orderCont.classList[anyOn?'remove':'add']('arp-disabled');}
        }
         function updateLfoVisuals(lfoOutputs) {
-            // --- NEW UNIFIED MODULATION LOGIC ---
+            // --- NEW HYBRID MODULATION LOGIC ---
             lfoState.forEach((lfo, lfoIndex) => {
                 const destId = lfo.dest;
                 if (destId === 0) return; // Skip if destination is OFF
 
                 const lfoModValue = lfoOutputs[lfoIndex] || 0;
+                const depth = lfoState[lfoIndex].depth;
 
                 // --- Case 1: Modulating a MAIN KNOB ---
                 if (destId >= 30) {
                     const knobIndex = destId - 30;
                     const knob = knobState[knobIndex];
-                    const sensitivity = 360; // Jump range for Square/Random = 1 octave
-
-                    // Smooth waves (Sine, Tri, Saw) ADD to the angle for a sweep
-                    if (lfo.wave <= 1 || lfo.wave >= 3 && lfo.wave <= 4) {
-                         const sweepSpeed = 20;
-                         knob.totalAngle += lfoModValue * sweepSpeed;
-                    }
-                    // Stepped waves (Square, Random) SET the angle for a jump
-                    else if (lfo.wave === 2 || lfo.wave === 5) {
+                    
+                    // The "Easter Egg": Sine wave ADDs to the angle, creating acceleration
+                    if (lfo.wave === 0) { 
+                        const sweepSpeed = 20; // Keep this sensitivity for the smooth sine sweep
+                        knob.totalAngle += lfoModValue * sweepSpeed;
+                    } 
+                    // All other waves SET the angle for predictable jumps and snaps
+                    else {
+                        const sensitivity = 360 * depth; // Full depth = sweep/jump a full octave
                         knob.totalAngle = knob.baseAngle + (lfoModValue * sensitivity);
                     }
                     updateStateFromTotalAngle(knobIndex);
                 }
-                // --- Case 2: Modulating an FX KNOB ---
+                // --- Case 2: Modulating an FX KNOB (always uses "set" logic) ---
                 else if (fxKnobData[destId]) {
                     const knobData = fxKnobData[destId];
-                    const depth = lfoState[lfoIndex].depth;
                     
                     // Calculate the new value based on the snapshot position
                     const finalValue = knobData.baseValue + (lfoModValue * depth);
@@ -2304,6 +2304,7 @@ function generateAndApplyRandomSound() {
            }
        });
        init();
+
 
 
 
