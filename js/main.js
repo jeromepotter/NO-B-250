@@ -27,7 +27,7 @@
         let lfoAnimationId = null;
         let activePatchingLfo = null; // NEW: null or the index (0-3) of the LFO being patched
         let KNOB_ID_TO_NAME_MAP = {}; 
-            KNOB_ID_TO_NAME_MAP[30] = 'KNOB 1;
+            KNOB_ID_TO_NAME_MAP[30] = 'KNOB 1';
             KNOB_ID_TO_NAME_MAP[31] = 'KNOB 2';
         const lfoState = [
     { id: 0, rate: 0.5, depth: 0, wave: 0, dest: 0, phase: 0, lastRandom: 0, output: 0 },
@@ -2256,6 +2256,7 @@ function generateAndApplyRandomSound() {
            }
        });
        init();
+
 
 
 
