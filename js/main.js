@@ -968,6 +968,14 @@ function sendMidiMessage(message) {
          function updateArpeggiator(knobId, timestamp) {
            const state = knobState[knobId];
            if (!state || !state.arpRunning || !synthNode) return;
+                // If in NOTE REPEAT mode, continuously update the note from the knob
+           if (!state.isSweepMode) {
+               const currentMidi = getMidiNote(knobId);
+               // Only update if the note has actually changed
+               if (state.arpNotes.length === 0 || state.arpNotes[0].midi !== currentMidi) {
+                   state.arpNotes = [{ midi: currentMidi, active: true }];
+               }
+           }
     
            if ((!state.isHeld && !state.isArpHoldOn) || state.arpNotes.length === 0) {
                stopArpeggiator(knobId);
@@ -2293,6 +2301,7 @@ function generateAndApplyRandomSound() {
            }
        });
        init();
+
 
 
 
