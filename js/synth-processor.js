@@ -114,85 +114,81 @@ case 'ping':
 
                process(i,o,p){
                    const oL=o[0][0]; const oR=o[0][1]; const sr=sampleRate;
-// --- LFO Processing (with LFO-to-LFO modulation) ---
-let rawLfoOutputs = [0, 0, 0, 0];
-for (let l = 0; l < 4; l++) {
-    const lfo = this.lfoParams[l];
-    if (lfo.depth > 0.001) {
-        let val = 0;
-        switch (lfo.wave) {
-            case 0: val = Math.sin(lfo.phase); break; 
-            case 1: val = Math.asin(Math.sin(lfo.phase)) * (2 / Math.PI); break; 
-            case 2: val = lfo.phase < Math.PI ? 1 : -1; break; 
-            case 3: val = (lfo.phase / Math.PI) - 1; break; 
-            case 4: val = 1 - (lfo.phase / Math.PI); break; 
-            case 5: val = lfo.lastRandom; break; 
-        }
-        rawLfoOutputs[l] = val * lfo.depth;
-        
-        const rateHz = 1 * Math.pow(2000, lfo.rate);
-        const phaseInc = (2 * Math.PI * rateHz) / sr;
-        const oldPhase = lfo.phase;
-        lfo.phase = (lfo.phase + phaseInc) % (2 * Math.PI);
-        if (lfo.wave === 5 && oldPhase > lfo.phase) {
-            lfo.lastRandom = Math.random() * 2 - 1;
-        }
-    }
-}
+// --- NEW 11.17 LFO Processing (with LFO-to-LFO modulation) ---
 
 const LFO_KNOB_IDS = { 101: {lfo: 0, param: 'wave'}, 103: {lfo: 1, param: 'depth'}, 104: {lfo: 2, param: 'depth'}, 105: {lfo: 1, param: 'wave'}, 106: {lfo: 0, param: 'depth'}, 107: {lfo: 3, param: 'dest'}, 108: {lfo: 0, param: 'rate'}, 109: {lfo: 1, param: 'rate'}, 110: {lfo: 2, param: 'rate'}, 111: {lfo: 3, param: 'rate'}, 112: {lfo: 2, param: 'wave'}, 113: {lfo: 3, param: 'wave'}, 100: {lfo: 3, param: 'depth'}, 102: {lfo: 2, param: 'dest'}, 114: {lfo: 0, param: 'dest'}, 115: {lfo: 1, param: 'dest'} };
 
-for (let l = 0; l < 4; l++) {
-    const lfo = this.lfoParams[l];
-    if (lfo.dest !== 0 && rawLfoOutputs[l] !== 0) {
+// Step 1: Calculate the initial, unmodulated output of every LFO
+let initialLfoOutputs = [0, 0, 0, 0];
+for (let i = 0; i < 4; i++) {
+    const lfo = this.lfoParams[i];
+    let val = 0;
+    switch (lfo.wave) {
+        case 0: val = Math.sin(lfo.phase); break;
+        case 1: val = Math.asin(Math.sin(lfo.phase)) * (2 / Math.PI); break;
+        case 2: val = lfo.phase < Math.PI ? 1 : -1; break;
+        case 3: val = (lfo.phase / Math.PI) - 1; break;
+        case 4: val = 1 - (lfo.phase / Math.PI); break;
+        case 5: val = lfo.lastRandom; break;
+    }
+    initialLfoOutputs[i] = val * lfo.depth;
+}
+
+// Step 2: Create a temporary copy of LFO params to be modulated
+let modulatedParams = JSON.parse(JSON.stringify(this.lfoParams));
+
+// Step 3: Apply LFO-to-LFO modulation using the initial outputs
+for (let i = 0; i < 4; i++) {
+    const lfo = this.lfoParams[i];
+    if (lfo.dest !== 0) {
         const targetLfoInfo = LFO_KNOB_IDS[lfo.dest];
         if (targetLfoInfo) {
-            const targetLfo = this.lfoParams[targetLfoInfo.lfo];
-            const param = targetLfoInfo.param;
+            const modAmount = initialLfoOutputs[i];
+            const paramToMod = targetLfoInfo.param;
+            const targetLfoIndex = targetLfoInfo.lfo;
             
-            if (param === 'rate') {
-                const baseRate = targetLfo.rate;
-                const modulatedRate = Math.max(0, Math.min(1, baseRate + rawLfoOutputs[l]));
-                const rateHz = 1 * Math.pow(2000, modulatedRate);
-                const phaseInc = (2 * Math.PI * rateHz) / sr;
-                const oldPhase = targetLfo.phase;
-                targetLfo.phase = (targetLfo.phase + phaseInc) % (2 * Math.PI);
-                if (targetLfo.wave === 5 && oldPhase > targetLfo.phase) {
-                    targetLfo.lastRandom = Math.random() * 2 - 1;
-                }
-                let val = 0;
-                switch (targetLfo.wave) {
-                    case 0: val = Math.sin(targetLfo.phase); break;
-                    case 1: val = Math.asin(Math.sin(targetLfo.phase)) * (2 / Math.PI); break;
-                    case 2: val = targetLfo.phase < Math.PI ? 1 : -1; break;
-                    case 3: val = (targetLfo.phase / Math.PI) - 1; break;
-                    case 4: val = 1 - (targetLfo.phase / Math.PI); break;
-                    case 5: val = targetLfo.lastRandom; break;
-                }
-                rawLfoOutputs[targetLfoInfo.lfo] = val * targetLfo.depth;
-           } else if (param === 'depth') {
-                const modulatedDepth = Math.max(0, Math.min(1, targetLfo.depth + rawLfoOutputs[l]));
-                rawLfoOutputs[targetLfoInfo.lfo] = rawLfoOutputs[targetLfoInfo.lfo] * (modulatedDepth / (targetLfo.depth || 1));
-            } else if (param === 'wave') {
-                const baseWave = targetLfo.wave;
-                const modulatedWaveValue = Math.max(0, Math.min(1, (baseWave / 5) + rawLfoOutputs[l]));
-                const newWave = Math.floor(modulatedWaveValue * 6);
-                let val = 0;
-                switch (newWave) {
-                    case 0: val = Math.sin(targetLfo.phase); break;
-                    case 1: val = Math.asin(Math.sin(targetLfo.phase)) * (2 / Math.PI); break;
-                    case 2: val = targetLfo.phase < Math.PI ? 1 : -1; break;
-                    case 3: val = (targetLfo.phase / Math.PI) - 1; break;
-                    case 4: val = 1 - (targetLfo.phase / Math.PI); break;
-                    case 5: val = targetLfo.lastRandom; break;
-                }
-                rawLfoOutputs[targetLfoInfo.lfo] = val * targetLfo.depth;
+            let currentValue = modulatedParams[targetLfoIndex][paramToMod];
+            let newValue = Math.max(0, Math.min(1, currentValue + modAmount));
+            
+            // For 'wave', we need to snap to an integer
+            if (paramToMod === 'wave') {
+                newValue = Math.floor(newValue * 6);
             }
+            
+            modulatedParams[targetLfoIndex][paramToMod] = newValue;
         }
     }
 }
 
-this.lfoOutputs = rawLfoOutputs;
+// Step 4: Calculate the FINAL LFO outputs using the newly modulated params and advance their phase
+let finalLfoOutputs = [0, 0, 0, 0];
+for (let i = 0; i < 4; i++) {
+    const lfo = this.lfoParams[i]; // Original LFO for phase
+    const mParams = modulatedParams[i]; // Modulated params for calculation
+    
+    let val = 0;
+    switch (Math.floor(mParams.wave)) { // Use the modulated wave
+        case 0: val = Math.sin(lfo.phase); break;
+        case 1: val = Math.asin(Math.sin(lfo.phase)) * (2 / Math.PI); break;
+        case 2: val = lfo.phase < Math.PI ? 1 : -1; break;
+        case 3: val = (lfo.phase / Math.PI) - 1; break;
+        case 4: val = 1 - (lfo.phase / Math.PI); break;
+        case 5: val = lfo.lastRandom; break;
+    }
+    finalLfoOutputs[i] = val * mParams.depth; // Use the modulated depth
+
+    // Advance the phase for the next frame using the modulated rate
+    const rateHz = 1 * Math.pow(2000, mParams.rate);
+    const phaseInc = (2 * Math.PI * rateHz) / sr;
+    const oldPhase = lfo.phase;
+    lfo.phase = (lfo.phase + phaseInc) % (2 * Math.PI);
+    if (lfo.wave === 5 && oldPhase > lfo.phase) {
+        lfo.lastRandom = Math.random() * 2 - 1;
+    }
+}
+
+this.lfoOutputs = finalLfoOutputs;
+// --- END OF NEW LFO Logic ---
 
 // --- Modulation Destination Logic ---
 let modulatedFx = {};
@@ -364,4 +360,5 @@ return true;
 }
 }
 registerProcessor('synth-processor', SynthProcessor);
+
 
