@@ -2006,8 +2006,9 @@ lfoState.forEach((lfo, lfoIndex) => {
         if (!state || !state.dom?.indicator) return;
 
         const baseAngle = state.totalAngle;
-        const lfoMod = modulatedValues[destId] || 0;
-        const modulatedAngle = Math.max(0, Math.min(MAX_TOTAL_ANGLE, baseAngle + lfoMod * MAX_TOTAL_ANGLE));
+        const lfoMod = modulatedValues[destId];
+        const hasActiveModulation = lfoState.some(lfo => lfo.dest === Number(destId));
+        const modulatedAngle = Math.max(0, Math.min(MAX_TOTAL_ANGLE, baseAngle + (lfoMod || 0) * MAX_TOTAL_ANGLE));
         const displayAngle = modulatedAngle % 360;
 
         const knobRadius = state.dom.knob?.offsetHeight ? state.dom.knob.offsetHeight / 2 : 0;
@@ -2025,12 +2026,17 @@ lfoState.forEach((lfo, lfoIndex) => {
                 displayMidi = fullScaleMidi[clampedIndex];
             }
         }
+
+        const midiForUi = (hasActiveModulation || !state.arpRunning || state.lastPlayedMidi === null)
+            ? displayMidi
+            : state.lastPlayedMidi;
+
         if (state.dom.noteDisplay) {
-            state.dom.noteDisplay.textContent = midiToNoteName(displayMidi);
+            state.dom.noteDisplay.textContent = midiToNoteName(midiForUi);
         }
 
         if (state.dom.knob) {
-            const finalRgb = getArpNoteColor(displayMidi);
+            const finalRgb = getArpNoteColor(midiForUi);
             state.dom.knob.style.backgroundColor = `rgb(${finalRgb.r}, ${finalRgb.g}, ${finalRgb.b})`;
         }
 
