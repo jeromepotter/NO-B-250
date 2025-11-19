@@ -115,30 +115,19 @@ case 'ping':
                process(i,o,p){
                    const oL=o[0][0]; const oR=o[0][1]; const sr=sampleRate;
 // --- LFO Processing (with LFO-to-LFO modulation) ---
+// --- LFO Processing (with LFO-to-LFO modulation) ---
 let rawLfoOutputs = [0, 0, 0, 0];
 for (let l = 0; l < 4; l++) {
     const lfo = this.lfoParams[l];
     if (lfo.depth > 0.001) {
         let val = 0;
         switch (lfo.wave) {
-            case 0: // Sine
-                val = Math.sin(lfo.phase); 
-                break; 
-            case 1: // Triangle
-                val = Math.asin(Math.sin(lfo.phase)) * (2 / Math.PI); 
-                break; 
-            case 2: // Square - IMPROVED: Clean switch at phase boundaries
-                val = (lfo.phase < Math.PI) ? 1 : -1; 
-                break; 
-            case 3: // Saw Up
-                val = (lfo.phase / Math.PI) - 1; 
-                break; 
-            case 4: // Saw Down
-                val = 1 - (lfo.phase / Math.PI); 
-                break; 
-            case 5: // Random - IMPROVED: Notch jump (sample & hold)
-                val = lfo.lastRandom; 
-                break; 
+            case 0: val = Math.sin(lfo.phase); break; 
+            case 1: val = Math.asin(Math.sin(lfo.phase)) * (2 / Math.PI); break; 
+            case 2: val = lfo.phase < Math.PI ? 1 : -1; break; 
+            case 3: val = (lfo.phase / Math.PI) - 1; break; 
+            case 4: val = 1 - (lfo.phase / Math.PI); break; 
+            case 5: val = lfo.lastRandom; break; 
         }
         rawLfoOutputs[l] = val * lfo.depth;
         
@@ -146,35 +135,13 @@ for (let l = 0; l < 4; l++) {
         const phaseInc = (2 * Math.PI * rateHz) / sr;
         const oldPhase = lfo.phase;
         lfo.phase = (lfo.phase + phaseInc) % (2 * Math.PI);
-        
-        // Random updates only on phase wrap
         if (lfo.wave === 5 && oldPhase > lfo.phase) {
             lfo.lastRandom = Math.random() * 2 - 1;
         }
     }
 }
 
-const LFO_KNOB_IDS = { 
-    101: {lfo: 0, param: 'wave'}, 
-    103: {lfo: 1, param: 'depth'}, 
-    104: {lfo: 2, param: 'depth'}, 
-    105: {lfo: 1, param: 'wave'}, 
-    106: {lfo: 0, param: 'depth'}, 
-    107: {lfo: 3, param: 'dest'}, 
-    108: {lfo: 0, param: 'rate'}, 
-    109: {lfo: 1, param: 'rate'}, 
-    110: {lfo: 2, param: 'rate'}, 
-    111: {lfo: 3, param: 'rate'}, 
-    112: {lfo: 2, param: 'wave'}, 
-    113: {lfo: 3, param: 'wave'}, 
-    100: {lfo: 3, param: 'depth'}, 
-    102: {lfo: 2, param: 'dest'}, 
-    114: {lfo: 0, param: 'dest'}, 
-    115: {lfo: 1, param: 'dest'},
-    // NEW: Main knobs
-    200: {lfo: 0, param: 'mainknob'}, 
-    201: {lfo: 1, param: 'mainknob'}
-};
+const LFO_KNOB_IDS = { 101: {lfo: 0, param: 'wave'}, 103: {lfo: 1, param: 'depth'}, 104: {lfo: 2, param: 'depth'}, 105: {lfo: 1, param: 'wave'}, 106: {lfo: 0, param: 'depth'}, 107: {lfo: 3, param: 'dest'}, 108: {lfo: 0, param: 'rate'}, 109: {lfo: 1, param: 'rate'}, 110: {lfo: 2, param: 'rate'}, 111: {lfo: 3, param: 'rate'}, 112: {lfo: 2, param: 'wave'}, 113: {lfo: 3, param: 'wave'}, 100: {lfo: 3, param: 'depth'}, 102: {lfo: 2, param: 'dest'}, 114: {lfo: 0, param: 'dest'}, 115: {lfo: 1, param: 'dest'} };
 
 for (let l = 0; l < 4; l++) {
     const lfo = this.lfoParams[l];
@@ -183,9 +150,6 @@ for (let l = 0; l < 4; l++) {
         if (targetLfoInfo) {
             const targetLfo = this.lfoParams[targetLfoInfo.lfo];
             const param = targetLfoInfo.param;
-            
-            // Skip LFO-to-LFO processing for main knobs (handled in main.js)
-            if (param === 'mainknob') continue;
             
             if (param === 'rate') {
                 const baseRate = targetLfo.rate;
@@ -226,6 +190,18 @@ for (let l = 0; l < 4; l++) {
                 rawLfoOutputs[targetLfoInfo.lfo] = val * targetLfo.depth;
             }
         }
+    }
+}
+
+this.lfoOutputs = rawLfoOutputs;
+
+// --- Modulation Destination Logic ---
+let modulatedFx = {};
+for (let l = 0; l < 4; l++) {
+    const lfo = this.lfoParams[l];
+    if (lfo.dest !== 0 && lfo.dest < 200) { // Only modulate FX params in audio worklet
+        if (!modulatedFx[lfo.dest]) modulatedFx[lfo.dest] = 0;
+        modulatedFx[lfo.dest] += this.lfoOutputs[l];
     }
 }
 
@@ -454,4 +430,5 @@ return true;
 }
 }
 registerProcessor('synth-processor', SynthProcessor);
+
 
