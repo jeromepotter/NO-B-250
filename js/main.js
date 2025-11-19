@@ -46,6 +46,30 @@ let liveLfoOutputs = [0, 0, 0, 0];
             // Dests
             114: { lfo: 0, param: 'dest' }, 115: { lfo: 1, param: 'dest' }, 102: { lfo: 2, param: 'dest' }, 107: { lfo: 3, param: 'dest' },
         };
+
+        const LFO_RATE_KNOB_IDS = [108, 109, 110, 111];
+        const MIN_LFO_RATE_HZ = 0.05;
+        const MAX_LFO_RATE_HZ = 2000;
+        const LFO_RATE_RANGE_RATIO = MAX_LFO_RATE_HZ / MIN_LFO_RATE_HZ;
+        const SIXTEENTH_NOTES_PER_QUARTER = 4;
+        const LFO_RATE_DIVISION_STEPS = [
+    { label: '8', multiplier: 1 / 2 },
+    { label: '4', multiplier: 1 },
+    { label: '2', multiplier: 2 },
+    { label: '1', multiplier: 4 },
+    { label: '1/2', multiplier: 8 },
+    { label: '1', multiplier: 16 },   
+    { label: '1/2', multiplier: 32 }, 
+    { label: '1/4', multiplier: 64 },
+    { label: '1/8', multiplier: 128 },
+    { label: '1/16', multiplier: 256 },
+    { label: '1/32', multiplier: 512 },
+];
+        const LFO_RATE_DIVISION_LABELS = LFO_RATE_DIVISION_STEPS.map(step => step.label);
+        const LFO_RATE_DIVISION_MULTIPLIERS = LFO_RATE_DIVISION_STEPS.map(step => step.multiplier);
+        const lfoTempoLinkState = LFO_RATE_KNOB_IDS.map(() => ({ enabled: false, storedFreeValue: 0.5 }));
+        let lfoTempoSyncSwitches = [];
+        let lfoRateDisplays = [];
       
        // --- Constants ---
        const NOTES=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
@@ -71,15 +95,565 @@ let liveLfoOutputs = [0, 0, 0, 0];
             '_': '-', '+': '=', '{': '[', '}': ']', '|': '\\',
             ':': ';', '"': "'", '<': ',', '>': '.', '?': '/'
         };
+
+        const MIN_ARP_RATE_BPM = 5;
+        const MAX_ARP_RATE_BPM = 300;
+        const DEFAULT_ARP_RATE_BPM = 100;
+        const ARP_RATE_RANGE_BPM = MAX_ARP_RATE_BPM - MIN_ARP_RATE_BPM;
+        const MIN_ARP_RATE_MS = 50;
+        const MAX_ARP_RATE_MS = 2000;
+        const ARP_RATE_RANGE_MS = MAX_ARP_RATE_MS - MIN_ARP_RATE_MS;
+        const DEFAULT_ARP_RATE_MS = 60000 / (DEFAULT_ARP_RATE_BPM * SIXTEENTH_NOTES_PER_QUARTER);
+        const TEMPO_MODE_BPM = 'BPM';
+        const TEMPO_MODE_MS = 'MS';
+        const MIDPOINT_ARP_RATE_BPM = 120;
+        const MIDPOINT_ARP_RATE_VALUE = 0.5;
+        const ARP_RATE_CURVE_EXP = Math.log((MIDPOINT_ARP_RATE_BPM - MIN_ARP_RATE_BPM) / ARP_RATE_RANGE_BPM) / Math.log(MIDPOINT_ARP_RATE_VALUE);
+        const ARP_RATE_CURVE_INV_EXP = 1 / ARP_RATE_CURVE_EXP;
+        const MIN_MIDI_EXPORT_BPM = 40;
+        const MASTER_CLOCK_INTERVAL_MS = 2;
+        const MASTER_CLOCK_TOLERANCE_MS = 1;
+        const TEMPO_KNOB_DOUBLE_TAP_MS = 350;
+
+        function clamp(value, min, max) {
+            return Math.min(max, Math.max(min, value));
+        }
+
+        function getNowMs() {
+            return performance.now();
+        }
+
+        function normalizeArpRateBpm(rateBpm) {
+            return Math.round(clamp(rateBpm, MIN_ARP_RATE_BPM, MAX_ARP_RATE_BPM));
+        }
+
+        function formatTempoLabel(bpm) {
+            return `${bpm} BPM`;
+        }
+
+        function formatRateMsLabel(rateMs) {
+            return `${rateMs.toFixed(1)} MS`;
+        }
+
+        function normalizeArpRateMs(rateMs) {
+            return clamp(rateMs, MIN_ARP_RATE_MS, MAX_ARP_RATE_MS);
+        }
+
+        function valueToArpRateMs(value) {
+            const normalized = clamp(1 - value, 0, 1);
+            return MIN_ARP_RATE_MS + Math.pow(normalized, 3) * ARP_RATE_RANGE_MS;
+        }
+
+        function arpRateMsToValue(rateMs) {
+            const clamped = normalizeArpRateMs(rateMs);
+            const normalized = (clamped - MIN_ARP_RATE_MS) / ARP_RATE_RANGE_MS;
+            return 1 - Math.cbrt(clamp(normalized, 0, 1));
+        }
+
+        let masterClockId = null;
+        let masterClockStartTime = null;
+        let tempoMode = TEMPO_MODE_BPM;
+
+        function ensureMasterClock() {
+            if (tempoMode !== TEMPO_MODE_BPM) return;
+            if (masterClockId) return;
+            if (masterClockStartTime === null) masterClockStartTime = getNowMs();
+            masterClockId = setInterval(() => {
+                const timestamp = getNowMs();
+                knobState.forEach((state, idx) => {
+                    if (state.arpRunning) {
+                        updateArpeggiator(idx, timestamp);
+                    }
+                });
+            }, MASTER_CLOCK_INTERVAL_MS);
+        }
+
+        function stopMasterClockIfIdle() {
+            if (!masterClockId) return;
+            if (knobState.some(state => state.arpRunning)) return;
+            clearInterval(masterClockId);
+            masterClockId = null;
+            masterClockStartTime = null;
+        }
+
+        function quantizeToNextSixteenth(now, intervalMs) {
+            if (intervalMs <= 0) return now;
+            if (masterClockStartTime === null) masterClockStartTime = now;
+            const elapsed = now - masterClockStartTime;
+            const ticksSinceOrigin = Math.ceil(elapsed / intervalMs);
+            let nextTime = masterClockStartTime + ticksSinceOrigin * intervalMs;
+            if (nextTime <= now) nextTime += intervalMs;
+            return nextTime;
+        }
+
+        function startArpClockForState(knobId) {
+            const state = knobState[knobId];
+            if (!state || !state.arpRunning) return;
+            if (tempoMode === TEMPO_MODE_BPM) {
+                const interval = bpmToSixteenthMs(state.arpRateBpm);
+                state.nextArpStepTime = quantizeToNextSixteenth(getNowMs(), interval);
+                ensureMasterClock();
+            } else {
+                if (state.arpRafId) {
+                    clearInterval(state.arpRafId);
+                }
+                const tick = () => updateArpeggiator(knobId, getNowMs());
+                state.lastArpStepTime = getNowMs();
+                state.arpRafId = setInterval(tick, 0);
+                tick();
+            }
+        }
+
+        function restartArpClocksForMode() {
+            if (tempoMode !== TEMPO_MODE_BPM && masterClockId) {
+                clearInterval(masterClockId);
+                masterClockId = null;
+                masterClockStartTime = null;
+            }
+            knobState.forEach((state, idx) => {
+                if (!state) return;
+                if (state.arpRafId) {
+                    clearInterval(state.arpRafId);
+                    state.arpRafId = null;
+                }
+                state.nextArpStepTime = 0;
+                if (state.arpRunning) {
+                    startArpClockForState(idx);
+                }
+            });
+        }
+
+        function setTempoMode(newMode) {
+            if (newMode !== TEMPO_MODE_BPM && newMode !== TEMPO_MODE_MS) return;
+            if (tempoMode === newMode) return;
+            tempoMode = newMode;
+
+            if (tempoMode === TEMPO_MODE_MS && masterClockId) {
+                clearInterval(masterClockId);
+                masterClockId = null;
+                masterClockStartTime = null;
+            }
+            if (tempoMode === TEMPO_MODE_BPM) {
+                masterClockStartTime = null;
+            }
+
+            const now = getNowMs();
+            knobState.forEach((state, idx) => {
+                if (!state) return;
+                if (tempoMode === TEMPO_MODE_BPM) {
+                    if (state.arpRafId) {
+                        clearInterval(state.arpRafId);
+                        state.arpRafId = null;
+                    }
+                    state.lastArpStepTime = 0;
+                    state.arpRateBpm = normalizeArpRateBpm(state.arpRateBpm ?? DEFAULT_ARP_RATE_BPM);
+                    state.arpRateMs = bpmToSixteenthMs(state.arpRateBpm);
+                    updateTempoKnobIndicator(idx, arpRateBpmToValue(state.arpRateBpm));
+                } else {
+                    state.nextArpStepTime = 0;
+                    state.lastArpStepTime = now;
+                    state.arpRateMs = normalizeArpRateMs(state.arpRateMs ?? DEFAULT_ARP_RATE_MS);
+                    state.arpRateBpm = normalizeArpRateBpm(60000 / (state.arpRateMs * SIXTEENTH_NOTES_PER_QUARTER));
+                    updateTempoKnobIndicator(idx, arpRateMsToValue(state.arpRateMs));
+                }
+            });
+
+            restartArpClocksForMode();
+            updateTempoDisplays();
+            applyModulatedArpUiPreviews();
+            handleTempoLinkedControls();
+            if (document.body) {
+                document.body.setAttribute('data-tempo-mode', tempoMode);
+            }
+        }
+
+        function toggleTempoMode() {
+            const nextMode = tempoMode === TEMPO_MODE_BPM ? TEMPO_MODE_MS : TEMPO_MODE_BPM;
+            setTempoMode(nextMode);
+        }
+
+        function handleTempoKnobDoubleClick(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            toggleTempoMode();
+        }
+
+        function valueToArpRateBpm(value) {
+            const normalized = clamp(value, 0, 1);
+            const curved = Math.pow(normalized, ARP_RATE_CURVE_EXP);
+            return MIN_ARP_RATE_BPM + curved * ARP_RATE_RANGE_BPM;
+        }
+
+        function arpRateBpmToValue(rateBpm) {
+            const clampedRate = clamp(rateBpm, MIN_ARP_RATE_BPM, MAX_ARP_RATE_BPM);
+            const normalized = (clampedRate - MIN_ARP_RATE_BPM) / ARP_RATE_RANGE_BPM;
+            return clamp(Math.pow(Math.max(0, normalized), ARP_RATE_CURVE_INV_EXP), 0, 1);
+        }
+
+        function bpmToSixteenthMs(rateBpm) {
+            const clampedRate = clamp(rateBpm, MIN_ARP_RATE_BPM, MAX_ARP_RATE_BPM);
+            return 60000 / (clampedRate * SIXTEENTH_NOTES_PER_QUARTER);
+        }
+
+        function updateTempoKnobIndicator(knobId, normalizedValue) {
+            const fxId = knobId === 0 ? 16 : 17;
+            const knobData = fxKnobData[fxId];
+            if (!knobData) return;
+            const clampedValue = clamp(normalizedValue, 0, 1);
+            knobData.value = clampedValue;
+            knobData.angle = MIN_FX_ANGLE + clampedValue * (MAX_FX_ANGLE - MIN_FX_ANGLE);
+            if (knobData.indicator) {
+                knobData.indicator.style.transform = `rotate(${knobData.angle}deg)`;
+            }
+        }
+
+        function updateTempoDisplays() {
+            knobState.forEach(state => {
+                if (!state?.dom?.rateDisplay) return;
+                const text = tempoMode === TEMPO_MODE_BPM
+                    ? formatTempoLabel(state.arpRateBpm)
+                    : formatRateMsLabel(state.arpRateMs);
+                state.dom.rateDisplay.textContent = text;
+            });
+        }
+
+        function tempoNormalizedToIntervalMs(normalizedValue) {
+            const clampedValue = clamp(normalizedValue, 0, 1);
+            if (tempoMode === TEMPO_MODE_BPM) {
+                const bpm = valueToArpRateBpm(clampedValue);
+                return bpmToSixteenthMs(bpm);
+            }
+            return valueToArpRateMs(clampedValue);
+        }
+
+        function intervalMsToLfoRateParam(intervalMs) {
+            if (!Number.isFinite(intervalMs) || intervalMs <= 0) return 0;
+            const rateHz = 1000 / intervalMs;
+            const ratio = Math.max(rateHz / MIN_LFO_RATE_HZ, 1e-6);
+            const normalized = Math.log(ratio) / Math.log(LFO_RATE_RANGE_RATIO);
+            return clamp(normalized, 0, 1);
+        }
+
+        function tempoNormalizedToLfoRateParam(normalizedValue) {
+            const intervalMs = tempoNormalizedToIntervalMs(normalizedValue);
+            return intervalMsToLfoRateParam(intervalMs);
+        }
+
+        function setLfoKnobNormalizedValue(rateKnobId, normalizedValue) {
+            const knobData = fxKnobData[rateKnobId];
+            if (!knobData) return;
+            const clampedValue = clamp(normalizedValue, 0, 1);
+            knobData.value = clampedValue;
+            knobData.angle = MIN_FX_ANGLE + clampedValue * (MAX_FX_ANGLE - MIN_FX_ANGLE);
+            if (knobData.indicator) {
+                knobData.indicator.style.transform = `rotate(${knobData.angle}deg)`;
+            }
+        }
+
+        function formatLfoRateHzLabel(normalizedValue) {
+            const clampedValue = clamp(normalizedValue, 0, 1);
+            const hz = MIN_LFO_RATE_HZ * Math.pow(LFO_RATE_RANGE_RATIO, clampedValue);
+            if (hz >= 100) return `${hz.toFixed(0)} HZ`;
+            if (hz >= 10) return `${hz.toFixed(1)} HZ`;
+            return `${hz.toFixed(2)} HZ`;
+        }
+
+        function getLfoDivisionIndex(normalizedValue) {
+            const clampedValue = clamp(normalizedValue, 0, 1);
+            return Math.round(clampedValue * (LFO_RATE_DIVISION_LABELS.length - 1));
+        }
+
+        function getLfoDivisionMultiplier(normalizedValue) {
+            const idx = getLfoDivisionIndex(normalizedValue);
+            return LFO_RATE_DIVISION_MULTIPLIERS[idx] ?? 1;
+        }
+
+        function getLfoDivisionLabel(normalizedValue) {
+            const idx = getLfoDivisionIndex(normalizedValue);
+            return LFO_RATE_DIVISION_LABELS[idx] || 'SYNC';
+        }
+
+        function updateLfoRateDisplay(index, normalizedValue, forceSyncedState) {
+            const display = lfoRateDisplays[index];
+            if (!display) return;
+            const isLinked = forceSyncedState ?? lfoTempoLinkState[index].enabled;
+            if (isLinked) {
+                display.textContent = getLfoDivisionLabel(normalizedValue);
+            } else {
+                display.textContent = formatLfoRateHzLabel(normalizedValue);
+            }
+        }
+
+        function getTempoSourceState() {
+            const left = knobState[0];
+            const right = knobState[1];
+            const leftOn = !!left?.isArpOn;
+            const rightOn = !!right?.isArpOn;
+            if (!leftOn && !rightOn) return null;
+            if (leftOn && rightOn && !isArpRateSynced) return null;
+            if (leftOn) return left;
+            if (rightOn) return right;
+            return null;
+        }
+
+        function getTempoSourceIntervalMs() {
+            const sourceState = getTempoSourceState();
+            if (!sourceState) return null;
+            if (tempoMode === TEMPO_MODE_BPM) {
+                return bpmToSixteenthMs(sourceState.arpRateBpm);
+            }
+            return sourceState.arpRateMs;
+        }
+
+        function applyTempoLinkedLfoRate(index, normalizedOverride, sharedIntervalMs) {
+            const link = lfoTempoLinkState[index];
+            if (!link?.enabled) return;
+            const rateKnobId = LFO_RATE_KNOB_IDS[index];
+            const knobData = fxKnobData[rateKnobId];
+            const knobValue = clamp(normalizedOverride ?? knobData?.value ?? 0.5, 0, 1);
+            const tempoIntervalMs = sharedIntervalMs ?? getTempoSourceIntervalMs();
+            if (!Number.isFinite(tempoIntervalMs) || tempoIntervalMs <= 0) {
+                updateLfoRateDisplay(index, knobValue, true);
+                return;
+            }
+            const multiplier = getLfoDivisionMultiplier(knobValue);
+            const lfoIntervalMs = tempoIntervalMs / multiplier;
+            const lfoRateParam = intervalMsToLfoRateParam(lfoIntervalMs);
+            
+            lfoState[index].rate = lfoRateParam;
+            if (synthNode) {
+                synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'rate', value: lfoRateParam } });
+            }
+            updateLfoRateDisplay(index, knobValue, true);
+        }
+
+        function updateSyncedLfoRateParams() {
+            if (!lfoTempoLinkState.some(link => link.enabled)) return;
+            const tempoIntervalMs = getTempoSourceIntervalMs();
+            if (!Number.isFinite(tempoIntervalMs) || tempoIntervalMs <= 0) return;
+            lfoTempoLinkState.forEach((link, idx) => {
+                if (!link.enabled) return;
+                applyTempoLinkedLfoRate(idx, undefined, tempoIntervalMs);
+            });
+        }
+
+        function handleTempoLinkedControls() {
+            if (!lfoTempoLinkState.some(link => link.enabled)) return;
+            updateSyncedLfoRateParams();
+        }
+
+        function handleSyncedLfoRateChange(lfoIndex, normalizedValue) {
+            if (!lfoTempoLinkState[lfoIndex]?.enabled) return;
+            const tempoIntervalMs = getTempoSourceIntervalMs();
+            if (!Number.isFinite(tempoIntervalMs) || tempoIntervalMs <= 0) return;
+            const clampedValue = clamp(normalizedValue, 0, 1);
+            applyTempoLinkedLfoRate(lfoIndex, clampedValue, tempoIntervalMs);
+        }
+
+        function canUseLfoTempoSync() {
+            return !!getTempoSourceState();
+        }
+
+        function setLfoTempoSync(index, shouldEnable) {
+            const link = lfoTempoLinkState[index];
+            const switchEl = lfoTempoSyncSwitches[index];
+            if (!link || !switchEl) return;
+
+            if (shouldEnable) {
+                if (!canUseLfoTempoSync() || link.enabled) return;
+                const rateKnobId = LFO_RATE_KNOB_IDS[index];
+                const knobData = fxKnobData[rateKnobId];
+                if (knobData) {
+                    link.storedFreeValue = knobData.value;
+                }
+                link.enabled = true;
+                switchEl.classList.add('on');
+                updateSyncedLfoRateParams();
+            } else {
+                if (!link.enabled) return;
+                link.enabled = false;
+                switchEl.classList.remove('on');
+                const rateKnobId = LFO_RATE_KNOB_IDS[index];
+                const fallbackValue = link.storedFreeValue ?? 0.5;
+                setLfoKnobNormalizedValue(rateKnobId, fallbackValue);
+                lfoState[index].rate = fallbackValue;
+                if (synthNode) {
+                    synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'rate', value: fallbackValue } });
+                }
+                updateLfoRateDisplay(index, fallbackValue, false);
+            }
+
+            updateLfoTempoSwitchStates();
+        }
+
+       function updateLfoTempoSwitchStates() {
+    const allow = canUseLfoTempoSync();
+    lfoTempoSyncSwitches.forEach((switchEl, idx) => {
+        if (!switchEl) return;
+        const wrapper = switchEl.closest('.lfo-tempo-switch-wrapper');
+        
+        // Force the switch to match the actual state
+        if (lfoTempoLinkState[idx].enabled) {
+            switchEl.classList.add('on');
+        } else {
+            switchEl.classList.remove('on');
+        }
+        
+        if (allow) {
+            switchEl.classList.remove('switch-disabled');
+            wrapper?.classList.remove('switch-disabled');
+        } else {
+            switchEl.classList.add('switch-disabled');
+            wrapper?.classList.add('switch-disabled');
+            if (lfoTempoLinkState[idx].enabled) {
+                setLfoTempoSync(idx, false);
+            }
+        }
+    });
+}
+        function resetLfoTempoSyncState() {
+            lfoTempoLinkState.forEach((link, idx) => {
+                if (link.enabled) {
+                    setLfoTempoSync(idx, false);
+                }
+                const rateKnobId = LFO_RATE_KNOB_IDS[idx];
+                const knobData = fxKnobData[rateKnobId];
+                if (knobData) {
+                    link.storedFreeValue = knobData.value;
+                    updateLfoRateDisplay(idx, knobData.value, false);
+                }
+            });
+            updateLfoTempoSwitchStates();
+        }
+
+        function preserveMsArpPhase(state, previousRateMs, nextRateMs) {
+            if (!state || !state.arpRunning || tempoMode !== TEMPO_MODE_MS) return;
+            const now = getNowMs();
+            const prev = Number.isFinite(previousRateMs) && previousRateMs > 0 ? previousRateMs : null;
+            const next = Number.isFinite(nextRateMs) && nextRateMs > 0 ? nextRateMs : null;
+            if (!next) {
+                state.lastArpStepTime = now;
+                return;
+            }
+            if (!prev || !Number.isFinite(state.lastArpStepTime)) {
+                state.lastArpStepTime = now - next;
+                return;
+            }
+            const elapsed = now - state.lastArpStepTime;
+            const ratio = clamp(elapsed / prev, 0, 1);
+            state.lastArpStepTime = now - (ratio * next);
+        }
+
+        function preserveBpmArpPhase(state, previousIntervalMs, nextIntervalMs) {
+            if (!state || !state.arpRunning || tempoMode !== TEMPO_MODE_BPM) return;
+            const now = getNowMs();
+            const prev = Number.isFinite(previousIntervalMs) && previousIntervalMs > 0 ? previousIntervalMs : null;
+            const next = Number.isFinite(nextIntervalMs) && nextIntervalMs > 0 ? nextIntervalMs : null;
+            if (!next) {
+                state.nextArpStepTime = quantizeToNextSixteenth(now, bpmToSixteenthMs(state.arpRateBpm));
+                return;
+            }
+            if (!prev || !Number.isFinite(state.nextArpStepTime)) {
+                state.nextArpStepTime = now + next;
+                return;
+            }
+            const remaining = state.nextArpStepTime - now;
+            const ratio = clamp(remaining / prev, 0, 1);
+            const adjusted = Math.max(ratio * next, MASTER_CLOCK_INTERVAL_MS);
+            state.nextArpStepTime = now + adjusted;
+        }
+
+        function setArpRateFromBpm(knobId, rateBpm) {
+            const state = knobState[knobId];
+            if (!state) return;
+
+            const clampedRate = normalizeArpRateBpm(rateBpm);
+            const previousRateMs = state.arpRateMs;
+            state.arpRateBpm = clampedRate;
+            state.arpRateMs = bpmToSixteenthMs(clampedRate);
+            if (state.dom?.rateDisplay) {
+                const label = tempoMode === TEMPO_MODE_BPM
+                    ? formatTempoLabel(clampedRate)
+                    : formatRateMsLabel(state.arpRateMs);
+                state.dom.rateDisplay.textContent = label;
+            }
+            if (state.arpRunning) {
+                if (tempoMode === TEMPO_MODE_BPM) {
+                    preserveBpmArpPhase(state, previousRateMs, state.arpRateMs);
+                } else {
+                    preserveMsArpPhase(state, previousRateMs, state.arpRateMs);
+                }
+            }
+
+            const knobValue = tempoMode === TEMPO_MODE_BPM
+                ? arpRateBpmToValue(clampedRate)
+                : arpRateMsToValue(state.arpRateMs);
+            updateTempoKnobIndicator(knobId, knobValue);
+            handleTempoLinkedControls();
+        }
+
+        function setArpRateFromMs(knobId, rateMs) {
+            const state = knobState[knobId];
+            if (!state) return;
+
+            const clampedRate = normalizeArpRateMs(rateMs);
+            const previousRateMs = state.arpRateMs;
+            state.arpRateMs = clampedRate;
+            const bpmEquivalent = normalizeArpRateBpm(60000 / (clampedRate * SIXTEENTH_NOTES_PER_QUARTER));
+            state.arpRateBpm = bpmEquivalent;
+
+            if (state.dom?.rateDisplay) {
+                const label = tempoMode === TEMPO_MODE_MS
+                    ? formatRateMsLabel(clampedRate)
+                    : formatTempoLabel(state.arpRateBpm);
+                state.dom.rateDisplay.textContent = label;
+            }
+
+            if (state.arpRunning) {
+                if (tempoMode === TEMPO_MODE_MS) {
+                    preserveMsArpPhase(state, previousRateMs, clampedRate);
+                } else {
+                    preserveBpmArpPhase(state, previousRateMs, state.arpRateMs);
+                }
+            }
+
+            const knobValue = tempoMode === TEMPO_MODE_MS
+                ? arpRateMsToValue(clampedRate)
+                : arpRateBpmToValue(state.arpRateBpm);
+            updateTempoKnobIndicator(knobId, knobValue);
+            handleTempoLinkedControls();
+        }
+
+        function handleArpRateButton(knobId, multiplier) {
+            if (!Number.isFinite(multiplier) || multiplier === 0) return;
+            const targets = isArpRateSynced ? [0, 1] : [knobId];
+            targets.forEach(targetId => {
+                const state = knobState[targetId];
+                if (!state) return;
+                if (tempoMode === TEMPO_MODE_BPM) {
+                    const newRate = state.arpRateBpm * multiplier;
+                    setArpRateFromBpm(targetId, newRate);
+                } else {
+                    const newRateMs = state.arpRateMs / multiplier;
+                    setArpRateFromMs(targetId, newRateMs);
+                }
+            });
+        }
+
+        function updateRateButtonLockState() {
+            const targets = [masterArpControls, synthContainer, document?.body];
+            targets.forEach(el => el?.classList.remove('rate-buttons-disabled'));
+            rateDisplayRows.forEach(row => row.classList.remove('rate-buttons-disabled'));
+        }
       
        // --- State for the two main knobs & Arps ---
      const knobState = [
     { id: 0, isNoteOn: false, isHeld: false, totalAngle: Math.random()*MAX_TOTAL_ANGLE, lastDragAngle: 0, currentOctave: 3, dom: {}, touchId: null, baseColor: [0,0,0],
-      isArpOn: false, isSweepMode: true, arpNotes: [], isArpHoldOn: false, arpRateMs: 51, arpOctaveRange: 0, feelKnobValue: 0.0, currentFeelPattern: EUCLIDEAN_PATTERNS[0], euclideanStepCounter: 0,
-      arpTranspose: 0, arpRunning: false, lastArpStepTime: 0, currentArpNoteIndex: 0, currentOctaveStep: 0, arpDirection: 1, arpUpDownState: 0, arpRafId: null, lastPlayedMidi: null, arpLastVisualIndex: -1, lastNoteOnTime: 0 },
+      isArpOn: false, isSweepMode: true, arpNotes: [], isArpHoldOn: false, arpRateBpm: DEFAULT_ARP_RATE_BPM, arpRateMs: DEFAULT_ARP_RATE_MS, arpOctaveRange: 0, feelKnobValue: 0.0, currentFeelPattern: EUCLIDEAN_PATTERNS[0], euclideanStepCounter: 0,
+      arpTranspose: 0, arpRunning: false, nextArpStepTime: 0, lastArpStepTime: 0, arpRafId: null, currentArpNoteIndex: 0, currentOctaveStep: 0, arpDirection: 1, arpUpDownState: 0, lastPlayedMidi: null, arpLastVisualIndex: -1, lastNoteOnTime: 0 },
     { id: 1, isNoteOn: false, isHeld: false, totalAngle: Math.random()*MAX_TOTAL_ANGLE, lastDragAngle: 0, currentOctave: 3, dom: {}, touchId: null, baseColor: [0,0,0],
-      isArpOn: false, isSweepMode: true, arpNotes: [], isArpHoldOn: false, arpRateMs: 51, arpOctaveRange: 0, feelKnobValue: 0.0, currentFeelPattern: EUCLIDEAN_PATTERNS[0], euclideanStepCounter: 0,
-      arpTranspose: 0, arpRunning: false, lastArpStepTime: 0, currentArpNoteIndex: 0, currentOctaveStep: 0, arpDirection: 1, arpUpDownState: 0, arpRafId: null, lastPlayedMidi: null, arpLastVisualIndex: -1, lastNoteOnTime: 0 }
+      isArpOn: false, isSweepMode: true, arpNotes: [], isArpHoldOn: false, arpRateBpm: DEFAULT_ARP_RATE_BPM, arpRateMs: DEFAULT_ARP_RATE_MS, arpOctaveRange: 0, feelKnobValue: 0.0, currentFeelPattern: EUCLIDEAN_PATTERNS[0], euclideanStepCounter: 0,
+      arpTranspose: 0, arpRunning: false, nextArpStepTime: 0, lastArpStepTime: 0, arpRafId: null, currentArpNoteIndex: 0, currentOctaveStep: 0, arpDirection: 1, arpUpDownState: 0, lastPlayedMidi: null, arpLastVisualIndex: -1, lastNoteOnTime: 0 }
 ];
       
        // --- Global Arp State ---
@@ -90,6 +664,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
        let synthContainer, powerSwitch, keySelector, scaleSelector, customScaleBuilder, savePresetButton, loadPresetInput, arpSyncSwitch;
        let masterArpControls, arpOrderSelector;
        let allArpControlGrids;
+       let rateDisplayRows = [];
        let modalOverlay, howToButton, closeModalButton;
        
       import { PRESETS } from './presets.js';
@@ -231,37 +806,19 @@ async function setupMidiOutput() {
     const arp1 = knobState[0];
     const arp2 = knobState[1];
 
-    let targetRateMs = null;
+    let targetRateBpm = null;
 
     if ((arp1.isArpOn && isArpRateSynced) || (arp1.isArpOn && !arp2.isArpOn)) {
-        targetRateMs = arp1.arpRateMs;
+        targetRateBpm = arp1.arpRateBpm;
     } else if (arp2.isArpOn && !arp1.isArpOn) {
-        targetRateMs = arp2.arpRateMs;
+        targetRateBpm = arp2.arpRateBpm;
     }
 
-    if (targetRateMs !== null) {
-        const msPerQuarterNote = targetRateMs * 4;
-        if (msPerQuarterNote > 0) {
-            const calculatedBpm = 60000 / msPerQuarterNote;
-            
-            // Corrected mapping based on actual Ableton analysis:
-            // Default (knob at 0.6463): internal calc ~110, actual 100 BPM
-            // Max (knob at 1.0): internal calc ~545, actual 300 BPM
-            const calc1 = 110; 
-            const actual1 = 100;
-            const calc2 = 545;  // At max speed: 50ms per step = 200ms per quarter = 300 BPM
-            const actual2 = 300;
-
-            const slope = (actual2 - actual1) / (calc2 - calc1);
-            const intercept = actual1 - (slope * calc1);
-            
-            const correctedBpm = (slope * calculatedBpm) + intercept;
-            
-            return Math.max(20, Math.min(300, Math.round(correctedBpm)));
-        }
+    if (targetRateBpm !== null) {
+        return Math.round(clamp(targetRateBpm, MIN_MIDI_EXPORT_BPM, MAX_ARP_RATE_BPM));
     }
 
-    return 120;
+    return Math.round(DEFAULT_ARP_RATE_BPM);
 }
        function generateAndDownloadMidi() {
             const TICKS_PER_QUARTER_NOTE = 480;
@@ -481,11 +1038,9 @@ function sendMidiMessage(message) {
       
        function updateKnobColor(knobId) {
            const state = knobState[knobId]; if (!state || !state.dom.knob) return;
-           let midiNote;
-           if (state.isNoteOn && state.arpRunning) {
+           let midiNote = getMidiNote(knobId);
+           if (state.arpRunning && state.lastPlayedMidi !== null) {
                midiNote = state.lastPlayedMidi;
-           } else {
-               midiNote = getMidiNote(knobId);
            }
            const finalRgb = getArpNoteColor(midiNote);
            state.dom.knob.style.backgroundColor = `rgb(${finalRgb.r}, ${finalRgb.g}, ${finalRgb.b})`;
@@ -580,11 +1135,24 @@ function sendMidiMessage(message) {
                         document.getElementById(`lfo-${param}-display-${lfo}`).textContent = LFO_WAVEFORMS[index];
                         if (synthNode) synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: lfo, param: param, value: index } });
                     }
-                } else { // rate or depth
+                } else if (param === 'rate') {
+                    if (lfoTempoLinkState[lfo]?.enabled) {
+                        handleSyncedLfoRateChange(lfo, d.value);
+                    } else {
+                        lfoParam[param] = d.value;
+                        if (lfoTempoLinkState[lfo]) {
+                            lfoTempoLinkState[lfo].storedFreeValue = d.value;
+                        }
+                        updateLfoRateDisplay(lfo, d.value, false);
+                        if (synthNode) {
+                            synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: lfo, param: param, value: d.value } });
+                        }
+                    }
+                } else { // depth
                     lfoParam[param] = d.value;
                     if (synthNode) synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: lfo, param: param, value: d.value } });
                 }
-                return; 
+                return;
            }
 
            if (id === 7) {
@@ -611,16 +1179,18 @@ function sendMidiMessage(message) {
                   updateStateFromTotalAngle(knobId);
                   updateSequenceDisplay(knobId);
                } else if (id === 16 || id === 17) {
-                   state.arpRateMs = 50 + Math.pow(1 - d.value, 3) * 1950;
-                   if(state.dom.rateDisplay) state.dom.rateDisplay.textContent = state.arpRateMs.toFixed(1);
-                   const otherId = knobId === 0 ? 1 : 0; const otherFxId = knobId === 0 ? 17 : 16;
-                   if (isArpRateSynced && knobState[otherId]?.isArpOn) {
-                       knobState[otherId].arpRateMs = state.arpRateMs;
-                       if (knobState[otherId].dom.rateDisplay) knobState[otherId].dom.rateDisplay.textContent = state.arpRateMs.toFixed(1);
-                       const otherData = fxKnobData[otherFxId];
-                       if (otherData) {
-                           otherData.value = d.value; otherData.angle = d.angle;
-                           if (otherData.indicator) otherData.indicator.style.transform = `rotate(${d.angle}deg)`;
+                   const otherId = knobId === 0 ? 1 : 0;
+                   if (tempoMode === TEMPO_MODE_BPM) {
+                       const computedBpm = valueToArpRateBpm(d.value);
+                       setArpRateFromBpm(knobId, computedBpm);
+                       if (isArpRateSynced && knobState[otherId]?.isArpOn) {
+                           setArpRateFromBpm(otherId, computedBpm);
+                       }
+                   } else {
+                       const computedMs = valueToArpRateMs(d.value);
+                       setArpRateFromMs(knobId, computedMs);
+                       if (isArpRateSynced && knobState[otherId]?.isArpOn) {
+                           setArpRateFromMs(otherId, computedMs);
                        }
                    }
                } else if (id === 20 || id === 21) {
@@ -658,23 +1228,68 @@ function sendMidiMessage(message) {
                const k = e.currentTarget; const id = parseInt(k.dataset.fxId, 10);
                if (!isPowerOn || (id >= 16 && id <= 25 && k.closest('.arp-disabled'))) return;
                const d = fxKnobData[id]; if (!d) return;
-               for (const t of e.changedTouches) { if (d.touchId === null) { d.touchId = t.identifier; d.startY = t.clientY; break; } }
-           };
-           const handleFxTouchMove = (e) => {
-               for(const t of e.changedTouches){
-                   const kEntry=Object.entries(fxKnobData).find(([id, data])=>data.touchId===t.identifier);
-                   if(kEntry){ e.preventDefault(); const [id, d] = kEntry; const cY=t.clientY; let sensitivity = 1.5;
-                   if (id === '16' || id === '17') { sensitivity = 0.6; }
-                   const dY = (d.startY - cY) * sensitivity; d.startY = cY; updateFxKnob(parseInt(id, 10), dY); }
+               for (const t of e.changedTouches) {
+                   if (d.touchId === null) {
+                       d.touchId = t.identifier;
+                       d.startY = t.clientY;
+                       d.touchStartX = t.clientX;
+                       d.touchStartY = t.clientY;
+                       d.touchMoved = false;
+                       break;
+                   }
                }
            };
-           const handleFxTouchEnd = (e) => { for(const t of e.changedTouches){ const kE = Object.entries(fxKnobData).find(([id, data])=>data.touchId===t.identifier); if(kE){ kE[1].touchId = null; } } };
+           const handleFxTouchMove = (e) => {
+               for (const t of e.changedTouches) {
+                   const kEntry = Object.entries(fxKnobData).find(([id, data]) => data.touchId === t.identifier);
+                   if (!kEntry) continue;
+                   e.preventDefault();
+                   const [id, d] = kEntry;
+                   const cY = t.clientY;
+                   let sensitivity = 1.5;
+                   if (id === '16' || id === '17') { sensitivity = 0.6; }
+                   const deltaX = d.touchStartX === null ? 0 : Math.abs(t.clientX - d.touchStartX);
+                   const deltaYAbs = d.touchStartY === null ? 0 : Math.abs(t.clientY - d.touchStartY);
+                   if (!d.touchMoved && (deltaX > 6 || deltaYAbs > 6)) {
+                       d.touchMoved = true;
+                   }
+                   const dY = (d.startY - cY) * sensitivity;
+                   d.startY = cY;
+                   updateFxKnob(parseInt(id, 10), dY);
+               }
+           };
+           const handleFxTouchEnd = (e) => {
+               for (const t of e.changedTouches) {
+                   const entry = Object.entries(fxKnobData).find(([id, data]) => data.touchId === t.identifier);
+                   if (!entry) continue;
+                   const [id, d] = entry;
+                   d.touchId = null;
+                   const knobId = parseInt(id, 10);
+                   if (knobId === 16 || knobId === 17) {
+                       if (!d.touchMoved) {
+                           const now = performance.now();
+                           if (now - (d.lastTapTime || 0) < TEMPO_KNOB_DOUBLE_TAP_MS) {
+                               d.lastTapTime = 0;
+                               e.preventDefault();
+                               toggleTempoMode();
+                           } else {
+                               d.lastTapTime = now;
+                           }
+                       } else {
+                           d.lastTapTime = 0;
+                       }
+                   }
+                   d.touchMoved = false;
+                   d.touchStartX = null;
+                   d.touchStartY = null;
+               }
+           };
            document.querySelectorAll('.fx-knob-container').forEach(k => {
                const id = parseInt(k.dataset.fxId, 10);
-               fxKnobData[id] = { id:id, knobEl:k, indicator:k.querySelector('.indicator'), angle:MIN_FX_ANGLE, value:0.0, isDragging:false, startY:0, touchId:null };
+               fxKnobData[id] = { id:id, knobEl:k, indicator:k.querySelector('.indicator'), angle:MIN_FX_ANGLE, value:0.0, isDragging:false, startY:0, touchId:null, touchStartX:null, touchStartY:null, touchMoved:false, lastTapTime:0 };
                if(id===2){fxKnobData[id].value=1.0;} else if(id===7){fxKnobData[id].value=0.5;} else if(id===8){fxKnobData[id].value=0.0045;}
                else if(id===9){fxKnobData[id].value=0.0995;} else if(id===10){fxKnobData[id].value=0.8;} else if(id===11){fxKnobData[id].value=0.2;}
-               else if(id===13){fxKnobData[id].value=0.5;} else if(id===15){fxKnobData[id].value=0.25;} else if(id===16||id===17){fxKnobData[id].value=0.6463;}
+               else if(id===13){fxKnobData[id].value=0.5;} else if(id===15){fxKnobData[id].value=0.25;} else if(id===16||id===17){fxKnobData[id].value=arpRateBpmToValue(DEFAULT_ARP_RATE_BPM);}
                else if(id===18||id===19){fxKnobData[id].value=0.0;} else if(id===20||id===21){fxKnobData[id].value=1.0;}
                else if(id===22||id===23){fxKnobData[id].value=0.0;} else if(id===24||id===25){fxKnobData[id].value=0.5;} else if(id===26||id===27){fxKnobData[id].value=0.5;} else if(id===28||id===29){fxKnobData[id].value=0.0;}
                fxKnobData[id].angle = MIN_FX_ANGLE + (fxKnobData[id].value * (MAX_FX_ANGLE - MIN_FX_ANGLE));
@@ -682,13 +1297,22 @@ function sendMidiMessage(message) {
                if(id === 7) { updateFxKnob(id, 0); }
                const kId = (id >= 16 && id <= 25 && id % 2 === 0) ? 0 : (id >= 16 && id <= 25 && id % 2 !== 0) ? 1 : -1;
                if (kId !== -1 && knobState[kId]) {
-                   if (id===16||id===17){ knobState[kId].arpRateMs = 50 + Math.pow(1 - fxKnobData[id].value, 3) * 1950; }
+                   if (id===16||id===17){
+                       if (tempoMode === TEMPO_MODE_BPM) {
+                           setArpRateFromBpm(kId, valueToArpRateBpm(fxKnobData[id].value));
+                       } else {
+                           setArpRateFromMs(kId, valueToArpRateMs(fxKnobData[id].value));
+                       }
+                   }
                    else if (id===18||id===19){ knobState[kId].arpOctaveRange = Math.min(3, Math.floor(fxKnobData[id].value * 4)); }
                    else if (id===22||id===23){ const pIdx = Math.min(NUM_FEEL_PATTERNS-1, Math.floor(fxKnobData[id].value*NUM_FEEL_PATTERNS)); knobState[kId].feelKnobValue=fxKnobData[id].value; knobState[kId].currentFeelPattern=EUCLIDEAN_PATTERNS[pIdx]; }
                    else if (id===24||id===25){ knobState[kId].arpTranspose=Math.floor((fxKnobData[id].value - 0.5) * 25); }
                }
                k.addEventListener('mousedown', (e)=>handleFxMouseDown(e, id));
                k.addEventListener('touchstart', handleFxTouchStart, {passive:false});
+               if (id === 16 || id === 17) {
+                   k.addEventListener('dblclick', handleTempoKnobDoubleClick);
+               }
            });
            document.addEventListener('mousemove', handleFxMouseMove); document.addEventListener('mouseup', handleFxMouseUp);
            document.addEventListener('touchmove', handleFxTouchMove, {passive:false}); document.addEventListener('touchend', handleFxTouchEnd); document.addEventListener('touchcancel', handleFxTouchEnd);
@@ -910,14 +1534,16 @@ function sendMidiMessage(message) {
       
        function startArpeggiator(knobId) {
           const state = knobState[knobId]; if(!state || !state.isArpOn || state.arpRunning || !synthNode) return;
-          state.arpRunning = true; state.lastArpStepTime = performance.now();
+          state.arpRunning = true;
           const activeNotes = state.arpNotes.filter(n => n.active);
           if (!state.isSweepMode || activeNotes.length <= 1) { state.currentArpNoteIndex = (currentArpOrder === "Down" && activeNotes.length > 0) ? activeNotes.length - 1 : 0; state.arpUpDownState = 0; }
           state.currentOctaveStep = 0; state.euclideanStepCounter = 0; state.arpDirection = 1; state.lastPlayedMidi = null;
-          if (state.arpRafId) clearInterval(state.arpRafId);
-          const tick = () => updateArpeggiator(knobId, performance.now());
-          state.arpRafId = setInterval(tick, 0);
-          tick();
+          state.nextArpStepTime = 0;
+          if (state.arpRafId) {
+              clearInterval(state.arpRafId);
+              state.arpRafId = null;
+          }
+          startArpClockForState(knobId);
       }
       
        function stopArpeggiator(knobId) {
@@ -925,11 +1551,14 @@ function sendMidiMessage(message) {
            if (!state) return;
 
            // --- Stop the existing playback loop ---
-           state.arpRunning = false;
+          state.arpRunning = false;
+          state.nextArpStepTime = 0;
+          state.lastArpStepTime = 0;
           if (state.arpRafId) {
               clearInterval(state.arpRafId);
               state.arpRafId = null;
           }
+          stopMasterClockIfIdle();
           if (state.isNoteOn && state.lastPlayedMidi !== null) {
            // Stop the internal synth sound
            if (synthNode) {
@@ -950,7 +1579,7 @@ function sendMidiMessage(message) {
            state.arpUpDownState = 0;
            state.euclideanStepCounter = 0;
            state.lastPlayedMidi = null;
-           state.lastArpStepTime = 0;
+           state.nextArpStepTime = 0;
            state.arpLastVisualIndex = -1;
            // --- End of Fix ---
 
@@ -984,6 +1613,7 @@ function sendMidiMessage(message) {
            }
     
            // --- This block now correctly reads the LIVE LFO values ---
+let modulatedRateBpm = state.arpRateBpm;
 let modulatedRateMs = state.arpRateMs;
 let modulatedTranspose = state.arpTranspose;
 let modulatedOctaveRange = state.arpOctaveRange;
@@ -1003,7 +1633,11 @@ lfoState.forEach((lfo, lfoIndex) => {
     if (destIsArpRate) {
         const baseValue = fxKnobData[16 + knobId]?.value ?? 0.5;
         const finalValue = Math.max(0, Math.min(1, baseValue + lfoModValue));
-        modulatedRateMs = 50 + Math.pow(1 - finalValue, 3) * 1950;
+        if (tempoMode === TEMPO_MODE_BPM) {
+            modulatedRateBpm = valueToArpRateBpm(finalValue);
+        } else {
+            modulatedRateMs = valueToArpRateMs(finalValue);
+        }
     }
     if (destIsArpTranspose) {
         const baseValue = fxKnobData[24 + knobId]?.value ?? 0.5;
@@ -1028,11 +1662,42 @@ lfoState.forEach((lfo, lfoIndex) => {
         if (state.dom.feelDisplay) state.dom.feelDisplay.textContent = pIndex + 1;
     }
 });
-// --- End of Fix ---
-           // --- End of Fix ---
-    
-           if (timestamp - state.lastArpStepTime >= modulatedRateMs) {
+           const isBpmMode = tempoMode === TEMPO_MODE_BPM;
+           if (isBpmMode) {
+               modulatedRateBpm = normalizeArpRateBpm(modulatedRateBpm);
+           } else {
+               modulatedRateMs = normalizeArpRateMs(modulatedRateMs);
+           }
+
+           if (state.dom.rateDisplay) {
+               state.dom.rateDisplay.textContent = isBpmMode
+                   ? formatTempoLabel(modulatedRateBpm)
+                   : formatRateMsLabel(modulatedRateMs);
+           }
+
+           if (isBpmMode) {
+               const modulatedIntervalMs = bpmToSixteenthMs(modulatedRateBpm);
+
+               if (!Number.isFinite(state.nextArpStepTime) || state.nextArpStepTime <= 0) {
+                   state.nextArpStepTime = quantizeToNextSixteenth(timestamp, modulatedIntervalMs);
+                   return;
+               }
+
+               if (timestamp + MASTER_CLOCK_TOLERANCE_MS < state.nextArpStepTime) {
+                   return;
+               }
+
+               state.nextArpStepTime += modulatedIntervalMs;
+               while (state.nextArpStepTime <= timestamp) {
+                   state.nextArpStepTime += modulatedIntervalMs;
+               }
+           } else {
+               if (timestamp - state.lastArpStepTime < modulatedRateMs) {
+                   return;
+               }
                state.lastArpStepTime = timestamp;
+           }
+
                 let notesForSeq = state.arpNotes.map((noteObj, index) => ({ ...noteObj, originalIndex: index }));
                 let advance = true;
                 let noteIdx = state.currentArpNoteIndex;
@@ -1158,7 +1823,6 @@ lfoState.forEach((lfo, lfoIndex) => {
                        state.currentArpNoteIndex++;
                    }
                }
-          }
       }
       
        function populateScales() {
@@ -1280,6 +1944,7 @@ lfoState.forEach((lfo, lfoIndex) => {
            if (masterArpControls) masterArpControls.classList[action]('arp-hidden');
            knobState.forEach(k => updateArpControlsFading(k.id));
            updateSyncSwitchVisibility();
+           updateLfoTempoSwitchStates();
        }
       
        function updateArpControlsFading(id) {
@@ -1290,8 +1955,15 @@ lfoState.forEach((lfo, lfoIndex) => {
        function updateSyncSwitchVisibility() {
            if (!knobState || !arpSyncSwitch || !arpOrderSelector) return;
            const bothOn = knobState.every(k => k.isArpOn);
-           const syncCont = arpSyncSwitch.parentElement;
-           if(syncCont){syncCont.classList[bothOn?'remove':'add']('arp-disabled'); if(!bothOn&&isArpRateSynced){isArpRateSynced=false;arpSyncSwitch.classList.remove('on');}}
+           const syncCont = document.getElementById('rate-sync-container') || arpSyncSwitch.parentElement;
+           if(syncCont){
+               syncCont.classList[bothOn?'remove':'add']('arp-disabled');
+               if(!bothOn&&isArpRateSynced){
+                   isArpRateSynced=false;
+                   arpSyncSwitch.classList.remove('on');
+                   updateRateButtonLockState();
+               }
+           }
            const anyOn = knobState.some(k => k.isArpOn);
            const orderCont = arpOrderSelector.parentElement;
            if(orderCont){orderCont.classList[anyOn?'remove':'add']('arp-disabled');}
@@ -1319,7 +1991,17 @@ lfoState.forEach((lfo, lfoIndex) => {
                     const newAngle = MIN_FX_ANGLE + finalValue * (MAX_FX_ANGLE - MIN_FX_ANGLE);
                     knobData.indicator.style.transform = `rotate(${newAngle}deg)`;
                 }
-            }
+                     const lfoRateIndex = LFO_RATE_KNOB_IDS.indexOf(knobId);
+        if (lfoRateIndex !== -1) {
+            finalValue = Math.max(0, Math.min(1, finalValue));
+            updateLfoRateDisplay(lfoRateIndex, finalValue, lfoTempoLinkState[lfoRateIndex]?.enabled);
+        }
+    }
+
+            
+
+
+            applyModulatedArpUiPreviews(modulatedValues);
 
             Object.entries(LFO_DEST_TO_MAIN_KNOB).forEach(([destId, knobId]) => {
                 const state = knobState[knobId];
@@ -1378,6 +2060,50 @@ lfoState.forEach((lfo, lfoIndex) => {
             });
         }
 
+        function applyModulatedArpUiPreviews(modulatedValues = {}) {
+            knobState.forEach((state, idx) => {
+                if (!state?.dom) return;
+
+                const rateFxId = 16 + idx;
+                const rateBase = fxKnobData[rateFxId]?.value ?? 0.5;
+                const rateDelta = modulatedValues[rateFxId] || 0;
+                const rateValue = clamp(rateBase + rateDelta, 0, 1);
+                if (state.dom.rateDisplay) {
+                    if (tempoMode === TEMPO_MODE_BPM) {
+                        const bpm = normalizeArpRateBpm(valueToArpRateBpm(rateValue));
+                        state.dom.rateDisplay.textContent = formatTempoLabel(bpm);
+                    } else {
+                        state.dom.rateDisplay.textContent = formatRateMsLabel(valueToArpRateMs(rateValue));
+                    }
+                }
+
+                const transposeFxId = 24 + idx;
+                const transposeBase = fxKnobData[transposeFxId]?.value ?? 0.5;
+                const transposeValue = clamp(transposeBase + (modulatedValues[transposeFxId] || 0), 0, 1);
+                if (state.dom.transposeDisplay) {
+                    const trans = Math.floor((transposeValue * 24) - 12);
+                    state.dom.transposeDisplay.textContent = trans;
+                }
+
+                const octFxId = 18 + idx;
+                const octBase = fxKnobData[octFxId]?.value ?? 0;
+                const octValue = clamp(octBase + (modulatedValues[octFxId] || 0), 0, 1);
+                if (state.dom.octsDisplay) {
+                    const octs = Math.min(3, Math.floor(octValue * 4));
+                    state.dom.octsDisplay.textContent = octs;
+                }
+
+                const feelFxId = 22 + idx;
+                const feelBase = fxKnobData[feelFxId]?.value ?? 0;
+                const feelValue = clamp(feelBase + (modulatedValues[feelFxId] || 0), 0, 1);
+                if (state.dom.feelDisplay) {
+                    const pIndex = Math.min(NUM_FEEL_PATTERNS - 1, Math.floor(feelValue * NUM_FEEL_PATTERNS));
+                    state.dom.feelDisplay.textContent = pIndex + 1;
+                }
+            });
+        }
+
+
         function ensureLfoAnimationRunning() {
             if (lfoAnimationId !== null) return;
             const animateLFOs = () => {
@@ -1388,7 +2114,7 @@ lfoState.forEach((lfo, lfoIndex) => {
         }
 
         function shouldKeepLfoAnimationRunning() {
-            return isLfoMode || lfoState.some(lfo => LFO_DEST_TO_MAIN_KNOB[lfo.dest]);
+            return isLfoMode || lfoState.some(lfo => lfo.dest !== 0);
         }
       
       function toggleEasterEggMode() {
@@ -1439,7 +2165,27 @@ lfoState.forEach((lfo, lfoIndex) => {
         drawLfoCables();
 
         ensureLfoAnimationRunning();
+        updateLfoTempoSwitchStates();
+           
     } else {
+            lfoState.forEach((lfo, idx) => {
+        if (lfo.dest !== 0) {
+            lfo.dest = 0; // Set to OFF
+            if (synthNode) {
+                synthNode.port.postMessage({ 
+                    type: 'setLfo', 
+                    data: { lfoId: idx, param: 'dest', value: 0 } 
+                });
+            }
+            const destDisplay = document.getElementById(`lfo-dest-display-${idx}`);
+            if (destDisplay) destDisplay.textContent = 'OFF';
+        }
+    });
+            lfoTempoLinkState.forEach((link, idx) => {
+            if (link.enabled) {
+                setLfoTempoSync(idx, false);
+            }
+        });
         if (!shouldKeepLfoAnimationRunning() && lfoAnimationId !== null) {
             clearInterval(lfoAnimationId);
             lfoAnimationId = null;
@@ -1634,8 +2380,16 @@ function setFxValue(id, value, forceVisualUpdate = false) {
 
             d.value = Math.max(0, Math.min(1, value));
             d.angle = MIN_FX_ANGLE + (d.value * (MAX_FX_ANGLE - MIN_FX_ANGLE));
-            if (d.indicator && (!isLfoMode || forceVisualUpdate)) { 
+            if (d.indicator && (!isLfoMode || forceVisualUpdate)) {
                 d.indicator.style.transform = `rotate(${d.angle}deg)`;
+            }
+
+            const rateIndex = LFO_RATE_KNOB_IDS.indexOf(id);
+            if (rateIndex !== -1) {
+                if (!lfoTempoLinkState[rateIndex].enabled) {
+                    lfoTempoLinkState[rateIndex].storedFreeValue = d.value;
+                }
+                updateLfoRateDisplay(rateIndex, d.value, false);
             }
 
             if (id === 7) {
@@ -1661,7 +2415,11 @@ function setFxValue(id, value, forceVisualUpdate = false) {
                     state.arpTranspose = Math.floor((d.value * 24) - 12);
                     if (state.dom.transposeDisplay) state.dom.transposeDisplay.textContent = state.arpTranspose;
                 } else if (id === 16 || id === 17) {
-                    state.arpRateMs = 50 + Math.pow(1 - d.value, 3) * 1950;
+                    if (tempoMode === TEMPO_MODE_BPM) {
+                        setArpRateFromBpm(knobId, valueToArpRateBpm(d.value));
+                    } else {
+                        setArpRateFromMs(knobId, valueToArpRateMs(d.value));
+                    }
                 }
             }
             if (synthNode) {
@@ -1674,13 +2432,14 @@ function setFxValue(id, value, forceVisualUpdate = false) {
         }
 
 function resetAllFxToDefaults() {
+           resetLfoTempoSyncState();
            Object.keys(fxKnobData).forEach(idStr => {
                const id = parseInt(idStr, 10);
                let defaultValue = 0.0;
                if (id === 2) defaultValue = 1.0;
                if (id === 7) defaultValue = 0.7;
                if (id === 10) defaultValue = 1.0;
-               if (id === 16 || id === 17) defaultValue = 0.69;
+               if (id === 16 || id === 17) defaultValue = arpRateBpmToValue(DEFAULT_ARP_RATE_BPM);
                if (id === 20 || id === 21) defaultValue = 1.0;
                if (id === 26 || id === 27) defaultValue = 0.5;
                if (id === 24 || id === 25) defaultValue = 0.5;
@@ -1959,6 +2718,7 @@ function generateAndApplyRandomSound() {
        function init(){
            // --- Get all DOM elements ---
            synthContainer = document.getElementById('synth-container');
+           rateDisplayRows = Array.from(document.querySelectorAll('.rate-display-row'));
            powerSwitch = document.getElementById('power-switch');
            keySelector = document.getElementById('keySelector');
            scaleSelector = document.getElementById('scaleSelector');
@@ -2007,6 +2767,26 @@ function generateAndApplyRandomSound() {
       
            populateScales();
            setupFxKnobs();
+
+           lfoRateDisplays = Array.from({ length: 4 }, (_, idx) => document.getElementById(`lfo-rate-display-${idx}`));
+           lfoTempoSyncSwitches = Array(LFO_RATE_KNOB_IDS.length).fill(null);
+           document.querySelectorAll('.lfo-tempo-sync-switch').forEach(sw => {
+               const idx = parseInt(sw.dataset.lfoTempoIndex, 10);
+               if (Number.isNaN(idx)) return;
+               lfoTempoSyncSwitches[idx] = sw;
+               sw.addEventListener('click', () => {
+                   if (sw.classList.contains('switch-disabled')) return;
+                   setLfoTempoSync(idx, !lfoTempoLinkState[idx].enabled);
+               });
+           });
+           LFO_RATE_KNOB_IDS.forEach((id, idx) => {
+               const knobData = fxKnobData[id];
+               if (knobData) {
+                   lfoTempoLinkState[idx].storedFreeValue = knobData.value;
+                   updateLfoRateDisplay(idx, knobData.value, false);
+               }
+           });
+           updateLfoTempoSwitchStates();
             
             // Build the Knob Name map after fxKnobData is populated
             document.querySelectorAll('.fx-knob-container').forEach(knobEl => {
@@ -2018,6 +2798,8 @@ function generateAndApplyRandomSound() {
             });
             KNOB_ID_TO_NAME_MAP[MAIN_LFO_DEST_IDS[0]] = 'MAIN 1';
             KNOB_ID_TO_NAME_MAP[MAIN_LFO_DEST_IDS[1]] = 'MAIN 2';
+            KNOB_ID_TO_NAME_MAP[16] = 'TEMPO 1';
+            KNOB_ID_TO_NAME_MAP[17] = 'TEMPO 2';
 
 
             synthContainer.addEventListener('click', (e) => {
@@ -2356,20 +3138,45 @@ function generateAndApplyRandomSound() {
                if(k.dom.octsDisplay) k.dom.octsDisplay.textContent = k.arpOctaveRange;
                if(k.dom.transposeDisplay) k.dom.transposeDisplay.textContent = k.arpTranspose;
                if(k.dom.feelDisplay) { const pIdx=Math.min(NUM_FEEL_PATTERNS-1,Math.floor(k.feelKnobValue*NUM_FEEL_PATTERNS)); k.dom.feelDisplay.textContent = pIdx + 1; }
-               if(k.dom.rateDisplay) k.dom.rateDisplay.textContent = k.arpRateMs.toFixed(1);
                if(k.dom.arpNoteDisplay) k.dom.arpNoteDisplay.textContent = "--";
                if(k.dom.knob) new ResizeObserver(()=>updateStateFromTotalAngle(k.id)).observe(k.dom.knob);
            });
+           updateTempoDisplays();
+           applyModulatedArpUiPreviews();
+           if (document.body) {
+               document.body.setAttribute('data-tempo-mode', tempoMode);
+           }
       
            arpSyncSwitch?.addEventListener('click', () => {
-               isArpRateSynced = !isArpRateSynced; arpSyncSwitch.classList.toggle('on', isArpRateSynced);
-               if(isArpRateSynced && knobState[0]?.isArpOn && knobState[1]?.isArpOn) {
-                   knobState[1].arpRateMs = knobState[0].arpRateMs;
-                   const k1d = fxKnobData[16]; const k2d = fxKnobData[17];
-                   if (k1d && k2d) { k2d.value = k1d.value; k2d.angle = k1d.angle; if (k2d.indicator) k2d.indicator.style.transform = `rotate(${k1d.angle}deg)`; }
-               } else if (!isArpRateSynced && knobState[1]) { const k2d = fxKnobData[17]; if(k2d) knobState[1].arpRateMs = 50 + Math.pow(1 - d.value, 3) * 1950; }
+               isArpRateSynced = !isArpRateSynced;
+               arpSyncSwitch.classList.toggle('on', isArpRateSynced);
+                if(isArpRateSynced && knobState[0]?.isArpOn && knobState[1]?.isArpOn) {
+                    if (tempoMode === TEMPO_MODE_BPM) {
+                        setArpRateFromBpm(1, knobState[0].arpRateBpm);
+                    } else {
+                        setArpRateFromMs(1, knobState[0].arpRateMs);
+                    }
+               } else if (!isArpRateSynced && knobState[1]) {
+                   const k2d = fxKnobData[17];
+                   if(k2d) {
+                       if (tempoMode === TEMPO_MODE_BPM) {
+                           setArpRateFromBpm(1, valueToArpRateBpm(k2d.value));
+                       } else {
+                           setArpRateFromMs(1, valueToArpRateMs(k2d.value));
+                       }
+                   }
+               }
+               updateRateButtonLockState();
+               updateLfoTempoSwitchStates();
            });
-      
+
+           document.querySelectorAll('.arp-rate-button').forEach(button => {
+               const knobId = parseInt(button.dataset.rateTarget, 10);
+               const multiplier = parseFloat(button.dataset.rateMultiplier);
+               if (Number.isNaN(knobId) || Number.isNaN(multiplier)) return;
+               button.addEventListener('click', () => handleArpRateButton(knobId, multiplier));
+           });
+
            arpOrderSelector?.addEventListener('change', (e) => {
                currentArpOrder = e.target.value;
                knobState.forEach(s => { s.currentArpNoteIndex = (currentArpOrder === "Down" && s.arpNotes.length > 0) ? s.arpNotes.length - 1 : 0; s.arpUpDownState = 0; });
@@ -2377,8 +3184,7 @@ function generateAndApplyRandomSound() {
       
            updateGlobalArpVisibility();
            randomizeSettings();
+           updateRateButtonLockState();
        }
       
        init();
-
-
