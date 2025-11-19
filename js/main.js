@@ -1984,7 +1984,14 @@ lfoState.forEach((lfo, lfoIndex) => {
                     const newAngle = MIN_FX_ANGLE + finalValue * (MAX_FX_ANGLE - MIN_FX_ANGLE);
                     knobData.indicator.style.transform = `rotate(${newAngle}deg)`;
                 }
-            }
+                     const lfoRateIndex = LFO_RATE_KNOB_IDS.indexOf(knobId);
+        if (lfoRateIndex !== -1) {
+            finalValue = Math.max(0, Math.min(1, finalValue));
+            updateLfoRateDisplay(lfoRateIndex, finalValue, lfoTempoLinkState[lfoRateIndex]?.enabled);
+        }
+    }
+
+            
 
 
             applyModulatedArpUiPreviews(modulatedValues);
