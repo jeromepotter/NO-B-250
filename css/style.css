@@ -99,10 +99,6 @@ body { font-family: 'Poppins', sans-serif; background-color: #1e1b4b; touch-acti
         color: #facc15;
         transform: translateY(-1px);
       }
-      .rate-buttons-disabled .arp-rate-button {
-        opacity: 0.35;
-        pointer-events: none;
-      }
       #custom-scale-builder { display: none; }
       .piano { display: flex; position: relative; background-color: #1e1b4b; padding: 0.5rem; border: 2px solid #ffffff; }
       .key { border: 2px solid #1e1b4b; cursor: pointer; transition: background-color 0.1s ease-in-out; }
