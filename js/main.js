@@ -4,7 +4,9 @@
       let isLfoMode = false;
       let activeMainKnobId = null; // For MOUSE input only
       let lastTouchTime = 0; // Mobile double-trigger fix
-       const fxKnobData = {}; 
+       const fxKnobData = {};
+       const mainKnobData = {};
+       const mainKnobModState = {};
        const spinIntervals = {};
        const activeKeyControls = {};
        let customScale = [];
@@ -43,6 +45,11 @@ let liveLfoOutputs = [0, 0, 0, 0];
             101: { lfo: 0, param: 'wave' }, 105: { lfo: 1, param: 'wave' }, 112: { lfo: 2, param: 'wave' }, 113: { lfo: 3, param: 'wave' },
             // Dests
             114: { lfo: 0, param: 'dest' }, 115: { lfo: 1, param: 'dest' }, 102: { lfo: 2, param: 'dest' }, 107: { lfo: 3, param: 'dest' },
+        };
+        const MAIN_KNOB_DEST_OFFSET = 200;
+        const MAIN_KNOB_DEST_TO_ID = {
+            [MAIN_KNOB_DEST_OFFSET + 0]: 0,
+            [MAIN_KNOB_DEST_OFFSET + 1]: 1,
         };
       
        // --- Constants ---
@@ -371,7 +378,7 @@ for (const event of events) {
                         break;
                    case 'lfoUpdate':
     liveLfoOutputs = payload; // Store the live values
-    if (isLfoMode && typeof updateLfoVisuals === 'function') {
+    if (typeof updateLfoVisuals === 'function') {
         updateLfoVisuals(payload);
     }
     break;
@@ -419,6 +426,24 @@ for (const event of events) {
            let i = Math.floor(v * n); i = Math.min(i, n - 1);
            const b = 12 * (state.currentOctave + 1) + r;
            return b + currentScale[i];
+       }
+       function getMidiNoteFromAngle(knobId, angle) {
+           const state = knobState[knobId];
+           if (!state) return 0;
+           let currentScale;
+           const scaleName = scaleSelector.value;
+           if (scaleName === 'Custom') { currentScale = customScale.length > 0 ? customScale : [0]; }
+           else { currentScale = SCALES[scaleName] || [0]; }
+           const root = NOTES.indexOf(keySelector.value);
+           const clampedAngle = Math.max(0, Math.min(MAX_TOTAL_ANGLE, angle));
+           const octave = Math.floor(clampedAngle / 360);
+           const angleInCircle = clampedAngle % 360;
+           const position = angleInCircle / 360;
+           const steps = currentScale.length;
+           let idx = Math.floor(position * steps);
+           idx = Math.min(idx, steps - 1);
+           const base = 12 * (octave + 1) + root;
+           return base + currentScale[idx];
        }
 function getFullScaleMidi() {
            const scaleName = scaleSelector.value;
@@ -672,7 +697,8 @@ function sendMidiMessage(message) {
            document.addEventListener('touchmove', handleFxTouchMove, {passive:false}); document.addEventListener('touchend', handleFxTouchEnd); document.addEventListener('touchcancel', handleFxTouchEnd);
        }
       
-     function handleInteractionStart(e) {
+    function handleInteractionStart(e) {
+    if (activePatchingLfo !== null) return;
     // Prevent mouse events immediately after touch events (mobile double-trigger fix)
     if (e.type === 'touchstart') {
         e.preventDefault();
@@ -1277,7 +1303,7 @@ lfoState.forEach((lfo, lfoIndex) => {
 
             // Step 1: Accumulate modulation for each destination
             lfoState.forEach((lfo, index) => {
-                if (lfo.dest !== 0) { // If not OFF
+                if (lfo.dest > 0) { // If not OFF or parked
                     if (!modulatedValues[lfo.dest]) {
                         modulatedValues[lfo.dest] = 0;
                     }
@@ -1296,12 +1322,38 @@ lfoState.forEach((lfo, lfoIndex) => {
                 }
 
                 // We only apply visual updates to knobs with indicators
-                if (knobData.indicator) {
+                if (knobData.indicator && isLfoMode) {
                     finalValue = Math.max(0, Math.min(1, finalValue));
                     const newAngle = MIN_FX_ANGLE + finalValue * (MAX_FX_ANGLE - MIN_FX_ANGLE);
                     knobData.indicator.style.transform = `rotate(${newAngle}deg)`;
                 }
             }
+
+            Object.entries(mainKnobData).forEach(([idStr, data]) => {
+                const knobId = parseInt(idStr, 10);
+                const modulation = modulatedValues[getMainKnobDestId(knobId)] || 0;
+                const state = knobState[knobId];
+                if (!state) return;
+
+                const modulatedAngle = Math.max(0, Math.min(MAX_TOTAL_ANGLE, state.totalAngle + modulation * MAX_TOTAL_ANGLE));
+                const displayAngle = modulatedAngle % 360;
+                const knobRadius = state.dom.knob?.offsetHeight ? state.dom.knob.offsetHeight / 2 : 0;
+
+                if (data.indicator) {
+                    data.indicator.style.transformOrigin = `center ${knobRadius > 0 ? knobRadius - 16 : 0}px`;
+                    data.indicator.style.transform = `rotate(${displayAngle}deg)`;
+                }
+
+                const shouldUpdateAudio = synthNode && isPowerOn && state.isNoteOn && !state.isArpOn;
+                if (shouldUpdateAudio) {
+                    const midi = getMidiNoteFromAngle(knobId, modulatedAngle);
+                    const freq = getNoteFrequency(midi);
+                    if (mainKnobModState[knobId]?.lastFreq !== freq) {
+                        mainKnobModState[knobId] = { lastFreq: freq };
+                        synthNode.port.postMessage({ type: 'setFreq', data: { voice: knobId, freq } });
+                    }
+                }
+            });
         }
       
       function toggleEasterEggMode() {
@@ -1727,6 +1779,18 @@ function generateAndApplyRandomSound() {
             activePatchingLfo = null;
         }
 
+        function getMainKnobDestId(knobId) {
+            return MAIN_KNOB_DEST_OFFSET + knobId;
+        }
+
+        function getLfoTargetElement(destId) {
+            if (MAIN_KNOB_DEST_TO_ID[destId] !== undefined) {
+                const mainId = MAIN_KNOB_DEST_TO_ID[destId];
+                return mainKnobData[mainId]?.knobEl;
+            }
+            return fxKnobData[destId]?.knobEl;
+        }
+
         function startLfoPatching(lfoIndex) {
             // If we're already patching, stop it first
             if (activePatchingLfo !== null) {
@@ -1754,6 +1818,10 @@ function generateAndApplyRandomSound() {
                     fxKnobData[id].knobEl.classList.add('blinking-lfo-target');
                 }
             }
+
+            Object.values(mainKnobData).forEach(data => {
+                data.knobEl?.classList.add('blinking-lfo-target');
+            });
         }
       function drawLfoCables() {
         if (!isLfoMode) {
@@ -1796,8 +1864,8 @@ function generateAndApplyRandomSound() {
                     endY = startY + 100; // Give it a slight droop
                 } 
                 // State 3: Cable is patched to a destination.
-                else { 
-                    const destKnobEl = fxKnobData[lfo.dest]?.knobEl;
+                else {
+                    const destKnobEl = getLfoTargetElement(lfo.dest);
                     // Also handles the ARP-off case where the element is hidden
                     if (!destKnobEl || destKnobEl.offsetParent === null) {
                          const direction = (startX > containerRect.width / 2) ? 1 : -1;
@@ -1888,18 +1956,23 @@ function generateAndApplyRandomSound() {
                 }
             });
 
+            KNOB_ID_TO_NAME_MAP[getMainKnobDestId(0)] = 'MAIN KNOB 1';
+            KNOB_ID_TO_NAME_MAP[getMainKnobDestId(1)] = 'MAIN KNOB 2';
+
 
             synthContainer.addEventListener('click', (e) => {
                 if (!isLfoMode || activePatchingLfo === null) return;
                 
-                const targetKnobEl = e.target.closest('.fx-knob-container');
+                const targetKnobEl = e.target.closest('.fx-knob-container, .main-knob');
                 if (!targetKnobEl) {
                     // If user clicks outside a knob, cancel patching
                     stopLfoPatching();
                     return;
                 }
-                
-                const targetFxId = parseInt(targetKnobEl.dataset.fxId, 10);
+
+                const targetFxId = targetKnobEl.classList.contains('fx-knob-container')
+                    ? parseInt(targetKnobEl.dataset.fxId, 10)
+                    : getMainKnobDestId(parseInt(targetKnobEl.dataset.knobId, 10));
                 const sourceKnobInfo = Object.values(LFO_KNOB_MAP).find(d => d.lfo === activePatchingLfo && d.param === 'dest');
                 const sourceFxId = parseInt(Object.keys(LFO_KNOB_MAP).find(key => LFO_KNOB_MAP[key] === sourceKnobInfo));
                 
@@ -1987,7 +2060,13 @@ function generateAndApplyRandomSound() {
                s.dom.feelDisplay = document.getElementById(`feel-display-${id}`); s.dom.arpNoteDisplay = document.getElementById(`arp-note-display-${id}`);
                s.dom.transposeDisplay = document.getElementById(`transpose-display-${id}`);
                s.dom.rateDisplay = document.getElementById(`rate-display-${id}`);
-      
+
+               mainKnobData[id] = {
+                   knobEl: s.dom.knob,
+                   indicator: s.dom.indicator,
+               };
+               mainKnobModState[id] = { lastFreq: null };
+
                s.dom.knob?.addEventListener('mousedown', handleInteractionStart); s.dom.knob?.addEventListener('touchstart', handleInteractionStart, {passive: false});
       
                const spinLeftButton = document.getElementById(`spin-left-${id}`);

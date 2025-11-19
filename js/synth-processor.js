@@ -144,7 +144,7 @@ const LFO_KNOB_IDS = { 101: {lfo: 0, param: 'wave'}, 103: {lfo: 1, param: 'depth
 
 for (let l = 0; l < 4; l++) {
     const lfo = this.lfoParams[l];
-    if (lfo.dest !== 0 && rawLfoOutputs[l] !== 0) {
+    if (lfo.dest > 0 && rawLfoOutputs[l] !== 0) {
         const targetLfoInfo = LFO_KNOB_IDS[lfo.dest];
         if (targetLfoInfo) {
             const targetLfo = this.lfoParams[targetLfoInfo.lfo];
@@ -198,7 +198,7 @@ this.lfoOutputs = rawLfoOutputs;
 let modulatedFx = {};
 for (let l = 0; l < 4; l++) {
     const lfo = this.lfoParams[l];
-    if (lfo.dest !== 0) {
+    if (lfo.dest > 0) {
         if (!modulatedFx[lfo.dest]) modulatedFx[lfo.dest] = 0;
         modulatedFx[lfo.dest] += this.lfoOutputs[l];
     }

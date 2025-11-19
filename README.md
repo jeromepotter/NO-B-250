@@ -22,6 +22,7 @@ A browser-based dual-oscillator synthesizer with vintage-inspired sound and mode
 - **4 LFOs** - Sine, triangle, saw, square, random
 - **LFO Cross-Modulation** - LFOs can modulate each other before destinations
 - **Visual Patch Bay** - Cable-style routing interface for modulation
+- **Main Knob Modulation** - Patch LFOs directly into the two primary pitch knobs; presets save/load these routings and visuals reflect live modulation
 - **Interactive Sequencer** - Visualize, mute, and delete notes from a sequence
 - **Dual Arpeggiators** - Per-voice with rate, transpose, octave range, and feel controls
 
