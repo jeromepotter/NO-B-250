@@ -3,7 +3,6 @@
 All notable changes to NO-B 250 will be documented in this file.
 
 ##Future Plans
-- User preset filename structure to include "n-ob"
 
 ## [11.18] - 2025-11-18
 ### Added
@@ -11,6 +10,8 @@ All notable changes to NO-B 250 will be documented in this file.
 - LFO to main Knob Modulation
 - Note Repeat Mode Auto Latch When Hold is Active
 - Audio continues in background even when tab is hidden
+- User preset filename structure to include "n-ob"
+
 
 
 
