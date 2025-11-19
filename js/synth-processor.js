@@ -205,9 +205,6 @@ for (let l = 0; l < 4; l++) {
     }
 }
 
-
-const LFO_KNOB_IDS = { 101: {lfo: 0, param: 'wave'}, 103: {lfo: 1, param: 'depth'}, 104: {lfo: 2, param: 'depth'}, 105: {lfo: 1, param: 'wave'}, 106: {lfo: 0, param: 'depth'}, 107: {lfo: 3, param: 'dest'}, 108: {lfo: 0, param: 'rate'}, 109: {lfo: 1, param: 'rate'}, 110: {lfo: 2, param: 'rate'}, 111: {lfo: 3, param: 'rate'}, 112: {lfo: 2, param: 'wave'}, 113: {lfo: 3, param: 'wave'}, 100: {lfo: 3, param: 'depth'}, 102: {lfo: 2, param: 'dest'}, 114: {lfo: 0, param: 'dest'}, 115: {lfo: 1, param: 'dest'} };
-
 for (let l = 0; l < 4; l++) {
     const lfo = this.lfoParams[l];
     if (lfo.dest !== 0 && rawLfoOutputs[l] !== 0) {
@@ -430,5 +427,6 @@ return true;
 }
 }
 registerProcessor('synth-processor', SynthProcessor);
+
 
 
