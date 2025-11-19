@@ -411,6 +411,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         }
 
         function applyTempoLinkedLfoRate(index, normalizedOverride, sharedIntervalMs) {
+               console.log(`LFO ${index}: knobValue=${knobValue.toFixed(3)}, multiplier=${multiplier}, intervalMs=${lfoIntervalMs.toFixed(2)}, rateParam=${lfoRateParam.toFixed(3)}`);
             const link = lfoTempoLinkState[index];
             if (!link?.enabled) return;
             const rateKnobId = LFO_RATE_KNOB_IDS[index];
