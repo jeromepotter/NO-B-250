@@ -27,6 +27,8 @@
         let lfoAnimationId = null;
         let activePatchingLfo = null; // NEW: null or the index (0-3) of the LFO being patched
         let KNOB_ID_TO_NAME_MAP = {}; // NEW: Populated at init
+        const MAIN_LFO_DEST_IDS = { 0: 300, 1: 301 };
+        const LFO_DEST_TO_MAIN_KNOB = { 300: 0, 301: 1 };
         const lfoState = [
     { id: 0, rate: 0.5, depth: 0, wave: 0, dest: 0, phase: 0, lastRandom: 0, output: 0 },
     { id: 1, rate: 0.5, depth: 0, wave: 0, dest: 0, phase: 0, lastRandom: 0, output: 0 },
@@ -371,7 +373,7 @@ for (const event of events) {
                         break;
                    case 'lfoUpdate':
     liveLfoOutputs = payload; // Store the live values
-    if (isLfoMode && typeof updateLfoVisuals === 'function') {
+    if (typeof updateLfoVisuals === 'function') {
         updateLfoVisuals(payload);
     }
     break;
@@ -420,6 +422,17 @@ for (const event of events) {
            const b = 12 * (state.currentOctave + 1) + r;
            return b + currentScale[i];
        }
+        function getMidiNoteFromAngle(knobId, angle) {
+            const state = knobState[knobId]; if (!state) return null;
+            const scaleName = scaleSelector.value;
+            const currentScale = (scaleName === 'Custom' && customScale.length > 0) ? customScale : (SCALES[scaleName] || [0]);
+            const normalizedAngle = angle % 360;
+            const v = normalizedAngle / 360;
+            const i = Math.min(currentScale.length - 1, Math.floor(v * currentScale.length));
+            const octave = Math.floor(angle / 360);
+            const root = NOTES.indexOf(keySelector.value);
+            return (12 * (octave + 1)) + root + currentScale[i];
+        }
 function getFullScaleMidi() {
            const scaleName = scaleSelector.value;
            const intervals = (scaleName === 'Custom' && customScale.length > 0) ? customScale : SCALES[scaleName] || [0];
@@ -505,13 +518,22 @@ function sendMidiMessage(message) {
            } else if (!state.isNoteOn) {
                updateKnobColor(knobId);
            }
-           if(state.isArpOn && state.isHeld) {
+           const isNoteRepeatHoldActive = state.isArpOn && state.isArpHoldOn && !state.isSweepMode;
+           if (state.isArpOn && (state.isHeld || isNoteRepeatHoldActive)) {
                if (state.isSweepMode) {
                   if (allowDuplicateNotesMode || !state.arpNotes.some(n => n.midi === baseMidi)) {
                    state.arpNotes.push({ midi: baseMidi, active: true });
                   updateSequenceDisplay(knobId);
                   }
-               } else { if (state.arpRunning) { state.arpNotes = [{ midi: baseMidi, active: true }]; } }
+               } else {
+                  const noteChanged = state.arpNotes.length !== 1 || state.arpNotes[0].midi !== baseMidi || !state.arpNotes[0].active;
+                  state.arpNotes = [{ midi: baseMidi, active: true }];
+                  if (noteChanged) {
+                      state.currentArpNoteIndex = 0;
+                      state.arpUpDownState = 0;
+                      updateSequenceDisplay(knobId);
+                  }
+               }
            } else if (state.isHeld && synthNode && isPowerOn) {
                // Audio update
                synthNode.port.postMessage({ type: 'setFreq', data: { voice: knobId, freq: getNoteFrequency(baseMidi) } });
@@ -673,6 +695,7 @@ function sendMidiMessage(message) {
        }
       
      function handleInteractionStart(e) {
+    if (activePatchingLfo !== null) return;
     // Prevent mouse events immediately after touch events (mobile double-trigger fix)
     if (e.type === 'touchstart') {
         e.preventDefault();
@@ -886,14 +909,16 @@ function sendMidiMessage(message) {
 
       
        function startArpeggiator(knobId) {
-           const state = knobState[knobId]; if(!state || !state.isArpOn || state.arpRunning || !synthNode) return;
-           state.arpRunning = true; state.lastArpStepTime = performance.now();
-           const activeNotes = state.arpNotes.filter(n => n.active);
-           if (!state.isSweepMode || activeNotes.length <= 1) { state.currentArpNoteIndex = (currentArpOrder === "Down" && activeNotes.length > 0) ? activeNotes.length - 1 : 0; state.arpUpDownState = 0; }
-           state.currentOctaveStep = 0; state.euclideanStepCounter = 0; state.arpDirection = 1; state.lastPlayedMidi = null;
-           if (state.arpRafId) cancelAnimationFrame(state.arpRafId);
-           updateArpeggiator(knobId, performance.now());
-       }
+          const state = knobState[knobId]; if(!state || !state.isArpOn || state.arpRunning || !synthNode) return;
+          state.arpRunning = true; state.lastArpStepTime = performance.now();
+          const activeNotes = state.arpNotes.filter(n => n.active);
+          if (!state.isSweepMode || activeNotes.length <= 1) { state.currentArpNoteIndex = (currentArpOrder === "Down" && activeNotes.length > 0) ? activeNotes.length - 1 : 0; state.arpUpDownState = 0; }
+          state.currentOctaveStep = 0; state.euclideanStepCounter = 0; state.arpDirection = 1; state.lastPlayedMidi = null;
+          if (state.arpRafId) clearInterval(state.arpRafId);
+          const tick = () => updateArpeggiator(knobId, performance.now());
+          state.arpRafId = setInterval(tick, 0);
+          tick();
+      }
       
        function stopArpeggiator(knobId) {
            const state = knobState[knobId];
@@ -901,10 +926,10 @@ function sendMidiMessage(message) {
 
            // --- Stop the existing playback loop ---
            state.arpRunning = false;
-           if (state.arpRafId) {
-               cancelAnimationFrame(state.arpRafId);
-               state.arpRafId = null;
-           }
+          if (state.arpRafId) {
+              clearInterval(state.arpRafId);
+              state.arpRafId = null;
+          }
           if (state.isNoteOn && state.lastPlayedMidi !== null) {
            // Stop the internal synth sound
            if (synthNode) {
@@ -1133,9 +1158,8 @@ lfoState.forEach((lfo, lfoIndex) => {
                        state.currentArpNoteIndex++;
                    }
                }
-           }
-           state.arpRafId = requestAnimationFrame((ts) => updateArpeggiator(knobId, ts));
-       }
+          }
+      }
       
        function populateScales() {
            let names = Object.keys(SCALES); names.splice(2, 0, 'Custom');
@@ -1273,19 +1297,14 @@ lfoState.forEach((lfo, lfoIndex) => {
            if(orderCont){orderCont.classList[anyOn?'remove':'add']('arp-disabled');}
        }
         function updateLfoVisuals(lfoOutputs) {
-            const modulatedValues = {}; // key: fxId, value: total modulation amount
+            const modulatedValues = {}; // key: destination id, value: total modulation amount
 
-            // Step 1: Accumulate modulation for each destination
             lfoState.forEach((lfo, index) => {
-                if (lfo.dest !== 0) { // If not OFF
-                    if (!modulatedValues[lfo.dest]) {
-                        modulatedValues[lfo.dest] = 0;
-                    }
-                    modulatedValues[lfo.dest] += lfoOutputs[index];
+                if (lfo.dest > 0) { // Ignore OFF and parked cables
+                    modulatedValues[lfo.dest] = (modulatedValues[lfo.dest] || 0) + lfoOutputs[index];
                 }
             });
 
-            // Step 2: Apply the final calculated value to each visual indicator
             for (const knobIdStr in fxKnobData) {
                 const knobId = parseInt(knobIdStr, 10);
                 const knobData = fxKnobData[knobId];
@@ -1295,13 +1314,81 @@ lfoState.forEach((lfo, lfoIndex) => {
                     finalValue += modulatedValues[knobId];
                 }
 
-                // We only apply visual updates to knobs with indicators
                 if (knobData.indicator) {
                     finalValue = Math.max(0, Math.min(1, finalValue));
                     const newAngle = MIN_FX_ANGLE + finalValue * (MAX_FX_ANGLE - MIN_FX_ANGLE);
                     knobData.indicator.style.transform = `rotate(${newAngle}deg)`;
                 }
             }
+
+            Object.entries(LFO_DEST_TO_MAIN_KNOB).forEach(([destId, knobId]) => {
+                const state = knobState[knobId];
+                if (!state || !state.dom?.indicator) return;
+
+                const baseAngle = state.totalAngle;
+                const lfoMod = modulatedValues[destId] || 0;
+                const modulatedAngle = Math.max(0, Math.min(MAX_TOTAL_ANGLE, baseAngle + lfoMod * MAX_TOTAL_ANGLE));
+                const displayAngle = modulatedAngle % 360;
+
+                const knobRadius = state.dom.knob?.offsetHeight ? state.dom.knob.offsetHeight / 2 : 0;
+                state.dom.indicator.style.transformOrigin = `center ${knobRadius > 0 ? knobRadius - 16 : 0}px`;
+                state.dom.indicator.style.transform = `rotate(${displayAngle}deg)`;
+
+                const modMidi = getMidiNoteFromAngle(knobId, modulatedAngle);
+                let displayMidi = modMidi;
+                if (state.isArpOn) {
+                    const fullScaleMidi = getFullScaleMidi();
+                    const baseNoteIndexInScale = fullScaleMidi.indexOf(modMidi);
+                    if (baseNoteIndexInScale !== -1) {
+                        const transposedNoteIndex = baseNoteIndexInScale + state.arpTranspose;
+                        const clampedIndex = Math.max(0, Math.min(fullScaleMidi.length - 1, transposedNoteIndex));
+                        displayMidi = fullScaleMidi[clampedIndex];
+                    }
+                }
+                if (state.dom.noteDisplay) {
+                    state.dom.noteDisplay.textContent = midiToNoteName(displayMidi);
+                }
+
+                if (state.dom.knob) {
+                    const finalRgb = getArpNoteColor(displayMidi);
+                    state.dom.knob.style.backgroundColor = `rgb(${finalRgb.r}, ${finalRgb.g}, ${finalRgb.b})`;
+                }
+
+                const isNoteRepeatHoldActive = state.isArpOn && state.isArpHoldOn && !state.isSweepMode;
+                if (state.isArpOn && (state.isHeld || isNoteRepeatHoldActive)) {
+                    if (state.isSweepMode) {
+                        const lastNote = state.arpNotes[state.arpNotes.length - 1]?.midi;
+                        const alreadyPresent = state.arpNotes.some(n => n.midi === modMidi);
+                        if ((allowDuplicateNotesMode && lastNote !== modMidi) || (!allowDuplicateNotesMode && !alreadyPresent)) {
+                            state.arpNotes.push({ midi: modMidi, active: true });
+                            updateSequenceDisplay(knobId);
+                        }
+                    } else {
+                        const noteChanged = state.arpNotes.length !== 1 || state.arpNotes[0].midi !== modMidi || !state.arpNotes[0].active;
+                        state.arpNotes = [{ midi: modMidi, active: true }];
+                        if (noteChanged) {
+                            state.currentArpNoteIndex = 0;
+                            state.arpUpDownState = 0;
+                            updateSequenceDisplay(knobId);
+                        }
+                    }
+                } else if (state.isHeld && synthNode && isPowerOn && !state.isArpOn) {
+                    synthNode.port.postMessage({ type: 'setFreq', data: { voice: knobId, freq: getNoteFrequency(modMidi) } });
+                }
+            });
+        }
+
+        function ensureLfoAnimationRunning() {
+            if (lfoAnimationId !== null) return;
+            const animateLFOs = () => {
+                if (synthNode) synthNode.port.postMessage({ type: 'requestLfoUpdate' });
+                lfoAnimationId = requestAnimationFrame(animateLFOs);
+            };
+            animateLFOs();
+        }
+
+        function shouldKeepLfoAnimationRunning() {
+            return isLfoMode || lfoState.some(lfo => LFO_DEST_TO_MAIN_KNOB[lfo.dest]);
         }
       
       function toggleEasterEggMode() {
@@ -1351,15 +1438,9 @@ lfoState.forEach((lfo, lfoIndex) => {
         
         drawLfoCables();
 
-        if (lfoAnimationId === null) {
-            const animateLFOs = () => {
-                if (synthNode) synthNode.port.postMessage({ type: 'requestLfoUpdate' });
-                lfoAnimationId = requestAnimationFrame(animateLFOs);
-            };
-            animateLFOs();
-        }
+        ensureLfoAnimationRunning();
     } else {
-        if (lfoAnimationId !== null) {
+        if (!shouldKeepLfoAnimationRunning() && lfoAnimationId !== null) {
             cancelAnimationFrame(lfoAnimationId);
             lfoAnimationId = null;
         }
@@ -1442,6 +1523,10 @@ function applyPreset(p) {
                        }
                    }
                });
+
+               if (lfoState.some(lfo => LFO_DEST_TO_MAIN_KNOB[lfo.dest])) {
+                   ensureLfoAnimationRunning();
+               }
            } else { // Reset LFOs for older presets (THE FIX IS HERE)
                lfoState.forEach((lfo, index) => {
                    lfo.rate = 0; lfo.depth = 0; lfo.wave = 0; lfo.dest = 0;
@@ -1727,6 +1812,15 @@ function generateAndApplyRandomSound() {
             activePatchingLfo = null;
         }
 
+        function getLfoTargetElement(destId) {
+            if (fxKnobData[destId]?.knobEl) return fxKnobData[destId].knobEl;
+            const mainId = LFO_DEST_TO_MAIN_KNOB[destId];
+            if (mainId !== undefined) {
+                return knobState[mainId]?.dom?.knob || null;
+            }
+            return null;
+        }
+
         function startLfoPatching(lfoIndex) {
             // If we're already patching, stop it first
             if (activePatchingLfo !== null) {
@@ -1754,6 +1848,11 @@ function generateAndApplyRandomSound() {
                     fxKnobData[id].knobEl.classList.add('blinking-lfo-target');
                 }
             }
+            knobState.forEach(k => {
+                if (k?.dom?.knob) {
+                    k.dom.knob.classList.add('blinking-lfo-target');
+                }
+            });
         }
       function drawLfoCables() {
         if (!isLfoMode) {
@@ -1796,8 +1895,8 @@ function generateAndApplyRandomSound() {
                     endY = startY + 100; // Give it a slight droop
                 } 
                 // State 3: Cable is patched to a destination.
-                else { 
-                    const destKnobEl = fxKnobData[lfo.dest]?.knobEl;
+                else {
+                    const destKnobEl = getLfoTargetElement(lfo.dest);
                     // Also handles the ARP-off case where the element is hidden
                     if (!destKnobEl || destKnobEl.offsetParent === null) {
                          const direction = (startX > containerRect.width / 2) ? 1 : -1;
@@ -1887,19 +1986,25 @@ function generateAndApplyRandomSound() {
                     KNOB_ID_TO_NAME_MAP[id] = labelEl.textContent.trim().replace(/\s/g, ' '); // Clean up text
                 }
             });
+            KNOB_ID_TO_NAME_MAP[MAIN_LFO_DEST_IDS[0]] = 'MAIN 1';
+            KNOB_ID_TO_NAME_MAP[MAIN_LFO_DEST_IDS[1]] = 'MAIN 2';
 
 
             synthContainer.addEventListener('click', (e) => {
                 if (!isLfoMode || activePatchingLfo === null) return;
                 
-                const targetKnobEl = e.target.closest('.fx-knob-container');
+                const targetKnobEl = e.target.closest('.fx-knob-container, .main-knob');
                 if (!targetKnobEl) {
                     // If user clicks outside a knob, cancel patching
                     stopLfoPatching();
                     return;
                 }
-                
-                const targetFxId = parseInt(targetKnobEl.dataset.fxId, 10);
+
+                const targetFxId = targetKnobEl.classList.contains('main-knob') ? MAIN_LFO_DEST_IDS[parseInt(targetKnobEl.dataset.knobId, 10)] : parseInt(targetKnobEl.dataset.fxId, 10);
+                if (targetFxId === undefined || Number.isNaN(targetFxId)) {
+                    stopLfoPatching();
+                    return;
+                }
                 const sourceKnobInfo = Object.values(LFO_KNOB_MAP).find(d => d.lfo === activePatchingLfo && d.param === 'dest');
                 const sourceFxId = parseInt(Object.keys(LFO_KNOB_MAP).find(key => LFO_KNOB_MAP[key] === sourceKnobInfo));
                 
@@ -2093,6 +2198,10 @@ function generateAndApplyRandomSound() {
           });
         }
         drawLfoCables();
+        if (!shouldKeepLfoAnimationRunning() && lfoAnimationId !== null) {
+          cancelAnimationFrame(lfoAnimationId);
+          lfoAnimationId = null;
+        }
       }
     });
 
@@ -2241,6 +2350,5 @@ function generateAndApplyRandomSound() {
        }
       
        init();
-
 
 
