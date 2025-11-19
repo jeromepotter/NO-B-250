@@ -76,6 +76,12 @@ body { font-family: 'Poppins', sans-serif; background-color: #1e1b4b; touch-acti
         transition: color 0.2s, opacity 0.2s, transform 0.1s;
         mix-blend-mode: difference;
       }
+      .rate-bpm-display {
+        font-size: 0.6rem;
+        font-weight: 700;
+        color: #facc15;
+        letter-spacing: 0.05em;
+      }
       .arp-rate-button:hover {
         color: #facc15;
         transform: translateY(-1px);
