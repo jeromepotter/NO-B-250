@@ -40,8 +40,8 @@ export const PRESETS = {
             notes: [64, 71, 76, 65, 71, 81, 79]
         },
         fx: { // Settings for the dedicated ARP knobs
-            16: 0,                 // Arp 1 RATE
-            17: 0,                   // Arp 2 RATE
+            16: 0.0512,                 // Arp 1 RATE
+            17: 0.0299,                   // Arp 2 RATE
             18: 0,                   // Arp 1 OCTS
             19: 0,                   // Arp 2 OCTS
             22: 0.7,                 // Arp 1 FEEL
@@ -103,8 +103,8 @@ export const PRESETS = {
             notes: [ 51, 51 ]
         },
         fx: { // Settings for the ARP-specific knobs
-            16: 0.0575,
-            17: 0.0575,
+            16: 0.3733,
+            17: 0.3733,
             18: 0.4246,
             19: 0.6904,
             22: 0.7333,
@@ -156,8 +156,8 @@ export const PRESETS = {
             notes: [23] // A very low B1
         },
         fx: { // Settings for the dedicated ARP knobs
-            16: 0.0386,              // Arp 1 RATE (Medium)
-            17: 0.8066,              // Arp 2 RATE (Very Fast)
+            16: 0.3248,              // Arp 1 RATE (Medium)
+            17: 0.9953,              // Arp 2 RATE (Very Fast)
             18: 0,                   // Arp 1 OCTS
             19: 0,                   // Arp 2 OCTS
             22: 0,                   // Arp 1 FEEL
@@ -206,8 +206,8 @@ export const PRESETS = {
             notes: [66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 66, 62, 62, 62, 62, 62, 62, 62, 62, 62, 62, 62, 62, 62, 62, 62, 62, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 59, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 62, 62, 62]
         },
         fx: { // Settings for the dedicated ARP knobs
-            16: 0.0575,              // Arp 1 RATE
-            17: 0.0575,              // Arp 2 RATE (Synced)
+            16: 0.3733,              // Arp 1 RATE
+            17: 0.3733,              // Arp 2 RATE (Synced)
             18: 0.1444,              // Arp 1 OCTS
             19: 0,                   // Arp 2 OCTS
             22: 0,                   // Arp 1 FEEL
@@ -237,8 +237,8 @@ export const PRESETS = {
                     arp1: { isArpOn: true, notes: [60, 67] }, // Arp 1 plays C4 and G4.
                     arp2: { isArpOn: true, notes: [64, 71], transpose: 12 }, // Arp 2 plays E4 and B4, but transposed up 1 octave.
                     fx: {
-                        16: 0,              // Arp 1 RATE: Extremely slow.
-                        17: 0,             // Arp 2 RATE: Also extremely slow, but different from Arp 1.
+                        16: 0.0512,              // Arp 1 RATE: Extremely slow.
+                        17: 0.0639,             // Arp 2 RATE: Also extremely slow, but different from Arp 1.
                         22: 0.7,              // Arp 1 FEEL: A more complex rhythmic pattern.
                         23: 0.8               // Arp 2 FEEL: A different complex pattern, creating polyrhythm.
                     }
@@ -299,8 +299,8 @@ export const PRESETS = {
             notes: [ 71 ]
         },
         fx: {
-            16: 0.0267,
-            17: 0.6113,
+            16: 0.2918,
+            17: 0.9616,
             18: 0,
             19: 0,
             22: 0,
@@ -350,8 +350,8 @@ export const PRESETS = {
         { id: 28, value: 0 },       // OSC 1 RES
         { id: 29, value: 0 },       // OSC 2 RES
         // Dedicated ARP Knobs
-        { id: 16, value: 0 },     // Rate 1
-        { id: 17, value: 0.1472 },    // Rate 2
+        { id: 16, value: 0.1714 },     // Rate 1
+        { id: 17, value: 0.5588 },    // Rate 2
         { id: 18, value: 0 },       // Octs 1
         { id: 19, value: 0 },       // Octs 2
         { id: 22, value: 0.6 },     // Feel 1
@@ -439,8 +439,8 @@ export const PRESETS = {
             notes: [ 51, 56, 58, 60, 63, 65, 67, 70 ]
         },
         fx: { // Settings for the ARP-specific knobs
-            16: 0.077,
-            17: 0,
+            16: 0.4193,
+            17: 0.1412,
             18: 0.55,
             19: 0,
             22: 0.44,
@@ -506,8 +506,8 @@ export const PRESETS = {
             transpose: -2
         },
         fx: { // Settings for the ARP-specific knobs
-            16: 0.9008,
-            17: 0.0545,
+            16: 0.9994,
+            17: 0.3659,
             18: 0.2487,
             19: 0.6951,
             22: 0.0891,
@@ -574,8 +574,8 @@ export const PRESETS = {
             notes: [ 60 ]
         },
         fx: {
-            16: 0.0994,
-            17: 0.0994,
+            16: 0.4678,
+            17: 0.4678,
             18: 0,
             19: 0,
             22: 0,
@@ -602,7 +602,7 @@ export const PRESETS = {
                     arp1: { isArpOn: true, notes: [59, 62], transpose: -12 }, // Low notes, transposed down an octave.
                     arp2: { isArpOn: true, notes: [66, 71] }, // Higher, complimentary notes.
                     fx: {
-                        16: 0,             // Arp 1 RATE: Extremely slow for a drone effect.
+                        16: 0.0400,             // Arp 1 RATE: Extremely slow for a drone effect.
                         22: 0.8,              // Arp 1 FEEL: Sparse rhythm.
                         23: 0.9               // Arp 2 FEEL: Very sparse rhythm.
                     }
@@ -625,8 +625,8 @@ export const PRESETS = {
                     arp1: { isArpOn: true, notes: [49, 52, 56, 59] }, // Plays a C#m7 chord.
                     arp2: { isArpOn: true, notes: [61, 64, 68, 71] }, // Plays the same chord an octave up.
                     fx: {
-                        16: 0.3502,              // Arp 1 RATE: Fast trance speed.
-                        17: 0.3502,              // Arp 2 RATE: Same speed.
+                        16: 0.8157,              // Arp 1 RATE: Fast trance speed.
+                        17: 0.8157,              // Arp 2 RATE: Same speed.
                         18: 0.7,              // Arp 1 OCTS: Arpeggio jumps up 2 octaves.
                         19: 0.7               // Arp 2 OCTS: Arpeggio also jumps up 2 octaves.
                     }
@@ -671,8 +671,8 @@ export const PRESETS = {
                         transpose: -2 // This will be handled by the '25' knob value
                     },
                     fx: { // Settings for the dedicated ARP knobs
-                        16: 0.3542,          // Arp 1 RATE
-                        17: 0.3542,          // Arp 2 RATE
+                        16: 0.8192,          // Arp 1 RATE
+                        17: 0.8192,          // Arp 2 RATE
                         18: 0.7635,          // Arp 1 OCTS
                         19: 0.5953,          // Arp 2 OCTS
                         22: 0.2349,          // Arp 1 FEEL

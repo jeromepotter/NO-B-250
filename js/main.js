@@ -72,11 +72,16 @@ let liveLfoOutputs = [0, 0, 0, 0];
             ':': ';', '"': "'", '<': ',', '>': '.', '?': '/'
         };
 
-        const MIN_ARP_RATE_BPM = 40;
+        const MIN_ARP_RATE_BPM = 5;
         const MAX_ARP_RATE_BPM = 300;
         const DEFAULT_ARP_RATE_BPM = 100;
         const ARP_RATE_RANGE_BPM = MAX_ARP_RATE_BPM - MIN_ARP_RATE_BPM;
         const SIXTEENTH_NOTES_PER_QUARTER = 4;
+        const MIDPOINT_ARP_RATE_BPM = 120;
+        const MIDPOINT_ARP_RATE_VALUE = 0.5;
+        const ARP_RATE_CURVE_EXP = Math.log((MIDPOINT_ARP_RATE_BPM - MIN_ARP_RATE_BPM) / ARP_RATE_RANGE_BPM) / Math.log(MIDPOINT_ARP_RATE_VALUE);
+        const ARP_RATE_CURVE_INV_EXP = 1 / ARP_RATE_CURVE_EXP;
+        const MIN_MIDI_EXPORT_BPM = 40;
 
         function clamp(value, min, max) {
             return Math.min(max, Math.max(min, value));
@@ -84,15 +89,14 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
         function valueToArpRateBpm(value) {
             const normalized = clamp(value, 0, 1);
-            const eased = 1 - Math.pow(1 - normalized, 3);
-            return MIN_ARP_RATE_BPM + eased * ARP_RATE_RANGE_BPM;
+            const curved = Math.pow(normalized, ARP_RATE_CURVE_EXP);
+            return MIN_ARP_RATE_BPM + curved * ARP_RATE_RANGE_BPM;
         }
 
         function arpRateBpmToValue(rateBpm) {
             const clampedRate = clamp(rateBpm, MIN_ARP_RATE_BPM, MAX_ARP_RATE_BPM);
             const normalized = (clampedRate - MIN_ARP_RATE_BPM) / ARP_RATE_RANGE_BPM;
-            const eased = 1 - normalized;
-            return clamp(1 - Math.cbrt(Math.max(0, eased)), 0, 1);
+            return clamp(Math.pow(Math.max(0, normalized), ARP_RATE_CURVE_INV_EXP), 0, 1);
         }
 
         function bpmToSixteenthMs(rateBpm) {
@@ -135,6 +139,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             if (masterArpControls) masterArpControls.classList[action]('rate-buttons-disabled');
             if (synthContainer) synthContainer.classList[action]('rate-buttons-disabled');
             document.body.classList[action]('rate-buttons-disabled');
+            rateDisplayRows.forEach(row => row.classList[action]('rate-buttons-disabled'));
         }
       
        // --- State for the two main knobs & Arps ---
@@ -155,6 +160,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
        let synthContainer, powerSwitch, keySelector, scaleSelector, customScaleBuilder, savePresetButton, loadPresetInput, arpSyncSwitch;
        let masterArpControls, arpOrderSelector;
        let allArpControlGrids;
+       let rateDisplayRows = [];
        let modalOverlay, howToButton, closeModalButton;
        
       import { PRESETS } from './presets.js';
@@ -305,7 +311,7 @@ async function setupMidiOutput() {
     }
 
     if (targetRateBpm !== null) {
-        return Math.round(clamp(targetRateBpm, MIN_ARP_RATE_BPM, MAX_ARP_RATE_BPM));
+        return Math.round(clamp(targetRateBpm, MIN_MIDI_EXPORT_BPM, MAX_ARP_RATE_BPM));
     }
 
     return Math.round(DEFAULT_ARP_RATE_BPM);
@@ -2016,6 +2022,7 @@ function generateAndApplyRandomSound() {
        function init(){
            // --- Get all DOM elements ---
            synthContainer = document.getElementById('synth-container');
+           rateDisplayRows = Array.from(document.querySelectorAll('.rate-display-row'));
            powerSwitch = document.getElementById('power-switch');
            keySelector = document.getElementById('keySelector');
            scaleSelector = document.getElementById('scaleSelector');

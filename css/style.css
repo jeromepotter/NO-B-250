@@ -62,17 +62,18 @@ body { font-family: 'Poppins', sans-serif; background-color: #1e1b4b; touch-acti
       .retro-button:hover { color: #facc15; }
       .retro-button.active { color: #facc15; text-decoration: underline; }
       .arp-rate-button {
-        width: 20px;
-        height: 20px;
-        border: 1px solid currentColor;
+        min-width: 1.5rem;
+        padding: 0.05rem 0.15rem;
+        border: none;
         background-color: transparent;
         color: #ffffff;
-        font-size: 10px;
+        font-size: 0.65rem;
         font-weight: 700;
-        display: flex;
+        display: inline-flex;
         align-items: center;
         justify-content: center;
         line-height: 1;
+        letter-spacing: 0.08em;
         transition: color 0.2s, opacity 0.2s, transform 0.1s;
         mix-blend-mode: difference;
       }
@@ -80,15 +81,20 @@ body { font-family: 'Poppins', sans-serif; background-color: #1e1b4b; touch-acti
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 0.35rem;
+        gap: 0.5rem;
         text-transform: uppercase;
+        mix-blend-mode: difference;
+        color: #ffffff;
       }
       .rate-bpm-display {
-        font-size: 0.6rem;
+        font-size: 0.75rem;
         font-weight: 700;
-        letter-spacing: 0.05em;
+        letter-spacing: 0.12em;
         white-space: nowrap;
         color: #ffffff;
+        display: inline-flex;
+        align-items: center;
+        line-height: 1;
         mix-blend-mode: difference;
       }
       .arp-rate-button:hover {
@@ -96,7 +102,7 @@ body { font-family: 'Poppins', sans-serif; background-color: #1e1b4b; touch-acti
         transform: translateY(-1px);
       }
       .rate-buttons-disabled .arp-rate-button {
-        opacity: 0.4;
+        opacity: 0.35;
         pointer-events: none;
       }
       #custom-scale-builder { display: none; }
