@@ -1038,7 +1038,6 @@ function sendMidiMessage(message) {
       
        function updateKnobColor(knobId) {
            const state = knobState[knobId]; if (!state || !state.dom.knob) return;
-              if (isLfoMode) return;
            let midiNote = getMidiNote(knobId);
            if (state.arpRunning && state.lastPlayedMidi !== null) {
                midiNote = state.lastPlayedMidi;
