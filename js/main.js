@@ -2241,7 +2241,7 @@ function generateAndApplyRandomSound() {
                    knobState[1].arpRateMs = knobState[0].arpRateMs;
                    const k1d = fxKnobData[16]; const k2d = fxKnobData[17];
                    if (k1d && k2d) { k2d.value = k1d.value; k2d.angle = k1d.angle; if (k2d.indicator) k2d.indicator.style.transform = `rotate(${k1d.angle}deg)`; }
-               } else if (!isArpRateSynced && knobState[1]) { const k2d = fxKnobData[17]; if(k2d) knobState[1].arpRateMs = 50 + Math.pow(1 - d.value, 3) * 1950; }
+               } else if (!isArpRateSynced && knobState[1]) { const k2d = fxKnobData[17]; if(k2d) knobState[1].arpRateMs = 50 + Math.pow(1 - k2d.value, 3) * 1950; }
            });
       
            arpOrderSelector?.addEventListener('change', (e) => {
@@ -2254,6 +2254,7 @@ function generateAndApplyRandomSound() {
        }
       
        init();
+
 
 
 
