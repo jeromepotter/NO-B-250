@@ -76,17 +76,26 @@ body { font-family: 'Poppins', sans-serif; background-color: #1e1b4b; touch-acti
         transition: color 0.2s, opacity 0.2s, transform 0.1s;
         mix-blend-mode: difference;
       }
+      .rate-display-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem;
+        text-transform: uppercase;
+      }
       .rate-bpm-display {
         font-size: 0.6rem;
         font-weight: 700;
-        color: #facc15;
         letter-spacing: 0.05em;
+        white-space: nowrap;
+        color: #ffffff;
+        mix-blend-mode: difference;
       }
       .arp-rate-button:hover {
         color: #facc15;
         transform: translateY(-1px);
       }
-      #master-arp-controls.rate-buttons-disabled .arp-rate-button {
+      .rate-buttons-disabled .arp-rate-button {
         opacity: 0.4;
         pointer-events: none;
       }

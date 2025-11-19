@@ -73,8 +73,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
         };
 
         const MIN_ARP_RATE_BPM = 40;
-        const MAX_ARP_RATE_BPM = 200;
-        const DEFAULT_ARP_RATE_BPM = 120;
+        const MAX_ARP_RATE_BPM = 300;
+        const DEFAULT_ARP_RATE_BPM = 100;
         const ARP_RATE_RANGE_BPM = MAX_ARP_RATE_BPM - MIN_ARP_RATE_BPM;
         const SIXTEENTH_NOTES_PER_QUARTER = 4;
 
@@ -131,8 +131,10 @@ let liveLfoOutputs = [0, 0, 0, 0];
         }
 
         function updateRateButtonLockState() {
-            if (!masterArpControls) return;
-            masterArpControls.classList[isArpRateSynced ? 'add' : 'remove']('rate-buttons-disabled');
+            const action = isArpRateSynced ? 'add' : 'remove';
+            if (masterArpControls) masterArpControls.classList[action]('rate-buttons-disabled');
+            if (synthContainer) synthContainer.classList[action]('rate-buttons-disabled');
+            document.body.classList[action]('rate-buttons-disabled');
         }
       
        // --- State for the two main knobs & Arps ---

@@ -144,7 +144,13 @@
               <div class="w-10 h-10 sm:w-12 sm:h-12 bg-yellow-400 rounded-full relative fx-knob-container knob-border" data-fx-id="16">
                 <div class="w-1 h-3 sm:h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 16px;"></div>
               </div>
-              <label class="font-bold tracking-wider text-[10px] sm:text-xs flex items-center gap-1">RATE <span id="rate-display-0" class="rate-bpm-display">120 BPM</span></label>
+              <div class="rate-display-row text-[10px] sm:text-xs font-bold tracking-wider">
+                <div class="flex items-center space-x-1">
+                  <button class="arp-rate-button" data-rate-target="0" data-rate-multiplier="0.5">1/2</button>
+                  <button class="arp-rate-button" data-rate-target="0" data-rate-multiplier="2">2x</button>
+                </div>
+                <span id="rate-display-0" class="rate-bpm-display">100 BPM</span>
+              </div>
             </div>
             <div class="flex flex-col items-center space-y-1">
               <div class="w-10 h-10 sm:w-12 sm:h-12 bg-yellow-400 rounded-full relative fx-knob-container knob-border" data-fx-id="24">
@@ -226,7 +232,13 @@
               <div class="w-10 h-10 sm:w-12 sm:h-12 bg-yellow-400 rounded-full relative fx-knob-container knob-border" data-fx-id="17">
                 <div class="w-1 h-3 sm:h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 16px;"></div>
               </div>
-              <label class="font-bold tracking-wider text-[10px] sm:text-xs flex items-center gap-1">RATE <span id="rate-display-1" class="rate-bpm-display">120 BPM</span></label>
+              <div class="rate-display-row text-[10px] sm:text-xs font-bold tracking-wider">
+                <div class="flex items-center space-x-1">
+                  <button class="arp-rate-button" data-rate-target="1" data-rate-multiplier="0.5">1/2</button>
+                  <button class="arp-rate-button" data-rate-target="1" data-rate-multiplier="2">2x</button>
+                </div>
+                <span id="rate-display-1" class="rate-bpm-display">100 BPM</span>
+              </div>
             </div>
             <div class="flex flex-col items-center space-y-1">
               <div class="w-10 h-10 sm:w-12 sm:h-12 bg-yellow-400 rounded-full relative fx-knob-container knob-border" data-fx-id="25">
@@ -256,25 +268,11 @@
         </div>
       </div>
       <div id="master-arp-controls" class="flex flex-wrap justify-center items-center gap-4 p-2">
-        <div class="flex flex-col items-center space-y-1">
-          <div class="flex items-center space-x-1">
-            <button class="arp-rate-button" data-rate-target="0" data-rate-multiplier="0.5">1/2</button>
-            <button class="arp-rate-button" data-rate-target="0" data-rate-multiplier="2">2x</button>
-          </div>
-          <label class="font-bold tracking-wider text-[10px] sm:text-xs">LEFT RATE</label>
-        </div>
         <div id="rate-sync-container" class="flex flex-col items-center">
           <div id="arp-sync-switch" class="power-switch small">
             <div class="power-switch-handle"></div>
           </div>
           <label class="font-bold tracking-wider text-xs sm:text-sm mt-2">RATE SYNC</label>
-        </div>
-        <div class="flex flex-col items-center space-y-1">
-          <div class="flex items-center space-x-1">
-            <button class="arp-rate-button" data-rate-target="1" data-rate-multiplier="0.5">1/2</button>
-            <button class="arp-rate-button" data-rate-target="1" data-rate-multiplier="2">2x</button>
-          </div>
-          <label class="font-bold tracking-wider text-[10px] sm:text-xs">RIGHT RATE</label>
         </div>
 
         <div class="flex flex-col items-center">
