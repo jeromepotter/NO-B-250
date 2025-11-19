@@ -53,24 +53,22 @@ let liveLfoOutputs = [0, 0, 0, 0];
         const LFO_RATE_RANGE_RATIO = MAX_LFO_RATE_HZ / MIN_LFO_RATE_HZ;
         const SIXTEENTH_NOTES_PER_QUARTER = 4;
         const LFO_RATE_DIVISION_STEPS = [
-            { label: '1/32', multiplier: 1 / 32 },
-            { label: '1/24', multiplier: 1 / 24 },
-            { label: '1/16', multiplier: 1 / 16 },
-            { label: '1/12', multiplier: 1 / 12 },
-            { label: '1/8', multiplier: 1 / 8 },
-            { label: '1/6', multiplier: 1 / 6 },
+            // Glacial: one cycle every 4 bars (slowest)
+            { label: '4', multiplier: 1 / 64 },
+            // Very slow: one cycle per bar
+            { label: '1', multiplier: 1 / 16 },
+            // Slow: 2 cycles per bar (every 2 beats)
+            { label: '1/2', multiplier: 1 / 8 },
+            // Moderate: 4 cycles per bar (one per beat)
             { label: '1/4', multiplier: 1 / 4 },
-            { label: '1/3', multiplier: 1 / 3 },
-            { label: '1/2', multiplier: 1 / 2 },
-            { label: '2/3', multiplier: 2 / 3 },
-            { label: '3/4', multiplier: 3 / 4 },
-            { label: '1/1', multiplier: 1 },
-            { label: '2x', multiplier: 2 },
-            { label: '3x', multiplier: 3 },
-            // The former 4x slot now shows 1/4 but keeps the same fast multiplier,
-            // and the list still ends with a literal 4x readout for familiarity.
-            { label: '1/4', multiplier: 4 },
-            { label: '4x', multiplier: 4 },
+            // Fast: 8 cycles per bar
+            { label: '1/8', multiplier: 1 / 2 },
+            // Very fast: 16 cycles per bar
+            { label: '1/16', multiplier: 1 },
+            // Insanely fast: 32 cycles per bar
+            { label: '1/32', multiplier: 2 },
+            // Max speed: 64 cycles per bar
+            { label: '1/64', multiplier: 4 },
         ];
         const LFO_RATE_DIVISION_LABELS = LFO_RATE_DIVISION_STEPS.map(step => step.label);
         const LFO_RATE_DIVISION_MULTIPLIERS = LFO_RATE_DIVISION_STEPS.map(step => step.multiplier);
