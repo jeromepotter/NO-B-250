@@ -244,6 +244,72 @@ export const PRESETS = {
                     }
                 }
             },
+'2 NOTES': {
+    key: "G#",
+    scale: "Minor",
+    allowDuplicateNotesMode: true,
+    isLfoMode: true,
+    knobSettings: [
+        { "id": 0, "totalAngle": 2004.40 },
+        { "id": 1, "totalAngle": 1440 }
+    ],
+    lfoState: [
+        { "rate": 0.5, "depth": 0.3388, "wave": 5, "dest": 15 },
+        { "rate": 0.1055, "depth": 0.2333, "wave": 5, "dest": 25 },
+        { "rate": 0.5388, "depth": 0.4611, "wave": 3, "dest": 9 },
+        { "rate": 0.7055, "depth": 0.3055, "wave": 5, "dest": 24 }
+    ],
+    fxSettings: [
+        { "id": 0, "value": 0 },
+        { "id": 1, "value": 0.0611 },
+        { "id": 2, "value": 0.7611 },
+        { "id": 3, "value": 0.6801 },
+        { "id": 4, "value": 0.7017 },
+        { "id": 5, "value": 0.6833 },
+        { "id": 6, "value": 0.8522 },
+        { "id": 7, "value": 0.4444 },
+        { "id": 8, "value": 0.0045 },
+        { "id": 9, "value": 0 },
+        { "id": 10, "value": 0 },
+        { "id": 11, "value": 0.85 },
+        { "id": 12, "value": 0.55 },
+        { "id": 13, "value": 0.7198 },
+        { "id": 14, "value": 1 },
+        { "id": 15, "value": 0.3111 },
+        { "id": 20, "value": 0.3166 },
+        { "id": 21, "value": 0.3 },
+        { "id": 26, "value": 0.5 },
+        { "id": 27, "value": 0.3333 },
+        { "id": 28, "value": 0.7722 },
+        { "id": 29, "value": 0.5277 }
+    ],
+    arpSettings: {
+        isArpRateSynced: false,
+        currentArpOrder: "As Played",
+        arp1: {
+            isArpOn: true,
+            isOn: true,
+            isSweepMode: false,
+            notes: [ 83 ]
+        },
+        arp2: {
+            isArpOn: true,
+            isOn: true,
+            isSweepMode: true,
+            notes: [ 71 ]
+        },
+        fx: {
+            16: 0.5329,
+            17: 0.8888,
+            18: 0,
+            19: 0,
+            22: 0,
+            23: 0,
+            24: 0.2888,
+            25: 0.5
+        }
+    }
+},
             'FULS': {
     key: 'F#',
     scale: 'Dorian',
@@ -566,3 +632,4 @@ export const PRESETS = {
                 'RANDOM SOUND': {}
             }
         };
+
