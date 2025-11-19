@@ -486,24 +486,31 @@ let liveLfoOutputs = [0, 0, 0, 0];
             updateLfoTempoSwitchStates();
         }
 
-        function updateLfoTempoSwitchStates() {
-            const allow = canUseLfoTempoSync();
-            lfoTempoSyncSwitches.forEach((switchEl, idx) => {
-                if (!switchEl) return;
-                const wrapper = switchEl.closest('.lfo-tempo-switch-wrapper');
-                if (allow) {
-                    switchEl.classList.remove('switch-disabled');
-                    wrapper?.classList.remove('switch-disabled');
-                } else {
-                    switchEl.classList.add('switch-disabled');
-                    wrapper?.classList.add('switch-disabled');
-                    if (lfoTempoLinkState[idx].enabled) {
-                        setLfoTempoSync(idx, false);
-                    }
-                }
-            });
+       function updateLfoTempoSwitchStates() {
+    const allow = canUseLfoTempoSync();
+    lfoTempoSyncSwitches.forEach((switchEl, idx) => {
+        if (!switchEl) return;
+        const wrapper = switchEl.closest('.lfo-tempo-switch-wrapper');
+        
+        // Force the switch to match the actual state
+        if (lfoTempoLinkState[idx].enabled) {
+            switchEl.classList.add('on');
+        } else {
+            switchEl.classList.remove('on');
         }
-
+        
+        if (allow) {
+            switchEl.classList.remove('switch-disabled');
+            wrapper?.classList.remove('switch-disabled');
+        } else {
+            switchEl.classList.add('switch-disabled');
+            wrapper?.classList.add('switch-disabled');
+            if (lfoTempoLinkState[idx].enabled) {
+                setLfoTempoSync(idx, false);
+            }
+        }
+    });
+}
         function resetLfoTempoSyncState() {
             lfoTempoLinkState.forEach((link, idx) => {
                 if (link.enabled) {
@@ -2158,7 +2165,14 @@ lfoState.forEach((lfo, lfoIndex) => {
         drawLfoCables();
 
         ensureLfoAnimationRunning();
+        updateLfoTempoSwitchStates();
+           
     } else {
+            lfoTempoLinkState.forEach((link, idx) => {
+            if (link.enabled) {
+                setLfoTempoSync(idx, false);
+            }
+        });
         if (!shouldKeepLfoAnimationRunning() && lfoAnimationId !== null) {
             clearInterval(lfoAnimationId);
             lfoAnimationId = null;
