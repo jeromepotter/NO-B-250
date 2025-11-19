@@ -115,7 +115,6 @@ case 'ping':
                process(i,o,p){
                    const oL=o[0][0]; const oR=o[0][1]; const sr=sampleRate;
 // --- LFO Processing (with LFO-to-LFO modulation) ---
-// --- LFO Processing (with LFO-to-LFO modulation) ---
 let rawLfoOutputs = [0, 0, 0, 0];
 for (let l = 0; l < 4; l++) {
     const lfo = this.lfoParams[l];
@@ -199,82 +198,9 @@ this.lfoOutputs = rawLfoOutputs;
 let modulatedFx = {};
 for (let l = 0; l < 4; l++) {
     const lfo = this.lfoParams[l];
-    if (lfo.dest !== 0 && lfo.dest < 200) { // Only modulate FX params in audio worklet
+    if (lfo.dest !== 0) {
         if (!modulatedFx[lfo.dest]) modulatedFx[lfo.dest] = 0;
         modulatedFx[lfo.dest] += this.lfoOutputs[l];
-    }
-}
-
-// Calculate modulated params ONCE per buffer
-let currentParams = [...this.params];
-for (const fxId in modulatedFx) {
-    const id = parseInt(fxId, 10);
-    if(currentParams[id] !== undefined) {
-        currentParams[id] = Math.max(0, Math.min(1, currentParams[id] + modulatedFx[id]));
-    }
-}
-
-// Calculate envelope times ONCE per buffer
-this.attackTime = 0.001 + Math.pow(currentParams[8], 2) * 2;
-this.decayTime = 0.001 + Math.pow(currentParams[9], 2) * 2;
-this.sustainLevel = currentParams[10];
-this.releaseTime = 0.001 + Math.pow(currentParams[11], 2) * 1.25;
-this.releaseRate = Math.exp(-1 / (this.releaseTime * sampleRate));
-
-for(let i=0;i<oL.length;i++){
-    const lfo = this.lfoParams[l];
-    if (lfo.dest !== 0 && rawLfoOutputs[l] !== 0) {
-        const targetLfoInfo = LFO_KNOB_IDS[lfo.dest];
-        if (targetLfoInfo) {
-            const targetLfo = this.lfoParams[targetLfoInfo.lfo];
-            const param = targetLfoInfo.param;
-            
-            if (param === 'rate') {
-                const baseRate = targetLfo.rate;
-                const modulatedRate = Math.max(0, Math.min(1, baseRate + rawLfoOutputs[l]));
-                const rateHz = 1 * Math.pow(2000, modulatedRate);
-                const phaseInc = (2 * Math.PI * rateHz) / sr;
-                const oldPhase = targetLfo.phase;
-                targetLfo.phase = (targetLfo.phase + phaseInc) % (2 * Math.PI);
-                if (targetLfo.wave === 5 && oldPhase > targetLfo.phase) {
-                    targetLfo.lastRandom = Math.random() * 2 - 1;
-                }
-                let val = 0;
-                switch (targetLfo.wave) {
-                    case 0: val = Math.sin(targetLfo.phase); break;
-                    case 1: val = Math.asin(Math.sin(targetLfo.phase)) * (2 / Math.PI); break;
-                    case 2: val = targetLfo.phase < Math.PI ? 1 : -1; break;
-                    case 3: val = (targetLfo.phase / Math.PI) - 1; break;
-                    case 4: val = 1 - (targetLfo.phase / Math.PI); break;
-                    case 5: val = targetLfo.lastRandom; break;
-                }
-                rawLfoOutputs[targetLfoInfo.lfo] = val * targetLfo.depth;
-           } else if (param === 'depth') {
-                const modulatedDepth = Math.max(0, Math.min(1, targetLfo.depth + rawLfoOutputs[l]));
-                rawLfoOutputs[targetLfoInfo.lfo] = rawLfoOutputs[targetLfoInfo.lfo] * (modulatedDepth / (targetLfo.depth || 1));
-            } else if (param === 'wave') {
-                const baseWave = targetLfo.wave;
-                const modulatedWaveValue = Math.max(0, Math.min(1, (baseWave / 5) + rawLfoOutputs[l]));
-                const newWave = Math.floor(modulatedWaveValue * 6);
-                let val = 0;
-                switch (newWave) {
-                    case 0: val = Math.sin(targetLfo.phase); break;
-                    case 1: val = Math.asin(Math.sin(targetLfo.phase)) * (2 / Math.PI); break;
-                    case 2: val = targetLfo.phase < Math.PI ? 1 : -1; break;
-                    case 3: val = (targetLfo.phase / Math.PI) - 1; break;
-                    case 4: val = 1 - (targetLfo.phase / Math.PI); break;
-                    case 5: val = targetLfo.lastRandom; break;
-                }
-                rawLfoOutputs[targetLfoInfo.lfo] = val * targetLfo.depth;
-            }
-        }
-    }
-}
-
-this.lfoOutputs = rawLfoOutputs;
-
-// --- Modulation Destination Logic ---
-
     }
 }
 
@@ -438,7 +364,3 @@ return true;
 }
 }
 registerProcessor('synth-processor', SynthProcessor);
-
-
-
-
