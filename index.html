@@ -255,25 +255,39 @@
           </div>
         </div>
       </div>
-      <div id="master-arp-controls" class="flex justify-center items-center space-x-6 p-2">
-  <div class="flex flex-col items-center">
-    <div id="arp-sync-switch" class="power-switch small">
-      <div class="power-switch-handle"></div>
-    </div>
-    <label class="font-bold tracking-wider text-xs sm:text-sm mt-2">RATE SYNC</label>
-  </div>
-  
-  <div class="flex flex-col items-center"> 
-    <select id="arp-order-selector" class="retro-select text-xs sm:text-sm">
-      <option value="As Played" selected>AS PLAYED</option>
-      <option value="Up">UP</option>
-      <option value="Down">DOWN</option>
-      <option value="Up/Down">UP/DOWN</option>
-      <option value="Random">RANDOM</option>
-    </select>
-    <label class="font-bold tracking-wider text-xs sm:text-sm mt-2">ORDER</label>
-  </div>
-  </div>
+      <div id="master-arp-controls" class="flex flex-wrap justify-center items-center gap-4 p-2">
+        <div class="flex flex-col items-center space-y-1">
+          <div class="flex items-center space-x-1">
+            <button class="arp-rate-button" data-rate-target="0" data-rate-multiplier="0.5">1/2</button>
+            <button class="arp-rate-button" data-rate-target="0" data-rate-multiplier="2">2x</button>
+          </div>
+          <label class="font-bold tracking-wider text-[10px] sm:text-xs">LEFT RATE</label>
+        </div>
+        <div id="rate-sync-container" class="flex flex-col items-center">
+          <div id="arp-sync-switch" class="power-switch small">
+            <div class="power-switch-handle"></div>
+          </div>
+          <label class="font-bold tracking-wider text-xs sm:text-sm mt-2">RATE SYNC</label>
+        </div>
+        <div class="flex flex-col items-center space-y-1">
+          <div class="flex items-center space-x-1">
+            <button class="arp-rate-button" data-rate-target="1" data-rate-multiplier="0.5">1/2</button>
+            <button class="arp-rate-button" data-rate-target="1" data-rate-multiplier="2">2x</button>
+          </div>
+          <label class="font-bold tracking-wider text-[10px] sm:text-xs">RIGHT RATE</label>
+        </div>
+
+        <div class="flex flex-col items-center">
+          <select id="arp-order-selector" class="retro-select text-xs sm:text-sm">
+            <option value="As Played" selected>AS PLAYED</option>
+            <option value="Up">UP</option>
+            <option value="Down">DOWN</option>
+            <option value="Up/Down">UP/DOWN</option>
+            <option value="Random">RANDOM</option>
+          </select>
+          <label class="font-bold tracking-wider text-xs sm:text-sm mt-2">ORDER</label>
+        </div>
+      </div>
       <div id="custom-scale-builder" class="justify-center">
         <div class="piano">
           <div class="key white-key" data-note="0"></div>

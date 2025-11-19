@@ -71,6 +71,60 @@ let liveLfoOutputs = [0, 0, 0, 0];
             '_': '-', '+': '=', '{': '[', '}': ']', '|': '\\',
             ':': ';', '"': "'", '<': ',', '>': '.', '?': '/'
         };
+
+        const MIN_ARP_RATE_MS = 50;
+        const MAX_ARP_RATE_MS = 2000;
+        const ARP_RATE_RANGE = MAX_ARP_RATE_MS - MIN_ARP_RATE_MS;
+
+        function clamp(value, min, max) {
+            return Math.min(max, Math.max(min, value));
+        }
+
+        function valueToArpRateMs(value) {
+            const normalized = clamp(value, 0, 1);
+            return MIN_ARP_RATE_MS + Math.pow(1 - normalized, 3) * ARP_RATE_RANGE;
+        }
+
+        function arpRateMsToValue(rateMs) {
+            const clampedRate = clamp(rateMs, MIN_ARP_RATE_MS, MAX_ARP_RATE_MS);
+            const normalized = (clampedRate - MIN_ARP_RATE_MS) / ARP_RATE_RANGE;
+            return clamp(1 - Math.cbrt(normalized), 0, 1);
+        }
+
+        function setArpRateFromMs(knobId, rateMs) {
+            const state = knobState[knobId];
+            if (!state) return;
+
+            const clampedRate = clamp(rateMs, MIN_ARP_RATE_MS, MAX_ARP_RATE_MS);
+            state.arpRateMs = clampedRate;
+            if (state.dom?.rateDisplay) {
+                state.dom.rateDisplay.textContent = clampedRate.toFixed(1);
+            }
+
+            const fxId = knobId === 0 ? 16 : 17;
+            const knobData = fxKnobData[fxId];
+            if (knobData) {
+                const newValue = arpRateMsToValue(clampedRate);
+                knobData.value = newValue;
+                knobData.angle = MIN_FX_ANGLE + newValue * (MAX_FX_ANGLE - MIN_FX_ANGLE);
+                if (knobData.indicator) {
+                    knobData.indicator.style.transform = `rotate(${knobData.angle}deg)`;
+                }
+            }
+        }
+
+        function handleArpRateButton(knobId, multiplier) {
+            if (isArpRateSynced) return;
+            const state = knobState[knobId];
+            if (!state) return;
+            const newRate = state.arpRateMs * multiplier;
+            setArpRateFromMs(knobId, newRate);
+        }
+
+        function updateRateButtonLockState() {
+            if (!masterArpControls) return;
+            masterArpControls.classList[isArpRateSynced ? 'add' : 'remove']('rate-buttons-disabled');
+        }
       
        // --- State for the two main knobs & Arps ---
      const knobState = [
@@ -611,7 +665,7 @@ function sendMidiMessage(message) {
                   updateStateFromTotalAngle(knobId);
                   updateSequenceDisplay(knobId);
                } else if (id === 16 || id === 17) {
-                   state.arpRateMs = 50 + Math.pow(1 - d.value, 3) * 1950;
+                   state.arpRateMs = valueToArpRateMs(d.value);
                    if(state.dom.rateDisplay) state.dom.rateDisplay.textContent = state.arpRateMs.toFixed(1);
                    const otherId = knobId === 0 ? 1 : 0; const otherFxId = knobId === 0 ? 17 : 16;
                    if (isArpRateSynced && knobState[otherId]?.isArpOn) {
@@ -682,7 +736,7 @@ function sendMidiMessage(message) {
                if(id === 7) { updateFxKnob(id, 0); }
                const kId = (id >= 16 && id <= 25 && id % 2 === 0) ? 0 : (id >= 16 && id <= 25 && id % 2 !== 0) ? 1 : -1;
                if (kId !== -1 && knobState[kId]) {
-                   if (id===16||id===17){ knobState[kId].arpRateMs = 50 + Math.pow(1 - fxKnobData[id].value, 3) * 1950; }
+                   if (id===16||id===17){ knobState[kId].arpRateMs = valueToArpRateMs(fxKnobData[id].value); }
                    else if (id===18||id===19){ knobState[kId].arpOctaveRange = Math.min(3, Math.floor(fxKnobData[id].value * 4)); }
                    else if (id===22||id===23){ const pIdx = Math.min(NUM_FEEL_PATTERNS-1, Math.floor(fxKnobData[id].value*NUM_FEEL_PATTERNS)); knobState[kId].feelKnobValue=fxKnobData[id].value; knobState[kId].currentFeelPattern=EUCLIDEAN_PATTERNS[pIdx]; }
                    else if (id===24||id===25){ knobState[kId].arpTranspose=Math.floor((fxKnobData[id].value - 0.5) * 25); }
@@ -1003,7 +1057,7 @@ lfoState.forEach((lfo, lfoIndex) => {
     if (destIsArpRate) {
         const baseValue = fxKnobData[16 + knobId]?.value ?? 0.5;
         const finalValue = Math.max(0, Math.min(1, baseValue + lfoModValue));
-        modulatedRateMs = 50 + Math.pow(1 - finalValue, 3) * 1950;
+        modulatedRateMs = valueToArpRateMs(finalValue);
     }
     if (destIsArpTranspose) {
         const baseValue = fxKnobData[24 + knobId]?.value ?? 0.5;
@@ -1290,8 +1344,15 @@ lfoState.forEach((lfo, lfoIndex) => {
        function updateSyncSwitchVisibility() {
            if (!knobState || !arpSyncSwitch || !arpOrderSelector) return;
            const bothOn = knobState.every(k => k.isArpOn);
-           const syncCont = arpSyncSwitch.parentElement;
-           if(syncCont){syncCont.classList[bothOn?'remove':'add']('arp-disabled'); if(!bothOn&&isArpRateSynced){isArpRateSynced=false;arpSyncSwitch.classList.remove('on');}}
+           const syncCont = document.getElementById('rate-sync-container') || arpSyncSwitch.parentElement;
+           if(syncCont){
+               syncCont.classList[bothOn?'remove':'add']('arp-disabled');
+               if(!bothOn&&isArpRateSynced){
+                   isArpRateSynced=false;
+                   arpSyncSwitch.classList.remove('on');
+                   updateRateButtonLockState();
+               }
+           }
            const anyOn = knobState.some(k => k.isArpOn);
            const orderCont = arpOrderSelector.parentElement;
            if(orderCont){orderCont.classList[anyOn?'remove':'add']('arp-disabled');}
@@ -1661,7 +1722,8 @@ function setFxValue(id, value, forceVisualUpdate = false) {
                     state.arpTranspose = Math.floor((d.value * 24) - 12);
                     if (state.dom.transposeDisplay) state.dom.transposeDisplay.textContent = state.arpTranspose;
                 } else if (id === 16 || id === 17) {
-                    state.arpRateMs = 50 + Math.pow(1 - d.value, 3) * 1950;
+                    state.arpRateMs = valueToArpRateMs(d.value);
+                    if (state.dom.rateDisplay) state.dom.rateDisplay.textContent = state.arpRateMs.toFixed(1);
                 }
             }
             if (synthNode) {
@@ -2362,14 +2424,38 @@ function generateAndApplyRandomSound() {
            });
       
            arpSyncSwitch?.addEventListener('click', () => {
-               isArpRateSynced = !isArpRateSynced; arpSyncSwitch.classList.toggle('on', isArpRateSynced);
-               if(isArpRateSynced && knobState[0]?.isArpOn && knobState[1]?.isArpOn) {
-                   knobState[1].arpRateMs = knobState[0].arpRateMs;
-                   const k1d = fxKnobData[16]; const k2d = fxKnobData[17];
-                   if (k1d && k2d) { k2d.value = k1d.value; k2d.angle = k1d.angle; if (k2d.indicator) k2d.indicator.style.transform = `rotate(${k1d.angle}deg)`; }
-               } else if (!isArpRateSynced && knobState[1]) { const k2d = fxKnobData[17]; if(k2d) knobState[1].arpRateMs = 50 + Math.pow(1 - d.value, 3) * 1950; }
+               isArpRateSynced = !isArpRateSynced;
+               arpSyncSwitch.classList.toggle('on', isArpRateSynced);
+                if(isArpRateSynced && knobState[0]?.isArpOn && knobState[1]?.isArpOn) {
+                    knobState[1].arpRateMs = knobState[0].arpRateMs;
+                    if (knobState[1].dom.rateDisplay) {
+                        knobState[1].dom.rateDisplay.textContent = knobState[1].arpRateMs.toFixed(1);
+                    }
+                    const k1d = fxKnobData[16]; const k2d = fxKnobData[17];
+                    if (k1d && k2d) {
+                        k2d.value = k1d.value;
+                        k2d.angle = k1d.angle;
+                        if (k2d.indicator) k2d.indicator.style.transform = `rotate(${k1d.angle}deg)`;
+                   }
+               } else if (!isArpRateSynced && knobState[1]) {
+                   const k2d = fxKnobData[17];
+                   if(k2d) {
+                       knobState[1].arpRateMs = valueToArpRateMs(k2d.value);
+                       if (knobState[1].dom.rateDisplay) {
+                           knobState[1].dom.rateDisplay.textContent = knobState[1].arpRateMs.toFixed(1);
+                       }
+                   }
+               }
+               updateRateButtonLockState();
            });
-      
+
+           document.querySelectorAll('.arp-rate-button').forEach(button => {
+               const knobId = parseInt(button.dataset.rateTarget, 10);
+               const multiplier = parseFloat(button.dataset.rateMultiplier);
+               if (Number.isNaN(knobId) || Number.isNaN(multiplier)) return;
+               button.addEventListener('click', () => handleArpRateButton(knobId, multiplier));
+           });
+
            arpOrderSelector?.addEventListener('change', (e) => {
                currentArpOrder = e.target.value;
                knobState.forEach(s => { s.currentArpNoteIndex = (currentArpOrder === "Down" && s.arpNotes.length > 0) ? s.arpNotes.length - 1 : 0; s.arpUpDownState = 0; });
@@ -2377,6 +2463,7 @@ function generateAndApplyRandomSound() {
       
            updateGlobalArpVisibility();
            randomizeSettings();
+           updateRateButtonLockState();
        }
       
        init();
