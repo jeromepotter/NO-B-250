@@ -53,6 +53,10 @@ For full documentation, see the [manual](https://no-b-250.netlify.app/manual).
 
 See [CHANGELOG.md](CHANGELOG.md) for version history and updates.
 
+## Syncing your changes
+
+Commits in this repo stay local until you push them to your Git remote. After committing, run `git push` to publish the updated files to GitHub.
+
 ## Browser Compatibility
 
 Works in all modern browsers (Chrome, Firefox, Safari, Edge)
