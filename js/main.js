@@ -53,34 +53,17 @@ let liveLfoOutputs = [0, 0, 0, 0];
         const LFO_RATE_RANGE_RATIO = MAX_LFO_RATE_HZ / MIN_LFO_RATE_HZ;
         const SIXTEENTH_NOTES_PER_QUARTER = 4;
         const LFO_RATE_DIVISION_STEPS = [
-    // Glacial: one cycle every 4 bars (slowest)
-    { label: '4', multiplier: 1 / 64 },
-    // Very slow: one cycle every 2 bars
-    { label: '2', multiplier: 1 / 32 },
-    // one cycle per bar
-    { label: '1', multiplier: 1 / 16 },
-    // one cycle every half bar (every 2 beats)
-    { label: '1/2', multiplier: 1 / 8 },
-    // one cycle per beat (quarter note)
-    { label: '1/4', multiplier: 1 / 4 },
-    // eighth note
-    { label: '1/8', multiplier: 1 / 2 },
-    // sixteenth note
-    { label: '1/16', multiplier: 1 },
-    // 32nd note
-    { label: '1/32', multiplier: 2 },
-    // 64th note
-    { label: '1/64', multiplier: 4 },
-    // 128th note
-    { label: '1/128', multiplier: 8 },
-    // 256th note
-    { label: '1/256', multiplier: 16 },
-    // 512th note
-    { label: '1/512', multiplier: 32 },
-    // 1024th note
-    { label: '1/1024', multiplier: 64 },
-    // 2048th note (maximum - audio rate)
-    { label: '1/2048', multiplier: 128 },
+    { label: '8', multiplier: 1 / 2 },
+    { label: '4', multiplier: 1 },
+    { label: '2', multiplier: 2 },
+    { label: '1', multiplier: 4 },
+    { label: '1/2', multiplier: 8 },
+    { label: '1', multiplier: 16 },   
+    { label: '1/2', multiplier: 32 }, 
+    { label: '1/4', multiplier: 64 },
+    { label: '1/8', multiplier: 128 },
+    { label: '1/16', multiplier: 256 },
+    { label: '1/32', multiplier: 512 },
 ];
         const LFO_RATE_DIVISION_LABELS = LFO_RATE_DIVISION_STEPS.map(step => step.label);
         const LFO_RATE_DIVISION_MULTIPLIERS = LFO_RATE_DIVISION_STEPS.map(step => step.multiplier);
