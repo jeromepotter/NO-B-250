@@ -52,7 +52,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         const MAX_LFO_RATE_HZ = 2000;
         const LFO_RATE_RANGE_RATIO = MAX_LFO_RATE_HZ / MIN_LFO_RATE_HZ;
         const SIXTEENTH_NOTES_PER_QUARTER = 4;
-        const LFO_RATE_DIVISION_LABELS = ['1/32', '1/24', '1/16', '1/12', '1/8', '1/6', '1/4', '1/3', '1/2', '2/3', '3/4', '1X', '2X', '3X', '4X'];
+        const LFO_RATE_DIVISION_LABELS = ['1/32', '1/24', '1/16', '1/12', '1/8', '1/6', '1/4', '1/3', '1/2', '2/3', '3/4', '1/1', '1/2', '1/3', '1/4'];
         const LFO_RATE_DIVISION_MULTIPLIERS = LFO_RATE_DIVISION_LABELS.map(label => {
             const numericValue = parseLfoDivisionLabel(label);
             return numericValue;
