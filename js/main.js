@@ -52,11 +52,28 @@ let liveLfoOutputs = [0, 0, 0, 0];
         const MAX_LFO_RATE_HZ = 2000;
         const LFO_RATE_RANGE_RATIO = MAX_LFO_RATE_HZ / MIN_LFO_RATE_HZ;
         const SIXTEENTH_NOTES_PER_QUARTER = 4;
-        const LFO_RATE_DIVISION_LABELS = ['1/32', '1/24', '1/16', '1/12', '1/8', '1/6', '1/4', '1/3', '1/2', '2/3', '3/4', '1/1', '1/2', '1/3', '1/4'];
-        const LFO_RATE_DIVISION_MULTIPLIERS = LFO_RATE_DIVISION_LABELS.map(label => {
-            const numericValue = parseLfoDivisionLabel(label);
-            return numericValue;
-        });
+        const LFO_RATE_DIVISION_STEPS = [
+            { label: '1/32', multiplier: 1 / 32 },
+            { label: '1/24', multiplier: 1 / 24 },
+            { label: '1/16', multiplier: 1 / 16 },
+            { label: '1/12', multiplier: 1 / 12 },
+            { label: '1/8', multiplier: 1 / 8 },
+            { label: '1/6', multiplier: 1 / 6 },
+            { label: '1/4', multiplier: 1 / 4 },
+            { label: '1/3', multiplier: 1 / 3 },
+            { label: '1/2', multiplier: 1 / 2 },
+            { label: '2/3', multiplier: 2 / 3 },
+            { label: '3/4', multiplier: 3 / 4 },
+            { label: '1/1', multiplier: 1 },
+            { label: '2x', multiplier: 2 },
+            { label: '3x', multiplier: 3 },
+            // The former 4x slot now shows 1/4 but keeps the same fast multiplier,
+            // and the list still ends with a literal 4x readout for familiarity.
+            { label: '1/4', multiplier: 4 },
+            { label: '4x', multiplier: 4 },
+        ];
+        const LFO_RATE_DIVISION_LABELS = LFO_RATE_DIVISION_STEPS.map(step => step.label);
+        const LFO_RATE_DIVISION_MULTIPLIERS = LFO_RATE_DIVISION_STEPS.map(step => step.multiplier);
         const lfoTempoLinkState = LFO_RATE_KNOB_IDS.map(() => ({ enabled: false, storedFreeValue: 0.5 }));
         let lfoTempoSyncSwitches = [];
         let lfoRateDisplays = [];
@@ -346,23 +363,6 @@ let liveLfoOutputs = [0, 0, 0, 0];
             if (hz >= 100) return `${hz.toFixed(0)} HZ`;
             if (hz >= 10) return `${hz.toFixed(1)} HZ`;
             return `${hz.toFixed(2)} HZ`;
-        }
-
-        function parseLfoDivisionLabel(label) {
-            if (!label) return 1;
-            const clean = label.toUpperCase();
-            if (clean.includes('X')) {
-                const numeric = parseFloat(clean.replace('X', ''));
-                return Number.isFinite(numeric) ? numeric : 1;
-            }
-            if (label.includes('/')) {
-                const [num, den] = label.split('/').map(part => parseFloat(part));
-                if (Number.isFinite(num) && Number.isFinite(den) && den !== 0) {
-                    return num / den;
-                }
-            }
-            const fallback = parseFloat(label);
-            return Number.isFinite(fallback) ? fallback : 1;
         }
 
         function getLfoDivisionIndex(normalizedValue) {
