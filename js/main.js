@@ -116,8 +116,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
         function handleArpRateButton(knobId, multiplier) {
             if (isArpRateSynced) return;
             const state = knobState[knobId];
-            if (!state) return;
-            const newRate = state.arpRateMs * multiplier;
+            if (!state || multiplier === 0) return;
+            const newRate = state.arpRateMs / multiplier;
             setArpRateFromMs(knobId, newRate);
         }
 

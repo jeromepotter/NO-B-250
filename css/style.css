@@ -64,7 +64,7 @@ body { font-family: 'Poppins', sans-serif; background-color: #1e1b4b; touch-acti
       .arp-rate-button {
         width: 20px;
         height: 20px;
-        border: 1px solid #ffffff;
+        border: 1px solid currentColor;
         background-color: transparent;
         color: #ffffff;
         font-size: 10px;
@@ -73,9 +73,13 @@ body { font-family: 'Poppins', sans-serif; background-color: #1e1b4b; touch-acti
         align-items: center;
         justify-content: center;
         line-height: 1;
-        transition: color 0.2s, opacity 0.2s;
+        transition: color 0.2s, opacity 0.2s, transform 0.1s;
+        mix-blend-mode: difference;
       }
-      .arp-rate-button:hover { color: #facc15; }
+      .arp-rate-button:hover {
+        color: #facc15;
+        transform: translateY(-1px);
+      }
       #master-arp-controls.rate-buttons-disabled .arp-rate-button {
         opacity: 0.4;
         pointer-events: none;
