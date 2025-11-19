@@ -909,14 +909,16 @@ function sendMidiMessage(message) {
 
       
        function startArpeggiator(knobId) {
-           const state = knobState[knobId]; if(!state || !state.isArpOn || state.arpRunning || !synthNode) return;
-           state.arpRunning = true; state.lastArpStepTime = performance.now();
-           const activeNotes = state.arpNotes.filter(n => n.active);
-           if (!state.isSweepMode || activeNotes.length <= 1) { state.currentArpNoteIndex = (currentArpOrder === "Down" && activeNotes.length > 0) ? activeNotes.length - 1 : 0; state.arpUpDownState = 0; }
-           state.currentOctaveStep = 0; state.euclideanStepCounter = 0; state.arpDirection = 1; state.lastPlayedMidi = null;
-           if (state.arpRafId) cancelAnimationFrame(state.arpRafId);
-           updateArpeggiator(knobId, performance.now());
-       }
+          const state = knobState[knobId]; if(!state || !state.isArpOn || state.arpRunning || !synthNode) return;
+          state.arpRunning = true; state.lastArpStepTime = performance.now();
+          const activeNotes = state.arpNotes.filter(n => n.active);
+          if (!state.isSweepMode || activeNotes.length <= 1) { state.currentArpNoteIndex = (currentArpOrder === "Down" && activeNotes.length > 0) ? activeNotes.length - 1 : 0; state.arpUpDownState = 0; }
+          state.currentOctaveStep = 0; state.euclideanStepCounter = 0; state.arpDirection = 1; state.lastPlayedMidi = null;
+          if (state.arpRafId) clearInterval(state.arpRafId);
+          const tick = () => updateArpeggiator(knobId, performance.now());
+          state.arpRafId = setInterval(tick, 0);
+          tick();
+      }
       
        function stopArpeggiator(knobId) {
            const state = knobState[knobId];
@@ -924,10 +926,10 @@ function sendMidiMessage(message) {
 
            // --- Stop the existing playback loop ---
            state.arpRunning = false;
-           if (state.arpRafId) {
-               cancelAnimationFrame(state.arpRafId);
-               state.arpRafId = null;
-           }
+          if (state.arpRafId) {
+              clearInterval(state.arpRafId);
+              state.arpRafId = null;
+          }
           if (state.isNoteOn && state.lastPlayedMidi !== null) {
            // Stop the internal synth sound
            if (synthNode) {
@@ -1156,9 +1158,8 @@ lfoState.forEach((lfo, lfoIndex) => {
                        state.currentArpNoteIndex++;
                    }
                }
-           }
-           state.arpRafId = requestAnimationFrame((ts) => updateArpeggiator(knobId, ts));
-       }
+          }
+      }
       
        function populateScales() {
            let names = Object.keys(SCALES); names.splice(2, 0, 'Custom');
