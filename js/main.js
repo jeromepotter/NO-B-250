@@ -55,7 +55,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         const LFO_RATE_DIVISION_LABELS = ['1/32', '1/24', '1/16', '1/12', '1/8', '1/6', '1/4', '1/3', '1/2', '2/3', '3/4', '1X', '2X', '3X', '4X'];
         const LFO_RATE_DIVISION_MULTIPLIERS = LFO_RATE_DIVISION_LABELS.map(label => {
             const numericValue = parseLfoDivisionLabel(label);
-            return numericValue / SIXTEENTH_NOTES_PER_QUARTER;
+            return numericValue;
         });
         const lfoTempoLinkState = LFO_RATE_KNOB_IDS.map(() => ({ enabled: false, storedFreeValue: 0.5 }));
         let lfoTempoSyncSwitches = [];
@@ -1037,11 +1037,9 @@ function sendMidiMessage(message) {
       
        function updateKnobColor(knobId) {
            const state = knobState[knobId]; if (!state || !state.dom.knob) return;
-           let midiNote;
-           if (state.isNoteOn && state.arpRunning) {
+           let midiNote = getMidiNote(knobId);
+           if (state.arpRunning && state.lastPlayedMidi !== null) {
                midiNote = state.lastPlayedMidi;
-           } else {
-               midiNote = getMidiNote(knobId);
            }
            const finalRgb = getArpNoteColor(midiNote);
            state.dom.knob.style.backgroundColor = `rgb(${finalRgb.r}, ${finalRgb.g}, ${finalRgb.b})`;
