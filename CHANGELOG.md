@@ -4,7 +4,9 @@ All notable changes to NO-B 250 will be documented in this file.
 
 ##Future Plans
 - Background Playback in desktop
-- User preset filename structure to include "n-ob" 
+- User preset filename structure to include "n-ob"
+- LFO to main Knob Modulation
+- Note Repeat Mode Auto Latch
 
 ## [11.18] - 2025-11-18
 ### Added
