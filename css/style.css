@@ -216,6 +216,25 @@ body { font-family: 'Poppins', sans-serif; background-color: #1e1b4b; touch-acti
         font-weight: bold;
         text-align: center;
       }
+
+      .lfo-rate-display {
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .lfo-tempo-switch-wrapper {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        margin-top: 2px;
+      }
+
+      .switch-disabled {
+        opacity: 0.35;
+        filter: grayscale(1);
+        pointer-events: none;
+      }
        @keyframes blink-green {
         50% {
           background-color: #e67335;
