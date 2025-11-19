@@ -1451,6 +1451,35 @@ lfoState.forEach((lfo, lfoIndex) => {
     }
 }
 
+    function normalizePresetLfoDest(rawDest) {
+        if (rawDest === null || rawDest === undefined) return 0;
+
+        if (typeof rawDest === 'number' && !Number.isNaN(rawDest)) {
+            if (rawDest === 200 || rawDest === 300) return MAIN_LFO_DEST_IDS[0];
+            if (rawDest === 201 || rawDest === 301) return MAIN_LFO_DEST_IDS[1];
+            return rawDest;
+        }
+
+        if (typeof rawDest === 'string') {
+            const trimmed = rawDest.trim();
+            if (!trimmed) return 0;
+
+            const compact = trimmed.replace(/\s+/g, '').toUpperCase();
+            if (['MAIN1', 'OSC1', 'OSCILLATOR1', 'VOICE1'].includes(compact)) return MAIN_LFO_DEST_IDS[0];
+            if (['MAIN2', 'OSC2', 'OSCILLATOR2', 'VOICE2'].includes(compact)) return MAIN_LFO_DEST_IDS[1];
+
+            for (const [id, name] of Object.entries(KNOB_ID_TO_NAME_MAP)) {
+                if (!name) continue;
+                const normalizedName = name.trim().replace(/\s+/g, '').toUpperCase();
+                if (normalizedName === compact) {
+                    return parseInt(id, 10);
+                }
+            }
+        }
+
+        return 0;
+    }
+
 function applyPreset(p) {
            if (!p) return;
 
@@ -1493,7 +1522,8 @@ function applyPreset(p) {
                        lfoState[index].rate = savedLfo.rate ?? 0;
                        lfoState[index].depth = savedLfo.depth ?? 0;
                        lfoState[index].wave = savedLfo.wave ?? 0;
-                       lfoState[index].dest = savedLfo.dest ?? 0;
+                       const resolvedDest = normalizePresetLfoDest(savedLfo.dest);
+                       lfoState[index].dest = resolvedDest;
                        
                        const rateKnobId = Object.keys(LFO_KNOB_MAP).find(id => LFO_KNOB_MAP[id].lfo === index && LFO_KNOB_MAP[id].param === 'rate');
                        const depthKnobId = Object.keys(LFO_KNOB_MAP).find(id => LFO_KNOB_MAP[id].lfo === index && LFO_KNOB_MAP[id].param === 'depth');
