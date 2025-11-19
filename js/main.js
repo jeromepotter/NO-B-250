@@ -1008,8 +1008,6 @@ lfoState.forEach((lfo, lfoIndex) => {
         updateStateFromTotalAngle(knobId);
     }
 });
-// --- End of Fix ---
-           // --- End of Fix ---
     
            if (timestamp - state.lastArpStepTime >= modulatedRateMs) {
                state.lastArpStepTime = timestamp;
@@ -2254,6 +2252,7 @@ function generateAndApplyRandomSound() {
        }
       
        init();
+
 
 
 
