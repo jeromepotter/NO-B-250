@@ -1338,10 +1338,26 @@ lfoState.forEach((lfo, lfoIndex) => {
                 const modulatedAngle = Math.max(0, Math.min(MAX_TOTAL_ANGLE, state.totalAngle + modulation * MAX_TOTAL_ANGLE));
                 const displayAngle = modulatedAngle % 360;
                 const knobRadius = state.dom.knob?.offsetHeight ? state.dom.knob.offsetHeight / 2 : 0;
+                const baseMidi = getMidiNoteFromAngle(knobId, modulatedAngle);
+                let displayMidi = baseMidi;
 
                 if (data.indicator) {
                     data.indicator.style.transformOrigin = `center ${knobRadius > 0 ? knobRadius - 16 : 0}px`;
                     data.indicator.style.transform = `rotate(${displayAngle}deg)`;
+                }
+
+                if (state.isArpOn) {
+                    const fullScaleMidi = getFullScaleMidi();
+                    const baseIndex = fullScaleMidi.indexOf(baseMidi);
+                    if (baseIndex !== -1) {
+                        const transposedIndex = baseIndex + state.arpTranspose;
+                        const clampedIndex = Math.max(0, Math.min(fullScaleMidi.length - 1, transposedIndex));
+                        displayMidi = fullScaleMidi[clampedIndex];
+                    }
+                }
+
+                if (state.dom.noteDisplay) {
+                    state.dom.noteDisplay.textContent = midiToNoteName(displayMidi);
                 }
 
                 const shouldUpdateAudio = synthNode && isPowerOn && state.isNoteOn && !state.isArpOn;
