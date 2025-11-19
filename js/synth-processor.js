@@ -1,6 +1,10 @@
 class Comb { constructor(size, feedback, damping) { this.buffer = new Float32Array(size); this.pos = 0; this.feedback = feedback; this.damp = damping; this.last = 0; } process(input) { const output = this.buffer[this.pos]; this.last = output * (1 - this.damp) + this.last * this.damp; this.buffer[this.pos] = input + this.last * this.feedback; if (++this.pos >= this.buffer.length) this.pos = 0; return output; } }
            class Allpass { constructor(size) { this.buffer = new Float32Array(size); this.pos = 0; } process(input) { const delayed = this.buffer[this.pos]; const output = -input + delayed; this.buffer[this.pos] = input + delayed * 0.5; if (++this.pos >= this.buffer.length) this.pos = 0; return output; } }
       
+const MIN_LFO_RATE_HZ = 0.05;
+const MAX_LFO_RATE_HZ = 2000;
+const LFO_RATE_RANGE_RATIO = MAX_LFO_RATE_HZ / MIN_LFO_RATE_HZ;
+
            class SynthProcessor extends AudioWorkletProcessor {
                constructor() {
                    super();
@@ -130,7 +134,7 @@ for (let l = 0; l < 4; l++) {
         }
         rawLfoOutputs[l] = val * lfo.depth;
         
-        const rateHz = 1 * Math.pow(2000, lfo.rate);
+        const rateHz = MIN_LFO_RATE_HZ * Math.pow(LFO_RATE_RANGE_RATIO, lfo.rate);
         const phaseInc = (2 * Math.PI * rateHz) / sr;
         const oldPhase = lfo.phase;
         lfo.phase = (lfo.phase + phaseInc) % (2 * Math.PI);
@@ -153,7 +157,7 @@ for (let l = 0; l < 4; l++) {
             if (param === 'rate') {
                 const baseRate = targetLfo.rate;
                 const modulatedRate = Math.max(0, Math.min(1, baseRate + rawLfoOutputs[l]));
-                const rateHz = 1 * Math.pow(2000, modulatedRate);
+                const rateHz = MIN_LFO_RATE_HZ * Math.pow(LFO_RATE_RANGE_RATIO, modulatedRate);
                 const phaseInc = (2 * Math.PI * rateHz) / sr;
                 const oldPhase = targetLfo.phase;
                 targetLfo.phase = (targetLfo.phase + phaseInc) % (2 * Math.PI);
