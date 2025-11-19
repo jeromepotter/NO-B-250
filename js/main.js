@@ -1382,9 +1382,9 @@ lfoState.forEach((lfo, lfoIndex) => {
             if (lfoAnimationId !== null) return;
             const animateLFOs = () => {
                 if (synthNode) synthNode.port.postMessage({ type: 'requestLfoUpdate' });
-                lfoAnimationId = requestAnimationFrame(animateLFOs);
             };
             animateLFOs();
+            lfoAnimationId = setInterval(animateLFOs, 16);
         }
 
         function shouldKeepLfoAnimationRunning() {
@@ -1441,7 +1441,7 @@ lfoState.forEach((lfo, lfoIndex) => {
         ensureLfoAnimationRunning();
     } else {
         if (!shouldKeepLfoAnimationRunning() && lfoAnimationId !== null) {
-            cancelAnimationFrame(lfoAnimationId);
+            clearInterval(lfoAnimationId);
             lfoAnimationId = null;
         }
         Object.values(fxKnobData).forEach(d => {
@@ -2199,7 +2199,7 @@ function generateAndApplyRandomSound() {
         }
         drawLfoCables();
         if (!shouldKeepLfoAnimationRunning() && lfoAnimationId !== null) {
-          cancelAnimationFrame(lfoAnimationId);
+          clearInterval(lfoAnimationId);
           lfoAnimationId = null;
         }
       }
