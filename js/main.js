@@ -27,8 +27,6 @@
         let lfoAnimationId = null;
         let activePatchingLfo = null; // NEW: null or the index (0-3) of the LFO being patched
         let KNOB_ID_TO_NAME_MAP = {}; // NEW: Populated at init
-         KNOB_ID_TO_NAME_MAP[200] = 'KNOB 1';
-         KNOB_ID_TO_NAME_MAP[201] = 'KNOB 2';
         const lfoState = [
     { id: 0, rate: 0.5, depth: 0, wave: 0, dest: 0, phase: 0, lastRandom: 0, output: 0 },
     { id: 1, rate: 0.5, depth: 0, wave: 0, dest: 0, phase: 0, lastRandom: 0, output: 0 },
@@ -1761,6 +1759,9 @@ function generateAndApplyRandomSound() {
                     fxKnobData[id].knobEl.classList.add('blinking-lfo-target');
                 }
             }
+                   document.querySelectorAll('.main-knob').forEach(knob => {
+        knob.classList.add('blinking-lfo-target');
+    });
         }
       function drawLfoCables() {
         if (!isLfoMode) {
@@ -1894,49 +1895,54 @@ function generateAndApplyRandomSound() {
                     KNOB_ID_TO_NAME_MAP[id] = labelEl.textContent.trim().replace(/\s/g, ' '); // Clean up text
                 }
             });
-
+              
+ KNOB_ID_TO_NAME_MAP[200] = 'KNOB 1';
+ KNOB_ID_TO_NAME_MAP[201] = 'KNOB 2';
 
             synthContainer.addEventListener('click', (e) => {
-                if (!isLfoMode || activePatchingLfo === null) return;
-                
-                const targetKnobEl = e.target.closest('.fx-knob-container');
-                if (!targetKnobEl) {
-                    // If user clicks outside a knob, cancel patching
-                    stopLfoPatching();
-                    return;
-                }
-                
-                const targetFxId = parseInt(targetKnobEl.dataset.fxId, 10);
-                const sourceKnobInfo = Object.values(LFO_KNOB_MAP).find(d => d.lfo === activePatchingLfo && d.param === 'dest');
-                const sourceFxId = parseInt(Object.keys(LFO_KNOB_MAP).find(key => LFO_KNOB_MAP[key] === sourceKnobInfo));
-                
-                // --- Validation ---
-                const ownLfoKnobs = Object.keys(LFO_KNOB_MAP).filter(id => LFO_KNOB_MAP[id].lfo === activePatchingLfo).map(id => parseInt(id));
-                
-                if (targetFxId === sourceFxId) {
-                    // Clicked the source knob again to cancel or reset
-                    lfoState[activePatchingLfo].dest = 0; // Set to OFF
-                    document.getElementById(`lfo-dest-display-${activePatchingLfo}`).textContent = 'OFF';
-                     if (synthNode) synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: activePatchingLfo, param: 'dest', value: 0 } });
-                    stopLfoPatching();
-                     drawLfoCables();
-                    return;
-                }
+    if (!isLfoMode || activePatchingLfo === null) return;
+    
+    const targetKnobEl = e.target.closest('.fx-knob-container, .main-knob');
+    if (!targetKnobEl) {
+        stopLfoPatching();
+        return;
+    }
+    
+    // NEW: Handle main knobs
+    let targetFxId;
+    if (targetKnobEl.classList.contains('main-knob')) {
+        const knobId = parseInt(targetKnobEl.dataset.knobId, 10);
+        targetFxId = 200 + knobId;
+    } else {
+        targetFxId = parseInt(targetKnobEl.dataset.fxId, 10);
+    }
+    
+    const sourceKnobInfo = Object.values(LFO_KNOB_MAP).find(d => d.lfo === activePatchingLfo && d.param === 'dest');
+    const sourceFxId = parseInt(Object.keys(LFO_KNOB_MAP).find(key => LFO_KNOB_MAP[key] === sourceKnobInfo));
+    
+    const ownLfoKnobs = Object.keys(LFO_KNOB_MAP).filter(id => LFO_KNOB_MAP[id].lfo === activePatchingLfo).map(id => parseInt(id));
+    
+    if (targetFxId === sourceFxId) {
+        lfoState[activePatchingLfo].dest = 0;
+        document.getElementById(`lfo-dest-display-${activePatchingLfo}`).textContent = 'OFF';
+        if (synthNode) synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: activePatchingLfo, param: 'dest', value: 0 } });
+        stopLfoPatching();
+        drawLfoCables();
+        return;
+    }
 
-                if (ownLfoKnobs.includes(targetFxId)) {
-                    // Invalid target (one of its own knobs)
-                    return;
-                }
+    if (ownLfoKnobs.includes(targetFxId)) {
+        return;
+    }
 
-                // --- Valid Target Selected ---
-                lfoState[activePatchingLfo].dest = targetFxId;
-                const targetName = KNOB_ID_TO_NAME_MAP[targetFxId] || "UNKNOWN";
-                document.getElementById(`lfo-dest-display-${activePatchingLfo}`).textContent = targetName;
-                 if (synthNode) synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: activePatchingLfo, param: 'dest', value: targetFxId } });
+    lfoState[activePatchingLfo].dest = targetFxId;
+    const targetName = KNOB_ID_TO_NAME_MAP[targetFxId] || "UNKNOWN";
+    document.getElementById(`lfo-dest-display-${activePatchingLfo}`).textContent = targetName;
+    if (synthNode) synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: activePatchingLfo, param: 'dest', value: targetFxId } });
 
-                stopLfoPatching();
-                 drawLfoCables();
-            });
+    stopLfoPatching();
+    drawLfoCables();
+});
 
 
             const mainHeader = document.querySelector('.main-header h1');
@@ -2248,6 +2254,7 @@ function generateAndApplyRandomSound() {
        }
       
        init();
+
 
 
 
