@@ -2724,12 +2724,13 @@ function generateAndApplyRandomSound() {
            scaleSelector = document.getElementById('scaleSelector');
               // --- ROBUST MOBILE AUDIO RESUME ---
                // Listens for any touch or click anywhere on the screen to wake the engine
-          const resumeAudio = () => {
-        // Check for 'suspended' or 'interrupted' (iOS specific) states
-          if (isPowerOn && audioContext && (audioContext.state === 'suspended' || audioContext.state === 'interrupted')) {
-            audioContext.resume();
-        }
-    };
+        const resumeAudio = () => {
+    // Check for 'suspended' or 'interrupted' (iOS specific) states
+    if (isPowerOn && audioContext && (audioContext.state === 'suspended' || audioContext.state === 'interrupted')) {
+        audioContext.resume();
+    }
+};
+
     
     // 'touchstart' is often required for iOS; 'click' covers desktop/other cases
     document.addEventListener('touchstart', resumeAudio, { passive: true });
@@ -3188,3 +3189,4 @@ function generateAndApplyRandomSound() {
        }
       
        init();
+
