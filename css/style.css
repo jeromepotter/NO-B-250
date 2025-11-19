@@ -85,6 +85,18 @@ body { font-family: 'Poppins', sans-serif; background-color: #1e1b4b; touch-acti
       background-color: #d9dbce;
       color: #000000;
       }
+.main-knob.lfo-target {
+  animation: pulse-lfo 1s infinite;
+}
+
+@keyframes pulse-lfo {
+  0%, 100% {
+    box-shadow: 0 0 0 2px #1e1b4b, 0 0 10px 2px rgba(255, 153, 0, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 2px #1e1b4b, 0 0 20px 4px rgba(255, 153, 0, 0.8);
+  }
+}
       body.easter-egg-mode .retro-select,
       body.easter-egg-mode .power-switch,
       body.easter-egg-mode .piano {
@@ -265,3 +277,4 @@ body { font-family: 'Poppins', sans-serif; background-color: #1e1b4b; touch-acti
     cursor: pointer;
   }
 }
+
