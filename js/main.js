@@ -411,7 +411,6 @@ let liveLfoOutputs = [0, 0, 0, 0];
         }
 
         function applyTempoLinkedLfoRate(index, normalizedOverride, sharedIntervalMs) {
-               console.log(`LFO ${index}: knobValue=${knobValue.toFixed(3)}, multiplier=${multiplier}, intervalMs=${lfoIntervalMs.toFixed(2)}, rateParam=${lfoRateParam.toFixed(3)}`);
             const link = lfoTempoLinkState[index];
             if (!link?.enabled) return;
             const rateKnobId = LFO_RATE_KNOB_IDS[index];
@@ -425,6 +424,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const multiplier = getLfoDivisionMultiplier(knobValue);
             const lfoIntervalMs = tempoIntervalMs / multiplier;
             const lfoRateParam = intervalMsToLfoRateParam(lfoIntervalMs);
+            console.log(`LFO ${index}: knobValue=${knobValue.toFixed(3)}, multiplier=${multiplier}, intervalMs=${lfoIntervalMs.toFixed(2)}, rateParam=${lfoRateParam.toFixed(3)}`);
+
             lfoState[index].rate = lfoRateParam;
             if (synthNode) {
                 synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'rate', value: lfoRateParam } });
