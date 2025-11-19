@@ -53,23 +53,27 @@ let liveLfoOutputs = [0, 0, 0, 0];
         const LFO_RATE_RANGE_RATIO = MAX_LFO_RATE_HZ / MIN_LFO_RATE_HZ;
         const SIXTEENTH_NOTES_PER_QUARTER = 4;
         const LFO_RATE_DIVISION_STEPS = [
-            // Glacial: one cycle every 4 bars (slowest)
-            { label: '4', multiplier: 1 / 64 },
-            // Very slow: one cycle per bar
-            { label: '1', multiplier: 1 / 16 },
-            // Slow: 2 cycles per bar (every 2 beats)
-            { label: '1/2', multiplier: 1 / 8 },
-            // Moderate: 4 cycles per bar (one per beat)
-            { label: '1/4', multiplier: 1 / 4 },
-            // Fast: 8 cycles per bar
-            { label: '1/8', multiplier: 1 / 2 },
-            // Very fast: 16 cycles per bar
-            { label: '1/16', multiplier: 1 },
-            // Insanely fast: 32 cycles per bar
-            { label: '1/32', multiplier: 2 },
-            // Max speed: 64 cycles per bar
-            { label: '1/64', multiplier: 4 },
-        ];
+    // Glacial: one cycle every 4 bars (slowest)
+    { label: '4', multiplier: 1 / 64 },
+    // Very slow: one cycle per bar
+    { label: '1', multiplier: 1 / 16 },
+    // Slow: 2 cycles per bar (every 2 beats)
+    { label: '1/2', multiplier: 1 / 8 },
+    // Moderate: 4 cycles per bar (one per beat)
+    { label: '1/4', multiplier: 1 / 4 },
+    // Fast: 8 cycles per bar
+    { label: '1/8', multiplier: 1 / 2 },
+    // Very fast: 16 cycles per bar
+    { label: '1/16', multiplier: 1 },
+    // Insanely fast: 32 cycles per bar
+    { label: '1/32', multiplier: 2 },
+    // Max speed: 64 cycles per bar
+    { label: '1/64', multiplier: 4 },
+    // AUDIO RATE: 128 cycles per bar → ~64 Hz at 120 BPM
+    { label: '1/128', multiplier: 8 },
+    // AUDIO RATE: 256 cycles per bar → ~128 Hz at 120 BPM
+    { label: '1/256', multiplier: 16 },
+     ];
         const LFO_RATE_DIVISION_LABELS = LFO_RATE_DIVISION_STEPS.map(step => step.label);
         const LFO_RATE_DIVISION_MULTIPLIERS = LFO_RATE_DIVISION_STEPS.map(step => step.multiplier);
         const lfoTempoLinkState = LFO_RATE_KNOB_IDS.map(() => ({ enabled: false, storedFreeValue: 0.5 }));
@@ -424,8 +428,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const multiplier = getLfoDivisionMultiplier(knobValue);
             const lfoIntervalMs = tempoIntervalMs / multiplier;
             const lfoRateParam = intervalMsToLfoRateParam(lfoIntervalMs);
-            console.log(`LFO ${index}: knobValue=${knobValue.toFixed(3)}, multiplier=${multiplier}, intervalMs=${lfoIntervalMs.toFixed(2)}, rateParam=${lfoRateParam.toFixed(3)}`);
-
+            
             lfoState[index].rate = lfoRateParam;
             if (synthNode) {
                 synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'rate', value: lfoRateParam } });
