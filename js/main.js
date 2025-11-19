@@ -505,13 +505,22 @@ function sendMidiMessage(message) {
            } else if (!state.isNoteOn) {
                updateKnobColor(knobId);
            }
-           if(state.isArpOn && state.isHeld) {
+           const isNoteRepeatHoldActive = state.isArpOn && state.isArpHoldOn && !state.isSweepMode;
+           if (state.isArpOn && (state.isHeld || isNoteRepeatHoldActive)) {
                if (state.isSweepMode) {
                   if (allowDuplicateNotesMode || !state.arpNotes.some(n => n.midi === baseMidi)) {
                    state.arpNotes.push({ midi: baseMidi, active: true });
                   updateSequenceDisplay(knobId);
                   }
-               } else { if (state.arpRunning) { state.arpNotes = [{ midi: baseMidi, active: true }]; } }
+               } else {
+                  const noteChanged = state.arpNotes.length !== 1 || state.arpNotes[0].midi !== baseMidi || !state.arpNotes[0].active;
+                  state.arpNotes = [{ midi: baseMidi, active: true }];
+                  if (noteChanged) {
+                      state.currentArpNoteIndex = 0;
+                      state.arpUpDownState = 0;
+                      updateSequenceDisplay(knobId);
+                  }
+               }
            } else if (state.isHeld && synthNode && isPowerOn) {
                // Audio update
                synthNode.port.postMessage({ type: 'setFreq', data: { voice: knobId, freq: getNoteFrequency(baseMidi) } });
