@@ -2300,7 +2300,7 @@ function applyPreset(p) {
                    }
                });
 
-               if (lfoState.some(lfo => LFO_DEST_TO_MAIN_KNOB[lfo.dest])) {
+               if (lfoState.some(lfo => lfo.dest)) {
                    ensureLfoAnimationRunning();
                }
            } else { // Reset LFOs for older presets (THE FIX IS HERE)
