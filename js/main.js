@@ -51,24 +51,12 @@ let liveLfoOutputs = [0, 0, 0, 0];
         const MIN_LFO_RATE_HZ = 0.05;
         const MAX_LFO_RATE_HZ = 2000;
         const LFO_RATE_RANGE_RATIO = MAX_LFO_RATE_HZ / MIN_LFO_RATE_HZ;
+        const SIXTEENTH_NOTES_PER_QUARTER = 4;
         const LFO_RATE_DIVISION_LABELS = ['1/32', '1/24', '1/16', '1/12', '1/8', '1/6', '1/4', '1/3', '1/2', '2/3', '3/4', '1X', '2X', '3X', '4X'];
-        const LFO_RATE_DIVISION_MULTIPLIERS = [
-            1 / 32,
-            1 / 24,
-            1 / 16,
-            1 / 12,
-            1 / 8,
-            1 / 6,
-            1 / 4,
-            1 / 3,
-            1 / 2,
-            2 / 3,
-            3 / 4,
-            1,
-            2,
-            3,
-            4,
-        ];
+        const LFO_RATE_DIVISION_MULTIPLIERS = LFO_RATE_DIVISION_LABELS.map(label => {
+            const numericValue = parseLfoDivisionLabel(label);
+            return numericValue / SIXTEENTH_NOTES_PER_QUARTER;
+        });
         const lfoTempoLinkState = LFO_RATE_KNOB_IDS.map(() => ({ enabled: false, storedFreeValue: 0.5 }));
         let lfoTempoSyncSwitches = [];
         let lfoRateDisplays = [];
@@ -102,7 +90,6 @@ let liveLfoOutputs = [0, 0, 0, 0];
         const MAX_ARP_RATE_BPM = 300;
         const DEFAULT_ARP_RATE_BPM = 100;
         const ARP_RATE_RANGE_BPM = MAX_ARP_RATE_BPM - MIN_ARP_RATE_BPM;
-        const SIXTEENTH_NOTES_PER_QUARTER = 4;
         const MIN_ARP_RATE_MS = 50;
         const MAX_ARP_RATE_MS = 2000;
         const ARP_RATE_RANGE_MS = MAX_ARP_RATE_MS - MIN_ARP_RATE_MS;
@@ -187,12 +174,6 @@ let liveLfoOutputs = [0, 0, 0, 0];
             let nextTime = masterClockStartTime + ticksSinceOrigin * intervalMs;
             if (nextTime <= now) nextTime += intervalMs;
             return nextTime;
-        }
-
-        function realignRunningArp(state) {
-            if (!state || !state.arpRunning || tempoMode !== TEMPO_MODE_BPM) return;
-            const interval = bpmToSixteenthMs(state.arpRateBpm);
-            state.nextArpStepTime = quantizeToNextSixteenth(getNowMs(), interval);
         }
 
         function startArpClockForState(knobId) {
@@ -365,6 +346,23 @@ let liveLfoOutputs = [0, 0, 0, 0];
             if (hz >= 100) return `${hz.toFixed(0)} HZ`;
             if (hz >= 10) return `${hz.toFixed(1)} HZ`;
             return `${hz.toFixed(2)} HZ`;
+        }
+
+        function parseLfoDivisionLabel(label) {
+            if (!label) return 1;
+            const clean = label.toUpperCase();
+            if (clean.includes('X')) {
+                const numeric = parseFloat(clean.replace('X', ''));
+                return Number.isFinite(numeric) ? numeric : 1;
+            }
+            if (label.includes('/')) {
+                const [num, den] = label.split('/').map(part => parseFloat(part));
+                if (Number.isFinite(num) && Number.isFinite(den) && den !== 0) {
+                    return num / den;
+                }
+            }
+            const fallback = parseFloat(label);
+            return Number.isFinite(fallback) ? fallback : 1;
         }
 
         function getLfoDivisionIndex(normalizedValue) {
@@ -545,6 +543,25 @@ let liveLfoOutputs = [0, 0, 0, 0];
             state.lastArpStepTime = now - (ratio * next);
         }
 
+        function preserveBpmArpPhase(state, previousIntervalMs, nextIntervalMs) {
+            if (!state || !state.arpRunning || tempoMode !== TEMPO_MODE_BPM) return;
+            const now = getNowMs();
+            const prev = Number.isFinite(previousIntervalMs) && previousIntervalMs > 0 ? previousIntervalMs : null;
+            const next = Number.isFinite(nextIntervalMs) && nextIntervalMs > 0 ? nextIntervalMs : null;
+            if (!next) {
+                state.nextArpStepTime = quantizeToNextSixteenth(now, bpmToSixteenthMs(state.arpRateBpm));
+                return;
+            }
+            if (!prev || !Number.isFinite(state.nextArpStepTime)) {
+                state.nextArpStepTime = now + next;
+                return;
+            }
+            const remaining = state.nextArpStepTime - now;
+            const ratio = clamp(remaining / prev, 0, 1);
+            const adjusted = Math.max(ratio * next, MASTER_CLOCK_INTERVAL_MS);
+            state.nextArpStepTime = now + adjusted;
+        }
+
         function setArpRateFromBpm(knobId, rateBpm) {
             const state = knobState[knobId];
             if (!state) return;
@@ -561,7 +578,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             }
             if (state.arpRunning) {
                 if (tempoMode === TEMPO_MODE_BPM) {
-                    realignRunningArp(state);
+                    preserveBpmArpPhase(state, previousRateMs, state.arpRateMs);
                 } else {
                     preserveMsArpPhase(state, previousRateMs, state.arpRateMs);
                 }
@@ -595,7 +612,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 if (tempoMode === TEMPO_MODE_MS) {
                     preserveMsArpPhase(state, previousRateMs, clampedRate);
                 } else {
-                    realignRunningArp(state);
+                    preserveBpmArpPhase(state, previousRateMs, state.arpRateMs);
                 }
             }
 
