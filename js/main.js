@@ -1047,6 +1047,9 @@ function sendMidiMessage(message) {
            state.dom.knob.style.backgroundColor = `rgb(${finalRgb.r}, ${finalRgb.g}, ${finalRgb.b})`;
        }
        function updateStateFromTotalAngle(knobId) {
+               if (isLfoMode) {
+        console.log('🔍 updateStateFromTotalAngle called in LFO mode for knob', knobId);
+    }
            const state = knobState[knobId]; if (!state) return;
            state.totalAngle = Math.max(0, Math.min(MAX_TOTAL_ANGLE, state.totalAngle));
            state.currentOctave = Math.floor(state.totalAngle / 360);
@@ -3199,6 +3202,7 @@ function generateAndApplyRandomSound() {
        }
       
        init();
+
 
 
 
