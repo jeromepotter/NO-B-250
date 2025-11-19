@@ -52,7 +52,6 @@ let liveLfoOutputs = [0, 0, 0, 0];
         const MAX_LFO_RATE_HZ = 2000;
         const LFO_RATE_RANGE_RATIO = MAX_LFO_RATE_HZ / MIN_LFO_RATE_HZ;
         const SIXTEENTH_NOTES_PER_QUARTER = 4;
-       const LFO_RATE_DIVISION_STEPS = [
    const LFO_RATE_DIVISION_STEPS = [
     // Glacial: one cycle every 4 bars (slowest)
     { label: '4', multiplier: 1 / 64 },
