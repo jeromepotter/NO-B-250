@@ -1348,6 +1348,11 @@ lfoState.forEach((lfo, lfoIndex) => {
                     state.dom.noteDisplay.textContent = midiToNoteName(displayMidi);
                 }
 
+                if (state.dom.knob) {
+                    const finalRgb = getArpNoteColor(displayMidi);
+                    state.dom.knob.style.backgroundColor = `rgb(${finalRgb.r}, ${finalRgb.g}, ${finalRgb.b})`;
+                }
+
                 const isNoteRepeatHoldActive = state.isArpOn && state.isArpHoldOn && !state.isSweepMode;
                 if (state.isArpOn && (state.isHeld || isNoteRepeatHoldActive)) {
                     if (state.isSweepMode) {
