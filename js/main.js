@@ -2168,6 +2168,19 @@ lfoState.forEach((lfo, lfoIndex) => {
         updateLfoTempoSwitchStates();
            
     } else {
+            lfoState.forEach((lfo, idx) => {
+        if (lfo.dest !== 0) {
+            lfo.dest = 0; // Set to OFF
+            if (synthNode) {
+                synthNode.port.postMessage({ 
+                    type: 'setLfo', 
+                    data: { lfoId: idx, param: 'dest', value: 0 } 
+                });
+            }
+            const destDisplay = document.getElementById(`lfo-dest-display-${idx}`);
+            if (destDisplay) destDisplay.textContent = 'OFF';
+        }
+    });
             lfoTempoLinkState.forEach((link, idx) => {
             if (link.enabled) {
                 setLfoTempoSync(idx, false);
