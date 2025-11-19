@@ -205,7 +205,23 @@ for (let l = 0; l < 4; l++) {
     }
 }
 
-for (let l = 0; l < 4; l++) {
+// Calculate modulated params ONCE per buffer
+let currentParams = [...this.params];
+for (const fxId in modulatedFx) {
+    const id = parseInt(fxId, 10);
+    if(currentParams[id] !== undefined) {
+        currentParams[id] = Math.max(0, Math.min(1, currentParams[id] + modulatedFx[id]));
+    }
+}
+
+// Calculate envelope times ONCE per buffer
+this.attackTime = 0.001 + Math.pow(currentParams[8], 2) * 2;
+this.decayTime = 0.001 + Math.pow(currentParams[9], 2) * 2;
+this.sustainLevel = currentParams[10];
+this.releaseTime = 0.001 + Math.pow(currentParams[11], 2) * 1.25;
+this.releaseRate = Math.exp(-1 / (this.releaseTime * sampleRate));
+
+for(let i=0;i<oL.length;i++){
     const lfo = this.lfoParams[l];
     if (lfo.dest !== 0 && rawLfoOutputs[l] !== 0) {
         const targetLfoInfo = LFO_KNOB_IDS[lfo.dest];
@@ -258,12 +274,7 @@ for (let l = 0; l < 4; l++) {
 this.lfoOutputs = rawLfoOutputs;
 
 // --- Modulation Destination Logic ---
-let modulatedFx = {};
-for (let l = 0; l < 4; l++) {
-    const lfo = this.lfoParams[l];
-    if (lfo.dest !== 0) {
-        if (!modulatedFx[lfo.dest]) modulatedFx[lfo.dest] = 0;
-        modulatedFx[lfo.dest] += this.lfoOutputs[l];
+
     }
 }
 
@@ -427,6 +438,7 @@ return true;
 }
 }
 registerProcessor('synth-processor', SynthProcessor);
+
 
 
 
