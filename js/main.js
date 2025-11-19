@@ -111,7 +111,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const clampedRate = clamp(rateBpm, MIN_ARP_RATE_BPM, MAX_ARP_RATE_BPM);
             state.arpRateBpm = clampedRate;
             if (state.dom?.rateDisplay) {
-                state.dom.rateDisplay.textContent = `${Math.round(clampedRate)} BPM`;
+                state.dom.rateDisplay.textContent = `${Math.round(clampedRate)}`;
             }
 
             const fxId = knobId === 0 ? 16 : 17;
@@ -665,11 +665,11 @@ function sendMidiMessage(message) {
                   updateSequenceDisplay(knobId);
                } else if (id === 16 || id === 17) {
                    state.arpRateBpm = valueToArpRateBpm(d.value);
-                   if(state.dom.rateDisplay) state.dom.rateDisplay.textContent = `${Math.round(state.arpRateBpm)} BPM`;
+                   if(state.dom.rateDisplay) state.dom.rateDisplay.textContent = `${Math.round(state.arpRateBpm)}`;
                    const otherId = knobId === 0 ? 1 : 0; const otherFxId = knobId === 0 ? 17 : 16;
                    if (isArpRateSynced && knobState[otherId]?.isArpOn) {
                        knobState[otherId].arpRateBpm = state.arpRateBpm;
-                       if (knobState[otherId].dom.rateDisplay) knobState[otherId].dom.rateDisplay.textContent = `${Math.round(state.arpRateBpm)} BPM`;
+                      if (knobState[otherId].dom.rateDisplay) knobState[otherId].dom.rateDisplay.textContent = `${Math.round(state.arpRateBpm)}`;
                        const otherData = fxKnobData[otherFxId];
                        if (otherData) {
                            otherData.value = d.value; otherData.angle = d.angle;
@@ -1724,7 +1724,7 @@ function setFxValue(id, value, forceVisualUpdate = false) {
                     if (state.dom.transposeDisplay) state.dom.transposeDisplay.textContent = state.arpTranspose;
                 } else if (id === 16 || id === 17) {
                     state.arpRateBpm = valueToArpRateBpm(d.value);
-                    if (state.dom.rateDisplay) state.dom.rateDisplay.textContent = `${Math.round(state.arpRateBpm)} BPM`;
+                   if (state.dom.rateDisplay) state.dom.rateDisplay.textContent = `${Math.round(state.arpRateBpm)}`;
                 }
             }
             if (synthNode) {
@@ -2082,6 +2082,8 @@ function generateAndApplyRandomSound() {
             });
             KNOB_ID_TO_NAME_MAP[MAIN_LFO_DEST_IDS[0]] = 'MAIN 1';
             KNOB_ID_TO_NAME_MAP[MAIN_LFO_DEST_IDS[1]] = 'MAIN 2';
+            KNOB_ID_TO_NAME_MAP[16] = 'TEMPO 1';
+            KNOB_ID_TO_NAME_MAP[17] = 'TEMPO 2';
 
 
             synthContainer.addEventListener('click', (e) => {
@@ -2420,7 +2422,7 @@ function generateAndApplyRandomSound() {
                if(k.dom.octsDisplay) k.dom.octsDisplay.textContent = k.arpOctaveRange;
                if(k.dom.transposeDisplay) k.dom.transposeDisplay.textContent = k.arpTranspose;
                if(k.dom.feelDisplay) { const pIdx=Math.min(NUM_FEEL_PATTERNS-1,Math.floor(k.feelKnobValue*NUM_FEEL_PATTERNS)); k.dom.feelDisplay.textContent = pIdx + 1; }
-               if(k.dom.rateDisplay) k.dom.rateDisplay.textContent = `${Math.round(k.arpRateBpm)} BPM`;
+               if(k.dom.rateDisplay) k.dom.rateDisplay.textContent = `${Math.round(k.arpRateBpm)}`;
                if(k.dom.arpNoteDisplay) k.dom.arpNoteDisplay.textContent = "--";
                if(k.dom.knob) new ResizeObserver(()=>updateStateFromTotalAngle(k.id)).observe(k.dom.knob);
            });
@@ -2431,7 +2433,7 @@ function generateAndApplyRandomSound() {
                 if(isArpRateSynced && knobState[0]?.isArpOn && knobState[1]?.isArpOn) {
                     knobState[1].arpRateBpm = knobState[0].arpRateBpm;
                     if (knobState[1].dom.rateDisplay) {
-                        knobState[1].dom.rateDisplay.textContent = `${Math.round(knobState[1].arpRateBpm)} BPM`;
+                        knobState[1].dom.rateDisplay.textContent = `${Math.round(knobState[1].arpRateBpm)}`;
                     }
                     const k1d = fxKnobData[16]; const k2d = fxKnobData[17];
                     if (k1d && k2d) {
@@ -2444,7 +2446,7 @@ function generateAndApplyRandomSound() {
                    if(k2d) {
                        knobState[1].arpRateBpm = valueToArpRateBpm(k2d.value);
                        if (knobState[1].dom.rateDisplay) {
-                           knobState[1].dom.rateDisplay.textContent = `${Math.round(knobState[1].arpRateBpm)} BPM`;
+                           knobState[1].dom.rateDisplay.textContent = `${Math.round(knobState[1].arpRateBpm)}`;
                        }
                    }
                }
