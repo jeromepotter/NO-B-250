@@ -52,18 +52,18 @@ let liveLfoOutputs = [0, 0, 0, 0];
         const MAX_LFO_RATE_HZ = 2000;
         const LFO_RATE_RANGE_RATIO = MAX_LFO_RATE_HZ / MIN_LFO_RATE_HZ;
         const SIXTEENTH_NOTES_PER_QUARTER = 4;
-        const LFO_RATE_DIVISION_STEPS = [
-    { label: '8', multiplier: 1 / 2 },
-    { label: '4', multiplier: 1 },
-    { label: '2', multiplier: 2 },
-    { label: '1', multiplier: 4 },
-    { label: '1/2', multiplier: 8 },
-    { label: '1', multiplier: 16 },   
-    { label: '1/2', multiplier: 32 }, 
-    { label: '1/4', multiplier: 64 },
-    { label: '1/8', multiplier: 128 },
-    { label: '1/16', multiplier: 256 },
-    { label: '1/32', multiplier: 512 },
+const LFO_RATE_DIVISION_STEPS = [
+    { label: '8', multiplier: 1 / 2 },      // 8 bars (super slow)
+    { label: '4', multiplier: 1 },          // 4 bars
+    { label: '2', multiplier: 2 },          // 2 bars
+    { label: '1', multiplier: 4 },          // 1 bar (4 beats)
+    { label: '1/2', multiplier: 8 },        // Half note (2 beats)
+    { label: '1/4', multiplier: 16 },       // Quarter note (1 beat) ← FIXED
+    { label: '1/8', multiplier: 32 },       // 8th note ← FIXED
+    { label: '1/16', multiplier: 64 },      // 16th note
+    { label: '1/32', multiplier: 128 },     // 32nd note
+    { label: '1/64', multiplier: 256 },     // 64th note (audio-rate territory!)
+    { label: '1/128', multiplier: 512 },    // 128th note (extreme!)
 ];
         const LFO_RATE_DIVISION_LABELS = LFO_RATE_DIVISION_STEPS.map(step => step.label);
         const LFO_RATE_DIVISION_MULTIPLIERS = LFO_RATE_DIVISION_STEPS.map(step => step.multiplier);
@@ -2173,7 +2173,7 @@ lfoState.forEach((lfo, lfoIndex) => {
                 const waveDisplay = document.getElementById(`lfo-wave-display-${i}`);
                 const destDisplay = document.getElementById(`lfo-dest-display-${i}`);
                 if (waveDisplay) waveDisplay.textContent = 'SINE';
-                if (destDisplay) destDisplay.textContent = 'OFF';
+                if (destDisplay) destDisplay.textContent = 'NONE';
             }
         }
         
@@ -2193,7 +2193,7 @@ lfoState.forEach((lfo, lfoIndex) => {
                 });
             }
             const destDisplay = document.getElementById(`lfo-dest-display-${idx}`);
-            if (destDisplay) destDisplay.textContent = 'OFF';
+            if (destDisplay) destDisplay.textContent = 'NONE';
         }
     });
             lfoTempoLinkState.forEach((link, idx) => {
@@ -2336,7 +2336,7 @@ function applyPreset(p) {
                     const waveDisplay = document.getElementById(`lfo-wave-display-${i}`);
                     const destDisplay = document.getElementById(`lfo-dest-display-${i}`);
                     if (waveDisplay) waveDisplay.textContent = 'SINE';
-                    if (destDisplay) destDisplay.textContent = 'OFF';
+                    if (destDisplay) destDisplay.textContent = 'NONE';
                }
            }
            
@@ -2842,7 +2842,7 @@ function generateAndApplyRandomSound() {
                 if (targetFxId === sourceFxId) {
                     // Clicked the source knob again to cancel or reset
                     lfoState[activePatchingLfo].dest = 0; // Set to OFF
-                    document.getElementById(`lfo-dest-display-${activePatchingLfo}`).textContent = 'OFF';
+                    document.getElementById(`lfo-dest-display-${activePatchingLfo}`).textContent = 'NONE';
                      if (synthNode) synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: activePatchingLfo, param: 'dest', value: 0 } });
                     stopLfoPatching();
                      drawLfoCables();
@@ -3017,7 +3017,7 @@ function generateAndApplyRandomSound() {
       const lfo = lfoState[lfoInfo.lfo];
       if (lfo.dest > 0) {
         lfo.dest = -1; // Park
-        document.getElementById(`lfo-dest-display-${lfoInfo.lfo}`).textContent = 'OFF';
+        document.getElementById(`lfo-dest-display-${lfoInfo.lfo}`).textContent = 'NONE';
 
         if (synthNode) {
           synthNode.port.postMessage({
@@ -3204,5 +3204,6 @@ function generateAndApplyRandomSound() {
        }
       
        init();
+
 
 
