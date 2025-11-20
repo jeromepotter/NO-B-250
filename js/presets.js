@@ -56,10 +56,10 @@ export const PRESETS = {
     scale: "Minor",
     isLfoMode: true,
     lfoState: [
-        { "rate": 0.3944, "depth": 0.3611, "wave": 0, "dest": 24 },
-        { "rate": 0.3111, "depth": 0.35, "wave": 0, "dest": 25 },
-        { "rate": 0, "depth": 0, "wave": 0, "dest": 0 },
-        { "rate": 0, "depth": 0, "wave": 0, "dest": 0 }
+        { "rate": 0.3944, "depth": 0.3611, "wave": 0, "dest": 24, "tempoSync": false, "storedFreeValue": 0.3944 },
+        { "rate": 0.3111, "depth": 0.35, "wave": 0, "dest": 25, "tempoSync": false, "storedFreeValue": 0.3111 },
+        { "rate": 0, "depth": 0, "wave": 0, "dest": 0, "tempoSync": false, "storedFreeValue": 0 },
+        { "rate": 0, "depth": 0, "wave": 0, "dest": 0, "tempoSync": false, "storedFreeValue": 0 }
     ],
     knobSettings: [
         { "id": 0, "totalAngle": 1281.70 },
@@ -123,10 +123,10 @@ export const PRESETS = {
         { "id": 1, "totalAngle": 1471.51 }
     ],
     lfoState: [
-        { "rate": 0.6589, "depth": 0.1833, "wave": 5, "dest": 300 },
-        { "rate": 0.7243, "depth": 0.1444, "wave": 0, "dest": 9 },
-        { "rate": 0.7243, "depth": 0.1888, "wave": 5, "dest": 15 },
-        { "rate": 0.9859, "depth": 0.6111, "wave": 5, "dest": 301 }
+        { "rate": 0.6589, "depth": 0.1833, "wave": 5, "dest": 300, "tempoSync": true, "storedFreeValue": 0.6589 },
+        { "rate": 0.7243, "depth": 0.1444, "wave": 0, "dest": 9, "tempoSync": true, "storedFreeValue": 0.7243 },
+        { "rate": 0.7243, "depth": 0.1888, "wave": 5, "dest": 15, "tempoSync": true, "storedFreeValue": 0.7243 },
+        { "rate": 0.9859, "depth": 0.6111, "wave": 5, "dest": 301, "tempoSync": true, "storedFreeValue": 0.9859 }
     ],
     fxSettings: [
         { "id": 0, "value": 0 },
@@ -319,10 +319,10 @@ export const PRESETS = {
         { "id": 1, "totalAngle": 1440 }
     ],
     lfoState: [
-        { "rate": 0.5, "depth": 0.3388, "wave": 5, "dest": 15 },
-        { "rate": 0.1055, "depth": 0.2333, "wave": 5, "dest": 25 },
-        { "rate": 0.5388, "depth": 0.4611, "wave": 3, "dest": 9 },
-        { "rate": 0.7055, "depth": 0.3055, "wave": 5, "dest": 24 }
+        { "rate": 0.5, "depth": 0.3388, "wave": 5, "dest": 15, "tempoSync": false, "storedFreeValue": 0.5 },
+        { "rate": 0.1055, "depth": 0.2333, "wave": 5, "dest": 25, "tempoSync": false, "storedFreeValue": 0.1055 },
+        { "rate": 0.5388, "depth": 0.4611, "wave": 3, "dest": 9, "tempoSync": false, "storedFreeValue": 0.5388 },
+        { "rate": 0.7055, "depth": 0.3055, "wave": 5, "dest": 24, "tempoSync": false, "storedFreeValue": 0.7055 }
     ],
     fxSettings: [
         { "id": 0, "value": 0 },
@@ -382,10 +382,10 @@ export const PRESETS = {
     allowDuplicateNotesMode: false,
     isLfoMode: false,
     lfoState: [
-        { rate: 0, depth: 0, wave: 0, dest: 0 },
-        { rate: 0, depth: 0, wave: 0, dest: 0 },
-        { rate: 0, depth: 0, wave: 0, dest: 0 },
-        { rate: 0, depth: 0, wave: 0, dest: 0 }
+        { rate: 0, depth: 0, wave: 0, dest: 0, tempoSync: false, storedFreeValue: 0 },
+        { rate: 0, depth: 0, wave: 0, dest: 0, tempoSync: false, storedFreeValue: 0 },
+        { rate: 0, depth: 0, wave: 0, dest: 0, tempoSync: false, storedFreeValue: 0 },
+        { rate: 0, depth: 0, wave: 0, dest: 0, tempoSync: false, storedFreeValue: 0 }
     ],
     knobSettings: [
         { id: 0, totalAngle: 2142.22 },
@@ -461,10 +461,10 @@ export const PRESETS = {
         { "id": 1, "totalAngle": 1834.18 }
     ],
     lfoState: [
-        { "rate": 0.15, "depth": 0.65, "wave": 3, "dest": 109 },
-        { "rate": 0.42, "depth": 0.55, "wave": 5, "dest": 16 },
-        { "rate": 0, "depth": 0, "wave": 0, "dest": 0 },
-        { "rate": 0.73, "depth": 0.72, "wave": 2, "dest": 24 }
+        { "rate": 0.15, "depth": 0.65, "wave": 3, "dest": 109, "tempoSync": false, "storedFreeValue": 0.15 },
+        { "rate": 0.42, "depth": 0.55, "wave": 5, "dest": 16, "tempoSync": false, "storedFreeValue": 0.42 },
+        { "rate": 0, "depth": 0, "wave": 0, "dest": 0, "tempoSync": false, "storedFreeValue": 0 },
+        { "rate": 0.73, "depth": 0.72, "wave": 2, "dest": 24, "tempoSync": false, "storedFreeValue": 0.73 }
     ],
     fxSettings: [
         { "id": 0, "value": 0.38 },
@@ -524,10 +524,10 @@ export const PRESETS = {
         { "id": 1, "totalAngle": 724.11 }
     ],
     lfoState: [
-        { "rate": 0, "depth": 0, "wave": 0, "dest": 0 },
-        { "rate": 0.5277, "depth": 0.2166, "wave": 0, "dest": 20 },
-        { "rate": 0, "depth": 0, "wave": 0, "dest": 0 },
-        { "rate": 0.1944, "depth": 0.0555, "wave": 0, "dest": -1 }
+        { "rate": 0, "depth": 0, "wave": 0, "dest": 0, "tempoSync": false, "storedFreeValue": 0 },
+        { "rate": 0.5277, "depth": 0.2166, "wave": 0, "dest": 20, "tempoSync": false, "storedFreeValue": 0.5277 },
+        { "rate": 0, "depth": 0, "wave": 0, "dest": 0, "tempoSync": false, "storedFreeValue": 0 },
+        { "rate": 0.1944, "depth": 0.0555, "wave": 0, "dest": -1, "tempoSync": false, "storedFreeValue": 0.1944 }
     ],
     fxSettings: [
         { "id": 0, "value": 0.2690 },
@@ -594,10 +594,10 @@ export const PRESETS = {
         { "id": 1, "totalAngle": 2208 }
     ],
     lfoState: [
-        { "rate": 0.1166, "depth": 0.3611, "wave": 0, "dest": 300 },
-        { "rate": 0.7999, "depth": 0.6555, "wave": 1, "dest": 108 },
-        { "rate": 0.4944, "depth": 0.3333, "wave": 0, "dest": 301 },
-        { "rate": 0.4166, "depth": 0.2944, "wave": 2, "dest": 21 }
+        { "rate": 0.1166, "depth": 0.3611, "wave": 0, "dest": 300, "tempoSync": false, "storedFreeValue": 0.1166 },
+        { "rate": 0.7999, "depth": 0.6555, "wave": 1, "dest": 108, "tempoSync": false, "storedFreeValue": 0.7999 },
+        { "rate": 0.4944, "depth": 0.3333, "wave": 0, "dest": 301, "tempoSync": false, "storedFreeValue": 0.4944 },
+        { "rate": 0.4166, "depth": 0.2944, "wave": 2, "dest": 21, "tempoSync": false, "storedFreeValue": 0.4166 }
     ],
     fxSettings: [
         { "id": 0, "value": 0 },
@@ -764,10 +764,10 @@ export const PRESETS = {
         { "id": 1, "totalAngle": 1276.71 }
     ],
     lfoState: [
-        { "rate": 0, "depth": 0, "wave": 0, "dest": 0 },
-        { "rate": 0, "depth": 0, "wave": 0, "dest": 0 },
-        { "rate": 0, "depth": 0, "wave": 0, "dest": 0 },
-        { "rate": 0, "depth": 0, "wave": 0, "dest": 0 }
+        { "rate": 0, "depth": 0, "wave": 0, "dest": 0, "tempoSync": false, "storedFreeValue": 0 },
+        { "rate": 0, "depth": 0, "wave": 0, "dest": 0, "tempoSync": false, "storedFreeValue": 0 },
+        { "rate": 0, "depth": 0, "wave": 0, "dest": 0, "tempoSync": false, "storedFreeValue": 0 },
+        { "rate": 0, "depth": 0, "wave": 0, "dest": 0, "tempoSync": false, "storedFreeValue": 0 }
     ],
     fxSettings: [
         { "id": 0, "value": 0 },
