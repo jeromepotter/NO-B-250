@@ -2841,8 +2841,13 @@ function generateAndApplyRandomSound() {
            const protectDropdown = (el) => {
                if (!el) return;
                // Stop touch events from bubbling so browser handles the select immediately
-               el.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
-               el.addEventListener('touchend', (e) => e.stopPropagation(), { passive: true });
+               const stopEvent = (e) => e.stopPropagation();
+               el.addEventListener('touchstart', stopEvent, { passive: true });
+               el.addEventListener('touchend', stopEvent, { passive: true });
+               // Also block mouse/pointer events from reaching the global patch handler
+               el.addEventListener('pointerdown', stopEvent, { passive: false });
+               el.addEventListener('mousedown', stopEvent, { passive: false });
+               el.addEventListener('click', stopEvent, { passive: false });
            };
            protectDropdown(keySelector);
            protectDropdown(scaleSelector);
