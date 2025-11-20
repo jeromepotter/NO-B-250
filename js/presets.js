@@ -180,55 +180,68 @@ export const PRESETS = {
         }
     }
 },
-'BULLS': { // A driving, percussive patch with a melodic arp over a fast, repeating bass note.
-    key: 'D',
-    scale: 'Major',
+'BULLS': {
+    key: "D",
+    scale: "Major",
+    isLfoMode: true,
+    knobSettings: [
+        { "id": 0, "totalAngle": 1116.38 },
+        { "id": 1, "totalAngle": 283.51 }
+    ],
+    lfoState: [
+        { "rate": 0, "depth": 0, "wave": 0, "dest": 0, "tempoSync": false, "storedFreeValue": 0 },
+        { "rate": 0.4833, "depth": 0.1166, "wave": 1, "dest": 6, "tempoSync": false, "storedFreeValue": 0.4833 },
+        { "rate": 0.4666, "depth": 0.1166, "wave": 0, "dest": 20, "tempoSync": false, "storedFreeValue": 0.4666 },
+        { "rate": 0.5111, "depth": 0.2, "wave": 0, "dest": 21, "tempoSync": false, "storedFreeValue": 0.5111 }
+    ],
     fxSettings: [
-        { id: 0, value: 0 },         // GLIDE
-        { id: 1, value: 0 },         // DISTORTION
-        { id: 2, value: 1 },         // MASTER FILTER
-        { id: 3, value: 0.0972 },    // OSC3 MIX
-        { id: 4, value: 0.3962 },    // DETUNE
-        { id: 5, value: 0 },         // TREMOLO
-        { id: 6, value: 0 },         // CHORUS
-        { id: 7, value: 0.6 },       // MASTER VOLUME
-        { id: 8, value: 0.0045 },    // ATTACK
-        { id: 9, value: 0.2328 },    // DECAY
-        { id: 10, value: 0.0777 },   // SUSTAIN
-        { id: 11, value: 0.1 },      // RELEASE
-        { id: 12, value: 0 },        // REVERB
-        { id: 13, value: 0.7325 },   // RVB TIME
-        { id: 14, value: 0.6233 },   // DELAY
-        { id: 15, value: 0.0781 },   // DLY TIME
-        { id: 20, value: 0.7388 },   // OSC 1 FILTER
-        { id: 21, value: 0.15 },     // OSC 2 FILTER
-        { id: 26, value: 0.5 },      // OSC 1 VOLUME
-        { id: 27, value: 0.4055 },   // OSC 2 VOLUME
-        { id: 28, value: 0.3833 },   // OSC 1 RES
-        { id: 29, value: 0 }         // OSC 2 RES
+        { "id": 0, "value": 0 },
+        { "id": 1, "value": 0 },
+        { "id": 2, "value": 1 },
+        { "id": 3, "value": 0.2138 },
+        { "id": 4, "value": 0.3962 },
+        { "id": 5, "value": 0 },
+        { "id": 6, "value": 0.2 },
+        { "id": 7, "value": 0.5722 },
+        { "id": 8, "value": 0.0656 },
+        { "id": 9, "value": 0.2833 },
+        { "id": 10, "value": 0 },
+        { "id": 11, "value": 0.1 },
+        { "id": 12, "value": 0.2222 },
+        { "id": 13, "value": 0.7325 },
+        { "id": 14, "value": 0.6233 },
+        { "id": 15, "value": 0.0781 },
+        { "id": 20, "value": 0.4665 },
+        { "id": 21, "value": 0.3611 },
+        { "id": 26, "value": 0.5 },
+        { "id": 27, "value": 0.7055 },
+        { "id": 28, "value": 0.5999 },
+        { "id": 29, "value": 0.2722 }
     ],
     arpSettings: {
         isArpRateSynced: false,
-        currentArpOrder: 'As Played',
+        currentArpOrder: "As Played",
         arp1: {
             isArpOn: true,
+            isOn: true,
             isSweepMode: true,
-            notes: [64, 66, 71, 59, 64, 66, 69, 59]
+            notes: [ 64, 66, 71, 59, 64, 66, 69, 59 ]
         },
         arp2: {
             isArpOn: true,
-            isSweepMode: false, // Set to single note repeat mode
-            notes: [23] // A very low B1
+            isOn: true,
+            isSweepMode: false,
+            notes: [ 23 ]
         },
-        fx: { // Settings for the dedicated ARP knobs
-            16: 0.3248,              // Arp 1 RATE (Medium)
-            17: 0.9953,              // Arp 2 RATE (Very Fast)
-            18: 0,                   // Arp 1 OCTS
-            19: 0,                   // Arp 2 OCTS
-            22: 0,                   // Arp 1 FEEL
-            23: 0,                   // Arp 2 FEEL
-            24: 0.5055,              // Arp 1 TRANSPOSE (0)
-            25: 0.5333               // Arp 2 TRANSPOSE (0)
+        fx: {
+            16: 0.3248,
+            17: 1,
+            18: 0,
+            19: 0,
+            22: 0,
+            23: 0,
+            24: 0.5055,
+            25: 0.5110
         }
     }
 },
@@ -826,6 +839,7 @@ export const PRESETS = {
                 'RANDOM SOUND': {}
             }
         };
+
 
 
 
