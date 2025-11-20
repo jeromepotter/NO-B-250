@@ -114,6 +114,71 @@ export const PRESETS = {
         }
     }
 },
+'FURNACE': {
+    key: "F#",
+    scale: "Minor",
+    isLfoMode: true,
+    knobSettings: [
+        { "id": 0, "totalAngle": 1116.38 },
+        { "id": 1, "totalAngle": 1471.51 }
+    ],
+    lfoState: [
+        { "rate": 0.6589, "depth": 0.1833, "wave": 5, "dest": 300 },
+        { "rate": 0.7243, "depth": 0.1444, "wave": 0, "dest": 9 },
+        { "rate": 0.7243, "depth": 0.1888, "wave": 5, "dest": 15 },
+        { "rate": 0.9859, "depth": 0.6111, "wave": 5, "dest": 301 }
+    ],
+    fxSettings: [
+        { "id": 0, "value": 0 },
+        { "id": 1, "value": 0 },
+        { "id": 2, "value": 1 },
+        { "id": 3, "value": 0 },
+        { "id": 4, "value": 0.1 },
+        { "id": 5, "value": 0 },
+        { "id": 6, "value": 0 },
+        { "id": 7, "value": 0.7 },
+        { "id": 8, "value": 0 },
+        { "id": 9, "value": 0.2166 },
+        { "id": 10, "value": 0 },
+        { "id": 11, "value": 0.6722 },
+        { "id": 12, "value": 0.1888 },
+        { "id": 13, "value": 0.6666 },
+        { "id": 14, "value": 0.1833 },
+        { "id": 15, "value": 0 },
+        { "id": 20, "value": 0.25 },
+        { "id": 21, "value": 0.25 },
+        { "id": 26, "value": 0.5 },
+        { "id": 27, "value": 0.7388 },
+        { "id": 28, "value": 0.2944 },
+        { "id": 29, "value": 0.1944 }
+    ],
+    arpSettings: {
+        isArpRateSynced: true,
+        currentArpOrder: "As Played",
+        arp1: {
+            isArpOn: true,
+            isOn: true,
+            isSweepMode: false,
+            notes: [ 52 ]
+        },
+        arp2: {
+            isArpOn: true,
+            isOn: true,
+            isSweepMode: false,
+            notes: [ 66 ]
+        },
+        fx: {
+            16: 0.4377,
+            17: 0.4377,
+            18: 0,
+            19: 0,
+            22: 0,
+            23: 0,
+            24: 0.5,
+            25: 0.5277
+        }
+    }
+},
 
 'BULLS': { // A driving, percussive patch with a melodic arp over a fast, repeating bass note.
     key: 'D',
@@ -761,6 +826,7 @@ export const PRESETS = {
                 'RANDOM SOUND': {}
             }
         };
+
 
 
 
