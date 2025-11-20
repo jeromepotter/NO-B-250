@@ -2,6 +2,7 @@
 export const PRESETS = {
             "ARP PATCHES": {
 'PUCE': { // A slow, evolving, atmospheric pad with two complex, polyrhythmic arpeggios.
+    tempoMode: 'BPM',
     key: 'C',
     scale: 'Major',
     fxSettings: [
@@ -52,6 +53,7 @@ export const PRESETS = {
     }
 },
 'APEIRON': {
+    tempoMode: 'BPM',
     key: "D#",
     scale: "Minor",
     isLfoMode: true,
@@ -115,6 +117,7 @@ export const PRESETS = {
     }
 },
 'FURNACE 2': {
+    tempoMode: 'BPM',
     key: "F#",
     scale: "Minor",
     allowDuplicateNotesMode: false,
@@ -181,6 +184,7 @@ export const PRESETS = {
     }
 },
 'BULLS': {
+    tempoMode: 'BPM',
     key: "D",
     scale: "Major",
     isLfoMode: true,
@@ -246,6 +250,7 @@ export const PRESETS = {
     }
 },
                         'HMMM': {
+    tempoMode: 'MS',
     key: "G",
     scale: "Major Pentatonic",
     isLfoMode: true,
@@ -310,6 +315,7 @@ export const PRESETS = {
     }
 },
 'XENOM': { // A chaotic, sci-fi preset with a tense, high arp over a massive, repetitive low-end sequence.
+    tempoMode: 'BPM',
     key: 'C#',
     scale: 'Phrygian',
     fxSettings: [
@@ -361,6 +367,7 @@ export const PRESETS = {
 },
          
             'CELADON': { // A lush, evolving, atmospheric pad sound.
+                tempoMode: 'BPM',
                 key: 'C',
                 scale: 'Major',
                 fxSettings: [
@@ -387,6 +394,7 @@ export const PRESETS = {
                 }
             },
 '2 NOTES': {
+    tempoMode: 'BPM',
     key: "G#",
     scale: "Minor",
     allowDuplicateNotesMode: true,
@@ -453,6 +461,7 @@ export const PRESETS = {
     }
 },
             'FULS': {
+    tempoMode: 'BPM',
     key: 'F#',
     scale: 'Dorian',
     customScale: [],
@@ -530,6 +539,7 @@ export const PRESETS = {
     }
 },
 'FORGE': {
+    tempoMode: 'BPM',
     key: "D#",
     scale: "Mixolydian",
     isLfoMode: true,
@@ -593,6 +603,7 @@ export const PRESETS = {
     }
 },
 'STRIDE': {
+    tempoMode: 'MS',
     key: "G",
     scale: "Major Pentatonic",
     isLfoMode: true,
@@ -661,6 +672,7 @@ export const PRESETS = {
     }
 },
   'BRICK': {
+    tempoMode: 'BPM',
     key: "C",
     scale: "Custom",
     customScale: [ 0, 3, 5, 8, 10 ],
@@ -728,6 +740,7 @@ export const PRESETS = {
     }
 },                
             'ZAFFRE': { // A deep, cinematic drone that evolves slowly.
+                tempoMode: 'BPM',
                 key: 'B',
                 scale: 'Phrygian',
                 fxSettings: [
@@ -751,6 +764,7 @@ export const PRESETS = {
                 }
             },
             'AMARANTH': { // A classic, detuned trance supersaw arpeggio.
+                tempoMode: 'BPM',
                 key: 'C#',
                 scale: 'Custom',
                 customScale: [0, 3, 7, 10], // Defines a C# Minor 7th chord.
@@ -775,6 +789,7 @@ export const PRESETS = {
                 }
             },
 'STROLLER': { // A complex, syncopated dual-arp sequence.
+    tempoMode: 'BPM',
                 key: 'F#',
                 scale: 'Minor',
                 fxSettings: [
@@ -824,15 +839,16 @@ export const PRESETS = {
                     }
                 }
             },
-                'RANDOM ARP': {}
+                'RANDOM ARP': { tempoMode: 'BPM' }
             },
             "SOUNDS": {
-                'WENGE': { key: 'A', scale: 'Minor', fxSettings: [{ id: 8, value: 0.01 },{ id: 9, value: 0.2 },{ id: 10, value: 0.5 },{ id: 11, value: 0.2 },{ id: 20, value: 0.25 },{ id: 28, value: 0.1 },{ id: 0, value: 0.15 }], arpSettings: { arp1: { isArpOn: false }, arp2: { isArpOn: false } } },
-                'CELADON': { key: 'C', scale: 'Major', fxSettings: [{ id: 8, value: 0.8 },{ id: 11, value: 0.9 },{ id: 10, value: 0.9 },{ id: 4, value: 0.3 },{ id: 6, value: 0.7 },{ id: 12, value: 0.8 },{ id: 13, value: 0.9 },{ id: 20, value: 0.7 },{ id: 21, value: 0.75 }], arpSettings: { arp1: { isArpOn: false }, arp2: { isArpOn: false } } },
-                'GAMBOGE': { key: 'G', scale: 'Minor Pentatonic', fxSettings: [{ id: 8, value: 0.01 },{ id: 9, value: 0.3 },{ id: 10, value: 0.1 },{ id: 11, value: 0.3 },{ id: 14, value: 0.5 },{ id: 15, value: 0.4 }], arpSettings: { arp1: { isArpOn: false }, arp2: { isArpOn: false } } },
-                'COQUELICOT': { key: 'D', scale: 'Minor', fxSettings: [{ id: 1, value: 0.6 },{ id: 28, value: 0.85 },{ id: 20, value: 0.6 },{ id: 0, value: 0.25 },{ id: 8, value: 0.05 },{ id: 11, value: 0.3 }], arpSettings: { arp1: { isArpOn: false }, arp2: { isArpOn: false } } },
-                'VIRIDIAN': { key: 'E', scale: 'Major', fxSettings: [{ id: 3, value: 0.9 },{ id: 8, value: 0 },{ id: 9, value: 0.15 },{ id: 10, value: 0 },{ id: 11, value: 0.1 },{ id: 6, value: 0 },{ id: 12, value: 0 },{ id: 14, value: 0 }], arpSettings: { arp1: { isArpOn: false }, arp2: { isArpOn: false } } },
-                'WHIRLY': {
+                'WENGE': { key: 'A', scale: 'Minor', tempoMode: 'BPM', fxSettings: [{ id: 8, value: 0.01 },{ id: 9, value: 0.2 },{ id: 10, value: 0.5 },{ id: 11, value: 0.2 },{ id: 20, value: 0.25 },{ id: 28, value: 0.1 },{ id: 0, value: 0.15 }], arpSettings: { arp1: { isArpOn: false }, arp2: { isArpOn: false } } },
+                'CELADON': { key: 'C', scale: 'Major', tempoMode: 'BPM', fxSettings: [{ id: 8, value: 0.8 },{ id: 11, value: 0.9 },{ id: 10, value: 0.9 },{ id: 4, value: 0.3 },{ id: 6, value: 0.7 },{ id: 12, value: 0.8 },{ id: 13, value: 0.9 },{ id: 20, value: 0.7 },{ id: 21, value: 0.75 }], arpSettings: { arp1: { isArpOn: false }, arp2: { isArpOn: false } } },
+                'GAMBOGE': { key: 'G', scale: 'Minor Pentatonic', tempoMode: 'BPM', fxSettings: [{ id: 8, value: 0.01 },{ id: 9, value: 0.3 },{ id: 10, value: 0.1 },{ id: 11, value: 0.3 },{ id: 14, value: 0.5 },{ id: 15, value: 0.4 }], arpSettings: { arp1: { isArpOn: false }, arp2: { isArpOn: false } } },
+                'COQUELICOT': { key: 'D', scale: 'Minor', tempoMode: 'BPM', fxSettings: [{ id: 1, value: 0.6 },{ id: 28, value: 0.85 },{ id: 20, value: 0.6 },{ id: 0, value: 0.25 },{ id: 8, value: 0.05 },{ id: 11, value: 0.3 }], arpSettings: { arp1: { isArpOn: false }, arp2: { isArpOn: false } } },
+                'VIRIDIAN': { key: 'E', scale: 'Major', tempoMode: 'BPM', fxSettings: [{ id: 3, value: 0.9 },{ id: 8, value: 0 },{ id: 9, value: 0.15 },{ id: 10, value: 0 },{ id: 11, value: 0.1 },{ id: 6, value: 0 },{ id: 12, value: 0 },{ id: 14, value: 0 }], arpSettings: { arp1: { isArpOn: false }, arp2: { isArpOn: false } } },
+'WHIRLY': {
+    tempoMode: 'BPM',
     key: "F#",
     scale: "Dorian",
     isLfoMode: false,
@@ -895,12 +911,12 @@ export const PRESETS = {
         }
     }
 },
-                'ZAFFRE': { key: 'B', scale: 'Phrygian', fxSettings: [{ id: 8, value: 0.7 },{ id: 11, value: 0.95 },{ id: 10, value: 1.0 },{ id: 12, value: 0.9 },{ id: 13, value: 0.9 },{ id: 14, value: 0.6 },{ id: 15, value: 0.7 }], arpSettings: { arp1: { isArpOn: false }, arp2: { isArpOn: false } } },
-                'AMARANTH': { key: 'C#', scale: 'Custom', customScale: [0, 3, 7, 10], fxSettings: [{ id: 4, value: 0.4 },{ id: 6, value: 0.6 },{ id: 3, value: 0 },{ id: 8, value: 0.1 },{ id: 11, value: 0.4 },{ id: 12, value: 0.2 }], arpSettings: { arp1: { isArpOn: false }, arp2: { isArpOn: false } } },
-                'GLAUCOUS': { key: 'A', scale: 'Minor Pentatonic', fxSettings: [{ id: 8, value: 0 },{ id: 9, value: 0.1 },{ id: 10, value: 0 },{ id: 11, value: 0.1 },{ id: 14, value: 0.65 },{ id: 15, value: 0.3 },{ id: 12, value: 0.2 }], arpSettings: { arp1: { isArpOn: false }, arp2: { isArpOn: false } } },
-                'EBURNEAN': { key: 'C', scale: 'Lydian', fxSettings: [{ id: 12, value: 0.9 },{ id: 13, value: 0.9 },{ id: 8, value: 0.2 },{ id: 11, value: 0.8 }], arpSettings: { arp1: { isArpOn: false }, arp2: { isArpOn: false } } },
-                'STROLLER': { key: 'F#', scale: 'Minor', fxSettings: [{ id: 1, value: 0.0709 },{ id: 2, value: 0.8772 },{ id: 3, value: 0.5272 },{ id: 4, value: 0.5923 },{ id: 5, value: 0.2730 },{ id: 6, value: 0.5549 },{ id: 8, value: 0.3356 },{ id: 9, value: 0.7688 },{ id: 10, value: 0.1776 },{ id: 11, value: 0.2265 },{ id: 12, value: 0.1725 },{ id: 13, value: 0.1865 },{ id: 14, value: 0.5942 },{ id: 15, value: 0.0173 },{ id: 20, value: 0.5240 },{ id: 21, value: 0.2179 },{ id: 28, value: 0.8459 },{ id: 29, value: 0.6228 }], arpSettings: { arp1: { isArpOn: false }, arp2: { isArpOn: false } } },
-                'RANDOM SOUND': {}
+                'ZAFFRE': { key: 'B', scale: 'Phrygian', tempoMode: 'BPM', fxSettings: [{ id: 8, value: 0.7 },{ id: 11, value: 0.95 },{ id: 10, value: 1.0 },{ id: 12, value: 0.9 },{ id: 13, value: 0.9 },{ id: 14, value: 0.6 },{ id: 15, value: 0.7 }], arpSettings: { arp1: { isArpOn: false }, arp2: { isArpOn: false } } },
+                'AMARANTH': { key: 'C#', scale: 'Custom', tempoMode: 'BPM', customScale: [0, 3, 7, 10], fxSettings: [{ id: 4, value: 0.4 },{ id: 6, value: 0.6 },{ id: 3, value: 0 },{ id: 8, value: 0.1 },{ id: 11, value: 0.4 },{ id: 12, value: 0.2 }], arpSettings: { arp1: { isArpOn: false }, arp2: { isArpOn: false } } },
+                'GLAUCOUS': { key: 'A', scale: 'Minor Pentatonic', tempoMode: 'BPM', fxSettings: [{ id: 8, value: 0 },{ id: 9, value: 0.1 },{ id: 10, value: 0 },{ id: 11, value: 0.1 },{ id: 14, value: 0.65 },{ id: 15, value: 0.3 },{ id: 12, value: 0.2 }], arpSettings: { arp1: { isArpOn: false }, arp2: { isArpOn: false } } },
+                'EBURNEAN': { key: 'C', scale: 'Lydian', tempoMode: 'BPM', fxSettings: [{ id: 12, value: 0.9 },{ id: 13, value: 0.9 },{ id: 8, value: 0.2 },{ id: 11, value: 0.8 }], arpSettings: { arp1: { isArpOn: false }, arp2: { isArpOn: false } } },
+                'STROLLER': { key: 'F#', scale: 'Minor', tempoMode: 'BPM', fxSettings: [{ id: 1, value: 0.0709 },{ id: 2, value: 0.8772 },{ id: 3, value: 0.5272 },{ id: 4, value: 0.5923 },{ id: 5, value: 0.2730 },{ id: 6, value: 0.5549 },{ id: 8, value: 0.3356 },{ id: 9, value: 0.7688 },{ id: 10, value: 0.1776 },{ id: 11, value: 0.2265 },{ id: 12, value: 0.1725 },{ id: 13, value: 0.1865 },{ id: 14, value: 0.5942 },{ id: 15, value: 0.0173 },{ id: 20, value: 0.5240 },{ id: 21, value: 0.2179 },{ id: 28, value: 0.8459 },{ id: 29, value: 0.6228 }], arpSettings: { arp1: { isArpOn: false }, arp2: { isArpOn: false } } },
+                'RANDOM SOUND': { tempoMode: 'BPM' }
             }
         };
 
