@@ -3250,8 +3250,9 @@ function generateAndApplyRandomSound() {
 
                     const presetData = JSON.parse(JSON.stringify(PRESETS[groupName][presetName]));
                     if (!isPowerOn) powerOn();
-                    
+
                     const fullPreset = {
+                        tempoMode: presetData.tempoMode ?? TEMPO_MODE_BPM,
                         key: presetData.key,
                         scale: presetData.scale,
                         customScale: presetData.customScale || [],
