@@ -245,6 +245,70 @@ export const PRESETS = {
         }
     }
 },
+                        'HMMM': {
+    key: "G",
+    scale: "Major Pentatonic",
+    isLfoMode: true,
+    knobSettings: [
+        { "id": 0, "totalAngle": 2039.20 },
+        { "id": 1, "totalAngle": 1536.06 }
+    ],
+    lfoState: [
+        { "rate": 0.5166, "depth": 0.55, "wave": 3, "dest": 16, "tempoSync": false, "storedFreeValue": 0.5166 },
+        { "rate": 1, "depth": 0.1611, "wave": 0, "dest": 20, "tempoSync": true, "storedFreeValue": 0 },
+        { "rate": 0, "depth": 0, "wave": 0, "dest": 0, "tempoSync": false, "storedFreeValue": 0 },
+        { "rate": 0, "depth": 0, "wave": 0, "dest": 0, "tempoSync": false, "storedFreeValue": 0 }
+    ],
+    fxSettings: [
+        { "id": 0, "value": 0 },
+        { "id": 1, "value": 0 },
+        { "id": 2, "value": 1 },
+        { "id": 3, "value": 0.4025 },
+        { "id": 4, "value": 0.8105 },
+        { "id": 5, "value": 0 },
+        { "id": 6, "value": 0.7683 },
+        { "id": 7, "value": 0.5 },
+        { "id": 8, "value": 0 },
+        { "id": 9, "value": 0.0555 },
+        { "id": 10, "value": 0 },
+        { "id": 11, "value": 0 },
+        { "id": 12, "value": 0.0722 },
+        { "id": 13, "value": 0.5082 },
+        { "id": 14, "value": 0.3362 },
+        { "id": 15, "value": 0.1785 },
+        { "id": 20, "value": 0.4 },
+        { "id": 21, "value": 1 },
+        { "id": 26, "value": 0.5 },
+        { "id": 27, "value": 0.5 },
+        { "id": 28, "value": 0.6666 },
+        { "id": 29, "value": 0 }
+    ],
+    arpSettings: {
+        isArpRateSynced: false,
+        currentArpOrder: "As Played",
+        arp1: {
+            isArpOn: true,
+            isOn: true,
+            isSweepMode: false,
+            notes: [ 86 ]
+        },
+        arp2: {
+            isArpOn: false,
+            isOn: false,
+            notes: []
+        },
+        fx: {
+            16: 0.9488,
+            17: 0.5871,
+            18: 0,
+            19: 0,
+            22: 0,
+            23: 0,
+            24: 0.5,
+            25: 0.5
+        }
+    }
+},
 'XENOM': { // A chaotic, sci-fi preset with a tense, high arp over a massive, repetitive low-end sequence.
     key: 'C#',
     scale: 'Phrygian',
@@ -839,6 +903,7 @@ export const PRESETS = {
                 'RANDOM SOUND': {}
             }
         };
+
 
 
 
