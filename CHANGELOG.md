@@ -7,6 +7,10 @@ New Oscillators? More Extreme Detune?
 ## [11.20] - 2025-11-20
 ### Added
 - System and User presets can load with LFO Sync On
+- System and User Presets made in MS mode will load in MS mode
+
+  ### Changed
+- MS rate minimum from 50ms to 10ms
 
 ## [11.19] - 2025-11-19
 ### Added
@@ -25,8 +29,6 @@ New Oscillators? More Extreme Detune?
 - LFO to main Knob Modulation
 - Note Repeat Mode Auto Latch When Hold is Active
 - Audio continues in background even when tab is hidden
-
-
 
 
 ## [11.17] - 2025-11-17
