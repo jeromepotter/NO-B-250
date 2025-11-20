@@ -2779,7 +2779,6 @@ function generateAndApplyRandomSound() {
            loadPresetInput = document.getElementById('load-preset-input');
            
            // --- 3. TOUCH HELPER FUNCTION ---
-           // This forces buttons to work even when the CPU is busy with LFOs
            const addTouchListener = (element, callback) => {
                if (!element) return;
                const handler = (e) => {
@@ -2791,7 +2790,13 @@ function generateAndApplyRandomSound() {
                element.addEventListener('click', handler);
            };
 
-           // --- 4. FIX: HEADER & MODAL BUTTONS ---
+           // --- 4. FIX: POWER SWITCH ---
+           addTouchListener(powerSwitch, () => {
+               if (isPowerOn) powerOff();
+               else powerOn();
+           });
+
+           // --- 5. FIX: HEADER & MODAL BUTTONS ---
            addTouchListener(howToButton, () => {
                modalOverlay.classList.remove('opacity-0', 'pointer-events-none');
            });
@@ -2800,7 +2805,6 @@ function generateAndApplyRandomSound() {
                modalOverlay.classList.add('opacity-0', 'pointer-events-none');
            });
 
-           // Fix clicking the background of the modal to close it
            const handleOverlayClick = (e) => {
                if (e.target === modalOverlay) {
                    if (e.cancelable && e.type === 'touchend') e.preventDefault();
@@ -2810,7 +2814,7 @@ function generateAndApplyRandomSound() {
            modalOverlay?.addEventListener('touchend', handleOverlayClick);
            modalOverlay?.addEventListener('click', handleOverlayClick);
 
-           // --- 5. FIX: RECORDING BUTTONS ---
+           // --- 6. FIX: RECORDING BUTTONS ---
            addTouchListener(recordButton, async () => {
                if (!isPowerOn) powerOn();
                if (!audioContext || !synthNode) await setupAudio();
@@ -2831,17 +2835,19 @@ function generateAndApplyRandomSound() {
                recordMidiButton.blur();
            });
 
-           // --- 6. FIX: SCALE & KEY SELECTORS (Native Dropdowns) ---
-           // Stop touches here from bubbling to the container or getting lost
+           // --- 7. FIX: DROPDOWN MENUS (Scale, Key, Arp Order) ---
+           arpOrderSelector = document.getElementById('arp-order-selector'); // Get early for protection
+
            const protectDropdown = (el) => {
                if (!el) return;
+               // Stop touch events from bubbling so browser handles the select immediately
                el.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
                el.addEventListener('touchend', (e) => e.stopPropagation(), { passive: true });
            };
            protectDropdown(keySelector);
            protectDropdown(scaleSelector);
+           protectDropdown(arpOrderSelector); // FIX: Added protection for Arp Order
            
-           // Re-attach change listeners normally (they trigger after selection)
            keySelector?.addEventListener('change', () => {
                snapArpNotesToScale(); 
                knobState.forEach(k => updateStateFromTotalAngle(k.id));
@@ -2858,8 +2864,12 @@ function generateAndApplyRandomSound() {
                knobState.forEach(k => updateStateFromTotalAngle(k.id));
            });
 
-           // --- 7. FIX: CUSTOM SCALE BUILDER KEYS ---
-           // Use the robust touch listener for these div elements
+           arpOrderSelector?.addEventListener('change', (e) => {
+               currentArpOrder = e.target.value;
+               knobState.forEach(s => { s.currentArpNoteIndex = (currentArpOrder === "Down" && s.arpNotes.length > 0) ? s.arpNotes.length - 1 : 0; s.arpUpDownState = 0; });
+           });
+
+           // --- 8. FIX: CUSTOM SCALE BUILDER KEYS ---
            document.querySelectorAll('#custom-scale-builder .key').forEach(k => {
                addTouchListener(k, () => {
                    const n = parseInt(k.dataset.note); 
@@ -2874,14 +2884,13 @@ function generateAndApplyRandomSound() {
                });
            });
 
-           // --- 8. PRESET MENU LOGIC ---
+           // --- 9. PRESET MENU LOGIC ---
            const presetsToggleButton = document.getElementById('presets-toggle-button');
            const presetsSubmenuContainer = document.getElementById('presets-submenu-container');
            const submenuSaveButton = document.getElementById('submenu-save-button');
            const submenuLoadButton = document.getElementById('submenu-load-button');
            const systemPresetSelector = document.getElementById('system-preset-selector'); 
            
-           // Apply touch fix to preset toggle
            const handlePresetToggle = (e) => {
                if(e.cancelable) e.preventDefault();
                const isVisible = presetsSubmenuContainer.style.display === 'flex';
@@ -2909,10 +2918,9 @@ function generateAndApplyRandomSound() {
                midiConnectButton.textContent = 'RESCAN'; 
            });
 
-           // --- 9. ARP & SYNTH CONTROLS ---
+           // --- 10. ARP & SYNTH CONTROLS ---
            arpSyncSwitch = document.getElementById('arp-sync-switch');
            masterArpControls = document.getElementById('master-arp-controls');
-           arpOrderSelector = document.getElementById('arp-order-selector');
            allArpControlGrids = document.querySelectorAll('.arp-controls');
            const lfoModeSwitch = document.getElementById('lfo-mode-switch');
 
@@ -2944,7 +2952,7 @@ function generateAndApplyRandomSound() {
            });
            updateLfoTempoSwitchStates();
             
-            document.querySelectorAll('.fx-knob-container').forEach(knobEl => {
+           document.querySelectorAll('.fx-knob-container').forEach(knobEl => {
                 const id = knobEl.dataset.fxId;
                 const labelEl = knobEl.nextElementSibling;
                 if (id && labelEl) {
@@ -2956,23 +2964,18 @@ function generateAndApplyRandomSound() {
             KNOB_ID_TO_NAME_MAP[16] = 'TEMPO 1';
             KNOB_ID_TO_NAME_MAP[17] = 'TEMPO 2';
 
-            // --- GLOBAL PATCHING HANDLER (With Scroll Protection) ---
+            // --- GLOBAL PATCHING HANDLER ---
             let isScrollingGlobal = false;
-
             synthContainer.addEventListener('touchmove', () => { isScrollingGlobal = true; }, { passive: true });
             synthContainer.addEventListener('touchstart', () => { isScrollingGlobal = false; }, { passive: true });
 
             const handleGlobalPatchClick = (e) => {
                 if (!isLfoMode || activePatchingLfo === null) return;
-                
-                // 1. Ignore if scrolling
                 if (e.type === 'touchend' && isScrollingGlobal) return;
-                // 2. Prevent default to stop ghost clicks
                 if (e.type === 'touchend' && e.cancelable) e.preventDefault();
 
                 const targetKnobEl = e.target.closest('.fx-knob-container, .main-knob');
                 
-                // 3. If clicked background, CANCEL patching
                 if (!targetKnobEl) {
                     stopLfoPatching();
                     return;
@@ -3010,7 +3013,6 @@ function generateAndApplyRandomSound() {
             synthContainer.addEventListener('touchend', handleGlobalPatchClick);
             synthContainer.addEventListener('click', handleGlobalPatchClick);
 
-            // --- HEADER EASTER EGG ---
             const mainHeader = document.querySelector('.main-header h1');
             let headerTapCount = 0;
             let headerTapTimer = null;
@@ -3074,7 +3076,6 @@ function generateAndApplyRandomSound() {
                setupSpinButton(spinLeftButton, id, 'left');
                setupSpinButton(spinRightButton, id, 'right');
       
-               // --- USE TOUCH HELPER FOR ARP SWITCHES ---
                const holdSwitch = document.getElementById(`arp-hold-switch-${id}`);
                addTouchListener(holdSwitch, () => {
                   if (!s.isArpOn) return;
@@ -3107,29 +3108,12 @@ function generateAndApplyRandomSound() {
                });
            });
       
-           powerSwitch?.addEventListener('click',()=>{if(isPowerOn)powerOff();else powerOn();});
-          
            document.addEventListener('mousemove',updateKnobPosition); document.addEventListener('mouseup',handleInteractionEnd);
            document.addEventListener('touchmove',updateKnobPosition,{passive:false}); document.addEventListener('touchend',handleInteractionEnd);
            document.addEventListener('touchcancel', handleInteractionEnd); document.addEventListener('keydown',handleKeyDown); document.addEventListener('keyup',handleKeyUp);
-           keySelector?.addEventListener('change', () => {
-               snapArpNotesToScale(); 
-               knobState.forEach(k => updateStateFromTotalAngle(k.id));
-               keySelector.blur();
-           });
            
-           scaleSelector?.addEventListener('change', e => { 
-               const isCustom = e.target.value === 'Custom'; 
-               customScaleBuilder.style.display = isCustom ? 'flex' : 'none'; 
-               keySelector.disabled = isCustom; 
-               if (isCustom) keySelector.value = 'C'; 
-               snapArpNotesToScale();
-               scaleSelector.blur(); 
-               knobState.forEach(k => updateStateFromTotalAngle(k.id));
-           });
-
-            // --- LFO DESTINATION KNOB HANDLERS (Double-tap logic) ---
-            document.querySelectorAll('[data-fx-id="114"], [data-fx-id="115"], [data-fx-id="102"], [data-fx-id="107"]').forEach(destKnob => {
+           // --- LFO DESTINATION KNOB HANDLERS ---
+           document.querySelectorAll('[data-fx-id="114"], [data-fx-id="115"], [data-fx-id="102"], [data-fx-id="107"]').forEach(destKnob => {
                 let lastTap = 0;
 
                 const handleDestInteraction = (e) => {
@@ -3255,8 +3239,6 @@ function generateAndApplyRandomSound() {
            
            loadPresetInput?.addEventListener('change', loadPreset);
            
-           // --- Use touch helper for custom scale keys (defined above) ---
-           
            addTouchListener(arpSyncSwitch, () => {
                isArpRateSynced = !isArpRateSynced;
                arpSyncSwitch.classList.toggle('on', isArpRateSynced);
@@ -3280,23 +3262,20 @@ function generateAndApplyRandomSound() {
                updateLfoTempoSwitchStates();
            });
 
+           // --- FIX: RATE BUTTONS (1/2, 2x) ---
            document.querySelectorAll('.arp-rate-button').forEach(button => {
                const knobId = parseInt(button.dataset.rateTarget, 10);
                const multiplier = parseFloat(button.dataset.rateMultiplier);
                if (Number.isNaN(knobId) || Number.isNaN(multiplier)) return;
-               button.addEventListener('click', () => handleArpRateButton(knobId, multiplier));
+               addTouchListener(button, () => handleArpRateButton(knobId, multiplier));
            });
 
-           arpOrderSelector?.addEventListener('change', (e) => {
-               currentArpOrder = e.target.value;
-               knobState.forEach(s => { s.currentArpNoteIndex = (currentArpOrder === "Down" && s.arpNotes.length > 0) ? s.arpNotes.length - 1 : 0; s.arpUpDownState = 0; });
-           });
-      
            updateGlobalArpVisibility();
            randomizeSettings();
            updateRateButtonLockState();
        }
        init();
+
 
 
 
