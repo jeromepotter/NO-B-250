@@ -2318,7 +2318,10 @@ function applyPreset(p) {
                        const depthKnobId = Object.keys(LFO_KNOB_MAP).find(id => LFO_KNOB_MAP[id].lfo === index && LFO_KNOB_MAP[id].param === 'depth');
                        const waveKnobId = Object.keys(LFO_KNOB_MAP).find(id => LFO_KNOB_MAP[id].lfo === index && LFO_KNOB_MAP[id].param === 'wave');
                        
-                       if (rateKnobId) setFxValue(parseInt(rateKnobId), lfoState[index].rate, true);
+                       if (rateKnobId) {
+                           const rateKnobValue = savedLfo.tempoSync ? storedFreeValue : lfoState[index].rate;
+                           setFxValue(parseInt(rateKnobId), rateKnobValue, true);
+                       }
                        if (depthKnobId) setFxValue(parseInt(depthKnobId), lfoState[index].depth, true);
                        if (waveKnobId) {
                            const waveIndex = lfoState[index].wave;
