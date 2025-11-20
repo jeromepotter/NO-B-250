@@ -2760,7 +2760,7 @@ function generateAndApplyRandomSound() {
            keySelector = document.getElementById('keySelector');
            scaleSelector = document.getElementById('scaleSelector');
            
-           // --- Audio Resume ---
+           // --- 1. Audio Resume (Touch & Click) ---
            const resumeAudio = () => {
                 if (isPowerOn && audioContext && (audioContext.state === 'suspended' || audioContext.state === 'interrupted')) {
                     audioContext.resume();
@@ -2769,7 +2769,7 @@ function generateAndApplyRandomSound() {
            document.addEventListener('touchstart', resumeAudio, { passive: true });
            document.addEventListener('click', resumeAudio);
 
-           // --- DOM Elements ---
+           // --- 2. Get Elements ---
            modalOverlay = document.getElementById('how-to-modal-overlay');
            howToButton = document.getElementById('how-to-button-header');
            closeModalButton = document.getElementById('close-modal-button');
@@ -2778,11 +2778,12 @@ function generateAndApplyRandomSound() {
            recordMidiButton = document.getElementById('record-midi-button');
            loadPresetInput = document.getElementById('load-preset-input');
            
-           // --- TOUCH HELPER: Fixes unresponsive buttons under heavy load ---
+           // --- 3. TOUCH HELPER FUNCTION ---
+           // This forces buttons to work even when the CPU is busy with LFOs
            const addTouchListener = (element, callback) => {
                if (!element) return;
                const handler = (e) => {
-                   // If it's a touch event, prevent the mouse emulation (ghost click)
+                   // Prevent ghost clicks on touch devices
                    if (e.cancelable && e.type === 'touchend') e.preventDefault();
                    callback(e);
                };
@@ -2790,18 +2791,105 @@ function generateAndApplyRandomSound() {
                element.addEventListener('click', handler);
            };
 
-           // --- PRESET MENU ---
+           // --- 4. FIX: HEADER & MODAL BUTTONS ---
+           addTouchListener(howToButton, () => {
+               modalOverlay.classList.remove('opacity-0', 'pointer-events-none');
+           });
+
+           addTouchListener(closeModalButton, () => {
+               modalOverlay.classList.add('opacity-0', 'pointer-events-none');
+           });
+
+           // Fix clicking the background of the modal to close it
+           const handleOverlayClick = (e) => {
+               if (e.target === modalOverlay) {
+                   if (e.cancelable && e.type === 'touchend') e.preventDefault();
+                   closeModalButton.click();
+               }
+           };
+           modalOverlay?.addEventListener('touchend', handleOverlayClick);
+           modalOverlay?.addEventListener('click', handleOverlayClick);
+
+           // --- 5. FIX: RECORDING BUTTONS ---
+           addTouchListener(recordButton, async () => {
+               if (!isPowerOn) powerOn();
+               if (!audioContext || !synthNode) await setupAudio();
+               if (!isRecordingAudio) { 
+                   pcmChunks = []; 
+                   totalPcmBytes = 0; 
+                   isRecordingAudio = true; 
+                   startRecordingUI(); 
+                   synthNode.port.postMessage({ type: 'startRecording', data: { blockSize: 8192 } }); 
+               } else { 
+                   synthNode.port.postMessage({ type: 'stopRecording', data: {} }); 
+               }
+               recordButton.blur(); 
+           });
+
+           addTouchListener(recordMidiButton, () => {
+               toggleMidiRecording();
+               recordMidiButton.blur();
+           });
+
+           // --- 6. FIX: SCALE & KEY SELECTORS (Native Dropdowns) ---
+           // Stop touches here from bubbling to the container or getting lost
+           const protectDropdown = (el) => {
+               if (!el) return;
+               el.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
+               el.addEventListener('touchend', (e) => e.stopPropagation(), { passive: true });
+           };
+           protectDropdown(keySelector);
+           protectDropdown(scaleSelector);
+           
+           // Re-attach change listeners normally (they trigger after selection)
+           keySelector?.addEventListener('change', () => {
+               snapArpNotesToScale(); 
+               knobState.forEach(k => updateStateFromTotalAngle(k.id));
+               keySelector.blur();
+           });
+           
+           scaleSelector?.addEventListener('change', e => { 
+               const isCustom = e.target.value === 'Custom'; 
+               customScaleBuilder.style.display = isCustom ? 'flex' : 'none'; 
+               keySelector.disabled = isCustom; 
+               if (isCustom) keySelector.value = 'C'; 
+               snapArpNotesToScale();
+               scaleSelector.blur(); 
+               knobState.forEach(k => updateStateFromTotalAngle(k.id));
+           });
+
+           // --- 7. FIX: CUSTOM SCALE BUILDER KEYS ---
+           // Use the robust touch listener for these div elements
+           document.querySelectorAll('#custom-scale-builder .key').forEach(k => {
+               addTouchListener(k, () => {
+                   const n = parseInt(k.dataset.note); 
+                   k.classList.toggle('selected'); 
+                   if (customScale.includes(n)) {
+                       customScale = customScale.filter(i => i !== n);
+                   } else {
+                       customScale.push(n);
+                   } 
+                   customScale.sort((a,b) => a-b); 
+                   knobState.forEach(k => updateStateFromTotalAngle(k.id));
+               });
+           });
+
+           // --- 8. PRESET MENU LOGIC ---
            const presetsToggleButton = document.getElementById('presets-toggle-button');
            const presetsSubmenuContainer = document.getElementById('presets-submenu-container');
            const submenuSaveButton = document.getElementById('submenu-save-button');
            const submenuLoadButton = document.getElementById('submenu-load-button');
            const systemPresetSelector = document.getElementById('system-preset-selector'); 
            
-           addTouchListener(presetsToggleButton, () => {
+           // Apply touch fix to preset toggle
+           const handlePresetToggle = (e) => {
+               if(e.cancelable) e.preventDefault();
                const isVisible = presetsSubmenuContainer.style.display === 'flex';
                presetsSubmenuContainer.style.display = isVisible ? 'none' : 'flex';
                presetsToggleButton.classList.toggle('active', !isVisible);
-           });
+           };
+           presetsToggleButton?.addEventListener('touchend', handlePresetToggle);
+           presetsToggleButton?.addEventListener('click', handlePresetToggle);
 
            addTouchListener(submenuSaveButton, () => {
                 savePreset();
@@ -2821,7 +2909,7 @@ function generateAndApplyRandomSound() {
                midiConnectButton.textContent = 'RESCAN'; 
            });
 
-           // --- ARP CONTROLS ---
+           // --- 9. ARP & SYNTH CONTROLS ---
            arpSyncSwitch = document.getElementById('arp-sync-switch');
            masterArpControls = document.getElementById('master-arp-controls');
            arpOrderSelector = document.getElementById('arp-order-selector');
@@ -2834,7 +2922,6 @@ function generateAndApplyRandomSound() {
            populateScales();
            setupFxKnobs();
 
-           // --- LFO RATE DISPLAYS & SYNC SWITCHES ---
            lfoRateDisplays = Array.from({ length: 4 }, (_, idx) => document.getElementById(`lfo-rate-display-${idx}`));
            lfoTempoSyncSwitches = Array(LFO_RATE_KNOB_IDS.length).fill(null);
 
@@ -2857,7 +2944,6 @@ function generateAndApplyRandomSound() {
            });
            updateLfoTempoSwitchStates();
             
-           // --- POPULATE KNOB NAMES ---
             document.querySelectorAll('.fx-knob-container').forEach(knobEl => {
                 const id = knobEl.dataset.fxId;
                 const labelEl = knobEl.nextElementSibling;
@@ -2873,26 +2959,20 @@ function generateAndApplyRandomSound() {
             // --- GLOBAL PATCHING HANDLER (With Scroll Protection) ---
             let isScrollingGlobal = false;
 
-            synthContainer.addEventListener('touchmove', () => {
-                isScrollingGlobal = true;
-            }, { passive: true });
-
-            synthContainer.addEventListener('touchstart', () => {
-                isScrollingGlobal = false;
-            }, { passive: true });
+            synthContainer.addEventListener('touchmove', () => { isScrollingGlobal = true; }, { passive: true });
+            synthContainer.addEventListener('touchstart', () => { isScrollingGlobal = false; }, { passive: true });
 
             const handleGlobalPatchClick = (e) => {
                 if (!isLfoMode || activePatchingLfo === null) return;
                 
-                // 1. Ignore if we just scrolled/dragged
+                // 1. Ignore if scrolling
                 if (e.type === 'touchend' && isScrollingGlobal) return;
-
-                // 2. Prevent default behavior to stop ghost clicks
+                // 2. Prevent default to stop ghost clicks
                 if (e.type === 'touchend' && e.cancelable) e.preventDefault();
 
                 const targetKnobEl = e.target.closest('.fx-knob-container, .main-knob');
                 
-                // 3. If clicked on empty space (background), CANCEL patching
+                // 3. If clicked background, CANCEL patching
                 if (!targetKnobEl) {
                     stopLfoPatching();
                     return;
@@ -2907,7 +2987,6 @@ function generateAndApplyRandomSound() {
                 const sourceFxId = parseInt(Object.keys(LFO_KNOB_MAP).find(key => LFO_KNOB_MAP[key] === sourceKnobInfo));
                 const ownLfoKnobs = Object.keys(LFO_KNOB_MAP).filter(id => LFO_KNOB_MAP[id].lfo === activePatchingLfo).map(id => parseInt(id));
                 
-                // 4. If clicked the source knob again, turn OFF
                 if (targetFxId === sourceFxId) {
                     lfoState[activePatchingLfo].dest = 0; 
                     document.getElementById(`lfo-dest-display-${activePatchingLfo}`).textContent = 'NONE';
@@ -2917,9 +2996,8 @@ function generateAndApplyRandomSound() {
                     return;
                 }
 
-                if (ownLfoKnobs.includes(targetFxId)) return; // Ignore self-patching
+                if (ownLfoKnobs.includes(targetFxId)) return;
 
-                // 5. Valid Patch
                 lfoState[activePatchingLfo].dest = targetFxId;
                 const targetName = KNOB_ID_TO_NAME_MAP[targetFxId] || "UNKNOWN";
                 document.getElementById(`lfo-dest-display-${activePatchingLfo}`).textContent = targetName;
@@ -2929,7 +3007,6 @@ function generateAndApplyRandomSound() {
                  drawLfoCables();
             };
             
-            // Listen for both, but Scroll Protection handles the conflict
             synthContainer.addEventListener('touchend', handleGlobalPatchClick);
             synthContainer.addEventListener('click', handleGlobalPatchClick);
 
@@ -2953,7 +3030,6 @@ function generateAndApplyRandomSound() {
                 }
             });
       
-           // --- SPIN BUTTONS ---
            const setupSpinButton = (button, knobId, direction) => {
                if (!button) return;
                const key = `spin-${direction}-${knobId}`;
@@ -2998,6 +3074,7 @@ function generateAndApplyRandomSound() {
                setupSpinButton(spinLeftButton, id, 'left');
                setupSpinButton(spinRightButton, id, 'right');
       
+               // --- USE TOUCH HELPER FOR ARP SWITCHES ---
                const holdSwitch = document.getElementById(`arp-hold-switch-${id}`);
                addTouchListener(holdSwitch, () => {
                   if (!s.isArpOn) return;
@@ -3018,14 +3095,20 @@ function generateAndApplyRandomSound() {
                    updateStateFromTotalAngle(s.id);
                });
 
-               addTouchListener(s.dom.arpModeSwitch, () => { if (!s.isArpOn) return; s.isSweepMode = !s.isSweepMode; s.dom.arpModeSwitch.classList.toggle('on', s.isSweepMode); if (!s.isSweepMode && s.arpRunning) { s.arpNotes = [{ midi: getMidiNote(s.id), active: true }]; s.currentArpNoteIndex = (currentArpOrder === "Down" && s.arpNotes.length > 0) ? s.arpNotes.length - 1 : 0; s.arpUpDownState = 0; } });
+               addTouchListener(s.dom.arpModeSwitch, () => { 
+                   if (!s.isArpOn) return; 
+                   s.isSweepMode = !s.isSweepMode; 
+                   s.dom.arpModeSwitch.classList.toggle('on', s.isSweepMode); 
+                   if (!s.isSweepMode && s.arpRunning) { 
+                       s.arpNotes = [{ midi: getMidiNote(s.id), active: true }]; 
+                       s.currentArpNoteIndex = (currentArpOrder === "Down" && s.arpNotes.length > 0) ? s.arpNotes.length - 1 : 0; 
+                       s.arpUpDownState = 0; 
+                   } 
+               });
            });
       
            powerSwitch?.addEventListener('click',()=>{if(isPowerOn)powerOff();else powerOn();});
           
-           howToButton?.addEventListener('click', () => {modalOverlay.classList.remove('opacity-0', 'pointer-events-none');});
-           closeModalButton?.addEventListener('click',()=>{modalOverlay.classList.add('opacity-0','pointer-events-none');});
-           modalOverlay?.addEventListener('click',(e)=>{if(e.target===modalOverlay)closeModalButton.click();});
            document.addEventListener('mousemove',updateKnobPosition); document.addEventListener('mouseup',handleInteractionEnd);
            document.addEventListener('touchmove',updateKnobPosition,{passive:false}); document.addEventListener('touchend',handleInteractionEnd);
            document.addEventListener('touchcancel', handleInteractionEnd); document.addEventListener('keydown',handleKeyDown); document.addEventListener('keyup',handleKeyUp);
@@ -3068,7 +3151,6 @@ function generateAndApplyRandomSound() {
                     lastTap = now;
 
                     if (isDoubleTap) {
-                         // Double Tap: Park/Reset
                          const lfo = lfoState[lfoInfo.lfo];
                          if (lfo.dest > 0) {
                              lfo.dest = -1; 
@@ -3083,7 +3165,6 @@ function generateAndApplyRandomSound() {
                              }
                          }
                     } else {
-                        // Single Tap: Toggle Patching
                         if (activePatchingLfo === lfoInfo.lfo) {
                             stopLfoPatching();
                         } else {
@@ -3096,7 +3177,6 @@ function generateAndApplyRandomSound() {
                 destKnob.addEventListener('touchend', handleDestInteraction);
             });
 
-           // --- SYSTEM PRESET SELECTOR ---
            const initialOption = document.createElement('option');
            initialOption.textContent = 'SYSTEM';
            initialOption.disabled = true;
@@ -3131,7 +3211,6 @@ function generateAndApplyRandomSound() {
                     const presetData = JSON.parse(JSON.stringify(PRESETS[groupName][presetName]));
                     if (!isPowerOn) powerOn();
                     
-                    // Map preset data to full state (omitted for brevity, logic is same)
                     const fullPreset = {
                         key: presetData.key,
                         scale: presetData.scale,
@@ -3175,33 +3254,9 @@ function generateAndApplyRandomSound() {
             });
            
            loadPresetInput?.addEventListener('change', loadPreset);
-           document.querySelectorAll('#custom-scale-builder .key').forEach(k=>{k.addEventListener('click',()=>{const n=parseInt(k.dataset.note); k.classList.toggle('selected'); if(customScale.includes(n)){customScale=customScale.filter(i=>i!==n);} else {customScale.push(n);} customScale.sort((a,b)=>a-b); knobState.forEach(k=>updateStateFromTotalAngle(k.id));});});
-           recordButton?.addEventListener('click', async () => {
-               if (!isPowerOn) powerOn();
-               if (!audioContext || !synthNode) await setupAudio();
-               if (!isRecordingAudio) { pcmChunks = []; totalPcmBytes = 0; isRecordingAudio = true; startRecordingUI(); synthNode.port.postMessage({ type: 'startRecording', data: { blockSize: 8192 } }); }
-               else { synthNode.port.postMessage({ type: 'stopRecording', data: {} }); }
-               recordButton.blur(); 
-           });
-           recordMidiButton?.addEventListener('click', () => {
-               toggleMidiRecording();
-               recordMidiButton.blur();
-           });           
-           knobState.forEach(k => {
-               updateStateFromTotalAngle(k.id);
-               if(k.dom.octsDisplay) k.dom.octsDisplay.textContent = k.arpOctaveRange;
-               if(k.dom.transposeDisplay) k.dom.transposeDisplay.textContent = k.arpTranspose;
-               if(k.dom.feelDisplay) { const pIdx=Math.min(NUM_FEEL_PATTERNS-1,Math.floor(k.feelKnobValue*NUM_FEEL_PATTERNS)); k.dom.feelDisplay.textContent = pIdx + 1; }
-               if(k.dom.arpNoteDisplay) k.dom.arpNoteDisplay.textContent = "--";
-               if(k.dom.knob) new ResizeObserver(()=>updateStateFromTotalAngle(k.id)).observe(k.dom.knob);
-           });
-           updateTempoDisplays();
-           applyModulatedArpUiPreviews();
-           if (document.body) {
-               document.body.setAttribute('data-tempo-mode', tempoMode);
-           }
-      
-           // --- SYNC SWITCH ---
+           
+           // --- Use touch helper for custom scale keys (defined above) ---
+           
            addTouchListener(arpSyncSwitch, () => {
                isArpRateSynced = !isArpRateSynced;
                arpSyncSwitch.classList.toggle('on', isArpRateSynced);
@@ -3242,6 +3297,7 @@ function generateAndApplyRandomSound() {
            updateRateButtonLockState();
        }
        init();
+
 
 
 
