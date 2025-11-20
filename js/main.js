@@ -3205,8 +3205,8 @@ function generateAndApplyRandomSound() {
            randomizeSettings();
            updateRateButtonLockState();
        }
-       }
        init();
+
 
 
 
