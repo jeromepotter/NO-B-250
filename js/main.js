@@ -2682,7 +2682,7 @@ function generateAndApplyRandomSound() {
             const cable = document.getElementById(`lfo-cable-${i}`);
             if (cable) { 
                 cable.setAttribute('d', '');
-                // Also hide the parent SVG if possible to be safe
+                // Hide parent if possible to prevent layout interference
                 if (cable.ownerSVGElement) cable.ownerSVGElement.style.display = 'none';
             }
         }
@@ -2695,19 +2695,14 @@ function generateAndApplyRandomSound() {
         const cable = document.getElementById(`lfo-cable-${index}`);
         if (!cable) return;
 
-        // --- FIX 1: Disable pointer events on the cable path ---
+        // --- FIX: Make cables "ghosts" to clicks/touches ---
         cable.style.pointerEvents = 'none'; 
-
-        // --- FIX 2: Disable pointer events on the PARENT SVG CONTAINER ---
-        // This is the critical fix. It removes the "invisible wall" blocking your buttons.
         if (cable.ownerSVGElement) {
             cable.ownerSVGElement.style.pointerEvents = 'none';
-            cable.ownerSVGElement.style.display = 'block'; // Ensure it is visible
-            // Ensure the SVG is on top visually but logically transparent to touches
-            cable.ownerSVGElement.style.zIndex = '10'; 
+            cable.ownerSVGElement.style.display = 'block';
+            // REMOVED: cable.ownerSVGElement.style.zIndex = '10'; <--- THIS WAS BLOCKING PRESETS
         }
 
-        // State 1: LFO is OFF. No cable is drawn.
         if (lfo.dest === 0) {
             cable.setAttribute('d', '');
             return;
@@ -2726,14 +2721,11 @@ function generateAndApplyRandomSound() {
             
             let endX, endY;
 
-            // State 2: Cable is "Parked".
             if (lfo.dest === -1) {
                 const direction = (index < 2) ? -1 : 1; 
                 endX = startX + (500 * direction);
                 endY = startY + 100; 
-            } 
-            // State 3: Cable is patched to a destination.
-            else {
+            } else {
                 const destKnobEl = getLfoTargetElement(lfo.dest);
                 if (!destKnobEl || destKnobEl.offsetParent === null) {
                         const direction = (startX > containerRect.width / 2) ? 1 : -1;
@@ -2762,14 +2754,12 @@ function generateAndApplyRandomSound() {
 
 
        function init(){
-           // --- Get all DOM elements ---
            synthContainer = document.getElementById('synth-container');
            rateDisplayRows = Array.from(document.querySelectorAll('.rate-display-row'));
            powerSwitch = document.getElementById('power-switch');
            keySelector = document.getElementById('keySelector');
            scaleSelector = document.getElementById('scaleSelector');
            
-           // --- ROBUST MOBILE AUDIO RESUME ---
            const resumeAudio = () => {
                 if (isPowerOn && audioContext && (audioContext.state === 'suspended' || audioContext.state === 'interrupted')) {
                     audioContext.resume();
@@ -2786,12 +2776,35 @@ function generateAndApplyRandomSound() {
            recordMidiButton = document.getElementById('record-midi-button');
            loadPresetInput = document.getElementById('load-preset-input');
            
-           // --- NEW Preset Menu Elements ---
+           // --- FIX: PRESET BUTTONS MOBILE HANDLER ---
            const presetsToggleButton = document.getElementById('presets-toggle-button');
            const presetsSubmenuContainer = document.getElementById('presets-submenu-container');
            const submenuSaveButton = document.getElementById('submenu-save-button');
            const submenuLoadButton = document.getElementById('submenu-load-button');
            const systemPresetSelector = document.getElementById('system-preset-selector'); 
+           
+           const handlePresetToggle = (e) => {
+               if(e.cancelable) e.preventDefault(); // Stop ghost clicks
+               const isVisible = presetsSubmenuContainer.style.display === 'flex';
+               presetsSubmenuContainer.style.display = isVisible ? 'none' : 'flex';
+               presetsToggleButton.classList.toggle('active', !isVisible);
+           };
+           presetsToggleButton?.addEventListener('touchend', handlePresetToggle);
+           presetsToggleButton?.addEventListener('click', handlePresetToggle);
+
+           submenuSaveButton?.addEventListener('click', () => {
+                savePreset();
+                presetsSubmenuContainer.style.display = 'none';
+                presetsToggleButton.classList.remove('active');
+           });
+
+           submenuLoadButton?.addEventListener('click', () => {
+                loadPresetInput.click();
+                presetsSubmenuContainer.style.display = 'none';
+                presetsToggleButton.classList.remove('active');
+           });
+           // ------------------------------------------
+
            const midiConnectButton = document.getElementById('midi-connect-button');
            midiConnectButton?.addEventListener('click', () => {
                setupMidiOutput();
@@ -2804,7 +2817,6 @@ function generateAndApplyRandomSound() {
            allArpControlGrids = document.querySelectorAll('.arp-controls');
            const lfoModeSwitch = document.getElementById('lfo-mode-switch');
 
-           // --- Setup initial state and event listeners ---
            lfoModeSwitch?.addEventListener('click', () => toggleLfoModeUI());
            new ResizeObserver(drawLfoCables).observe(synthContainer);
       
@@ -2814,22 +2826,16 @@ function generateAndApplyRandomSound() {
            lfoRateDisplays = Array.from({ length: 4 }, (_, idx) => document.getElementById(`lfo-rate-display-${idx}`));
            lfoTempoSyncSwitches = Array(LFO_RATE_KNOB_IDS.length).fill(null);
 
-           // --- FIX: Better Mobile Touch Handling for Sync Switches ---
            document.querySelectorAll('.lfo-tempo-sync-switch').forEach(sw => {
                const idx = parseInt(sw.dataset.lfoTempoIndex, 10);
                if (Number.isNaN(idx)) return;
                lfoTempoSyncSwitches[idx] = sw;
                
                const handleSwitchToggle = (e) => {
-    // Stop propagation immediately so no other elements try to handle this
-    e.stopPropagation(); 
-    
-    if (e.cancelable && e.type === 'touchend') e.preventDefault(); 
-    
-    if (sw.classList.contains('switch-disabled')) return;
-    setLfoTempoSync(idx, !lfoTempoLinkState[idx].enabled);
-};
-
+                    if (e.cancelable) e.preventDefault(); 
+                    if (sw.classList.contains('switch-disabled')) return;
+                    setLfoTempoSync(idx, !lfoTempoLinkState[idx].enabled);
+               };
 
                sw.addEventListener('touchend', handleSwitchToggle);
                sw.addEventListener('click', handleSwitchToggle);
@@ -2844,7 +2850,6 @@ function generateAndApplyRandomSound() {
            });
            updateLfoTempoSwitchStates();
             
-            // Build the Knob Name map
             document.querySelectorAll('.fx-knob-container').forEach(knobEl => {
                 const id = knobEl.dataset.fxId;
                 const labelEl = knobEl.nextElementSibling;
@@ -2873,7 +2878,6 @@ function generateAndApplyRandomSound() {
                 }
                 const sourceKnobInfo = Object.values(LFO_KNOB_MAP).find(d => d.lfo === activePatchingLfo && d.param === 'dest');
                 const sourceFxId = parseInt(Object.keys(LFO_KNOB_MAP).find(key => LFO_KNOB_MAP[key] === sourceKnobInfo));
-                
                 const ownLfoKnobs = Object.keys(LFO_KNOB_MAP).filter(id => LFO_KNOB_MAP[id].lfo === activePatchingLfo).map(id => parseInt(id));
                 
                 if (targetFxId === sourceFxId) {
@@ -3005,87 +3009,59 @@ function generateAndApplyRandomSound() {
                knobState.forEach(k => updateStateFromTotalAngle(k.id));
            });
 
-            document
-            .querySelectorAll('[data-fx-id="114"], [data-fx-id="115"], [data-fx-id="102"], [data-fx-id="107"]')
-            .forEach(destKnob => {
+            // --- FIX: ROBUST LFO DESTINATION HANDLERS ---
+            document.querySelectorAll('[data-fx-id="114"], [data-fx-id="115"], [data-fx-id="102"], [data-fx-id="107"]').forEach(destKnob => {
+                let lastTap = 0;
 
-                destKnob.addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (!isLfoMode) return;
+                const handleDestInteraction = (e) => {
+                    // 1. Prevent ghost clicks on mobile
+                    if (e.type === 'touchend') {
+                         if (e.cancelable) e.preventDefault(); 
+                         e.stopPropagation();
+                    } else {
+                        e.stopPropagation();
+                    }
 
-                const fxId = parseInt(destKnob.dataset.fxId, 10);
-                const lfoInfo = LFO_KNOB_MAP[fxId];
-                if (!lfoInfo || lfoInfo.param !== 'dest') return;
+                    if (!isLfoMode) return;
 
-                if (activePatchingLfo === lfoInfo.lfo) {
-                    stopLfoPatching();
-                } else {
-                    startLfoPatching(lfoInfo.lfo);
-                }
-                });
+                    const fxId = parseInt(destKnob.dataset.fxId, 10);
+                    const lfoInfo = LFO_KNOB_MAP[fxId];
+                    if (!lfoInfo || lfoInfo.param !== 'dest') return;
 
-                function addDoubleTap(el, handler) {
-                let last = 0;
-                el.addEventListener("touchend", (e) => {
                     const now = Date.now();
-                    if (now - last < 300) {
-                    e.preventDefault();
-                    handler(e);
+                    const isDoubleTap = (now - lastTap < 300) && (now - lastTap > 0);
+                    lastTap = now;
+
+                    if (isDoubleTap) {
+                         // --- DOUBLE TAP: PARK / RESET ---
+                         const lfo = lfoState[lfoInfo.lfo];
+                         if (lfo.dest > 0) {
+                             lfo.dest = -1; // Park
+                             document.getElementById(`lfo-dest-display-${lfoInfo.lfo}`).textContent = 'NONE';
+                             if (synthNode) {
+                                 synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: lfoInfo.lfo, param: 'dest', value: 0 } });
+                             }
+                             drawLfoCables();
+                             if (!shouldKeepLfoAnimationRunning() && lfoAnimationId !== null) {
+                                 clearInterval(lfoAnimationId);
+                                 lfoAnimationId = null;
+                             }
+                         }
+                    } else {
+                        // --- SINGLE TAP: TOGGLE PATCHING MODE ---
+                        if (activePatchingLfo === lfoInfo.lfo) {
+                            stopLfoPatching();
+                        } else {
+                            startLfoPatching(lfoInfo.lfo);
+                        }
                     }
-                    last = now;
-                });
-                }
+                };
 
-                destKnob.addEventListener('dblclick', () => {
-                if (!isLfoMode) return;
-                const fxId = parseInt(destKnob.dataset.fxId, 10);
-                const lfoInfo = LFO_KNOB_MAP[fxId];
-                if (!lfoInfo) return;
-
-                const lfo = lfoState[lfoInfo.lfo];
-                if (lfo.dest > 0) {
-                    lfo.dest = -1; 
-                    document.getElementById(`lfo-dest-display-${lfoInfo.lfo}`).textContent = 'NONE';
-
-                    if (synthNode) {
-                    synthNode.port.postMessage({
-                        type: 'setLfo',
-                        data: { lfoId: lfoInfo.lfo, param: 'dest', value: 0 }
-                    });
-                    }
-                    drawLfoCables();
-                    if (!shouldKeepLfoAnimationRunning() && lfoAnimationId !== null) {
-                    clearInterval(lfoAnimationId);
-                    lfoAnimationId = null;
-                    }
-                }
-                });
-
-                addDoubleTap(destKnob, () => {
-                    destKnob.dispatchEvent(new Event("dblclick"));
-                });
-
+                destKnob.addEventListener('click', handleDestInteraction);
+                destKnob.addEventListener('touchend', handleDestInteraction);
             });
+            // -------------------------------------------
 
-           // --- CORRECTED PRESET SUBMENU LOGIC ---
-           presetsToggleButton?.addEventListener('click', () => {
-                const isVisible = presetsSubmenuContainer.style.display === 'flex';
-                presetsSubmenuContainer.style.display = isVisible ? 'none' : 'flex';
-                presetsToggleButton.classList.toggle('active', !isVisible);
-           });
-
-           submenuSaveButton?.addEventListener('click', () => {
-                savePreset();
-                presetsSubmenuContainer.style.display = 'none';
-                presetsToggleButton.classList.remove('active');
-           });
-
-           submenuLoadButton?.addEventListener('click', () => {
-                loadPresetInput.click();
-                presetsSubmenuContainer.style.display = 'none';
-                presetsToggleButton.classList.remove('active');
-           });
-           
            const initialOption = document.createElement('option');
            initialOption.textContent = 'SYSTEM';
            initialOption.disabled = true;
@@ -3229,7 +3205,9 @@ function generateAndApplyRandomSound() {
            randomizeSettings();
            updateRateButtonLockState();
        }
+       }
        init();
+
 
 
 
