@@ -1622,6 +1622,30 @@ function sendMidiMessage(message) {
                }
                return;
            }
+                // --- CHECK FOR MAIN KNOB LFO MODULATION (for background tab support) ---
+    const mainKnobDestId = knobId === 0 ? 300 : 301;
+    const hasMainKnobLfo = lfoState.some(lfo => lfo.dest === mainKnobDestId);
+    
+    if (hasMainKnobLfo && state.isArpOn && state.isArpHoldOn && !state.isSweepMode) {
+        // Calculate the modulated angle directly from LFO outputs
+        let mainKnobModulation = 0;
+        lfoState.forEach((lfo, idx) => {
+            if (lfo.dest === mainKnobDestId) {
+                mainKnobModulation += liveLfoOutputs[idx] || 0;
+            }
+        });
+        
+        const modulatedAngle = Math.max(0, Math.min(MAX_TOTAL_ANGLE, state.totalAngle + (mainKnobModulation * MAX_TOTAL_ANGLE)));
+        const modMidi = getMidiNoteFromAngle(knobId, modulatedAngle);
+        
+        // Update the arpNotes array directly (bypasses the need for visual updates)
+        const noteChanged = state.arpNotes.length !== 1 || state.arpNotes[0].midi !== modMidi || !state.arpNotes[0].active;
+        if (noteChanged) {
+            state.arpNotes = [{ midi: modMidi, active: true }];
+            state.currentArpNoteIndex = 0;
+            state.arpUpDownState = 0;
+        }
+    }
     
            // --- This block now correctly reads the LIVE LFO values ---
 let modulatedRateBpm = state.arpRateBpm;
@@ -3302,6 +3326,7 @@ function generateAndApplyRandomSound() {
            updateRateButtonLockState();
        }
        init();
+
 
 
 
