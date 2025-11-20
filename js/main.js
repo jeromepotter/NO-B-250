@@ -2782,7 +2782,6 @@ function generateAndApplyRandomSound() {
            const addTouchListener = (element, callback) => {
                if (!element) return;
                const handler = (e) => {
-                   // Prevent ghost clicks on touch devices
                    if (e.cancelable && e.type === 'touchend') e.preventDefault();
                    callback(e);
                };
@@ -2836,17 +2835,26 @@ function generateAndApplyRandomSound() {
            });
 
            // --- 7. FIX: DROPDOWN MENUS (Scale, Key, Arp Order) ---
-           arpOrderSelector = document.getElementById('arp-order-selector'); // Get early for protection
+           // ROBUST VERSION: Blocks Touch, Mouse, AND Pointer events from bubbling
+           arpOrderSelector = document.getElementById('arp-order-selector'); 
 
            const protectDropdown = (el) => {
                if (!el) return;
-               // Stop touch events from bubbling so browser handles the select immediately
-               el.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
-               el.addEventListener('touchend', (e) => e.stopPropagation(), { passive: true });
+               const stopEvent = (e) => e.stopPropagation();
+               
+               // Stop touch events (passive: true improves scroll performance)
+               el.addEventListener('touchstart', stopEvent, { passive: true });
+               el.addEventListener('touchend', stopEvent, { passive: true });
+               
+               // Stop Mouse/Pointer events (robust for hybrid devices/desktop)
+               el.addEventListener('pointerdown', stopEvent, { passive: false });
+               el.addEventListener('mousedown', stopEvent, { passive: false });
+               el.addEventListener('click', stopEvent, { passive: false });
            };
+
            protectDropdown(keySelector);
            protectDropdown(scaleSelector);
-           protectDropdown(arpOrderSelector); // FIX: Added protection for Arp Order
+           protectDropdown(arpOrderSelector);
            
            keySelector?.addEventListener('change', () => {
                snapArpNotesToScale(); 
@@ -3275,6 +3283,7 @@ function generateAndApplyRandomSound() {
            updateRateButtonLockState();
        }
        init();
+
 
 
 
