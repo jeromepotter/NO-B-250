@@ -377,10 +377,17 @@ const LFO_RATE_DIVISION_STEPS = [
             const display = lfoRateDisplays[index];
             if (!display) return;
             const isLinked = forceSyncedState ?? lfoTempoLinkState[index].enabled;
+            
+            let newText = '';
             if (isLinked) {
-                display.textContent = getLfoDivisionLabel(normalizedValue);
+                newText = getLfoDivisionLabel(normalizedValue);
             } else {
-                display.textContent = formatLfoRateHzLabel(normalizedValue);
+                newText = formatLfoRateHzLabel(normalizedValue);
+            }
+            
+            // OPTIMIZATION: Only update if changed
+            if (display.textContent !== newText) {
+                display.textContent = newText;
             }
         }
 
@@ -1045,74 +1052,88 @@ function sendMidiMessage(message) {
            const finalRgb = getArpNoteColor(midiNote);
            state.dom.knob.style.backgroundColor = `rgb(${finalRgb.r}, ${finalRgb.g}, ${finalRgb.b})`;
        }
-       function updateStateFromTotalAngle(knobId) {
-           const state = knobState[knobId]; if (!state) return;
-           state.totalAngle = Math.max(0, Math.min(MAX_TOTAL_ANGLE, state.totalAngle));
-           state.currentOctave = Math.floor(state.totalAngle / 360);
-           if (!state.dom || !state.dom.knob || !state.dom.indicator) return;
-           const displayAngle = state.totalAngle % 360;
-           state.baseColor = getKnobColor(displayAngle);
-           const knobRadius = state.dom.knob.offsetHeight / 2;
-           state.dom.indicator.style.transformOrigin = `center ${knobRadius > 0 ? knobRadius - 16 : 0}px`;
-           state.dom.indicator.style.transform = `rotate(${displayAngle}deg)`;
-           const baseMidi = getMidiNote(knobId);
-           let displayMidi = baseMidi;
-           if (state.isArpOn) {
-               const fullScaleMidi = getFullScaleMidi();
-               const baseNoteIndexInScale = fullScaleMidi.indexOf(baseMidi);
-               if (baseNoteIndexInScale !== -1) {
-                   const transposedNoteIndex = baseNoteIndexInScale + state.arpTranspose;
-                   const clampedIndex = Math.max(0, Math.min(fullScaleMidi.length - 1, transposedNoteIndex));
-                   displayMidi = fullScaleMidi[clampedIndex];
-               }
-           }
-           state.dom.noteDisplay.textContent = midiToNoteName(displayMidi);
-           if (state.isArpOn && !state.arpRunning) {
-               const finalRgb = getArpNoteColor(displayMidi);
-               if(state.dom.knob) state.dom.knob.style.backgroundColor = `rgb(${finalRgb.r}, ${finalRgb.g}, ${finalRgb.b})`;
-           } else if (!state.isNoteOn) {
-               updateKnobColor(knobId);
-           }
-           const isNoteRepeatHoldActive = state.isArpOn && state.isArpHoldOn && !state.isSweepMode;
-           if (state.isArpOn && (state.isHeld || isNoteRepeatHoldActive)) {
-               if (state.isSweepMode) {
-                  if (allowDuplicateNotesMode || !state.arpNotes.some(n => n.midi === baseMidi)) {
-                   state.arpNotes.push({ midi: baseMidi, active: true });
-                  updateSequenceDisplay(knobId);
-                  }
-               } else {
-                  const noteChanged = state.arpNotes.length !== 1 || state.arpNotes[0].midi !== baseMidi || !state.arpNotes[0].active;
-                  state.arpNotes = [{ midi: baseMidi, active: true }];
-                  if (noteChanged) {
-                      state.currentArpNoteIndex = 0;
-                      state.arpUpDownState = 0;
-                      updateSequenceDisplay(knobId);
-                  }
-               }
-           } else if (state.isHeld && synthNode && isPowerOn) {
-               // Audio update
-               synthNode.port.postMessage({ type: 'setFreq', data: { voice: knobId, freq: getNoteFrequency(baseMidi) } });
-               
-               // --- FIX START: Handle MIDI update while spinning in Freestyle mode ---
-               if (!state.isArpOn && state.lastPlayedMidi !== baseMidi) {
-                   // 1. Kill the old note
-                   if (state.lastPlayedMidi !== null) {
-                       sendMidiMessage([0x80 + knobId, state.lastPlayedMidi, 0]);
-                       captureMidiEvent(knobId, 'noteOff', state.lastPlayedMidi, 0);
-                   }
-                   
-                   // 2. Start the new note
-                   sendMidiMessage([0x90 + knobId, baseMidi, 100]);
-                   captureMidiEvent(knobId, 'noteOn', baseMidi, 100);
-                   
-                   // 3. Update state so we know what to kill next time
-                   state.lastPlayedMidi = baseMidi;
-               }
-               // --- FIX END ---
 
-               updateKnobColor(knobId);
+// --- NEW: GLOBAL HELPER FOR KNOB LAYOUT ---
+// Moves the expensive offsetHeight read out of the loop
+function updateKnobLayout(knobId) {
+    const state = knobState[knobId];
+    if (!state || !state.dom.knob || !state.dom.indicator) return;
+    
+    // This forces a layout calculation (expensive), so call it sparingly!
+    const knobRadius = state.dom.knob.offsetHeight / 2;
+    state.dom.indicator.style.transformOrigin = `center ${knobRadius > 0 ? knobRadius - 16 : 0}px`;
+}
+
+function updateStateFromTotalAngle(knobId) {
+   const state = knobState[knobId]; if (!state) return;
+   
+   state.totalAngle = Math.max(0, Math.min(MAX_TOTAL_ANGLE, state.totalAngle));
+   state.currentOctave = Math.floor(state.totalAngle / 360);
+   
+   if (!state.dom || !state.dom.knob || !state.dom.indicator) return;
+   
+   const displayAngle = state.totalAngle % 360;
+   state.baseColor = getKnobColor(displayAngle);
+   
+   // --- OPTIMIZED: No longer calculating layout here ---
+   state.dom.indicator.style.transform = `rotate(${displayAngle}deg)`;
+   // ---------------------------------------------------
+   
+   const baseMidi = getMidiNote(knobId);
+   let displayMidi = baseMidi;
+   
+   if (state.isArpOn) {
+       const fullScaleMidi = getFullScaleMidi();
+       const baseNoteIndexInScale = fullScaleMidi.indexOf(baseMidi);
+       if (baseNoteIndexInScale !== -1) {
+           const transposedNoteIndex = baseNoteIndexInScale + state.arpTranspose;
+           const clampedIndex = Math.max(0, Math.min(fullScaleMidi.length - 1, transposedNoteIndex));
+           displayMidi = fullScaleMidi[clampedIndex];
+       }
+   }
+   
+   state.dom.noteDisplay.textContent = midiToNoteName(displayMidi);
+   
+   if (state.isArpOn && !state.arpRunning) {
+       const finalRgb = getArpNoteColor(displayMidi);
+       if(state.dom.knob) state.dom.knob.style.backgroundColor = `rgb(${finalRgb.r}, ${finalRgb.g}, ${finalRgb.b})`;
+   } else if (!state.isNoteOn) {
+       updateKnobColor(knobId);
+   }
+
+   const isNoteRepeatHoldActive = state.isArpOn && state.isArpHoldOn && !state.isSweepMode;
+   if (state.isArpOn && (state.isHeld || isNoteRepeatHoldActive)) {
+       if (state.isSweepMode) {
+          if (allowDuplicateNotesMode || !state.arpNotes.some(n => n.midi === baseMidi)) {
+           state.arpNotes.push({ midi: baseMidi, active: true });
+          updateSequenceDisplay(knobId);
+          }
+       } else {
+          const noteChanged = state.arpNotes.length !== 1 || state.arpNotes[0].midi !== baseMidi || !state.arpNotes[0].active;
+          state.arpNotes = [{ midi: baseMidi, active: true }];
+          if (noteChanged) {
+              state.currentArpNoteIndex = 0;
+              state.arpUpDownState = 0;
+              updateSequenceDisplay(knobId);
+          }
+       }
+   } else if (state.isHeld && synthNode && isPowerOn) {
+       synthNode.port.postMessage({ type: 'setFreq', data: { voice: knobId, freq: getNoteFrequency(baseMidi) } });
+       
+       if (!state.isArpOn && state.lastPlayedMidi !== baseMidi) {
+           if (state.lastPlayedMidi !== null) {
+               sendMidiMessage([0x80 + knobId, state.lastPlayedMidi, 0]);
+               captureMidiEvent(knobId, 'noteOff', state.lastPlayedMidi, 0);
            }
-     }
+           
+           sendMidiMessage([0x90 + knobId, baseMidi, 100]);
+           captureMidiEvent(knobId, 'noteOn', baseMidi, 100);
+           state.lastPlayedMidi = baseMidi;
+       }
+
+       updateKnobColor(knobId);
+   }
+}
       
        const updateFxKnob = (id, deltaY) => {
            const d = fxKnobData[id]; if (!d) return;
@@ -1240,6 +1261,13 @@ function sendMidiMessage(message) {
                }
            };
            const handleFxTouchMove = (e) => {
+   if (window.innerWidth <= 1024) {
+        const now = performance.now();
+        if (now - (handleFxTouchMove.lastCall || 0) < 16) {
+            return; // Skip this event if it's too soon after the last one
+        }
+        handleFxTouchMove.lastCall = now;
+    }
                for (const t of e.changedTouches) {
                    const kEntry = Object.entries(fxKnobData).find(([id, data]) => data.touchId === t.identifier);
                    if (!kEntry) continue;
@@ -2002,126 +2030,141 @@ lfoState.forEach((lfo, lfoIndex) => {
     applyModulatedArpUiPreviews(modulatedValues);
 
     Object.entries(LFO_DEST_TO_MAIN_KNOB).forEach(([destId, knobId]) => {
-        const state = knobState[knobId];
-        if (!state || !state.dom?.indicator) return;
+            const state = knobState[knobId];
+            if (!state || !state.dom?.indicator) return;
 
-        const baseAngle = state.totalAngle;
-        const lfoMod = modulatedValues[destId];
-        const hasActiveModulation = lfoState.some(lfo => lfo.dest === Number(destId));
-        const modulatedAngle = Math.max(0, Math.min(MAX_TOTAL_ANGLE, baseAngle + (lfoMod || 0) * MAX_TOTAL_ANGLE));
-        const displayAngle = modulatedAngle % 360;
-           
-      // --- COMMENTING OUT THE BELOW TWO LINES TO TEST MOBILE FUNCTIONALITY UPGRADE ---
-        // const knobRadius = state.dom.knob?.offsetHeight ? state.dom.knob.offsetHeight / 2 : 0;
-        // state.dom.indicator.style.transformOrigin = `center ${knobRadius > 0 ? knobRadius - 16 : 0}px`;
-        // ---------------------------------------------
-       
-        state.dom.indicator.style.transform = `rotate(${displayAngle}deg)`;
+            const baseAngle = state.totalAngle;
+            const lfoMod = modulatedValues[destId];
+            const hasActiveModulation = lfoState.some(lfo => lfo.dest === Number(destId));
+            const modulatedAngle = Math.max(0, Math.min(MAX_TOTAL_ANGLE, baseAngle + (lfoMod || 0) * MAX_TOTAL_ANGLE));
+            const displayAngle = modulatedAngle % 360;
+            
+            state.dom.indicator.style.transform = `rotate(${displayAngle}deg)`;
 
-        const modMidi = getMidiNoteFromAngle(knobId, modulatedAngle);
-        let displayMidi = modMidi;
-        if (state.isArpOn) {
-            const fullScaleMidi = getFullScaleMidi();
-            const baseNoteIndexInScale = fullScaleMidi.indexOf(modMidi);
-            if (baseNoteIndexInScale !== -1) {
-                const transposedNoteIndex = baseNoteIndexInScale + state.arpTranspose;
-                const clampedIndex = Math.max(0, Math.min(fullScaleMidi.length - 1, transposedNoteIndex));
-                displayMidi = fullScaleMidi[clampedIndex];
+            const modMidi = getMidiNoteFromAngle(knobId, modulatedAngle);
+            let displayMidi = modMidi;
+            if (state.isArpOn) {
+                const fullScaleMidi = getFullScaleMidi();
+                const baseNoteIndexInScale = fullScaleMidi.indexOf(modMidi);
+                if (baseNoteIndexInScale !== -1) {
+                    const transposedNoteIndex = baseNoteIndexInScale + state.arpTranspose;
+                    const clampedIndex = Math.max(0, Math.min(fullScaleMidi.length - 1, transposedNoteIndex));
+                    displayMidi = fullScaleMidi[clampedIndex];
+                }
             }
-        }
 
-        const midiForUi = (hasActiveModulation || !state.arpRunning || state.lastPlayedMidi === null)
-            ? displayMidi
-            : state.lastPlayedMidi;
+            const midiForUi = (hasActiveModulation || !state.arpRunning || state.lastPlayedMidi === null)
+                ? displayMidi
+                : state.lastPlayedMidi;
 
-        // OPTIMIZATION: Only write to DOM if the text actually changed
+        // OPTIMIZATION: Check before updating text
         const newNoteText = midiToNoteName(midiForUi);
         if (state.dom.noteDisplay && state.dom.noteDisplay.textContent !== newNoteText) {
             state.dom.noteDisplay.textContent = newNoteText;
         }
 
-        // OPTIMIZATION: Only update color if the note changed
-        // (You might need to store 'lastColorMidi' on the state object to track this efficiently)
+        // OPTIMIZATION: Check before updating color
         if (state.dom.knob && state.lastVisualMidi !== midiForUi) {
-            const finalRgb = getArpNoteColor(midiForUi);
-            state.dom.knob.style.backgroundColor = `rgb(${finalRgb.r}, ${finalRgb.g}, ${finalRgb.b})`;
-            state.lastVisualMidi = midiForUi; // Store this in your knobState init
-        }
-           
-        const isNoteRepeatHoldActive = state.isArpOn && state.isArpHoldOn && !state.isSweepMode;
-        if (state.isArpOn && (state.isHeld || isNoteRepeatHoldActive)) {
-            if (state.isSweepMode) {
-                const lastNote = state.arpNotes[state.arpNotes.length - 1]?.midi;
-                const alreadyPresent = state.arpNotes.some(n => n.midi === modMidi);
-                if ((allowDuplicateNotesMode && lastNote !== modMidi) || (!allowDuplicateNotesMode && !alreadyPresent)) {
-                    state.arpNotes.push({ midi: modMidi, active: true });
-                    updateSequenceDisplay(knobId);
-                }
-            } else {
-                const noteChanged = state.arpNotes.length !== 1 || state.arpNotes[0].midi !== modMidi || !state.arpNotes[0].active;
-                state.arpNotes = [{ midi: modMidi, active: true }];
-                if (noteChanged) {
-                    state.currentArpNoteIndex = 0;
-                    state.arpUpDownState = 0;
-                    updateSequenceDisplay(knobId);
-                }
+                const finalRgb = getArpNoteColor(midiForUi);
+                state.dom.knob.style.backgroundColor = `rgb(${finalRgb.r}, ${finalRgb.g}, ${finalRgb.b})`;
+                state.lastVisualMidi = midiForUi;
             }
-        } else if (state.isHeld && synthNode && isPowerOn && !state.isArpOn) {
-            synthNode.port.postMessage({ type: 'setFreq', data: { voice: knobId, freq: getNoteFrequency(modMidi) } });
-        }
-    });
+            
+            const isNoteRepeatHoldActive = state.isArpOn && state.isArpHoldOn && !state.isSweepMode;
+            if (state.isArpOn && (state.isHeld || isNoteRepeatHoldActive)) {
+                if (state.isSweepMode) {
+                    const lastNote = state.arpNotes[state.arpNotes.length - 1]?.midi;
+                    const alreadyPresent = state.arpNotes.some(n => n.midi === modMidi);
+                    if ((allowDuplicateNotesMode && lastNote !== modMidi) || (!allowDuplicateNotesMode && !alreadyPresent)) {
+                        state.arpNotes.push({ midi: modMidi, active: true });
+                        updateSequenceDisplay(knobId);
+                    }
+                } else {
+                    const noteChanged = state.arpNotes.length !== 1 || state.arpNotes[0].midi !== modMidi || !state.arpNotes[0].active;
+                    state.arpNotes = [{ midi: modMidi, active: true }];
+                    if (noteChanged) {
+                        state.currentArpNoteIndex = 0;
+                        state.arpUpDownState = 0;
+                        updateSequenceDisplay(knobId);
+                    }
+                }
+            } else if (state.isHeld && synthNode && isPowerOn && !state.isArpOn) {
+                synthNode.port.postMessage({ type: 'setFreq', data: { voice: knobId, freq: getNoteFrequency(modMidi) } });
+            }
+        });
 
-    // --- NEW: UPDATE COLORS FOR PLAYING ARPS (even without main knob LFO modulation) ---
-    knobState.forEach((state, knobId) => {
-        if (!state || !state.dom?.knob) return;
-        
-        // If arp is running and actively playing a note, update the color
-        if (state.arpRunning && state.lastPlayedMidi !== null) {
-            const finalRgb = getArpNoteColor(state.lastPlayedMidi);
-            state.dom.knob.style.backgroundColor = `rgb(${finalRgb.r}, ${finalRgb.g}, ${finalRgb.b})`;
-        }
-    });
+        // Update colors for playing arps (even without main knob LFO modulation)
+        knobState.forEach((state, knobId) => {
+            if (!state || !state.dom?.knob) return;
+            
+            if (state.arpRunning && state.lastPlayedMidi !== null) {
+                const finalRgb = getArpNoteColor(state.lastPlayedMidi);
+                state.dom.knob.style.backgroundColor = `rgb(${finalRgb.r}, ${finalRgb.g}, ${finalRgb.b})`;
+            }
+        });
+    }); // End of requestAnimationFrame
 }
 
         function applyModulatedArpUiPreviews(modulatedValues = {}) {
             knobState.forEach((state, idx) => {
                 if (!state?.dom) return;
 
+                // RATE
                 const rateFxId = 16 + idx;
                 const rateBase = fxKnobData[rateFxId]?.value ?? 0.5;
                 const rateDelta = modulatedValues[rateFxId] || 0;
                 const rateValue = clamp(rateBase + rateDelta, 0, 1);
                 if (state.dom.rateDisplay) {
+                    let newText = '';
                     if (tempoMode === TEMPO_MODE_BPM) {
                         const bpm = normalizeArpRateBpm(valueToArpRateBpm(rateValue));
-                        state.dom.rateDisplay.textContent = formatTempoLabel(bpm);
+                        newText = formatTempoLabel(bpm);
                     } else {
-                        state.dom.rateDisplay.textContent = formatRateMsLabel(valueToArpRateMs(rateValue));
+                        newText = formatRateMsLabel(valueToArpRateMs(rateValue));
+                    }
+                    // OPTIMIZATION: Only touch DOM if text changed
+                    if (state.dom.rateDisplay.textContent !== newText) {
+                        state.dom.rateDisplay.textContent = newText;
                     }
                 }
 
+                // TRANSPOSE
                 const transposeFxId = 24 + idx;
                 const transposeBase = fxKnobData[transposeFxId]?.value ?? 0.5;
                 const transposeValue = clamp(transposeBase + (modulatedValues[transposeFxId] || 0), 0, 1);
                 if (state.dom.transposeDisplay) {
                     const trans = Math.floor((transposeValue * 24) - 12);
-                    state.dom.transposeDisplay.textContent = trans;
+                    // OPTIMIZATION CHECK
+                    const newText = trans.toString();
+                    if (state.dom.transposeDisplay.textContent !== newText) {
+                        state.dom.transposeDisplay.textContent = newText;
+                    }
                 }
 
+                // OCTAVES
                 const octFxId = 18 + idx;
                 const octBase = fxKnobData[octFxId]?.value ?? 0;
                 const octValue = clamp(octBase + (modulatedValues[octFxId] || 0), 0, 1);
                 if (state.dom.octsDisplay) {
                     const octs = Math.min(3, Math.floor(octValue * 4));
-                    state.dom.octsDisplay.textContent = octs;
+                    // OPTIMIZATION CHECK
+                    const newText = octs.toString();
+                    if (state.dom.octsDisplay.textContent !== newText) {
+                        state.dom.octsDisplay.textContent = newText;
+                    }
                 }
 
+                // FEEL
                 const feelFxId = 22 + idx;
                 const feelBase = fxKnobData[feelFxId]?.value ?? 0;
                 const feelValue = clamp(feelBase + (modulatedValues[feelFxId] || 0), 0, 1);
                 if (state.dom.feelDisplay) {
                     const pIndex = Math.min(NUM_FEEL_PATTERNS - 1, Math.floor(feelValue * NUM_FEEL_PATTERNS));
-                    state.dom.feelDisplay.textContent = pIndex + 1;
+                    // OPTIMIZATION CHECK
+                    const newText = (pIndex + 1).toString();
+                    if (state.dom.feelDisplay.textContent !== newText) {
+                        state.dom.feelDisplay.textContent = newText;
+                    }
                 }
             });
         }
@@ -3163,8 +3206,14 @@ function generateAndApplyRandomSound() {
                if(k.dom.transposeDisplay) k.dom.transposeDisplay.textContent = k.arpTranspose;
                if(k.dom.feelDisplay) { const pIdx=Math.min(NUM_FEEL_PATTERNS-1,Math.floor(k.feelKnobValue*NUM_FEEL_PATTERNS)); k.dom.feelDisplay.textContent = pIdx + 1; }
                if(k.dom.arpNoteDisplay) k.dom.arpNoteDisplay.textContent = "--";
-               if(k.dom.knob) new ResizeObserver(()=>updateStateFromTotalAngle(k.id)).observe(k.dom.knob);
-           });
+               if(k.dom.knob) {
+    updateKnobLayout(k.id); 
+
+    new ResizeObserver(() => {
+        updateKnobLayout(k.id); 
+        updateStateFromTotalAngle(k.id);
+    }).observe(k.dom.knob);
+}
            updateTempoDisplays();
            applyModulatedArpUiPreviews();
            if (document.body) {
@@ -3212,6 +3261,8 @@ function generateAndApplyRandomSound() {
        }
       
        init();
+
+
 
 
 
