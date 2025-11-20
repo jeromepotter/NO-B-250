@@ -650,10 +650,10 @@ const LFO_RATE_DIVISION_STEPS = [
      const knobState = [
     { id: 0, isNoteOn: false, isHeld: false, totalAngle: Math.random()*MAX_TOTAL_ANGLE, lastDragAngle: 0, currentOctave: 3, dom: {}, touchId: null, baseColor: [0,0,0],
       isArpOn: false, isSweepMode: true, arpNotes: [], isArpHoldOn: false, arpRateBpm: DEFAULT_ARP_RATE_BPM, arpRateMs: DEFAULT_ARP_RATE_MS, arpOctaveRange: 0, feelKnobValue: 0.0, currentFeelPattern: EUCLIDEAN_PATTERNS[0], euclideanStepCounter: 0,
-      arpTranspose: 0, arpRunning: false, nextArpStepTime: 0, lastArpStepTime: 0, arpRafId: null, currentArpNoteIndex: 0, currentOctaveStep: 0, arpDirection: 1, arpUpDownState: 0, lastPlayedMidi: null, arpLastVisualIndex: -1, lastNoteOnTime: 0 },
+      arpTranspose: 0, arpRunning: false, nextArpStepTime: 0, lastArpStepTime: 0, arpRafId: null, currentArpNoteIndex: 0, currentOctaveStep: 0, arpDirection: 1, arpUpDownState: 0, lastPlayedMidi: null, arpLastVisualIndex: -1, lastNoteOnTime: 0, lastVisualMidi: null },
     { id: 1, isNoteOn: false, isHeld: false, totalAngle: Math.random()*MAX_TOTAL_ANGLE, lastDragAngle: 0, currentOctave: 3, dom: {}, touchId: null, baseColor: [0,0,0],
       isArpOn: false, isSweepMode: true, arpNotes: [], isArpHoldOn: false, arpRateBpm: DEFAULT_ARP_RATE_BPM, arpRateMs: DEFAULT_ARP_RATE_MS, arpOctaveRange: 0, feelKnobValue: 0.0, currentFeelPattern: EUCLIDEAN_PATTERNS[0], euclideanStepCounter: 0,
-      arpTranspose: 0, arpRunning: false, nextArpStepTime: 0, lastArpStepTime: 0, arpRafId: null, currentArpNoteIndex: 0, currentOctaveStep: 0, arpDirection: 1, arpUpDownState: 0, lastPlayedMidi: null, arpLastVisualIndex: -1, lastNoteOnTime: 0 }
+      arpTranspose: 0, arpRunning: false, nextArpStepTime: 0, lastArpStepTime: 0, arpRafId: null, currentArpNoteIndex: 0, currentOctaveStep: 0, arpDirection: 1, arpUpDownState: 0, lastPlayedMidi: null, arpLastVisualIndex: -1, lastNoteOnTime: 0, lastVisualMidi: null }
 ];
       
        // --- Global Arp State ---
@@ -2010,9 +2010,12 @@ lfoState.forEach((lfo, lfoIndex) => {
         const hasActiveModulation = lfoState.some(lfo => lfo.dest === Number(destId));
         const modulatedAngle = Math.max(0, Math.min(MAX_TOTAL_ANGLE, baseAngle + (lfoMod || 0) * MAX_TOTAL_ANGLE));
         const displayAngle = modulatedAngle % 360;
-
-        const knobRadius = state.dom.knob?.offsetHeight ? state.dom.knob.offsetHeight / 2 : 0;
-        state.dom.indicator.style.transformOrigin = `center ${knobRadius > 0 ? knobRadius - 16 : 0}px`;
+           
+      // --- COMMENTING OUT THE BELOW TWO LINES TO TEST MOBILE FUNCTIONALITY UPGRADE ---
+        // const knobRadius = state.dom.knob?.offsetHeight ? state.dom.knob.offsetHeight / 2 : 0;
+        // state.dom.indicator.style.transformOrigin = `center ${knobRadius > 0 ? knobRadius - 16 : 0}px`;
+        // ---------------------------------------------
+       
         state.dom.indicator.style.transform = `rotate(${displayAngle}deg)`;
 
         const modMidi = getMidiNoteFromAngle(knobId, modulatedAngle);
@@ -2031,15 +2034,20 @@ lfoState.forEach((lfo, lfoIndex) => {
             ? displayMidi
             : state.lastPlayedMidi;
 
-        if (state.dom.noteDisplay) {
-            state.dom.noteDisplay.textContent = midiToNoteName(midiForUi);
+        // OPTIMIZATION: Only write to DOM if the text actually changed
+        const newNoteText = midiToNoteName(midiForUi);
+        if (state.dom.noteDisplay && state.dom.noteDisplay.textContent !== newNoteText) {
+            state.dom.noteDisplay.textContent = newNoteText;
         }
 
-        if (state.dom.knob) {
+        // OPTIMIZATION: Only update color if the note changed
+        // (You might need to store 'lastColorMidi' on the state object to track this efficiently)
+        if (state.dom.knob && state.lastVisualMidi !== midiForUi) {
             const finalRgb = getArpNoteColor(midiForUi);
             state.dom.knob.style.backgroundColor = `rgb(${finalRgb.r}, ${finalRgb.g}, ${finalRgb.b})`;
+            state.lastVisualMidi = midiForUi; // Store this in your knobState init
         }
-
+           
         const isNoteRepeatHoldActive = state.isArpOn && state.isArpHoldOn && !state.isSweepMode;
         if (state.isArpOn && (state.isHeld || isNoteRepeatHoldActive)) {
             if (state.isSweepMode) {
@@ -3204,6 +3212,7 @@ function generateAndApplyRandomSound() {
        }
       
        init();
+
 
 
 
