@@ -675,34 +675,39 @@ const LFO_RATE_DIVISION_STEPS = [
         knobRenderQueue.forEach((updates, knobId) => {
             const state = knobState[knobId];
             if (!state || !state.dom) return;
-            const cache = state.renderCache || {};
+            const prevCache = state.renderCache || {};
+            const nextCache = { ...prevCache };
 
-            if (updates.knobColor !== undefined && updates.knobColor !== cache.knobColor && state.dom.knob) {
+            if (updates.knobColor !== undefined && updates.knobColor !== prevCache.knobColor && state.dom.knob) {
                 state.dom.knob.style.backgroundColor = updates.knobColor;
-                cache.knobColor = updates.knobColor;
+                nextCache.knobColor = updates.knobColor;
             }
 
-            if (updates.angle !== undefined && updates.angle !== cache.angle && state.dom.indicator) {
+            if (updates.angle !== undefined && updates.angle !== prevCache.angle && state.dom.indicator) {
                 state.dom.indicator.style.transform = `rotate(${updates.angle}deg)`;
-                cache.angle = updates.angle;
+                nextCache.angle = updates.angle;
             }
 
-            if (updates.noteText !== undefined && updates.noteText !== cache.noteText && state.dom.noteDisplay) {
+            if (updates.noteText !== undefined && updates.noteText !== prevCache.noteText && state.dom.noteDisplay) {
                 state.dom.noteDisplay.textContent = updates.noteText;
-                cache.noteText = updates.noteText;
+                nextCache.noteText = updates.noteText;
             }
 
-            if (updates.arpNoteText !== undefined && updates.arpNoteText !== cache.arpNoteText && state.dom.arpNoteDisplay) {
+            if (updates.arpNoteText !== undefined && updates.arpNoteText !== prevCache.arpNoteText && state.dom.arpNoteDisplay) {
                 state.dom.arpNoteDisplay.textContent = updates.arpNoteText;
-                cache.arpNoteText = updates.arpNoteText;
+                nextCache.arpNoteText = updates.arpNoteText;
             }
 
-            if (updates.knobRadius !== undefined && updates.knobRadius !== cache.knobRadius && state.dom.indicator) {
+            if (updates.knobRadius !== undefined && updates.knobRadius !== prevCache.knobRadius && state.dom.indicator) {
                 state.dom.indicator.style.transformOrigin = `center ${updates.knobRadius > 0 ? updates.knobRadius - 16 : 0}px`;
-                cache.knobRadius = updates.knobRadius;
+                nextCache.knobRadius = updates.knobRadius;
             }
 
-            state.renderCache = cache;
+            if (updates.modulatedAngle !== undefined) {
+                nextCache.modulatedAngle = updates.modulatedAngle;
+            }
+
+            state.renderCache = nextCache;
         });
         knobRenderQueue.clear();
         knobRenderRaf = null;
@@ -1096,14 +1101,12 @@ function sendMidiMessage(message) {
            }
 
            if (state.renderCache.lastKnobMidi === midiNote && state.renderCache.knobColor) {
-               enqueueKnobRender(knobId, { knobColor: state.renderCache.knobColor });
                return;
            }
 
            const finalRgb = getArpNoteColor(midiNote);
            const knobColor = `rgb(${finalRgb.r}, ${finalRgb.g}, ${finalRgb.b})`;
            state.renderCache.lastKnobMidi = midiNote;
-           state.renderCache.knobColor = knobColor;
            enqueueKnobRender(knobId, { knobColor });
        }
        function updateStateFromTotalAngle(knobId) {
@@ -1135,11 +1138,10 @@ function sendMidiMessage(message) {
            }
 
            if (state.isArpOn && !state.arpRunning) {
-               if (state.renderCache.lastKnobMidi !== displayMidi) {
+               if (state.renderCache.lastKnobMidi !== displayMidi || !state.renderCache.knobColor) {
                    const finalRgb = getArpNoteColor(displayMidi);
                    const knobColor = `rgb(${finalRgb.r}, ${finalRgb.g}, ${finalRgb.b})`;
                    state.renderCache.lastKnobMidi = displayMidi;
-                   state.renderCache.knobColor = knobColor;
                    enqueueKnobRender(knobId, { knobColor });
                }
            } else if (!state.isNoteOn) {
@@ -2099,7 +2101,14 @@ lfoState.forEach((lfo, lfoIndex) => {
         const displayAngle = modulatedAngle % 360;
 
         const knobRadius = state.dom.knob?.offsetHeight ? state.dom.knob.offsetHeight / 2 : 0;
-        enqueueKnobRender(knobId, { angle: displayAngle, knobRadius });
+        const angleUnchanged = state.renderCache.modulatedAngle === modulatedAngle;
+        const hasCachedVisuals = state.renderCache.knobColor && state.renderCache.noteText;
+
+        if (angleUnchanged && hasCachedVisuals) {
+            return;
+        }
+
+        enqueueKnobRender(knobId, { angle: displayAngle, knobRadius, modulatedAngle });
 
         const modMidi = getMidiNoteFromAngle(knobId, modulatedAngle);
         let displayMidi = modMidi;
@@ -2126,7 +2135,6 @@ lfoState.forEach((lfo, lfoIndex) => {
             const finalRgb = getArpNoteColor(midiForUi);
             const knobColor = `rgb(${finalRgb.r}, ${finalRgb.g}, ${finalRgb.b})`;
             state.renderCache.lastKnobMidi = midiForUi;
-            state.renderCache.knobColor = knobColor;
             enqueueKnobRender(knobId, { knobColor });
         }
 
