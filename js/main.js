@@ -2776,7 +2776,18 @@ function generateAndApplyRandomSound() {
            recordMidiButton = document.getElementById('record-midi-button');
            loadPresetInput = document.getElementById('load-preset-input');
            
-           // --- FIX: PRESET BUTTONS MOBILE HANDLER ---
+           // --- Helper for robust touch buttons (Fixes ARP/Hold clicks) ---
+           const addTouchListener = (element, callback) => {
+               if (!element) return;
+               const handler = (e) => {
+                   if (e.cancelable && e.type === 'touchend') e.preventDefault();
+                   callback(e);
+               };
+               element.addEventListener('touchend', handler);
+               element.addEventListener('click', handler);
+           };
+
+           // --- PRESET BUTTONS ---
            const presetsToggleButton = document.getElementById('presets-toggle-button');
            const presetsSubmenuContainer = document.getElementById('presets-submenu-container');
            const submenuSaveButton = document.getElementById('submenu-save-button');
@@ -2784,7 +2795,7 @@ function generateAndApplyRandomSound() {
            const systemPresetSelector = document.getElementById('system-preset-selector'); 
            
            const handlePresetToggle = (e) => {
-               if(e.cancelable) e.preventDefault(); // Stop ghost clicks
+               if(e.cancelable) e.preventDefault();
                const isVisible = presetsSubmenuContainer.style.display === 'flex';
                presetsSubmenuContainer.style.display = isVisible ? 'none' : 'flex';
                presetsToggleButton.classList.toggle('active', !isVisible);
@@ -2803,7 +2814,6 @@ function generateAndApplyRandomSound() {
                 presetsSubmenuContainer.style.display = 'none';
                 presetsToggleButton.classList.remove('active');
            });
-           // ------------------------------------------
 
            const midiConnectButton = document.getElementById('midi-connect-button');
            midiConnectButton?.addEventListener('click', () => {
@@ -2830,15 +2840,10 @@ function generateAndApplyRandomSound() {
                const idx = parseInt(sw.dataset.lfoTempoIndex, 10);
                if (Number.isNaN(idx)) return;
                lfoTempoSyncSwitches[idx] = sw;
-               
-               const handleSwitchToggle = (e) => {
-                    if (e.cancelable) e.preventDefault(); 
+               addTouchListener(sw, () => {
                     if (sw.classList.contains('switch-disabled')) return;
                     setLfoTempoSync(idx, !lfoTempoLinkState[idx].enabled);
-               };
-
-               sw.addEventListener('touchend', handleSwitchToggle);
-               sw.addEventListener('click', handleSwitchToggle);
+               });
            });
 
            LFO_RATE_KNOB_IDS.forEach((id, idx) => {
@@ -2862,9 +2867,13 @@ function generateAndApplyRandomSound() {
             KNOB_ID_TO_NAME_MAP[16] = 'TEMPO 1';
             KNOB_ID_TO_NAME_MAP[17] = 'TEMPO 2';
 
-            synthContainer.addEventListener('click', (e) => {
+            // --- FIX: GLOBAL PATCHING HANDLER (Now supports TouchEnd) ---
+            const handleGlobalPatchClick = (e) => {
                 if (!isLfoMode || activePatchingLfo === null) return;
                 
+                // Handle touch events gracefully
+                if (e.type === 'touchend' && e.cancelable) e.preventDefault();
+
                 const targetKnobEl = e.target.closest('.fx-knob-container, .main-knob');
                 if (!targetKnobEl) {
                     stopLfoPatching();
@@ -2898,7 +2907,11 @@ function generateAndApplyRandomSound() {
 
                 stopLfoPatching();
                  drawLfoCables();
-            });
+            };
+            
+            synthContainer.addEventListener('touchend', handleGlobalPatchClick);
+            synthContainer.addEventListener('click', handleGlobalPatchClick);
+            // ---------------------------------------------------------
 
             const mainHeader = document.querySelector('.main-header h1');
             let headerTapCount = 0;
@@ -2963,8 +2976,9 @@ function generateAndApplyRandomSound() {
                setupSpinButton(spinLeftButton, id, 'left');
                setupSpinButton(spinRightButton, id, 'right');
       
+               // --- FIX: USE TOUCH LISTENER FOR ARP SWITCHES ---
                const holdSwitch = document.getElementById(`arp-hold-switch-${id}`);
-               holdSwitch?.addEventListener('click', () => {
+               addTouchListener(holdSwitch, () => {
                   if (!s.isArpOn) return;
                   s.isArpHoldOn = !s.isArpHoldOn;
                   holdSwitch.classList.toggle('on', s.isArpHoldOn);
@@ -2975,14 +2989,25 @@ function generateAndApplyRandomSound() {
                   }
                });
       
-               s.dom.arpSwitch?.addEventListener('click', () => {
+               addTouchListener(s.dom.arpSwitch, () => {
                    s.isArpOn = !s.isArpOn; s.dom.arpSwitch.classList.toggle('on', s.isArpOn);
                    updateGlobalArpVisibility();
                    if (!s.isArpOn) { stopArpeggiator(s.id); if(s.isHeld) { s.isNoteOn = true; const freq = calculateNote(s.id, false); if(synthNode) synthNode.port.postMessage({type:'noteOn',data:{voice:s.id,freq:freq}}); } s.arpNotes = []; updateSequenceDisplay(s.id);if(s.dom.arpNoteDisplay)s.dom.arpNoteDisplay.textContent="--"; }
                    else { if(s.isHeld) { if (s.isNoteOn) { if(synthNode) synthNode.port.postMessage({type:'noteOff', data:{voice:s.id}}); s.isNoteOn = false; } playNote(s.id); } }
                    updateStateFromTotalAngle(s.id);
                });
-               s.dom.arpModeSwitch?.addEventListener('click', () => { if (!s.isArpOn) return; s.isSweepMode = !s.isSweepMode; s.dom.arpModeSwitch.classList.toggle('on', s.isSweepMode); if (!s.isSweepMode && s.arpRunning) { s.arpNotes = [{ midi: getMidiNote(s.id), active: true }]; s.currentArpNoteIndex = (currentArpOrder === "Down" && s.arpNotes.length > 0) ? s.arpNotes.length - 1 : 0; s.arpUpDownState = 0; } });
+
+               addTouchListener(s.dom.arpModeSwitch, () => { 
+                   if (!s.isArpOn) return; 
+                   s.isSweepMode = !s.isSweepMode; 
+                   s.dom.arpModeSwitch.classList.toggle('on', s.isSweepMode); 
+                   if (!s.isSweepMode && s.arpRunning) { 
+                       s.arpNotes = [{ midi: getMidiNote(s.id), active: true }]; 
+                       s.currentArpNoteIndex = (currentArpOrder === "Down" && s.arpNotes.length > 0) ? s.arpNotes.length - 1 : 0; 
+                       s.arpUpDownState = 0; 
+                   } 
+               });
+               // -----------------------------------------------
            });
       
            powerSwitch?.addEventListener('click',()=>{if(isPowerOn)powerOff();else powerOn();});
@@ -3009,7 +3034,7 @@ function generateAndApplyRandomSound() {
                knobState.forEach(k => updateStateFromTotalAngle(k.id));
            });
 
-            // --- FIX: ROBUST LFO DESTINATION HANDLERS ---
+            // --- ROBUST LFO DESTINATION HANDLERS ---
             document.querySelectorAll('[data-fx-id="114"], [data-fx-id="115"], [data-fx-id="102"], [data-fx-id="107"]').forEach(destKnob => {
                 let lastTap = 0;
 
@@ -3060,7 +3085,6 @@ function generateAndApplyRandomSound() {
                 destKnob.addEventListener('click', handleDestInteraction);
                 destKnob.addEventListener('touchend', handleDestInteraction);
             });
-            // -------------------------------------------
 
            const initialOption = document.createElement('option');
            initialOption.textContent = 'SYSTEM';
@@ -3166,7 +3190,8 @@ function generateAndApplyRandomSound() {
                document.body.setAttribute('data-tempo-mode', tempoMode);
            }
       
-           arpSyncSwitch?.addEventListener('click', () => {
+           // --- Fix ARP Sync Switch ---
+           addTouchListener(arpSyncSwitch, () => {
                isArpRateSynced = !isArpRateSynced;
                arpSyncSwitch.classList.toggle('on', isArpRateSynced);
                 if(isArpRateSynced && knobState[0]?.isArpOn && knobState[1]?.isArpOn) {
@@ -3206,6 +3231,7 @@ function generateAndApplyRandomSound() {
            updateRateButtonLockState();
        }
        init();
+
 
 
 
