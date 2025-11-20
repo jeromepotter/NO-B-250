@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -109,16 +110,17 @@
             </ul>
         </li>
         <li><a href="#global-effects">6. Global Effects (The Small Knobs)</a></li>
-        <li><a href="#lfos">7. The LFOs (Low-Frequency Oscillators)</a>
-            <ul>
-                <li><a href="#lfo-basics">LFO Basics & Visual Patching</a></li>
-                <li><a href="#lfo-waveforms">Understanding LFO Waveforms</a></li>
-                <li><a href="#lfo-to-lfo">Advanced: LFOs Controlling LFOs</a></li>
-                <li><a href="#lfo-to-arp">Modulating the Arpeggiator</a></li>
-                <li><a href="#lfo-to-osc">Modulating the Main Oscillators</a></li>
-                <li><a href="#generative-sequences">Creating Generative Sequences</a></li>
-            </ul>
-        </li>
+<li><a href="#lfos">7. The LFOs (Low-Frequency Oscillators)</a>
+    <ul>
+        <li><a href="#lfo-basics">LFO Basics & Visual Patching</a></li>
+        <li><a href="#lfo-waveforms">Understanding LFO Waveforms</a></li>
+        <li><a href="#lfo-sync">LFO Sync: Musical Time Division</a></li> <!-- NEW -->
+         <li><a href="#lfo-to-lfo">Advanced: LFOs Controlling LFOs</a></li>
+        <li><a href="#lfo-to-arp">Modulating the Arpeggiator</a></li>
+        <li><a href="#lfo-to-osc">Modulating the Main Oscillators</a></li>
+        <li><a href="#generative-sequences">Creating Generative Sequences</a></li>
+    </ul>
+</li>
         <li><a href="#midi-output">8. Connecting to External MIDI</a></li>
         <li><a href="#secrets">9. Duplicate Note Mode</a></li>
         <li><a href="#keyboard-shortcuts">10. Keyboard Shortcuts</a></li>
@@ -309,7 +311,77 @@
                 <li><strong>AS PLAYED - The Sequencer Mode:</strong> This is where the arpeggiator becomes a true step sequencer. Instead of reorganizing your notes by pitch, AS PLAYED respects the exact order in which you added them. This unlocks the ability to create dramatic melodic leaps and intentional note patterns. For example, using <a href="#silent-selection">silent scrolling</a>, you could build a sequence like <strong>C6 → C2 → G5 → C2 → E3</strong> - wide intervallic jumps that would be impossible with the other playback modes. The arpeggiator becomes less of an automatic chord player and more of a compositional tool, allowing you to craft precise, dynamic melodies with complete control over the note order.</li>
             </ul>
         </li>
-    </ul>
+    </ul> 
+<h3 id="tempo-system">Advanced: The Tempo System (BPM vs MS Mode)</h3>
+<p>The NO-B 250 features a sophisticated dual-mode tempo system that fundamentally changes how the arpeggiators behave. Understanding these modes unlocks new possibilities for both tight, musical synchronization and experimental, fluid timing.</p>
+
+<h4>The Two Tempo Modes</h4>
+<p>The synthesizer operates in one of two modes at any given time:</p>
+<ul>
+    <li><strong>BPM Mode (Beats Per Minute):</strong> The default. Arpeggiators are locked to a musical grid, measured in traditional tempo units (5-300 BPM). This mode uses a centralized <em>master clock</em> that ensures perfect synchronization between arpeggios.</li>
+    <li><strong>MS Mode (Milliseconds):</strong> A more experimental mode where tempo is measured in raw time intervals (50-2000ms). Each arpeggiator runs independently on its own timer, making it ideal for polyrhythmic exploration and subtle tempo drift effects.</li>
+</ul>
+
+<h4>Switching Between Modes</h4>
+<p>To toggle between BPM and MS mode, <strong>double-click (or double-tap on mobile) either RATE knob</strong> while an arpeggiator is active. The tempo display will immediately switch formats:</p>
+<ul>
+    <li><strong>BPM Mode Display:</strong> Shows as <code>120 BPM</code></li>
+    <li><strong>MS Mode Display:</strong> Shows as <code>125 MS</code></li>
+</ul>
+
+<div class="pro-tip">
+    <strong>Performance Tip:</strong> The mode switch is global - changing the mode for one arpeggiator changes it for both. However, each arp maintains its own tempo value, so switching modes won't cause a sudden speed change.
+</div>
+
+<h4>How BPM Mode Works: The Master Clock</h4>
+<p>When in BPM mode, the synthesizer activates an internal <strong>master clock</strong> - a high-precision timing system that polls every 2 milliseconds to check if it's time to play the next note.</p>
+
+<p>The master clock provides several key benefits:</p>
+<ul>
+    <li><strong>Perfect Quantization:</strong> When you start an arpeggio or enable <strong>RATE SYNC</strong>, notes are automatically quantized to the next 16th note of the global grid. This prevents arpeggios from starting "off the beat."</li>
+    <li><strong>Drift Resistance:</strong> If your browser tab loses focus or CPU resources, the master clock self-corrects by skipping ahead rather than accumulating timing errors. Your sequence stays locked to the grid.</li>
+    <li><strong>Musical Tempo Changes:</strong> When you adjust the RATE knob in BPM mode, the synthesizer preserves the arpeggio's rhythmic <em>phase</em> - where it is in the current beat cycle. This allows you to speed up or slow down without losing the groove.</li>
+</ul>
+
+<h4>How MS Mode Works: Independent Timers</h4>
+<p>In MS mode, each arpeggiator runs on its own <code>setInterval</code> timer, completely independent of the other. There is no master clock - each sequence marches to its own drummer.</p>
+
+<p>This mode is ideal for:</p>
+<ul>
+    <li><strong>Polyrhythmic Exploration:</strong> Set Arp 1 to 333ms and Arp 2 to 500ms to create interlocking, non-grid-based patterns that phase in and out of sync.</li>
+    <li><strong>Generative Drift:</strong> Because the timers run independently, slight imperfections in browser timing will cause the arpeggios to naturally drift apart over long durations, creating organic, evolving textures.</li>
+    <li><strong>Precise Millisecond Control:</strong> For sound design work, you may want an arpeggio to repeat at exactly 127ms or 873ms - intervals that don't map cleanly to musical tempos.</li>
+</ul>
+
+<div class="pro-tip">
+    <strong>Technical Note:</strong> MS mode uses a non-linear curve for the RATE knob. At lower values (slower tempos), small knob movements result in large time changes for precise control. At higher values (faster tempos), the curve compresses to allow extreme speeds up to 2000ms (2 full seconds per note).
+</div>
+
+<h4>RATE SYNC Behavior Across Modes</h4>
+<p>The <strong>RATE SYNC</strong> switch behaves differently depending on the active tempo mode:</p>
+<ul>
+    <li><strong>In BPM Mode:</strong> Both arpeggios lock to the master clock at the same tempo. They are perfectly synchronized and will always stay in phase, even if you modulate the rate with an <a href="#lfo-to-arp">LFO</a>.</li>
+    <li><strong>In MS Mode:</strong> Both arpeggios set their timers to the same millisecond interval, but because they run independently, they may drift slightly over time due to browser timing jitter. This creates a "humanized" feel.</li>
+</ul>
+
+<h4>Tempo Mode and MIDI Export</h4>
+<p>When you <a href="#record-midi">record MIDI</a>, the export process analyzes which tempo mode you were using:</p>
+<ul>
+    <li><strong>If in BPM Mode:</strong> The MIDI file's tempo is set to match the arpeggiator's BPM, ensuring your sequence aligns perfectly to the DAW's grid.</li>
+    <li><strong>If in MS Mode:</strong> The synthesizer calculates the <em>equivalent</em> BPM from the millisecond interval and exports that. For example, 500ms per 16th note translates to 120 BPM.</li>
+</ul>
+
+<h4>Phase Preservation During Tempo Changes</h4>
+<p>One of the most sophisticated features of the tempo system is <strong>phase preservation</strong>. When you adjust the RATE knob while an arpeggio is playing:</p>
+<ul>
+    <li><strong>BPM Mode:</strong> The synthesizer calculates how much time remains until the next note in the <em>old</em> tempo, then scales that remaining time proportionally to the <em>new</em> tempo. If you were 75% of the way to the next note at 100 BPM, you'll still be 75% of the way to the next note at 200 BPM.</li>
+    <li><strong>MS Mode:</strong> Uses the same proportional scaling, but based on elapsed milliseconds rather than musical beats.</li>
+</ul>
+
+<p>This ensures that tempo changes feel <em>musical</em> rather than jarring - the rhythm morphs smoothly rather than suddenly jumping to a new position.</p>
+
+
+<p class="back-to-index"><a href="#index">↑ Back to Index</a></p>
 
     <h3 id="euclidean-rhythms">The "FEEL" Knob: Euclidean Rhythms Explained</h3>
     <p>The FEEL knob uses Euclidean rhythms to create patterns. Think of it as spacing a certain number of "beats" as evenly as possible over 16 steps. However, when your arp sequence is a different length than the 16-step pattern (for example, you have a 7-note melody), the rhythmic pattern will shift on each repetition, creating interesting and unexpected polyrhythms that evolve over time. An "X" represents a note being played, and a "-" represents a silent step.</p>
@@ -362,6 +434,60 @@
         <li><strong>SAW DN (Saw Down):</strong> A sudden jump followed by a steady fall - the opposite of SAW UP.</li>
         <li><strong>RANDOM (Sample & Hold):</strong> Jumps to unpredictable values - creates chaotic, generative modulation.</li>
     </ul>
+<h3 id="lfo-sync">LFO Sync: Musical Time Division</h3>
+<p>A useful feature of the LFO system is the ability to sync an LFO's rate to the tempo of your arpeggiators. This transforms the LFO from running at raw Hz frequencies into musical subdivisions that stay perfectly in sync with your sequences.</p>
+
+<h4>How to Enable Sync</h4>
+<p>Below each LFO DEST knob, you'll find a small switch labeled <strong>SYNC</strong>. This switch is initially disabled (greyed out) and will only become active when certain conditions are met:</p>
+
+<ul>
+    <li><strong>Requirement:</strong> At least one arpeggiator must be active and running.</li>
+    <li><strong>Synced Mode:</strong> If both arpeggiators are running with <strong>RATE SYNC</strong> enabled, the LFOs will lock to their shared tempo.</li>
+    <li><strong>Single Arp Mode:</strong> If only one arpeggiator is running, the LFOs will lock to that arpeggiator's tempo.</li>
+</ul>
+
+<p>Once the conditions are met, the SYNC switches will light up and become clickable. Click the switch for any LFO you want to sync to the musical grid.</p>
+
+<div class="pro-tip">
+    <strong>Important:</strong> The SYNC switches will automatically disable and turn off if you stop all arpeggiators or disable RATE SYNC when both arps are running. This is because there's no longer a master tempo reference for the LFOs to lock to.
+</div>
+
+
+
+<h4>Practical Applications</h4>
+
+<p><strong>Synchronized Filter Sweeps:</strong> Enable <strong>SYNC</strong> and set an LFO Rate to <code>1/4</code> and patch it to the <strong>FILTER</strong> knob. The filter will open and close once every two beats, creating a pulsing effect that's perfectly locked to your arpeggio.</p>
+
+<p><strong>Rhythmic Tremolo:</strong> Patch an LFO with a <strong>SQUARE</strong> wave to <strong>TREMOLO</strong>, set the rate to <code>1/4</code>, and you'll get rhythmic gating that stays in perfect sync with your sequence.</p>
+
+<p><strong>Generative Melodies in Time:</strong> Patch an LFO to a <strong>main oscillator knob</strong> in <a href="#generative-sequences">NOTE REPEAT mode</a> with SYNC enabled. Set it to <code>1/8</code> with a <strong>RANDOM</strong> wave. The melody will change on every 4th note, but stay locked to the musical grid, creating generative patterns that feel rhythmically coherent rather than chaotic.</p>
+
+<p><strong>Polyrhythmic Modulation:</strong> Enable SYNC on two different LFOs and set them to different subdivisions (e.g., LFO 1 at <code>1</code> and LFO 2 at <code>1/2</code>. Patch them to different parameters like <strong>DELAY</strong> and <strong>REVERB</strong>. The two effects will modulate at different musical rates, creating complex, interlocking rhythmic textures.</p>
+
+<h4>Switching Between Free and Synced Mode</h4>
+<p>When you enable SYNC, the synthesizer stores your previous free-running Hz value. When you disable SYNC, the LFO returns to that stored rate, allowing you to toggle between locked and free modulation without losing your settings.</p>
+
+<div class="pro-tip">
+    <strong>Creative Experiment:</strong> Try this workflow:
+    <ol>
+        <li>Start an arpeggio in <strong>BPM mode</strong> at 120 BPM</li>
+        <li>Enter <a href="#lfo-basics">LFO mode</a> and patch LFO 1 to the arpeggiator's <strong>FILTER</strong> knob</li>
+        <li>Enable SYNC for LFO 1 and set the rate to <code>1</code> (quarter notes)</li>
+        <li>Patch LFO 2 to the arpeggiator's <strong>TRANSPOSE</strong> knob</li>
+        <li>Enable SYNC for LFO 2 and set the rate to <code>2</code> (half notes)</li>
+    </ol>
+    You now have a filter that pulses on every beat while the melody shifts up and down every two beats - creating a complex, evolving pattern that's still musically coherent because everything is locked to the tempo grid.
+</div>
+
+<h4>Sync and BPM vs MS Mode</h4>
+<p>SYNC works in both <a href="#tempo-system">BPM and MS modes</a>, but the behavior is slightly different:</p>
+<ul>
+    <li><strong>In BPM Mode:</strong> The LFO rate calculations are based on the master clock's tempo, ensuring sample-accurate synchronization across all synced LFOs and arpeggios.</li>
+    <li><strong>In MS Mode:</strong> The LFO rate is calculated from the millisecond interval of the active arpeggiator. Because MS mode uses independent timers, there may be very slight drift over long periods, which can actually create interesting "humanized" modulation.</li>
+</ul>
+
+<p class="back-to-index"><a href="#index">↑ Back to Index</a></p>
+
 
     <h3 id="lfo-to-lfo">Advanced Modulation: LFOs Controlling LFOs</h3>
     <p>For advanced sound design, the NO-B 250 allows you to use one LFO to modulate the parameters of another. For example, you can patch LFO 2 to control the RATE of LFO 1. This would cause the speed of LFO 1's effect to ramp up and down over time, creating complex, evolving textures that are classic in modular synthesis. To do this, simply enter LFO mode, click the DEST knob for your source LFO (e.g., LFO 2 DEST), and then click one of the parameter knobs of another LFO (e.g., RATE 1).</p>
@@ -432,7 +558,7 @@
     <h3>How It Works</h3>
     <ul>
         <li><strong>MIDI Output Options:</strong> If you have a physical MIDI interface connected to your computer, it should appear in the list. On a Mac, you can also use the built-in <strong>IAC Driver</strong> to create a virtual MIDI bus for sending MIDI between applications without any extra hardware. For detailed instructions on setting this up, Ableton provides an excellent guide along with instructions for Windows: <a href="https://help.ableton.com/hc/en-us/articles/209774225-Setting-up-a-virtual-MIDI-bus" target="_blank">Setting up a virtual MIDI bus</a>.</li>
-        <li><strong>Important Note on MIDI Sync:</strong> The NO-B 250 sends MIDI note data (Note On/Note Off messages) but does <strong>not</strong> send a MIDI clock signal. This means you can play and record your performance into a DAW, but you cannot use the synthesizer's internal arpeggiator to automatically sync the tempo of other hardware or software. The NO-B 250's rate is set in milliseconds and follows a non-linear curve which involves math to convert, therefore real-time clock out is currently not possible.</li>
+        <li><strong>Important Note on MIDI Sync:</strong> The NO-B 250 sends MIDI note data (Note On/Note Off messages) but does <strong>not</strong> send a MIDI clock signal. This means you can play and record your performance into a DAW, but you cannot use the synthesizer's internal arpeggiator to automatically sync the tempo of other hardware or software. </li>
     </ul>
 
     <p class="back-to-index"><a href="#index">↑ Back to Index</a></p>
