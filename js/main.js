@@ -2127,13 +2127,33 @@ lfoState.forEach((lfo, lfoIndex) => {
         }
 
 
+        const isTouchDevice = 'ontouchstart' in window || (navigator?.maxTouchPoints ?? 0) > 0;
+
         function ensureLfoAnimationRunning() {
             if (lfoAnimationId !== null) return;
-            const animateLFOs = () => {
+            if (!shouldKeepLfoAnimationRunning()) return;
+
+            let lastFrameTime = 0;
+
+            const animateLFOs = (timestamp) => {
+                lfoAnimationId = requestAnimationFrame(animateLFOs);
+
+                if (!shouldKeepLfoAnimationRunning()) {
+                    cancelAnimationFrame(lfoAnimationId);
+                    lfoAnimationId = null;
+                    return;
+                }
+
+                if (document.visibilityState !== 'visible') return;
+
+                if (isTouchDevice && lastFrameTime && (timestamp - lastFrameTime) < 32) return;
+                lastFrameTime = timestamp;
+
                 if (synthNode) synthNode.port.postMessage({ type: 'requestLfoUpdate' });
             };
-            animateLFOs();
-            lfoAnimationId = setInterval(animateLFOs, 16);
+
+            if (synthNode) synthNode.port.postMessage({ type: 'requestLfoUpdate' });
+            lfoAnimationId = requestAnimationFrame(animateLFOs);
         }
 
         function shouldKeepLfoAnimationRunning() {
@@ -2210,7 +2230,7 @@ lfoState.forEach((lfo, lfoIndex) => {
             }
         });
         if (!shouldKeepLfoAnimationRunning() && lfoAnimationId !== null) {
-            clearInterval(lfoAnimationId);
+            cancelAnimationFrame(lfoAnimationId);
             lfoAnimationId = null;
         }
         Object.values(fxKnobData).forEach(d => {
@@ -3035,7 +3055,7 @@ function generateAndApplyRandomSound() {
         }
         drawLfoCables();
         if (!shouldKeepLfoAnimationRunning() && lfoAnimationId !== null) {
-          clearInterval(lfoAnimationId);
+          cancelAnimationFrame(lfoAnimationId);
           lfoAnimationId = null;
         }
       }
