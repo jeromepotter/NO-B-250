@@ -2,6 +2,7 @@
        let audioContext; let synthNode; let isPowerOn = false;
       let allowDuplicateNotesMode = false;
       let isLfoMode = false;
+      let visualUpdatePending = false; 
       let activeMainKnobId = null; // For MOUSE input only
       let lastTouchTime = 0; // Mobile double-trigger fix
        const fxKnobData = {}; 
@@ -919,33 +920,42 @@ for (const event of events) {
            await audioContext.audioWorklet.addModule('./js/synth-processor.js');
            synthNode = new AudioWorkletNode(audioContext,'synth-processor', { numberOfOutputs: 1, outputChannelCount: [2] });
            synthNode.port.onmessage = ({ data }) => {
-               const { type, data: payload } = data || {};
-               switch (type) {
-
-                   case 'envUpdate': 
-                        if (typeof updateKnobVolumeIndicator === 'function') { 
-                            updateKnobVolumeIndicator(0, payload.v0); 
-                            updateKnobVolumeIndicator(1, payload.v1); 
-                        } 
-                        break;
-                   case 'lfoUpdate':
-    liveLfoOutputs = payload; // Store the live values
-    if (typeof updateLfoVisuals === 'function') {
-        updateLfoVisuals(payload);
+    const { type, data: payload } = data || {};
+    switch (type) {
+        case 'envUpdate': 
+            if (typeof updateKnobVolumeIndicator === 'function') { 
+                updateKnobVolumeIndicator(0, payload.v0); 
+                updateKnobVolumeIndicator(1, payload.v1); 
+            } 
+            break;
+        case 'lfoUpdate':
+            liveLfoOutputs = payload; // Store data immediately
+            
+            // --- FIX: Throttle Visual Updates for Mobile Performance ---
+            if (!visualUpdatePending) {
+                visualUpdatePending = true;
+                requestAnimationFrame(() => {
+                    if (typeof updateLfoVisuals === 'function') {
+                        updateLfoVisuals(liveLfoOutputs);
+                    }
+                    visualUpdatePending = false;
+                });
+            }
+            // -----------------------------------------------------------
+            break;
+        case 'audio': { const pcm = float32ToPCM16(payload); pcmChunks.push(pcm); totalPcmBytes += pcm.byteLength; break; }
+        case 'recordingStopped': {
+            // ... existing recording stopped logic ...
+            const header = makeWavHeader({ sampleRate: audioContext.sampleRate, numChannels: 2, bitsPerSample: 16, dataBytes: totalPcmBytes });
+            const wavBlob = new Blob([header, ...pcmChunks], { type: 'audio/wav' });
+            const name = generateRecordingFilename('wav'); const url = URL.createObjectURL(wavBlob);
+            const a = document.createElement('a'); a.href = url; a.download = name;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+            pcmChunks = []; totalPcmBytes = 0; stopRecordingUI(); isRecordingAudio = false;
+            break;
+        }
     }
-    break;
-                   case 'audio': { const pcm = float32ToPCM16(payload); pcmChunks.push(pcm); totalPcmBytes += pcm.byteLength; break; }
-                   case 'recordingStopped': {
-                       const header = makeWavHeader({ sampleRate: audioContext.sampleRate, numChannels: 2, bitsPerSample: 16, dataBytes: totalPcmBytes });
-                       const wavBlob = new Blob([header, ...pcmChunks], { type: 'audio/wav' });
-                       const name = generateRecordingFilename('wav'); const url = URL.createObjectURL(wavBlob);
-                       const a = document.createElement('a'); a.href = url; a.download = name;
-                       document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-                       pcmChunks = []; totalPcmBytes = 0; stopRecordingUI(); isRecordingAudio = false;
-                       break;
-                   }
-               }
-           };
+};
            synthNode.connect(audioContext.destination);
            Object.values(fxKnobData).forEach(d => {
                if (synthNode && d.id <= 29 && d.id !== 1) { synthNode.port.postMessage({type:'setFx', data:{id:d.id, value:d.value}}); }
@@ -2667,75 +2677,76 @@ function generateAndApplyRandomSound() {
             });
         }
       function drawLfoCables() {
-        if (!isLfoMode) {
-             for (let i = 0; i < 4; i++) {
-                const cable = document.getElementById(`lfo-cable-${i}`);
-                if (cable) cable.setAttribute('d', '');
-            }
+    if (!isLfoMode) {
+        for (let i = 0; i < 4; i++) {
+            const cable = document.getElementById(`lfo-cable-${i}`);
+            if (cable) cable.setAttribute('d', '');
+        }
+        return;
+    };
+
+    const containerRect = synthContainer.getBoundingClientRect();
+
+    lfoState.forEach((lfo, index) => {
+        const cable = document.getElementById(`lfo-cable-${index}`);
+        if (!cable) return;
+
+        // --- FIX: Ensure cables never block mouse/touch interactions ---
+        cable.style.pointerEvents = 'none'; 
+        // ---------------------------------------------------------------
+
+        // State 1: LFO is OFF. No cable is drawn.
+        if (lfo.dest === 0) {
+            cable.setAttribute('d', '');
             return;
-        };
+        }
 
-        const containerRect = synthContainer.getBoundingClientRect();
+        const sourceKnobInfo = Object.values(LFO_KNOB_MAP).find(d => d.lfo === index && d.param === 'dest');
+        if (!sourceKnobInfo) return;
 
-        lfoState.forEach((lfo, index) => {
-            const cable = document.getElementById(`lfo-cable-${index}`);
-            if (!cable) return;
+        const sourceFxId = Object.keys(LFO_KNOB_MAP).find(key => LFO_KNOB_MAP[key] === sourceKnobInfo);
+        const sourceKnobEl = fxKnobData[sourceFxId]?.knobEl;
 
-            // State 1: LFO is OFF. No cable is drawn.
-            if (lfo.dest === 0) {
-                cable.setAttribute('d', '');
-                return;
-            }
+        if (sourceKnobEl) {
+            const sourceRect = sourceKnobEl.getBoundingClientRect();
+            const startX = sourceRect.left - containerRect.left + sourceRect.width / 2;
+            const startY = sourceRect.top - containerRect.top + sourceRect.height / 2;
+            
+            let endX, endY;
 
-            const sourceKnobInfo = Object.values(LFO_KNOB_MAP).find(d => d.lfo === index && d.param === 'dest');
-            if (!sourceKnobInfo) return;
-
-            const sourceFxId = Object.keys(LFO_KNOB_MAP).find(key => LFO_KNOB_MAP[key] === sourceKnobInfo);
-            const sourceKnobEl = fxKnobData[sourceFxId]?.knobEl;
-
-            if (sourceKnobEl) {
-                const sourceRect = sourceKnobEl.getBoundingClientRect();
-                const startX = sourceRect.left - containerRect.left + sourceRect.width / 2;
-                const startY = sourceRect.top - containerRect.top + sourceRect.height / 2;
-                
-                let endX, endY;
-
-                // State 2: Cable is "Parked". Draw it off to the side.
-                if (lfo.dest === -1) {
-                    const direction = (index < 2) ? -1 : 1; // LFO 1/2 go left, 3/4 go right
-                    endX = startX + (500 * direction);
-                    endY = startY + 100; // Give it a slight droop
-                } 
-                // State 3: Cable is patched to a destination.
-                else {
-                    const destKnobEl = getLfoTargetElement(lfo.dest);
-                    // Also handles the ARP-off case where the element is hidden
-                    if (!destKnobEl || destKnobEl.offsetParent === null) {
-                         const direction = (startX > containerRect.width / 2) ? 1 : -1;
-                         endX = startX + (250 * direction);
-                         endY = startY + 80;
-                    } else {
-                        // Normal patching to a visible knob
-                        const destRect = destKnobEl.getBoundingClientRect();
-                        endX = destRect.left - containerRect.left + destRect.width / 2;
-                        endY = destRect.top - containerRect.top + destRect.height / 2;
-                    }
+            // State 2: Cable is "Parked".
+            if (lfo.dest === -1) {
+                const direction = (index < 2) ? -1 : 1; 
+                endX = startX + (500 * direction);
+                endY = startY + 100; 
+            } 
+            // State 3: Cable is patched to a destination.
+            else {
+                const destKnobEl = getLfoTargetElement(lfo.dest);
+                if (!destKnobEl || destKnobEl.offsetParent === null) {
+                        const direction = (startX > containerRect.width / 2) ? 1 : -1;
+                        endX = startX + (250 * direction);
+                        endY = startY + 80;
+                } else {
+                    const destRect = destKnobEl.getBoundingClientRect();
+                    endX = destRect.left - containerRect.left + destRect.width / 2;
+                    endY = destRect.top - containerRect.top + destRect.height / 2;
                 }
-                
-                // --- Draw the curve ---
-                const midX = (startX + endX) / 2;
-                const midY = (startY + endY) / 2;
-                const dx = endX - startX;
-                const dy = endY - startY;
-                const curvature = 0.3;
-                const ctrlX = midX + dy * curvature;
-                const ctrlY = midY - dx * curvature;
-
-                const pathData = `M ${startX} ${startY} Q ${ctrlX} ${ctrlY} ${endX} ${endY}`;
-                cable.setAttribute('d', pathData);
             }
-        });
-    }
+            
+            const midX = (startX + endX) / 2;
+            const midY = (startY + endY) / 2;
+            const dx = endX - startX;
+            const dy = endY - startY;
+            const curvature = 0.3;
+            const ctrlX = midX + dy * curvature;
+            const ctrlY = midY - dx * curvature;
+
+            const pathData = `M ${startX} ${startY} Q ${ctrlX} ${ctrlY} ${endX} ${endY}`;
+            cable.setAttribute('d', pathData);
+        }
+    });
+}
 
 
        function init(){
@@ -2798,10 +2809,19 @@ function generateAndApplyRandomSound() {
                const idx = parseInt(sw.dataset.lfoTempoIndex, 10);
                if (Number.isNaN(idx)) return;
                lfoTempoSyncSwitches[idx] = sw;
-               sw.addEventListener('click', () => {
-                   if (sw.classList.contains('switch-disabled')) return;
-                   setLfoTempoSync(idx, !lfoTempoLinkState[idx].enabled);
-               });
+                  // --- FIX: Better Mobile Touch Handling ---
+    const handleSwitchToggle = (e) => {
+        // Prevent phantom double-clicks on mobile
+        if (e.cancelable) e.preventDefault(); 
+        
+        if (sw.classList.contains('switch-disabled')) return;
+        setLfoTempoSync(idx, !lfoTempoLinkState[idx].enabled);
+    };
+
+    // Listen for both touch and click, but handle gracefully
+    sw.addEventListener('touchend', handleSwitchToggle);
+    sw.addEventListener('click', handleSwitchToggle);
+    // -----------------------------------------
            });
            LFO_RATE_KNOB_IDS.forEach((id, idx) => {
                const knobData = fxKnobData[id];
@@ -3212,5 +3232,6 @@ function generateAndApplyRandomSound() {
        }
       
        init();
+
 
 
