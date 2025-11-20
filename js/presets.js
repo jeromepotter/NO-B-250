@@ -522,16 +522,16 @@ export const PRESETS = {
     key: "C",
     scale: "Custom",
     customScale: [ 0, 3, 5, 8, 10 ],
-    allowDuplicateNotesMode: false,
+    allowDuplicateNotesMode: true,
     isLfoMode: true,
     knobSettings: [
         { "id": 0, "totalAngle": 1967.23 },
         { "id": 1, "totalAngle": 2208 }
     ],
     lfoState: [
-        { "rate": 0.1166, "depth": 0.1111, "wave": 0, "dest": 200 }, // Corrected from 300 to 200
-        { "rate": 0.3944, "depth": 0.4833, "wave": 1, "dest": 108 },
-        { "rate": 0.4944, "depth": 0.3333, "wave": 0, "dest": 201 }, // Corrected from 301 to 201
+        { "rate": 0.1166, "depth": 0.3611, "wave": 0, "dest": 300 },
+        { "rate": 0.7999, "depth": 0.6555, "wave": 1, "dest": 108 },
+        { "rate": 0.4944, "depth": 0.3333, "wave": 0, "dest": 301 },
         { "rate": 0.4166, "depth": 0.2944, "wave": 2, "dest": 21 }
     ],
     fxSettings: [
@@ -549,9 +549,9 @@ export const PRESETS = {
         { "id": 11, "value": 0.2 },
         { "id": 12, "value": 0.2598 },
         { "id": 13, "value": 0.9251 },
-        { "id": 14, "value": 0.6848 },
-        { "id": 15, "value": 0.4200 },
-        { "id": 20, "value": 0.5666 },
+        { "id": 14, "value": 0.9888 },
+        { "id": 15, "value": 0.42 },
+        { "id": 20, "value": 0.3166 },
         { "id": 21, "value": 0.4277 },
         { "id": 26, "value": 0.5 },
         { "id": 27, "value": 0.2833 },
@@ -565,17 +565,17 @@ export const PRESETS = {
             isArpOn: true,
             isOn: true,
             isSweepMode: false,
-            notes: [ 68 ]
+            notes: [ 108 ]
         },
         arp2: {
             isArpOn: true,
             isOn: true,
             isSweepMode: false,
-            notes: [ 60 ]
+            notes: [ 84 ]
         },
         fx: {
-            16: 0.4678,
-            17: 0.4678,
+            16: 0.4676,
+            17: 0.4676,
             18: 0,
             19: 0,
             22: 0,
@@ -584,7 +584,7 @@ export const PRESETS = {
             25: 0.5
         }
     }
-},                      
+},                
             'ZAFFRE': { // A deep, cinematic drone that evolves slowly.
                 key: 'B',
                 scale: 'Phrygian',
@@ -699,4 +699,5 @@ export const PRESETS = {
                 'RANDOM SOUND': {}
             }
         };
+
 
