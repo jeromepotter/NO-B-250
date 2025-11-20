@@ -1,8 +1,8 @@
 class Comb { constructor(size, feedback, damping) { this.buffer = new Float32Array(size); this.pos = 0; this.feedback = feedback; this.damp = damping; this.last = 0; } process(input) { const output = this.buffer[this.pos]; this.last = output * (1 - this.damp) + this.last * this.damp; this.buffer[this.pos] = input + this.last * this.feedback; if (++this.pos >= this.buffer.length) this.pos = 0; return output; } }
            class Allpass { constructor(size) { this.buffer = new Float32Array(size); this.pos = 0; } process(input) { const delayed = this.buffer[this.pos]; const output = -input + delayed; this.buffer[this.pos] = input + delayed * 0.5; if (++this.pos >= this.buffer.length) this.pos = 0; return output; } }
       
-const MIN_LFO_RATE_HZ = 0.05;
-const MAX_LFO_RATE_HZ = 2000;
+const MIN_LFO_RATE_HZ = 0.01;
+const MAX_LFO_RATE_HZ = 100;
 const LFO_RATE_RANGE_RATIO = MAX_LFO_RATE_HZ / MIN_LFO_RATE_HZ;
 
            class SynthProcessor extends AudioWorkletProcessor {
@@ -135,7 +135,7 @@ for (let l = 0; l < 4; l++) {
         rawLfoOutputs[l] = val * lfo.depth;
         
         const rateHz = MIN_LFO_RATE_HZ * Math.pow(LFO_RATE_RANGE_RATIO, lfo.rate);
-        const phaseInc = (2 * Math.PI * rateHz) / sr;
+        const phaseInc = (2 * Math.PI * rateHz * oL.length) / sr;
         const oldPhase = lfo.phase;
         lfo.phase = (lfo.phase + phaseInc) % (2 * Math.PI);
         if (lfo.wave === 5 && oldPhase > lfo.phase) {
@@ -158,7 +158,7 @@ for (let l = 0; l < 4; l++) {
                 const baseRate = targetLfo.rate;
                 const modulatedRate = Math.max(0, Math.min(1, baseRate + rawLfoOutputs[l]));
                 const rateHz = MIN_LFO_RATE_HZ * Math.pow(LFO_RATE_RANGE_RATIO, modulatedRate);
-                const phaseInc = (2 * Math.PI * rateHz) / sr;
+                const phaseInc = (2 * Math.PI * rateHz * oL.length) / sr;
                 const oldPhase = targetLfo.phase;
                 targetLfo.phase = (targetLfo.phase + phaseInc) % (2 * Math.PI);
                 if (targetLfo.wave === 5 && oldPhase > targetLfo.phase) {
@@ -368,3 +368,5 @@ return true;
 }
 }
 registerProcessor('synth-processor', SynthProcessor);
+
+

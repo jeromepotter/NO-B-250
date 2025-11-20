@@ -49,8 +49,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
         };
 
         const LFO_RATE_KNOB_IDS = [108, 109, 110, 111];
-        const MIN_LFO_RATE_HZ = 0.05;
-        const MAX_LFO_RATE_HZ = 2000;
+        const MIN_LFO_RATE_HZ = 0.01;
+        const MAX_LFO_RATE_HZ = 100;
         const LFO_RATE_RANGE_RATIO = MAX_LFO_RATE_HZ / MIN_LFO_RATE_HZ;
         const SIXTEENTH_NOTES_PER_QUARTER = 4;
 const LFO_RATE_DIVISION_STEPS = [
@@ -3332,6 +3332,8 @@ function generateAndApplyRandomSound() {
            updateRateButtonLockState();
        }
        init();
+
+
 
 
 
