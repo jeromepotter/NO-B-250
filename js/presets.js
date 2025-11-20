@@ -114,19 +114,20 @@ export const PRESETS = {
         }
     }
 },
-'FURNACE': {
+'FURNACE 2': {
     key: "F#",
     scale: "Minor",
+    allowDuplicateNotesMode: false,
     isLfoMode: true,
     knobSettings: [
         { "id": 0, "totalAngle": 1116.38 },
         { "id": 1, "totalAngle": 1471.51 }
     ],
     lfoState: [
-        { "rate": 0.6589, "depth": 0.1833, "wave": 5, "dest": 300 },
-        { "rate": 0.7243, "depth": 0.1444, "wave": 0, "dest": 9 },
-        { "rate": 0.7243, "depth": 0.1888, "wave": 5, "dest": 15 },
-        { "rate": 0.9859, "depth": 0.6111, "wave": 5, "dest": 301 }
+        { "rate": 0.6589, "depth": 0.1833, "wave": 5, "dest": 300, "tempoSync": true, "storedFreeValue": 0.3833 },
+        { "rate": 0.7243, "depth": 0.1444, "wave": 1, "dest": 9, "tempoSync": true, "storedFreeValue": 0.5222 },
+        { "rate": 0.5934, "depth": 0.3833, "wave": 5, "dest": 15, "tempoSync": true, "storedFreeValue": 0.4888 },
+        { "rate": 0.9859, "depth": 0.6111, "wave": 5, "dest": 301, "tempoSync": true, "storedFreeValue": 0.8888 }
     ],
     fxSettings: [
         { "id": 0, "value": 0 },
@@ -143,12 +144,12 @@ export const PRESETS = {
         { "id": 11, "value": 0.6722 },
         { "id": 12, "value": 0.1888 },
         { "id": 13, "value": 0.6666 },
-        { "id": 14, "value": 0.1833 },
-        { "id": 15, "value": 0 },
+        { "id": 14, "value": 0.1166 },
+        { "id": 15, "value": 0.4166 },
         { "id": 20, "value": 0.25 },
         { "id": 21, "value": 0.25 },
-        { "id": 26, "value": 0.5 },
-        { "id": 27, "value": 0.7388 },
+        { "id": 26, "value": 0.5833 },
+        { "id": 27, "value": 0.6055 },
         { "id": 28, "value": 0.2944 },
         { "id": 29, "value": 0.1944 }
     ],
@@ -159,13 +160,13 @@ export const PRESETS = {
             isArpOn: true,
             isOn: true,
             isSweepMode: false,
-            notes: [ 52 ]
+            notes: [ 42 ]
         },
         arp2: {
             isArpOn: true,
             isOn: true,
             isSweepMode: false,
-            notes: [ 66 ]
+            notes: [ 28 ]
         },
         fx: {
             16: 0.4377,
@@ -175,11 +176,10 @@ export const PRESETS = {
             22: 0,
             23: 0,
             24: 0.5,
-            25: 0.5277
+            25: 0.4888
         }
     }
 },
-
 'BULLS': { // A driving, percussive patch with a melodic arp over a fast, repeating bass note.
     key: 'D',
     scale: 'Major',
@@ -826,6 +826,7 @@ export const PRESETS = {
                 'RANDOM SOUND': {}
             }
         };
+
 
 
 
