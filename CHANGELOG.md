@@ -1,15 +1,17 @@
 # Changelog
 
-All notable changes to NO-B 250 will be documented in this file.
 
 ##Future Plans
-- User preset filename structure to include "n-ob"
+New Oscillators? More Extreme Detune?
+
 ## [11.19] - 2025-11-19
 ### Added
 - SYNC mode for LFOs
 - BPM mode with Master Clock to prevent drift
 - Double click tempo knob for MS which bypasses Master Clock
 - Tempo Rate Multipliers
+- - User preset filename structure to include "n-ob"
+
 - Updated Manual
 
 
