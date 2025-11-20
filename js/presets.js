@@ -690,7 +690,69 @@ export const PRESETS = {
                 'GAMBOGE': { key: 'G', scale: 'Minor Pentatonic', fxSettings: [{ id: 8, value: 0.01 },{ id: 9, value: 0.3 },{ id: 10, value: 0.1 },{ id: 11, value: 0.3 },{ id: 14, value: 0.5 },{ id: 15, value: 0.4 }], arpSettings: { arp1: { isArpOn: false }, arp2: { isArpOn: false } } },
                 'COQUELICOT': { key: 'D', scale: 'Minor', fxSettings: [{ id: 1, value: 0.6 },{ id: 28, value: 0.85 },{ id: 20, value: 0.6 },{ id: 0, value: 0.25 },{ id: 8, value: 0.05 },{ id: 11, value: 0.3 }], arpSettings: { arp1: { isArpOn: false }, arp2: { isArpOn: false } } },
                 'VIRIDIAN': { key: 'E', scale: 'Major', fxSettings: [{ id: 3, value: 0.9 },{ id: 8, value: 0 },{ id: 9, value: 0.15 },{ id: 10, value: 0 },{ id: 11, value: 0.1 },{ id: 6, value: 0 },{ id: 12, value: 0 },{ id: 14, value: 0 }], arpSettings: { arp1: { isArpOn: false }, arp2: { isArpOn: false } } },
-                'FULVOUS': { key: 'F#', scale: 'Dorian', fxSettings: [{ id: 8, value: 0.02 },{ id: 11, value: 0.5 },{ id: 20, value: 0.4 },{ id: 21, value: 0.4 },{ id: 5, value: 0.6 },{ id: 12, value: 0.3 },{ id: 13, value: 0.4 },{ id: 4, value: 0.1 }], arpSettings: { arp1: { isArpOn: false }, arp2: { isArpOn: false } } },
+                'WHIRLY': {
+    key: "F#",
+    scale: "Dorian",
+    isLfoMode: false,
+    knobSettings: [
+        { "id": 0, "totalAngle": 680.65 },
+        { "id": 1, "totalAngle": 1276.71 }
+    ],
+    lfoState: [
+        { "rate": 0, "depth": 0, "wave": 0, "dest": 0 },
+        { "rate": 0, "depth": 0, "wave": 0, "dest": 0 },
+        { "rate": 0, "depth": 0, "wave": 0, "dest": 0 },
+        { "rate": 0, "depth": 0, "wave": 0, "dest": 0 }
+    ],
+    fxSettings: [
+        { "id": 0, "value": 0 },
+        { "id": 1, "value": 0 },
+        { "id": 2, "value": 1 },
+        { "id": 3, "value": 0 },
+        { "id": 4, "value": 0.1 },
+        { "id": 5, "value": 0.6 },
+        { "id": 6, "value": 0 },
+        { "id": 7, "value": 0.7 },
+        { "id": 8, "value": 0 },
+        { "id": 9, "value": 1 },
+        { "id": 10, "value": 0 },
+        { "id": 11, "value": 1 },
+        { "id": 12, "value": 0.3 },
+        { "id": 13, "value": 0.4 },
+        { "id": 14, "value": 0 },
+        { "id": 15, "value": 0 },
+        { "id": 20, "value": 0.4 },
+        { "id": 21, "value": 0.4 },
+        { "id": 26, "value": 0.5 },
+        { "id": 27, "value": 0.5 },
+        { "id": 28, "value": 0 },
+        { "id": 29, "value": 0 }
+    ],
+    arpSettings: {
+        isArpRateSynced: false,
+        currentArpOrder: "As Played",
+        arp1: {
+            isArpOn: false,
+            isOn: false,
+            notes: []
+        },
+        arp2: {
+            isArpOn: false,
+            isOn: false,
+            notes: []
+        },
+        fx: {
+            16: 0.4344,
+            17: 0.4344,
+            18: 0,
+            19: 0,
+            22: 0,
+            23: 0,
+            24: 0.5,
+            25: 0.5
+        }
+    }
+},
                 'ZAFFRE': { key: 'B', scale: 'Phrygian', fxSettings: [{ id: 8, value: 0.7 },{ id: 11, value: 0.95 },{ id: 10, value: 1.0 },{ id: 12, value: 0.9 },{ id: 13, value: 0.9 },{ id: 14, value: 0.6 },{ id: 15, value: 0.7 }], arpSettings: { arp1: { isArpOn: false }, arp2: { isArpOn: false } } },
                 'AMARANTH': { key: 'C#', scale: 'Custom', customScale: [0, 3, 7, 10], fxSettings: [{ id: 4, value: 0.4 },{ id: 6, value: 0.6 },{ id: 3, value: 0 },{ id: 8, value: 0.1 },{ id: 11, value: 0.4 },{ id: 12, value: 0.2 }], arpSettings: { arp1: { isArpOn: false }, arp2: { isArpOn: false } } },
                 'GLAUCOUS': { key: 'A', scale: 'Minor Pentatonic', fxSettings: [{ id: 8, value: 0 },{ id: 9, value: 0.1 },{ id: 10, value: 0 },{ id: 11, value: 0.1 },{ id: 14, value: 0.65 },{ id: 15, value: 0.3 },{ id: 12, value: 0.2 }], arpSettings: { arp1: { isArpOn: false }, arp2: { isArpOn: false } } },
@@ -699,5 +761,6 @@ export const PRESETS = {
                 'RANDOM SOUND': {}
             }
         };
+
 
 
