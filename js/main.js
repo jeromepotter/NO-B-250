@@ -374,15 +374,22 @@ const LFO_RATE_DIVISION_STEPS = [
         }
 
         function updateLfoRateDisplay(index, normalizedValue, forceSyncedState) {
-            const display = lfoRateDisplays[index];
-            if (!display) return;
-            const isLinked = forceSyncedState ?? lfoTempoLinkState[index].enabled;
-            if (isLinked) {
-                display.textContent = getLfoDivisionLabel(normalizedValue);
-            } else {
-                display.textContent = formatLfoRateHzLabel(normalizedValue);
-            }
-        }
+    const display = lfoRateDisplays[index];
+    if (!display) return;
+    const isLinked = forceSyncedState ?? lfoTempoLinkState[index].enabled;
+    
+    let newText = '';
+    if (isLinked) {
+        newText = getLfoDivisionLabel(normalizedValue);
+    } else {
+        newText = formatLfoRateHzLabel(normalizedValue);
+    }
+    
+    // OPTIMIZATION CHECK
+    if (display.textContent !== newText) {
+        display.textContent = newText;
+    }
+}
 
         function getTempoSourceState() {
             const left = knobState[0];
@@ -1052,8 +1059,10 @@ function sendMidiMessage(message) {
            if (!state.dom || !state.dom.knob || !state.dom.indicator) return;
            const displayAngle = state.totalAngle % 360;
            state.baseColor = getKnobColor(displayAngle);
-           const knobRadius = state.dom.knob.offsetHeight / 2;
-           state.dom.indicator.style.transformOrigin = `center ${knobRadius > 0 ? knobRadius - 16 : 0}px`;
+              // --- COMMENTING OUT FOR MOBILE OPTIMIZATION ---
+           //const knobRadius = state.dom.knob.offsetHeight / 2;
+           //state.dom.indicator.style.transformOrigin = `center ${knobRadius > 0 ? knobRadius - 16 : 0}px`;
+              // --------------------------
            state.dom.indicator.style.transform = `rotate(${displayAngle}deg)`;
            const baseMidi = getMidiNote(knobId);
            let displayMidi = baseMidi;
@@ -1066,6 +1075,13 @@ function sendMidiMessage(message) {
                    displayMidi = fullScaleMidi[clampedIndex];
                }
            }
+           function updateKnobLayout(knobId) {
+    const state = knobState[knobId];
+    if (!state || !state.dom.knob || !state.dom.indicator) return;
+    // This is the expensive read/write we only want to do on resize!
+    const knobRadius = state.dom.knob.offsetHeight / 2;
+    state.dom.indicator.style.transformOrigin = `center ${knobRadius > 0 ? knobRadius - 16 : 0}px`;
+}
            state.dom.noteDisplay.textContent = midiToNoteName(displayMidi);
            if (state.isArpOn && !state.arpRunning) {
                const finalRgb = getArpNoteColor(displayMidi);
@@ -2083,48 +2099,70 @@ lfoState.forEach((lfo, lfoIndex) => {
     });
 }
 
-        function applyModulatedArpUiPreviews(modulatedValues = {}) {
-            knobState.forEach((state, idx) => {
-                if (!state?.dom) return;
+       function applyModulatedArpUiPreviews(modulatedValues = {}) {
+    knobState.forEach((state, idx) => {
+        if (!state?.dom) return;
 
-                const rateFxId = 16 + idx;
-                const rateBase = fxKnobData[rateFxId]?.value ?? 0.5;
-                const rateDelta = modulatedValues[rateFxId] || 0;
-                const rateValue = clamp(rateBase + rateDelta, 0, 1);
-                if (state.dom.rateDisplay) {
-                    if (tempoMode === TEMPO_MODE_BPM) {
-                        const bpm = normalizeArpRateBpm(valueToArpRateBpm(rateValue));
-                        state.dom.rateDisplay.textContent = formatTempoLabel(bpm);
-                    } else {
-                        state.dom.rateDisplay.textContent = formatRateMsLabel(valueToArpRateMs(rateValue));
-                    }
-                }
-
-                const transposeFxId = 24 + idx;
-                const transposeBase = fxKnobData[transposeFxId]?.value ?? 0.5;
-                const transposeValue = clamp(transposeBase + (modulatedValues[transposeFxId] || 0), 0, 1);
-                if (state.dom.transposeDisplay) {
-                    const trans = Math.floor((transposeValue * 24) - 12);
-                    state.dom.transposeDisplay.textContent = trans;
-                }
-
-                const octFxId = 18 + idx;
-                const octBase = fxKnobData[octFxId]?.value ?? 0;
-                const octValue = clamp(octBase + (modulatedValues[octFxId] || 0), 0, 1);
-                if (state.dom.octsDisplay) {
-                    const octs = Math.min(3, Math.floor(octValue * 4));
-                    state.dom.octsDisplay.textContent = octs;
-                }
-
-                const feelFxId = 22 + idx;
-                const feelBase = fxKnobData[feelFxId]?.value ?? 0;
-                const feelValue = clamp(feelBase + (modulatedValues[feelFxId] || 0), 0, 1);
-                if (state.dom.feelDisplay) {
-                    const pIndex = Math.min(NUM_FEEL_PATTERNS - 1, Math.floor(feelValue * NUM_FEEL_PATTERNS));
-                    state.dom.feelDisplay.textContent = pIndex + 1;
-                }
-            });
+        // --- RATE ---
+        const rateFxId = 16 + idx;
+        const rateBase = fxKnobData[rateFxId]?.value ?? 0.5;
+        const rateDelta = modulatedValues[rateFxId] || 0;
+        const rateValue = clamp(rateBase + rateDelta, 0, 1);
+        
+        if (state.dom.rateDisplay) {
+            let newText = '';
+            if (tempoMode === TEMPO_MODE_BPM) {
+                const bpm = normalizeArpRateBpm(valueToArpRateBpm(rateValue));
+                newText = formatTempoLabel(bpm);
+            } else {
+                newText = formatRateMsLabel(valueToArpRateMs(rateValue));
+            }
+            // OPTIMIZATION: Only touch DOM if text changed
+            if (state.dom.rateDisplay.textContent !== newText) {
+                state.dom.rateDisplay.textContent = newText;
+            }
         }
+
+        // --- TRANSPOSE ---
+        const transposeFxId = 24 + idx;
+        const transposeBase = fxKnobData[transposeFxId]?.value ?? 0.5;
+        const transposeValue = clamp(transposeBase + (modulatedValues[transposeFxId] || 0), 0, 1);
+        
+        if (state.dom.transposeDisplay) {
+            const trans = Math.floor((transposeValue * 24) - 12);
+            const newText = trans.toString();
+            if (state.dom.transposeDisplay.textContent !== newText) {
+                state.dom.transposeDisplay.textContent = newText;
+            }
+        }
+
+        // --- OCTAVES ---
+        const octFxId = 18 + idx;
+        const octBase = fxKnobData[octFxId]?.value ?? 0;
+        const octValue = clamp(octBase + (modulatedValues[octFxId] || 0), 0, 1);
+        
+        if (state.dom.octsDisplay) {
+            const octs = Math.min(3, Math.floor(octValue * 4));
+            const newText = octs.toString();
+            if (state.dom.octsDisplay.textContent !== newText) {
+                state.dom.octsDisplay.textContent = newText;
+            }
+        }
+
+        // --- FEEL ---
+        const feelFxId = 22 + idx;
+        const feelBase = fxKnobData[feelFxId]?.value ?? 0;
+        const feelValue = clamp(feelBase + (modulatedValues[feelFxId] || 0), 0, 1);
+        
+        if (state.dom.feelDisplay) {
+            const pIndex = Math.min(NUM_FEEL_PATTERNS - 1, Math.floor(feelValue * NUM_FEEL_PATTERNS));
+            const newText = (pIndex + 1).toString();
+            if (state.dom.feelDisplay.textContent !== newText) {
+                state.dom.feelDisplay.textContent = newText;
+            }
+        }
+    });
+}
 
 
         function ensureLfoAnimationRunning() {
@@ -3163,7 +3201,10 @@ function generateAndApplyRandomSound() {
                if(k.dom.transposeDisplay) k.dom.transposeDisplay.textContent = k.arpTranspose;
                if(k.dom.feelDisplay) { const pIdx=Math.min(NUM_FEEL_PATTERNS-1,Math.floor(k.feelKnobValue*NUM_FEEL_PATTERNS)); k.dom.feelDisplay.textContent = pIdx + 1; }
                if(k.dom.arpNoteDisplay) k.dom.arpNoteDisplay.textContent = "--";
-               if(k.dom.knob) new ResizeObserver(()=>updateStateFromTotalAngle(k.id)).observe(k.dom.knob);
+               if(k.dom.knob) new ResizeObserver(() => {
+    updateKnobLayout(k.id); 
+    updateStateFromTotalAngle(k.id);
+}).observe(k.dom.knob);
            });
            updateTempoDisplays();
            applyModulatedArpUiPreviews();
@@ -3212,6 +3253,7 @@ function generateAndApplyRandomSound() {
        }
       
        init();
+
 
 
 
