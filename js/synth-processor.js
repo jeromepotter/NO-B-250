@@ -1,7 +1,7 @@
 class Comb { constructor(size, feedback, damping) { this.buffer = new Float32Array(size); this.pos = 0; this.feedback = feedback; this.damp = damping; this.last = 0; } process(input) { const output = this.buffer[this.pos]; this.last = output * (1 - this.damp) + this.last * this.damp; this.buffer[this.pos] = input + this.last * this.feedback; if (++this.pos >= this.buffer.length) this.pos = 0; return output; } }
            class Allpass { constructor(size) { this.buffer = new Float32Array(size); this.pos = 0; } process(input) { const delayed = this.buffer[this.pos]; const output = -input + delayed; this.buffer[this.pos] = input + delayed * 0.5; if (++this.pos >= this.buffer.length) this.pos = 0; return output; } }
       
-const MIN_LFO_RATE_HZ = 0.05;
+const MIN_LFO_RATE_HZ = 0.01;
 const MAX_LFO_RATE_HZ = 100;
 const LFO_RATE_RANGE_RATIO = MAX_LFO_RATE_HZ / MIN_LFO_RATE_HZ;
 
@@ -368,4 +368,5 @@ return true;
 }
 }
 registerProcessor('synth-processor', SynthProcessor);
+
 
