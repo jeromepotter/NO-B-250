@@ -2068,9 +2068,10 @@ lfoState.forEach((lfo, lfoIndex) => {
             }
         }
 
-        const midiForUi = (hasActiveModulation || !state.arpRunning || state.lastPlayedMidi === null)
-            ? displayMidi
-            : state.lastPlayedMidi;
+        const isNoteRepeatHoldActive = state.isArpOn && state.isArpHoldOn && !state.isSweepMode;
+        const prefersModulatedDisplay = isLfoMode || hasActiveModulation;
+        const shouldUsePlaybackMidi = state.lastPlayedMidi !== null && state.arpRunning && (!prefersModulatedDisplay || isNoteRepeatHoldActive);
+        const midiForUi = shouldUsePlaybackMidi ? state.lastPlayedMidi : displayMidi; // LFO views favor modulated angle unless Note Repeat + Hold needs playback
 
         // OPTIMIZATION: Only write to DOM if the text actually changed
         const newNoteText = midiToNoteName(midiForUi);
@@ -2086,7 +2087,6 @@ lfoState.forEach((lfo, lfoIndex) => {
             state.lastVisualMidi = midiForUi; // Store this in your knobState init
         }
            
-        const isNoteRepeatHoldActive = state.isArpOn && state.isArpHoldOn && !state.isSweepMode;
         if (state.isArpOn && (state.isHeld || isNoteRepeatHoldActive)) {
             if (state.isSweepMode) {
                 const lastNote = state.arpNotes[state.arpNotes.length - 1]?.midi;
