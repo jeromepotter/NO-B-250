@@ -2680,7 +2680,11 @@ function generateAndApplyRandomSound() {
     if (!isLfoMode) {
         for (let i = 0; i < 4; i++) {
             const cable = document.getElementById(`lfo-cable-${i}`);
-            if (cable) cable.setAttribute('d', '');
+            if (cable) { 
+                cable.setAttribute('d', '');
+                // Also hide the parent SVG if possible to be safe
+                if (cable.ownerSVGElement) cable.ownerSVGElement.style.display = 'none';
+            }
         }
         return;
     };
@@ -2691,9 +2695,17 @@ function generateAndApplyRandomSound() {
         const cable = document.getElementById(`lfo-cable-${index}`);
         if (!cable) return;
 
-        // --- FIX: Ensure cables never block mouse/touch interactions ---
+        // --- FIX 1: Disable pointer events on the cable path ---
         cable.style.pointerEvents = 'none'; 
-        // ---------------------------------------------------------------
+
+        // --- FIX 2: Disable pointer events on the PARENT SVG CONTAINER ---
+        // This is the critical fix. It removes the "invisible wall" blocking your buttons.
+        if (cable.ownerSVGElement) {
+            cable.ownerSVGElement.style.pointerEvents = 'none';
+            cable.ownerSVGElement.style.display = 'block'; // Ensure it is visible
+            // Ensure the SVG is on top visually but logically transparent to touches
+            cable.ownerSVGElement.style.zIndex = '10'; 
+        }
 
         // State 1: LFO is OFF. No cable is drawn.
         if (lfo.dest === 0) {
@@ -2809,12 +2821,15 @@ function generateAndApplyRandomSound() {
                lfoTempoSyncSwitches[idx] = sw;
                
                const handleSwitchToggle = (e) => {
-                    // Prevent phantom double-clicks on mobile
-                    if (e.cancelable) e.preventDefault(); 
-                    
-                    if (sw.classList.contains('switch-disabled')) return;
-                    setLfoTempoSync(idx, !lfoTempoLinkState[idx].enabled);
-               };
+    // Stop propagation immediately so no other elements try to handle this
+    e.stopPropagation(); 
+    
+    if (e.cancelable && e.type === 'touchend') e.preventDefault(); 
+    
+    if (sw.classList.contains('switch-disabled')) return;
+    setLfoTempoSync(idx, !lfoTempoLinkState[idx].enabled);
+};
+
 
                sw.addEventListener('touchend', handleSwitchToggle);
                sw.addEventListener('click', handleSwitchToggle);
@@ -3215,6 +3230,7 @@ function generateAndApplyRandomSound() {
            updateRateButtonLockState();
        }
        init();
+
 
 
 
