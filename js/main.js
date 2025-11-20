@@ -455,7 +455,7 @@ const LFO_RATE_DIVISION_STEPS = [
             return !!getTempoSourceState();
         }
 
-        function setLfoTempoSync(index, shouldEnable) {
+        function setLfoTempoSync(index, shouldEnable, storedFreeValueOverride) {
             const link = lfoTempoLinkState[index];
             const switchEl = lfoTempoSyncSwitches[index];
             if (!link || !switchEl) return;
@@ -464,8 +464,9 @@ const LFO_RATE_DIVISION_STEPS = [
                 if (!canUseLfoTempoSync() || link.enabled) return;
                 const rateKnobId = LFO_RATE_KNOB_IDS[index];
                 const knobData = fxKnobData[rateKnobId];
-                if (knobData) {
-                    link.storedFreeValue = knobData.value;
+                const overrideFreeValue = storedFreeValueOverride ?? knobData?.value;
+                if (overrideFreeValue !== undefined) {
+                    link.storedFreeValue = clamp(overrideFreeValue, 0, 1);
                 }
                 link.enabled = true;
                 switchEl.classList.add('on');
@@ -1929,8 +1930,10 @@ lfoState.forEach((lfo, lfoIndex) => {
                    rate: lfo.rate,
                    depth: lfo.depth,
                    wave: lfo.wave,
-                   dest: lfo.dest
-               })),
+                   dest: lfo.dest,
+                   tempoSync: lfoTempoLinkState[lfo.id]?.enabled || false,
+                   storedFreeValue: lfoTempoLinkState[lfo.id]?.storedFreeValue ?? 0.5
+                })),
                knobSettings: knobState.map(k => ({ id: k.id, totalAngle: k.totalAngle })),
                fxSettings: Object.values(fxKnobData).map(k => ({ id: k.id, value: k.value })),
                arpSettings: { isArpRateSynced: isArpRateSynced, currentArpOrder: currentArpOrder, arp1: { isOn: knobState[0].isArpHoldOn, isArpOn: knobState[0].isArpOn, isSweepMode: knobState[0].isSweepMode, octaves: knobState[0].arpOctaveRange, feelValue: knobState[0].feelKnobValue, notes: knobState[0].arpNotes, transpose: knobState[0].arpTranspose }, arp2: { isOn: knobState[1].isArpHoldOn, isArpOn: knobState[1].isArpOn, isSweepMode: knobState[1].isSweepMode, octaves: knobState[1].arpOctaveRange, feelValue: knobState[1].feelKnobValue, notes: knobState[1].arpNotes, transpose: knobState[1].arpTranspose } }
@@ -2283,7 +2286,8 @@ function applyPreset(p) {
 
            if (p.scale === 'Custom') { customScale = p.customScale || []; document.querySelectorAll('#custom-scale-builder .key').forEach(k => { const n = parseInt(k.dataset.note); k.classList.toggle('selected', customScale.includes(n)); }); }
            
-            // --- 4. APPLY LFO STATE (IMPORTANT: Do this before FX settings) ---
+           // --- 4. APPLY LFO STATE (IMPORTANT: Do this before FX settings) ---
+            const presetTempoSyncTargets = [];
             if (p.lfoState && Array.isArray(p.lfoState)) {
                // Reset all LFOs to 0 first to ensure no partial state lingers if the preset has fewer than 4 LFOs
                lfoState.forEach((lfo, index) => {
@@ -2303,6 +2307,12 @@ function applyPreset(p) {
                        lfoState[index].wave = savedLfo.wave ?? 0;
                        const resolvedDest = normalizePresetLfoDest(savedLfo.dest);
                        lfoState[index].dest = resolvedDest;
+
+                       const storedFreeValue = clamp(savedLfo.storedFreeValue ?? lfoTempoLinkState[index].storedFreeValue ?? 0.5, 0, 1);
+                       lfoTempoLinkState[index].storedFreeValue = storedFreeValue;
+                       if (savedLfo.tempoSync) {
+                           presetTempoSyncTargets.push({ index, storedFreeValue });
+                       }
                        
                        const rateKnobId = Object.keys(LFO_KNOB_MAP).find(id => LFO_KNOB_MAP[id].lfo === index && LFO_KNOB_MAP[id].param === 'rate');
                        const depthKnobId = Object.keys(LFO_KNOB_MAP).find(id => LFO_KNOB_MAP[id].lfo === index && LFO_KNOB_MAP[id].param === 'depth');
@@ -2394,10 +2404,16 @@ function applyPreset(p) {
                
                if (isArpRateSynced && knobState[0].isArpOn && knobState[1].isArpOn) {
                     const arp1RateValue = fxKnobData[16].value;
-                    setFxValue(17, arp1RateValue); 
+                    setFxValue(17, arp1RateValue);
                }
            }
-           
+
+           if (presetTempoSyncTargets.length > 0) {
+               presetTempoSyncTargets.forEach(({ index, storedFreeValue }) => {
+                   setLfoTempoSync(index, true, storedFreeValue);
+               });
+           }
+
            updateGlobalArpVisibility();
            knobState.forEach(k => { updateStateFromTotalAngle(k.id); });
            knobState.forEach(k => {
@@ -3283,8 +3299,6 @@ function generateAndApplyRandomSound() {
            updateRateButtonLockState();
        }
        init();
-
-
 
 
 
