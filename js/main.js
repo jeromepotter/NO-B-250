@@ -1945,6 +1945,7 @@ lfoState.forEach((lfo, lfoIndex) => {
       
      function savePreset() {
            const preset = {
+               tempoMode: tempoMode,
                key: keySelector.value,
                scale: scaleSelector.value,
                customScale: scaleSelector.value === 'Custom' ? customScale : [],
@@ -2298,7 +2299,11 @@ function applyPreset(p) {
            // --- 2. WIPE all knobs to a clean state ---
            resetAllFxToDefaults();
 
-           // --- 3. APPLY all new settings from the preset ---
+           // --- 3. RESTORE tempo mode before applying rate-dependent settings ---
+           const presetTempoMode = p.tempoMode ?? TEMPO_MODE_BPM;
+           setTempoMode(presetTempoMode);
+
+           // --- 4. APPLY all new settings from the preset ---
            scaleSelector.value = p.scale ?? 'Major';
            scaleSelector.dispatchEvent(new Event('change'));
            keySelector.value = p.key ?? 'C';
@@ -3245,8 +3250,9 @@ function generateAndApplyRandomSound() {
 
                     const presetData = JSON.parse(JSON.stringify(PRESETS[groupName][presetName]));
                     if (!isPowerOn) powerOn();
-                    
+
                     const fullPreset = {
+                        tempoMode: presetData.tempoMode ?? TEMPO_MODE_BPM,
                         key: presetData.key,
                         scale: presetData.scale,
                         customScale: presetData.customScale || [],
