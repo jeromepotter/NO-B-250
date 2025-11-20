@@ -1610,72 +1610,24 @@ function sendMidiMessage(message) {
            }
        }
       
-        function updateArpeggiator(knobId, timestamp) {
-    const state = knobState[knobId];
-    if (!state || !state.arpRunning || !synthNode) return;
-
-    if ((!state.isHeld && !state.isArpHoldOn) || state.arpNotes.length === 0) {
-        stopArpeggiator(knobId);
-        if (state.isSweepMode && (!state.isHeld && !state.isArpHoldOn)) {
-            state.arpNotes = [];
-            updateSequenceDisplay(knobId);
-        }
-        return;
-    }
-
-    // ✨ REMOVE the old LFO check from here - we'll do it later
-
-    // --- This block now correctly reads the LIVE LFO values ---
-    let modulatedRateBpm = state.arpRateBpm;
-    let modulatedRateMs = state.arpRateMs;
-    let modulatedTranspose = state.arpTranspose;
-    let modulatedOctaveRange = state.arpOctaveRange;
-    let modulatedFeelPattern = state.currentFeelPattern;
-
-    lfoState.forEach((lfo, lfoIndex) => {
-        if (lfo.dest === 0 || lfo.depth < 0.001) return;
-        const lfoModValue = liveLfoOutputs[lfoIndex] || 0;
-        
-        const destIsArpRate = lfo.dest === (16 + knobId);
-        const destIsArpTranspose = lfo.dest === (24 + knobId);
-        const destIsArpOcts = lfo.dest === (18 + knobId);
-        const destIsArpFeel = lfo.dest === (22 + knobId);
-
-        if (destIsArpRate) {
-            const baseValue = fxKnobData[16 + knobId]?.value ?? 0.5;
-            const finalValue = Math.max(0, Math.min(1, baseValue + lfoModValue));
-            if (tempoMode === TEMPO_MODE_BPM) {
-                modulatedRateBpm = valueToArpRateBpm(finalValue);
-            } else {
-                modulatedRateMs = valueToArpRateMs(finalValue);
-            }
-        }
-        if (destIsArpTranspose) {
-            const baseValue = fxKnobData[24 + knobId]?.value ?? 0.5;
-            const finalValue = Math.max(0, Math.min(1, baseValue + lfoModValue));
-            modulatedTranspose = Math.floor((finalValue * 24) - 12);
-            if (state.dom.transposeDisplay) state.dom.transposeDisplay.textContent = modulatedTranspose;
-        }
-        if (destIsArpOcts) {
-            const baseValue = fxKnobData[18 + knobId]?.value ?? 0;
-            const finalValue = Math.max(0, Math.min(1, baseValue + lfoModValue));
-            modulatedOctaveRange = Math.min(3, Math.floor(finalValue * 4));
-            if (state.dom.octsDisplay) state.dom.octsDisplay.textContent = modulatedOctaveRange;
-        }
-        if (destIsArpFeel) {
-            const baseValue = fxKnobData[22 + knobId]?.value ?? 0;
-            const finalValue = Math.max(0, Math.min(1, baseValue + lfoModValue));
-            const pIndex = Math.min(NUM_FEEL_PATTERNS - 1, Math.floor(finalValue * NUM_FEEL_PATTERNS));
-            modulatedFeelPattern = EUCLIDEAN_PATTERNS[pIndex];
-            if (state.dom.feelDisplay) state.dom.feelDisplay.textContent = pIndex + 1;
-        }
-    });
-        
-        const mainKnobDestId = knobId === 0 ? 300 : 301;
+         function updateArpeggiator(knobId, timestamp) {
+           const state = knobState[knobId];
+           if (!state || !state.arpRunning || !synthNode) return;
+    
+           if ((!state.isHeld && !state.isArpHoldOn) || state.arpNotes.length === 0) {
+               stopArpeggiator(knobId);
+               if (state.isSweepMode && (!state.isHeld && !state.isArpHoldOn)) {
+                   state.arpNotes = [];
+                   updateSequenceDisplay(knobId);
+               }
+               return;
+           }
+                // --- CHECK FOR MAIN KNOB LFO MODULATION (for background tab support) ---
+    const mainKnobDestId = knobId === 0 ? 300 : 301;
     const hasMainKnobLfo = lfoState.some(lfo => lfo.dest === mainKnobDestId);
     
     if (hasMainKnobLfo && state.isArpOn && state.isArpHoldOn && !state.isSweepMode) {
-        // Sample the LFO value RIGHT NOW
+        // Calculate the modulated angle directly from LFO outputs
         let mainKnobModulation = 0;
         lfoState.forEach((lfo, idx) => {
             if (lfo.dest === mainKnobDestId) {
@@ -1685,13 +1637,6 @@ function sendMidiMessage(message) {
         
         const modulatedAngle = Math.max(0, Math.min(MAX_TOTAL_ANGLE, state.totalAngle + (mainKnobModulation * MAX_TOTAL_ANGLE)));
         const modMidi = getMidiNoteFromAngle(knobId, modulatedAngle);
-              state.arpNotes = [{ midi: modMidi, active: true }];
-        state.currentArpNoteIndex = 0;
-        state.arpUpDownState = 0;
-    }
-
-    // Now proceed with normal note triggering logic...
-    let notesForSeq = state.arpNotes.map((noteObj, index) => ({ ...noteObj, originalIndex: index }));
         
         // Update the arpNotes array directly (bypasses the need for visual updates)
         const noteChanged = state.arpNotes.length !== 1 || state.arpNotes[0].midi !== modMidi || !state.arpNotes[0].active;
@@ -3381,7 +3326,6 @@ function generateAndApplyRandomSound() {
            updateRateButtonLockState();
        }
        init();
-
 
 
 
