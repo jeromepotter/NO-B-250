@@ -4,6 +4,10 @@
 ##Future Plans
 New Oscillators? More Extreme Detune?
 
+## [11.20] - 2025-11-20
+### Added
+- System and User presets can load with LFO Sync On
+
 ## [11.19] - 2025-11-19
 ### Added
 - SYNC mode for LFOs
