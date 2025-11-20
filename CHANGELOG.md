@@ -10,7 +10,7 @@ New Oscillators? More Extreme Detune?
 - BPM mode with Master Clock to prevent drift
 - Double click tempo knob for MS which bypasses Master Clock
 - Tempo Rate Multipliers
-- - User preset filename structure to include "n-ob"
+- User preset filename structure includes "n-ob"
 
 - Updated Manual
 
