@@ -117,7 +117,7 @@ export const PRESETS = {
     }
 },
 'FURNACE 2': {
-    tempoMode: 'BPM',
+    tempoMode: "BPM",
     key: "F#",
     scale: "Minor",
     allowDuplicateNotesMode: false,
@@ -127,10 +127,10 @@ export const PRESETS = {
         { "id": 1, "totalAngle": 1471.51 }
     ],
     lfoState: [
-        { "rate": 0.6589, "depth": 0.1833, "wave": 5, "dest": 300, "tempoSync": true, "storedFreeValue": 0.3833 },
-        { "rate": 0.7243, "depth": 0.1444, "wave": 1, "dest": 9, "tempoSync": true, "storedFreeValue": 0.5222 },
-        { "rate": 0.5934, "depth": 0.3833, "wave": 5, "dest": 15, "tempoSync": true, "storedFreeValue": 0.4888 },
-        { "rate": 0.9859, "depth": 0.6111, "wave": 5, "dest": 301, "tempoSync": true, "storedFreeValue": 0.8888 }
+        { "rate": 0.9328, "depth": 0.1833, "wave": 5, "dest": 300, "tempoSync": true, "storedFreeValue": 0.3833 },
+        { "rate": 0.7070, "depth": 0.1444, "wave": 1, "dest": 9, "tempoSync": true, "storedFreeValue": 0.5222 },
+        { "rate": 0.2999, "depth": 0.3888, "wave": 5, "dest": 15, "tempoSync": false, "storedFreeValue": 0.2999 },
+        { "rate": 1, "depth": 0.6111, "wave": 5, "dest": 301, "tempoSync": true, "storedFreeValue": 0.8888 }
     ],
     fxSettings: [
         { "id": 0, "value": 0 },
@@ -147,10 +147,10 @@ export const PRESETS = {
         { "id": 11, "value": 0.6722 },
         { "id": 12, "value": 0.1888 },
         { "id": 13, "value": 0.6666 },
-        { "id": 14, "value": 0.1166 },
+        { "id": 14, "value": 0.1499 },
         { "id": 15, "value": 0.4166 },
-        { "id": 20, "value": 0.25 },
-        { "id": 21, "value": 0.25 },
+        { "id": 20, "value": 0.2833 },
+        { "id": 21, "value": 0.3055 },
         { "id": 26, "value": 0.5833 },
         { "id": 27, "value": 0.6055 },
         { "id": 28, "value": 0.2944 },
@@ -163,13 +163,13 @@ export const PRESETS = {
             isArpOn: true,
             isOn: true,
             isSweepMode: false,
-            notes: [ 42 ]
+            notes: [ 56 ]
         },
         arp2: {
             isArpOn: true,
             isOn: true,
             isSweepMode: false,
-            notes: [ 28 ]
+            notes: [ 45 ]
         },
         fx: {
             16: 0.4377,
@@ -249,8 +249,8 @@ export const PRESETS = {
         }
     }
 },
-                        'HMMM': {
-    tempoMode: 'MS',
+                       'HMMM': {
+    tempoMode: "MS",
     key: "G",
     scale: "Major Pentatonic",
     isLfoMode: true,
@@ -259,8 +259,8 @@ export const PRESETS = {
         { "id": 1, "totalAngle": 1536.06 }
     ],
     lfoState: [
-        { "rate": 0.5166, "depth": 0.55, "wave": 3, "dest": 16, "tempoSync": false, "storedFreeValue": 0.5166 },
-        { "rate": 1, "depth": 0.1611, "wave": 0, "dest": 20, "tempoSync": true, "storedFreeValue": 0 },
+        { "rate": 0.2166, "depth": 0.55, "wave": 3, "dest": 16, "tempoSync": false, "storedFreeValue": 0.2166 },
+        { "rate": 0.3333, "depth": 0.1611, "wave": 0, "dest": 20, "tempoSync": false, "storedFreeValue": 0.3333 },
         { "rate": 0, "depth": 0, "wave": 0, "dest": 0, "tempoSync": false, "storedFreeValue": 0 },
         { "rate": 0, "depth": 0, "wave": 0, "dest": 0, "tempoSync": false, "storedFreeValue": 0 }
     ],
@@ -272,7 +272,7 @@ export const PRESETS = {
         { "id": 4, "value": 0.8105 },
         { "id": 5, "value": 0 },
         { "id": 6, "value": 0.7683 },
-        { "id": 7, "value": 0.5 },
+        { "id": 7, "value": 0.5611 },
         { "id": 8, "value": 0 },
         { "id": 9, "value": 0.0555 },
         { "id": 10, "value": 0 },
@@ -285,7 +285,7 @@ export const PRESETS = {
         { "id": 21, "value": 1 },
         { "id": 26, "value": 0.5 },
         { "id": 27, "value": 0.5 },
-        { "id": 28, "value": 0.6666 },
+        { "id": 28, "value": 0.6888 },
         { "id": 29, "value": 0 }
     ],
     arpSettings: {
@@ -603,7 +603,7 @@ export const PRESETS = {
     }
 },
 'STRIDE': {
-    tempoMode: 'MS',
+    tempoMode: "BPM",
     key: "G",
     scale: "Major Pentatonic",
     isLfoMode: true,
@@ -612,18 +612,18 @@ export const PRESETS = {
         { "id": 1, "totalAngle": 724.11 }
     ],
     lfoState: [
-        { "rate": 0, "depth": 0, "wave": 0, "dest": 0 },
-        { "rate": 0.5277, "depth": 0.2166, "wave": 0, "dest": 20 },
-        { "rate": 0, "depth": 0, "wave": 0, "dest": 0 },
-        { "rate": 0.1944, "depth": 0.0555, "wave": 0, "dest": -1 }
+        { "rate": 0, "depth": 0, "wave": 0, "dest": 0, "tempoSync": false, "storedFreeValue": 0 },
+        { "rate": 0.3443, "depth": 0.2166, "wave": 0, "dest": 20, "tempoSync": false, "storedFreeValue": 0.3443 },
+        { "rate": 0, "depth": 0, "wave": 0, "dest": 0, "tempoSync": false, "storedFreeValue": 0 },
+        { "rate": 0.1944, "depth": 0.3721, "wave": 0, "dest": 6, "tempoSync": false, "storedFreeValue": 0.1944 }
     ],
     fxSettings: [
-        { "id": 0, "value": 0.2690 },
+        { "id": 0, "value": 0.269 },
         { "id": 1, "value": 0.8444 },
         { "id": 2, "value": 0.8355 },
         { "id": 3, "value": 0.4257 },
         { "id": 4, "value": 0.0424 },
-        { "id": 5, "value": 0.0530 },
+        { "id": 5, "value": 0.053 },
         { "id": 6, "value": 0.6282 },
         { "id": 7, "value": 0.7 },
         { "id": 8, "value": 0.0011 },
@@ -636,6 +636,8 @@ export const PRESETS = {
         { "id": 15, "value": 0.7067 },
         { "id": 20, "value": 0.1942 },
         { "id": 21, "value": 0.3915 },
+        { "id": 26, "value": 0.5 },
+        { "id": 27, "value": 0.5 },
         { "id": 28, "value": 0.4363 },
         { "id": 29, "value": 0.9699 }
     ],
@@ -645,100 +647,29 @@ export const PRESETS = {
         arp1: {
             isArpOn: true,
             isOn: true,
-            // --- CORRECTED NOTES ---
+            isSweepMode: true,
             notes: [ 76, 88, 47, 55 ],
-            // --- CORRECTED TRANSPOSE ---
             transpose: 12
         },
         arp2: {
             isArpOn: true,
             isOn: true,
-            // --- CORRECTED NOTES ---
+            isSweepMode: true,
             notes: [ 81, 67, 50 ],
-            // --- CORRECTED TRANSPOSE ---
             transpose: -2
         },
-        fx: { // Settings for the ARP-specific knobs
-            16: 0.9994,
-            17: 0.3659,
+        fx: {
+            16: 1,
+            17: 0.4002,
             18: 0.2487,
             19: 0.6951,
             22: 0.0891,
             23: 0.1236,
-            // These two were missing from the fx block in my previous version
-            24: 0.5, // This corresponds to transpose: 0 (the raw knob value)
-            25: 0.5  // This also corresponds to transpose: 0
-        }
-    }
-},
-  'BRICK': {
-    tempoMode: 'BPM',
-    key: "C",
-    scale: "Custom",
-    customScale: [ 0, 3, 5, 8, 10 ],
-    allowDuplicateNotesMode: true,
-    isLfoMode: true,
-    knobSettings: [
-        { "id": 0, "totalAngle": 1967.23 },
-        { "id": 1, "totalAngle": 2208 }
-    ],
-    lfoState: [
-        { "rate": 0.1166, "depth": 0.3611, "wave": 0, "dest": 300 },
-        { "rate": 0.7999, "depth": 0.6555, "wave": 1, "dest": 108 },
-        { "rate": 0.4944, "depth": 0.3333, "wave": 0, "dest": 301 },
-        { "rate": 0.4166, "depth": 0.2944, "wave": 2, "dest": 21 }
-    ],
-    fxSettings: [
-        { "id": 0, "value": 0 },
-        { "id": 1, "value": 0 },
-        { "id": 2, "value": 1 },
-        { "id": 3, "value": 0.4771 },
-        { "id": 4, "value": 0.5938 },
-        { "id": 5, "value": 0 },
-        { "id": 6, "value": 0.8646 },
-        { "id": 7, "value": 0.4222 },
-        { "id": 8, "value": 0.0045 },
-        { "id": 9, "value": 0.0995 },
-        { "id": 10, "value": 0.8 },
-        { "id": 11, "value": 0.2 },
-        { "id": 12, "value": 0.2598 },
-        { "id": 13, "value": 0.9251 },
-        { "id": 14, "value": 0.9888 },
-        { "id": 15, "value": 0.42 },
-        { "id": 20, "value": 0.3166 },
-        { "id": 21, "value": 0.4277 },
-        { "id": 26, "value": 0.5 },
-        { "id": 27, "value": 0.2833 },
-        { "id": 28, "value": 0.3444 },
-        { "id": 29, "value": 0.1555 }
-    ],
-    arpSettings: {
-        isArpRateSynced: true,
-        currentArpOrder: "As Played",
-        arp1: {
-            isArpOn: true,
-            isOn: true,
-            isSweepMode: false,
-            notes: [ 108 ]
-        },
-        arp2: {
-            isArpOn: true,
-            isOn: true,
-            isSweepMode: false,
-            notes: [ 84 ]
-        },
-        fx: {
-            16: 0.4676,
-            17: 0.4676,
-            18: 0,
-            19: 0,
-            22: 0,
-            23: 0.4944,
             24: 0.5,
             25: 0.5
         }
     }
-},                
+},            
             'ZAFFRE': { // A deep, cinematic drone that evolves slowly.
                 tempoMode: 'BPM',
                 key: 'B',
@@ -919,6 +850,7 @@ export const PRESETS = {
                 'RANDOM SOUND': { tempoMode: 'BPM' }
             }
         };
+
 
 
 
