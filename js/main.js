@@ -2820,37 +2820,47 @@ function generateAndApplyRandomSound() {
 
         const pathSegments = [];
         const destChain = getLfoDestChain(lfo);
-        const pathTargets = destChain.length ? destChain : [LFO_DEST_NONE];
+        const chainTargets = destChain.length ? destChain : [LFO_DEST_NONE];
+
+        const getPointFromElement = (el) => {
+            const rect = el.getBoundingClientRect();
+            return {
+                x: rect.left - containerRect.left + rect.width / 2,
+                y: rect.top - containerRect.top + rect.height / 2,
+            };
+        };
+
+        const curveBetweenPoints = (start, end) => {
+            const midX = (start.x + end.x) / 2;
+            const midY = (start.y + end.y) / 2;
+            const dx = end.x - start.x;
+            const dy = end.y - start.y;
+            const curvature = 0.3;
+            const ctrlX = midX + dy * curvature;
+            const ctrlY = midY - dx * curvature;
+            return `M ${start.x} ${start.y} Q ${ctrlX} ${ctrlY} ${end.x} ${end.y}`;
+        };
 
         if (sourceKnobEl) {
-            const sourceRect = sourceKnobEl.getBoundingClientRect();
-            const startX = sourceRect.left - containerRect.left + sourceRect.width / 2;
-            const startY = sourceRect.top - containerRect.top + sourceRect.height / 2;
+            const startPoint = getPointFromElement(sourceKnobEl);
+            let previousPoint = startPoint;
 
-            pathTargets.forEach(destId => {
-                let endX;
-                let endY;
+            chainTargets.forEach(destId => {
                 const destKnobEl = destId === LFO_DEST_NONE ? null : getLfoTargetElement(destId);
+                let nextPoint;
 
                 if (!destKnobEl || destKnobEl.offsetParent === null) {
-                    const direction = (startX > containerRect.width / 2) ? 1 : -1;
-                    endX = startX + (250 * direction);
-                    endY = startY + 80;
+                    const direction = (previousPoint.x > containerRect.width / 2) ? 1 : -1;
+                    nextPoint = {
+                        x: previousPoint.x + (250 * direction),
+                        y: previousPoint.y + 80,
+                    };
                 } else {
-                    const destRect = destKnobEl.getBoundingClientRect();
-                    endX = destRect.left - containerRect.left + destRect.width / 2;
-                    endY = destRect.top - containerRect.top + destRect.height / 2;
+                    nextPoint = getPointFromElement(destKnobEl);
                 }
 
-                const midX = (startX + endX) / 2;
-                const midY = (startY + endY) / 2;
-                const dx = endX - startX;
-                const dy = endY - startY;
-                const curvature = 0.3;
-                const ctrlX = midX + dy * curvature;
-                const ctrlY = midY - dx * curvature;
-
-                pathSegments.push(`M ${startX} ${startY} Q ${ctrlX} ${ctrlY} ${endX} ${endY}`);
+                pathSegments.push(curveBetweenPoints(previousPoint, nextPoint));
+                previousPoint = nextPoint;
             });
         }
 
