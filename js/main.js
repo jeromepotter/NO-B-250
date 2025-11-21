@@ -693,7 +693,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
            const pick = () => FILE_NOUNS[Math.floor(Math.random() * FILE_NOUNS.length)];
            let a = pick(), b = pick(); for (let i = 0; i < 5 && a === b; i++) b = pick();
            const xxx = String(Math.floor(Math.random() * 1000)).padStart(3, '0');
-           return `${a}-${b}-${xxx}-n-ob.${extension}`;
+           return `N-OB-${a}-${b}-${xxx}-.${extension}`;
        }
        function float32ToPCM16(f) {
            const out = new Int16Array(f.length);
@@ -3337,6 +3337,7 @@ function generateAndApplyRandomSound() {
            updateRateButtonLockState();
        }
        init();
+
 
 
 
