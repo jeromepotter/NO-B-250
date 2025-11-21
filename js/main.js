@@ -2776,7 +2776,7 @@ function generateAndApplyRandomSound() {
     if (!isLfoMode) {
         for (let i = 0; i < 4; i++) {
             const cable = document.getElementById(`lfo-cable-${i}`);
-            if (cable) { 
+            if (cable) {
                 cable.setAttribute('d', '');
                 // Hide parent if possible to prevent layout interference
                 if (cable.ownerSVGElement) cable.ownerSVGElement.style.display = 'none';
@@ -2792,7 +2792,7 @@ function generateAndApplyRandomSound() {
         if (!cable) return;
 
         // --- FIX: Make cables "ghosts" to clicks/touches ---
-        cable.style.pointerEvents = 'none'; 
+        cable.style.pointerEvents = 'none';
         if (cable.ownerSVGElement) {
             cable.ownerSVGElement.style.pointerEvents = 'none';
             cable.ownerSVGElement.style.display = 'block';
@@ -2805,35 +2805,46 @@ function generateAndApplyRandomSound() {
         const sourceFxId = Object.keys(LFO_KNOB_MAP).find(key => LFO_KNOB_MAP[key] === sourceKnobInfo);
         const sourceKnobEl = fxKnobData[sourceFxId]?.knobEl;
 
-        if (sourceKnobEl) {
+        const pathSegments = [];
+        const destChain = getLfoDestChain(lfo);
+
+        if (sourceKnobEl && destChain.length) {
             const sourceRect = sourceKnobEl.getBoundingClientRect();
             const startX = sourceRect.left - containerRect.left + sourceRect.width / 2;
             const startY = sourceRect.top - containerRect.top + sourceRect.height / 2;
-            
-            let endX, endY;
 
-            const isParked = lfo.dest === LFO_DEST_NONE;
-            const destKnobEl = isParked ? null : getLfoTargetElement(lfo.dest);
-            if (!destKnobEl || destKnobEl.offsetParent === null) {
+            destChain.forEach(destId => {
+                let endX;
+                let endY;
+                const destKnobEl = getLfoTargetElement(destId);
+
+                if (!destKnobEl || destKnobEl.offsetParent === null) {
                     const direction = (startX > containerRect.width / 2) ? 1 : -1;
                     endX = startX + (250 * direction);
                     endY = startY + 80;
-            } else {
-                const destRect = destKnobEl.getBoundingClientRect();
-                endX = destRect.left - containerRect.left + destRect.width / 2;
-                endY = destRect.top - containerRect.top + destRect.height / 2;
-            }
-            
-            const midX = (startX + endX) / 2;
-            const midY = (startY + endY) / 2;
-            const dx = endX - startX;
-            const dy = endY - startY;
-            const curvature = 0.3;
-            const ctrlX = midX + dy * curvature;
-            const ctrlY = midY - dx * curvature;
+                } else {
+                    const destRect = destKnobEl.getBoundingClientRect();
+                    endX = destRect.left - containerRect.left + destRect.width / 2;
+                    endY = destRect.top - containerRect.top + destRect.height / 2;
+                }
 
-            const pathData = `M ${startX} ${startY} Q ${ctrlX} ${ctrlY} ${endX} ${endY}`;
-            cable.setAttribute('d', pathData);
+                const midX = (startX + endX) / 2;
+                const midY = (startY + endY) / 2;
+                const dx = endX - startX;
+                const dy = endY - startY;
+                const curvature = 0.3;
+                const ctrlX = midX + dy * curvature;
+                const ctrlY = midY - dx * curvature;
+
+                pathSegments.push(`M ${startX} ${startY} Q ${ctrlX} ${ctrlY} ${endX} ${endY}`);
+            });
+        }
+
+        if (pathSegments.length) {
+            cable.setAttribute('d', pathSegments.join(' '));
+        } else {
+            cable.setAttribute('d', '');
+            if (cable.ownerSVGElement) cable.ownerSVGElement.style.display = 'none';
         }
     });
 }
@@ -3082,11 +3093,25 @@ function generateAndApplyRandomSound() {
                 }
                 const targetKnobData = fxKnobData[targetFxId];
                 const wasDragging = targetKnobData?.isDragging || targetKnobData?.touchMoved;
+                const clickCount = e.detail || 1;
 
                 if (activePatchingLfo === null) {
                     const owningLfoIndex = wasDragging ? -1 : lfoState.findIndex(lfo => lfoTargetsInclude(lfo, targetFxId));
                     if (owningLfoIndex !== -1) {
-                        startLfoPatching(owningLfoIndex);
+                        const chain = getLfoDestChain(lfoState[owningLfoIndex]);
+                        const clickedIdx = chain.indexOf(targetFxId);
+
+                        if (clickCount >= 2 && chain.length) {
+                            if (clickedIdx === 0) {
+                                setLfoDestChain(owningLfoIndex, []);
+                            } else if (clickedIdx > 0) {
+                                setLfoDestChain(owningLfoIndex, [chain[0]]);
+                            }
+                            drawLfoCables();
+                            stopLfoPatching();
+                        } else {
+                            startLfoPatching(owningLfoIndex);
+                        }
                     }
                     return;
                 }
@@ -3100,7 +3125,7 @@ function generateAndApplyRandomSound() {
                 if (targetFxId === sourceFxId) {
                     setLfoDestChain(activePatchingLfo, []);
                     stopLfoPatching();
-                     drawLfoCables();
+                    drawLfoCables();
                     return;
                 }
 
@@ -3113,12 +3138,8 @@ function generateAndApplyRandomSound() {
                 }
 
                 setLfoDestChain(activePatchingLfo, nextChain);
-
-                if (!nextChain.length) {
-                    stopLfoPatching();
-                }
-
-                 drawLfoCables();
+                stopLfoPatching();
+                drawLfoCables();
             };
             
             synthContainer.addEventListener('touchend', handleGlobalPatchClick);
