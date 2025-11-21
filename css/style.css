@@ -221,11 +221,11 @@ body { font-family: 'Poppins', sans-serif; background-color: #1e1b4b; touch-acti
       }
 
       .fx-delay-knob {
-        background-color: #00ffff;
+        background-color: #489999;
       }
 
       .fx-delay-indicator {
-        background-color: #facc15;
+        background-color: #000000;
       }
 
       .fx-reverb-knob {
@@ -233,8 +233,7 @@ body { font-family: 'Poppins', sans-serif; background-color: #1e1b4b; touch-acti
       }
 
       .fx-reverb-indicator {
-        background-color: #00ffff;
-        mix-blend-mode: difference;
+        background-color: #000000;
       }
       .lfo-display {
         color: #facc15; /* Bright yellow for contrast */
@@ -362,3 +361,4 @@ body { font-family: 'Poppins', sans-serif; background-color: #1e1b4b; touch-acti
     cursor: pointer;
   }
 }
+
