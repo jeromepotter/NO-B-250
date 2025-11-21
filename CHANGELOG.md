@@ -11,6 +11,7 @@ New Oscillators? More Extreme Detune? New Presets?
 
   ### Changed
 - MS rate minimum from 50ms to 10ms
+- 2-10Hz tremolo into a 2-500Hz Amplitude Modulator
 
   ### Fixed
 - LFO Sync Division Logic
