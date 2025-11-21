@@ -1226,6 +1226,34 @@ function sendMidiMessage(message) {
                activeMouseFxKnobId = id; const d = fxKnobData[id]; if (!d) return;
                d.isDragging = true; d.startY = e.clientY; d.knobEl.style.cursor = 'grabbing'; document.body.style.cursor = 'ns-resize';
            };
+              // Color-code knobs by function group
+function applyKnobColorGroups() {
+    const knobGroups = {
+        'knob-group-envelope': [8, 9, 10, 11],           // ADSR - Blue
+        'knob-group-timbre': [0, 1, 3, 4],               // Glide, Dist, Osc3, Detune - Orange
+        'knob-group-modulation': [5, 6],                 // Tremolo, Chorus - Purple
+        'knob-group-space': [12, 13, 14, 15],            // Reverb, Delay - Green
+        'knob-group-master': [2, 7],                     // Filter, Volume - Red
+        'knob-group-per-osc': [20, 21, 28, 29, 26, 27]  // Osc controls - Gold
+    };
+
+    // Apply color classes to knob containers
+    Object.entries(knobGroups).forEach(([className, knobIds]) => {
+        knobIds.forEach(id => {
+            const knobData = fxKnobData[id];
+            if (knobData && knobData.knobEl) {
+                // Add the group class to the parent container
+                const container = knobData.knobEl.closest('.knob-item') || knobData.knobEl.parentElement;
+                if (container) {
+                    container.classList.add(className);
+                }
+            }
+        });
+    });
+}
+
+// Call it after setupFxKnobs()
+applyKnobColorGroups();
            const handleFxMouseMove = (e) => {
                if (activeMouseFxKnobId === null) return;
                const d = fxKnobData[activeMouseFxKnobId]; if (!d || !d.isDragging) return;
@@ -2990,6 +3018,8 @@ function generateAndApplyRandomSound() {
       
            populateScales();
            setupFxKnobs();
+           applyKnobColorGroups(); 
+
 
            lfoRateDisplays = Array.from({ length: 4 }, (_, idx) => document.getElementById(`lfo-rate-display-${idx}`));
            lfoTempoSyncSwitches = Array(LFO_RATE_KNOB_IDS.length).fill(null);
@@ -3337,6 +3367,7 @@ function generateAndApplyRandomSound() {
            updateRateButtonLockState();
        }
        init();
+
 
 
 
