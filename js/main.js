@@ -53,17 +53,20 @@ let liveLfoOutputs = [0, 0, 0, 0];
         const MAX_LFO_RATE_HZ = 100;
         const LFO_RATE_RANGE_RATIO = MAX_LFO_RATE_HZ / MIN_LFO_RATE_HZ;
         const SIXTEENTH_NOTES_PER_QUARTER = 4;
-   const LFO_RATE_DIVISION_STEPS = [
-    { label: '8', multiplier: 512 },     // 8 bars = 32 quarter notes = 128 16ths
-    { label: '4', multiplier: 256 },     // 4 bars = 16 quarter notes = 64 16ths
-    { label: '2', multiplier: 128 },     // 2 bars = 8 quarter notes = 32 16ths
-    { label: '1', multiplier: 64 },      // 1 bar = 4 quarter notes = 16 16ths
-    { label: '1/2', multiplier: 8 },     // Half note = 2 quarter notes = 8 16ths
-    { label: '1/4', multiplier: 4 },     // Quarter note = 1 beat = 4 16ths
-    { label: '1/8', multiplier: 2 },     // 8th note = half beat = 2 16ths
-    { label: '1/16', multiplier: 1 },    // 16th note = 1 16th (arp speed)
-    { label: '1/32', multiplier: 0.5 },  // 32nd note = half a 16th
-    { label: '1/64', multiplier: 0.25 }, // 64th note
+  const LFO_RATE_DIVISION_STEPS = [
+    { label: '4', multiplier: 64 },        // 4 bars
+    { label: '2', multiplier: 32 },        // 2 bars
+    { label: '1', multiplier: 16 },        // 1 bar
+    { label: '1/2', multiplier: 8 },       // Half note
+    { label: '1/2T', multiplier: 16/3 },   // Half note triplet (≈5.33)
+    { label: '1/4', multiplier: 4 },       // Quarter note
+    { label: '1/4T', multiplier: 8/3 },    // Quarter triplet (≈2.67)
+    { label: '1/8', multiplier: 2 },       // 8th note
+    { label: '1/8T', multiplier: 4/3 },    // 8th triplet (≈1.33)
+    { label: '1/16', multiplier: 1 },      // 16th note (arp speed)
+    { label: '1/16T', multiplier: 2/3 },   // 16th triplet (≈0.67)
+    { label: '1/32', multiplier: 0.5 },    // 32nd note
+    { label: '1/64', multiplier: 0.25 },   // 64th note
 ];
         const LFO_RATE_DIVISION_LABELS = LFO_RATE_DIVISION_STEPS.map(step => step.label);
         const LFO_RATE_DIVISION_MULTIPLIERS = LFO_RATE_DIVISION_STEPS.map(step => step.multiplier);
@@ -3331,6 +3334,7 @@ function generateAndApplyRandomSound() {
            updateRateButtonLockState();
        }
        init();
+
 
 
 
