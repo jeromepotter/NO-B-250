@@ -53,18 +53,23 @@ let liveLfoOutputs = [0, 0, 0, 0];
         const MAX_LFO_RATE_HZ = 100;
         const LFO_RATE_RANGE_RATIO = MAX_LFO_RATE_HZ / MIN_LFO_RATE_HZ;
         const SIXTEENTH_NOTES_PER_QUARTER = 4;
-const LFO_RATE_DIVISION_STEPS = [
-    { label: '8', multiplier: 1 / 2 },      // 8 bars (super slow)
-    { label: '4', multiplier: 1 },          // 4 bars
-    { label: '2', multiplier: 2 },          // 2 bars
-    { label: '1', multiplier: 4 },          // 1 bar (4 beats)
-    { label: '1/2', multiplier: 8 },        // Half note (2 beats)
-    { label: '1/4', multiplier: 16 },       // Quarter note (1 beat) ← FIXED
-    { label: '1/8', multiplier: 32 },       // 8th note ← FIXED
-    { label: '1/16', multiplier: 64 },      // 16th note
-    { label: '1/32', multiplier: 128 },     // 32nd note
-    { label: '1/64', multiplier: 256 },     // 64th note (audio-rate territory!)
-    { label: '1/128', multiplier: 512 },    // 128th note (extreme!)
+  const LFO_RATE_DIVISION_STEPS = [
+    { label: '32', multiplier: 512 },      // 32 bars (ultra slow)
+    { label: '16', multiplier: 256 },      // 16 bars
+    { label: '8', multiplier: 128 },       // 8 bars
+    { label: '4', multiplier: 64 },        // 4 bars
+    { label: '2', multiplier: 32 },        // 2 bars
+    { label: '1', multiplier: 16 },        // 1 bar
+    { label: '1/2', multiplier: 8 },       // Half note
+    { label: '1/2T', multiplier: 16/3 },   // Half note triplet (≈5.33)
+    { label: '1/4', multiplier: 4 },       // Quarter note
+    { label: '1/4T', multiplier: 8/3 },    // Quarter triplet (≈2.67)
+    { label: '1/8', multiplier: 2 },       // 8th note
+    { label: '1/8T', multiplier: 4/3 },    // 8th triplet (≈1.33)
+    { label: '1/16', multiplier: 1 },      // 16th note (arp speed)
+    { label: '1/16T', multiplier: 2/3 },   // 16th triplet (≈0.67)
+    { label: '1/32', multiplier: 0.5 },    // 32nd note
+    { label: '1/64', multiplier: 0.25 },   // 64th note
 ];
         const LFO_RATE_DIVISION_LABELS = LFO_RATE_DIVISION_STEPS.map(step => step.label);
         const LFO_RATE_DIVISION_MULTIPLIERS = LFO_RATE_DIVISION_STEPS.map(step => step.multiplier);
@@ -418,7 +423,7 @@ const LFO_RATE_DIVISION_STEPS = [
                 return;
             }
             const multiplier = getLfoDivisionMultiplier(knobValue);
-            const lfoIntervalMs = tempoIntervalMs / multiplier;
+            const lfoIntervalMs = tempoIntervalMs * multiplier;
             const lfoRateParam = intervalMsToLfoRateParam(lfoIntervalMs);
             
             lfoState[index].rate = lfoRateParam;
@@ -3332,6 +3337,11 @@ function generateAndApplyRandomSound() {
            updateRateButtonLockState();
        }
        init();
+
+
+
+
+
 
 
 
