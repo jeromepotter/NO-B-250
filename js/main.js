@@ -3156,9 +3156,6 @@ function generateAndApplyRandomSound() {
                addTouchListener(s.dom.arpSwitch, () => {
                    const wasOn = s.isArpOn;
                    s.isArpOn = !s.isArpOn; s.dom.arpSwitch.classList.toggle('on', s.isArpOn);
-                   updateGlobalArpVisibility();
-                   if (!s.isArpOn) { stopArpeggiator(s.id); if(s.isHeld) { s.isNoteOn = true; const freq = calculateNote(s.id, false); if(synthNode) synthNode.port.postMessage({type:'noteOn',data:{voice:s.id,freq:freq}}); } s.arpNotes = []; updateSequenceDisplay(s.id);if(s.dom.arpNoteDisplay)s.dom.arpNoteDisplay.textContent="--"; }
-                   else { if(s.isHeld) { if (s.isNoteOn) { if(synthNode) synthNode.port.postMessage({type:'noteOff', data:{voice:s.id}}); s.isNoteOn = false; } playNote(s.id); } }
 
                    if (s.isArpOn && !wasOn && !isArpRateSynced) {
                        const otherId = s.id === 0 ? 1 : 0;
@@ -3176,6 +3173,9 @@ function generateAndApplyRandomSound() {
                        }
                    }
 
+                   updateGlobalArpVisibility();
+                   if (!s.isArpOn) { stopArpeggiator(s.id); if(s.isHeld) { s.isNoteOn = true; const freq = calculateNote(s.id, false); if(synthNode) synthNode.port.postMessage({type:'noteOn',data:{voice:s.id,freq:freq}}); } s.arpNotes = []; updateSequenceDisplay(s.id);if(s.dom.arpNoteDisplay)s.dom.arpNoteDisplay.textContent="--"; }
+                   else { if(s.isHeld) { if (s.isNoteOn) { if(synthNode) synthNode.port.postMessage({type:'noteOff', data:{voice:s.id}}); s.isNoteOn = false; } playNote(s.id); } }
                    updateStateFromTotalAngle(s.id);
                });
 
