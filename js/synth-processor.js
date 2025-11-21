@@ -321,26 +321,32 @@ for(let i=0;i<oL.length;i++){
     
     const dV=currentParams[1];
     if (dV > 0.001) {
-        const drive = 1 + dV * 18;
-        const bias = (dV * 0.6) - 0.15;
-        const sustain = 0.25 + dV * 0.65;
-        const sagIntensity = 0.2 + dV * 1.8;
-        const sagCoeff = 0.0008 + dV * 0.0025;
+        const drive = 1 + dV * 20;
+        const bias = (dV * 0.7) - 0.18;
+        const sustain = 0.3 + dV * 0.6;
+        const sagIntensity = 0.15 + dV * 1.3;
+        const sagCoeff = 0.001 + dV * 0.003;
 
         const shapeTube = (x, sagState) => {
             let pre = (x + bias) * drive;
             const sagTarget = 1 / (1 + Math.abs(pre) * sagIntensity);
             sagState += (sagTarget - sagState) * sagCoeff;
-            pre *= Math.max(0.25, sagState);
+            pre *= Math.max(0.3, sagState);
 
-            const asymmetric = pre >= 0
+            const asym = pre >= 0
                 ? pre / (1 + pre)
-                : pre / (1 + Math.abs(pre) * (0.6 + dV));
+                : pre / (1 + Math.abs(pre) * (0.55 + dV));
 
-            const fuzz = Math.tanh(asymmetric * (1 + dV * 5));
-            const sustainShape = Math.sign(asymmetric) * Math.pow(Math.min(1, Math.abs(asymmetric)), 0.5 + (1 - dV) * 0.2);
+            const evenBlend = 0.25 + dV * 0.4;
+            const evenLift = Math.tanh((pre + Math.abs(pre) * 0.6) * (0.7 + dV));
+            const oddLift = asym;
+            const harmonicMix = oddLift * (1 - evenBlend) + evenLift * evenBlend;
+
+            const fuzz = Math.tanh(harmonicMix * (1 + dV * 6));
+            const sustainShape = Math.sign(harmonicMix) * Math.pow(Math.min(1, Math.abs(harmonicMix)), 0.4 + (1 - dV) * 0.15);
+            const body = (1 - sustain) * fuzz + sustain * sustainShape;
             return {
-                value: (1 - sustain) * fuzz + sustain * sustainShape,
+                value: Math.max(-1, Math.min(1, body)),
                 sag: sagState
             };
         };
@@ -351,9 +357,9 @@ for(let i=0;i<oL.length;i++){
         this.sagL = shapedL.sag;
         this.sagR = shapedR.sag;
 
-        const norm = 1 / (1 + dV * 0.9);
-        s_L = shapedL.value * norm;
-        s_R = shapedR.value * norm;
+        const makeup = 0.92 + dV * 0.35;
+        s_L = shapedL.value * makeup;
+        s_R = shapedR.value * makeup;
     }
     if(currentParams[5] > 0){ 
          const tremRateHz = 2 + (Math.pow(currentParams[5], 3) * 500);
