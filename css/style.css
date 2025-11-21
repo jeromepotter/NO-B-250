@@ -99,7 +99,61 @@ body { font-family: 'Poppins', sans-serif; background-color: #1e1b4b; touch-acti
         color: #facc15;
         transform: translateY(-1px);
       }
+/* Knob Color Groups - Using ARP_NOTE_BASE_HSL colors */
 
+/* ADSR - F# color (mint/sage green) */
+.knob-group-envelope .fx-knob-container {
+    background: hsl(156, 38%, 60%);
+    border: 2px solid hsl(156, 38%, 70%);
+}
+.knob-group-envelope .indicator { 
+    background-color: hsl(156, 38%, 40%); /* Inverted lightness: 100 - 60 = 40 */
+}
+
+/* TIMBRE - D# color (golden olive) */
+.knob-group-timbre .fx-knob-container {
+    background: hsl(33, 59%, 49%);
+    border: 2px solid hsl(33, 59%, 59%);
+}
+.knob-group-timbre .indicator { 
+    background-color: hsl(33, 59%, 51%); /* Inverted lightness: 100 - 49 = 51 */
+}
+
+/* MODULATION - C# color (orange/brown) */
+.knob-group-modulation .fx-knob-container {
+    background: hsl(24, 72%, 42%);
+    border: 2px solid hsl(24, 72%, 52%);
+}
+.knob-group-modulation .indicator { 
+    background-color: hsl(24, 72%, 58%); /* Inverted lightness: 100 - 42 = 58 */
+}
+
+/* SPACE FX - E color (light pink/rose) */
+.knob-group-space .fx-knob-container {
+    background: hsl(360, 36.4%, 60%);
+    border: 2px solid hsl(360, 36.4%, 70%);
+}
+.knob-group-space .indicator { 
+    background-color: hsl(360, 36.4%, 40%); /* Inverted lightness: 100 - 60 = 40 */
+}
+
+/* MASTER - C color (dark red/rust) */
+.knob-group-master .fx-knob-container {
+    background: hsl(6, 76%, 32%);
+    border: 2px solid hsl(6, 76%, 42%);
+}
+.knob-group-master .indicator { 
+    background-color: hsl(6, 76%, 68%); /* Inverted lightness: 100 - 32 = 68 */
+}
+
+/* PER-OSC - D color (peachy orange) */
+.knob-group-per-osc .fx-knob-container {
+    background: hsl(15, 57.6%, 53.6%);
+    border: 2px solid hsl(15, 57.6%, 63.6%);
+}
+.knob-group-per-osc .indicator { 
+    background-color: hsl(15, 57.6%, 46.4%); /* Inverted lightness: 100 - 53.6 = 46.4 */
+}
       body.easter-egg-mode .arp-rate-button:hover {
         color: #cc5500;
       }
@@ -339,3 +393,4 @@ body { font-family: 'Poppins', sans-serif; background-color: #1e1b4b; touch-acti
     cursor: pointer;
   }
 }
+
