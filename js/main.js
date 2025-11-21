@@ -2845,8 +2845,16 @@ function generateAndApplyRandomSound() {
 
             const destChain = getLfoDestChain(lfo);
             if (destChain.length === 0) {
-                cable.setAttribute('d', '');
-                cable.style.display = 'none';
+                const parkedOffsetX = (startX > containerRect.width / 2 ? -1 : 1) * 32;
+                const parkedOffsetY = 48;
+                const parkedCtrlX = startX + parkedOffsetX * 0.6;
+                const parkedCtrlY = startY - 24;
+                const parkedEndX = startX + parkedOffsetX;
+                const parkedEndY = startY + parkedOffsetY;
+
+                cable.style.display = 'block';
+                cable.setAttribute('d', `M ${startX} ${startY} Q ${parkedCtrlX} ${parkedCtrlY} ${parkedEndX} ${parkedEndY}`);
+                hasAnyCable = true;
                 return;
             }
 
