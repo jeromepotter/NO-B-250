@@ -235,6 +235,45 @@ body { font-family: 'Poppins', sans-serif; background-color: #1e1b4b; touch-acti
         margin-top: 2px;
       }
 
+      .lfo-section-box {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        background: rgba(0, 0, 0, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        border-radius: 8px;
+        padding: 12px 10px;
+        width: 100%;
+      }
+
+      .fx-knob-container.delay-knob,
+      .fx-knob-container.delay-time-knob {
+        background-color: #489999;
+      }
+
+      .fx-knob-container.delay-knob .indicator,
+      .fx-knob-container.delay-time-knob .indicator {
+        background-color: #be7474;
+      }
+
+      .fx-knob-container.reverb-knob,
+      .fx-knob-container.reverb-time-knob {
+        background-color: #be7474;
+      }
+
+      .fx-knob-container.reverb-knob .indicator,
+      .fx-knob-container.reverb-time-knob .indicator {
+        background-color: #489999;
+      }
+
+      @media (max-width: 1024px) {
+        .lfo-section-box {
+          gap: 10px;
+          padding: 10px 8px;
+        }
+      }
+
       .switch-disabled {
         opacity: 0.35;
         filter: grayscale(1);
