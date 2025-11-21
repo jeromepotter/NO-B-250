@@ -213,6 +213,29 @@ body { font-family: 'Poppins', sans-serif; background-color: #1e1b4b; touch-acti
         margin-top: 1rem;
         padding-top: 1rem;
       }
+
+      .lfo-column-box {
+        border: 1px solid currentColor;
+        border-radius: 0;
+        padding: 14px 10px 10px 10px;
+      }
+
+      .fx-delay-knob {
+        background-color: #00ffff;
+      }
+
+      .fx-delay-indicator {
+        background-color: #facc15;
+      }
+
+      .fx-reverb-knob {
+        background-color: #be7474;
+      }
+
+      .fx-reverb-indicator {
+        background-color: #00ffff;
+        mix-blend-mode: difference;
+      }
       .lfo-display {
         color: #facc15; /* Bright yellow for contrast */
         font-size: 10px;
