@@ -2765,11 +2765,6 @@ function generateAndApplyRandomSound() {
             // REMOVED: cable.ownerSVGElement.style.zIndex = '10'; <--- THIS WAS BLOCKING PRESETS
         }
 
-        if (lfo.dest === LFO_DEST_NONE) {
-            cable.setAttribute('d', '');
-            return;
-        }
-
         const sourceKnobInfo = Object.values(LFO_KNOB_MAP).find(d => d.lfo === index && d.param === 'dest');
         if (!sourceKnobInfo) return;
 
@@ -2783,7 +2778,8 @@ function generateAndApplyRandomSound() {
             
             let endX, endY;
 
-            const destKnobEl = getLfoTargetElement(lfo.dest);
+            const isParked = lfo.dest === LFO_DEST_NONE;
+            const destKnobEl = isParked ? null : getLfoTargetElement(lfo.dest);
             if (!destKnobEl || destKnobEl.offsetParent === null) {
                     const direction = (startX > containerRect.width / 2) ? 1 : -1;
                     endX = startX + (250 * direction);
