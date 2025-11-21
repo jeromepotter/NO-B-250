@@ -3107,27 +3107,13 @@ function generateAndApplyRandomSound() {
             synthContainer.addEventListener('touchstart', () => { isScrollingGlobal = false; }, { passive: true });
             let lastPatchTap = { id: null, time: 0 };
 
-            const handleGlobalPatchClick = (e) => {
+            const handleLfoPatchTarget = (targetFxId) => {
                 if (!isLfoMode || activePatchingLfo === null) return;
-                if (e.type === 'touchend' && isScrollingGlobal) return;
-                if (e.type === 'touchend' && e.cancelable) e.preventDefault();
 
-                const targetKnobEl = e.target.closest('.fx-knob-container, .main-knob');
-                
-                if (!targetKnobEl) {
-                    lastPatchTap = { id: null, time: 0 };
-                    stopLfoPatching();
-                    return;
-                }
-
-                const targetFxId = targetKnobEl.classList.contains('main-knob') ? MAIN_LFO_DEST_IDS[parseInt(targetKnobEl.dataset.knobId, 10)] : parseInt(targetKnobEl.dataset.fxId, 10);
-                if (targetFxId === undefined || Number.isNaN(targetFxId)) {
-                    stopLfoPatching();
-                    return;
-                }
                 const now = Date.now();
                 const isDouble = lastPatchTap.id === targetFxId && now - lastPatchTap.time < 300;
                 lastPatchTap = { id: targetFxId, time: now };
+
                 const sourceKnobInfo = Object.values(LFO_KNOB_MAP).find(d => d.lfo === activePatchingLfo && d.param === 'dest');
                 const sourceFxId = parseInt(Object.keys(LFO_KNOB_MAP).find(key => LFO_KNOB_MAP[key] === sourceKnobInfo));
                 const ownLfoKnobs = Object.keys(LFO_KNOB_MAP).filter(id => LFO_KNOB_MAP[id].lfo === activePatchingLfo).map(id => parseInt(id));
@@ -3155,9 +3141,57 @@ function generateAndApplyRandomSound() {
                 setLfoDestChain(activePatchingLfo, [...destChain, targetFxId]);
                 startLfoPatching(activePatchingLfo);
             };
+
+            const handleGlobalPatchClick = (e) => {
+                if (!isLfoMode || activePatchingLfo === null) return;
+                if (e.type === 'touchend' && isScrollingGlobal) return;
+                if (e.type === 'touchend' && e.cancelable) e.preventDefault();
+
+                const targetKnobEl = e.target.closest('.fx-knob-container, .main-knob');
+
+                if (!targetKnobEl) {
+                    lastPatchTap = { id: null, time: 0 };
+                    stopLfoPatching();
+                    return;
+                }
+
+                const targetFxId = targetKnobEl.classList.contains('main-knob') ? MAIN_LFO_DEST_IDS[parseInt(targetKnobEl.dataset.knobId, 10)] : parseInt(targetKnobEl.dataset.fxId, 10);
+                if (targetFxId === undefined || Number.isNaN(targetFxId)) {
+                    stopLfoPatching();
+                    return;
+                }
+
+                handleLfoPatchTarget(targetFxId);
+            };
             
             synthContainer.addEventListener('touchend', handleGlobalPatchClick);
             synthContainer.addEventListener('click', handleGlobalPatchClick);
+
+            // Direct knob listeners ensure patch taps are registered even when inner controls stop propagation
+            document.querySelectorAll('.fx-knob-container, .main-knob').forEach(knobEl => {
+                const fxIdRaw = knobEl.classList.contains('main-knob')
+                    ? MAIN_LFO_DEST_IDS[parseInt(knobEl.dataset.knobId, 10)]
+                    : parseInt(knobEl.dataset.fxId, 10);
+                if (fxIdRaw === undefined || Number.isNaN(fxIdRaw)) return;
+
+                // Skip the LFO source knobs; their dedicated handler manages start/stop/clear
+                const isLfoDestKnob = LFO_KNOB_MAP[fxIdRaw]?.param === 'dest';
+                if (isLfoDestKnob) return;
+
+                const forwardPatchTap = (e) => {
+                    if (!isLfoMode || activePatchingLfo === null) return;
+                    if (e.type === 'touchend') {
+                        if (e.cancelable) e.preventDefault();
+                        e.stopPropagation();
+                    } else {
+                        e.stopPropagation();
+                    }
+                    handleLfoPatchTarget(fxIdRaw);
+                };
+
+                knobEl.addEventListener('click', forwardPatchTap);
+                knobEl.addEventListener('touchend', forwardPatchTap);
+            });
 
             const mainHeader = document.querySelector('.main-header h1');
             let headerTapCount = 0;
