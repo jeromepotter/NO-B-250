@@ -84,6 +84,17 @@ let liveLfoOutputs = [0, 0, 0, 0];
             return [];
         }
 
+        function formatLfoDestDisplay(chain) {
+            if (!chain || !chain.length) return 'NONE';
+            return chain.map(dest => KNOB_ID_TO_NAME_MAP[dest] || `ID ${dest}`).join(' + ');
+        }
+
+        function updateLfoDestDisplay(lfoIndex) {
+            const destDisplay = document.getElementById(`lfo-dest-display-${lfoIndex}`);
+            if (!destDisplay) return;
+            destDisplay.textContent = formatLfoDestDisplay(getLfoDestChain(lfoState[lfoIndex]));
+        }
+
         function lfoTargetsInclude(lfo, targetId) {
             return getLfoDestChain(lfo).includes(targetId);
         }
@@ -92,14 +103,19 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const normalizedChain = (Array.isArray(rawDestinations) ? rawDestinations : (rawDestinations === undefined ? [] : [rawDestinations]))
                 .map(normalizePresetLfoDest)
                 .filter(d => Number.isFinite(d) && d !== LFO_DEST_NONE);
-            const primaryDest = normalizedChain[0] ?? LFO_DEST_NONE;
+            const uniqueChain = [];
+            normalizedChain.forEach(dest => {
+                if (!uniqueChain.includes(dest)) uniqueChain.push(dest);
+            });
+            const primaryDest = uniqueChain[0] ?? LFO_DEST_NONE;
             if (lfoState[lfoIndex]) {
-                lfoState[lfoIndex].destChain = normalizedChain;
+                lfoState[lfoIndex].destChain = uniqueChain;
                 lfoState[lfoIndex].dest = primaryDest;
             }
             if (synthNode) {
-                synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: lfoIndex, param: 'destChain', value: normalizedChain } });
+                synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: lfoIndex, param: 'destChain', value: uniqueChain } });
             }
+            updateLfoDestDisplay(lfoIndex);
             return primaryDest;
         }
       
@@ -2259,9 +2275,8 @@ lfoState.forEach((lfo, lfoIndex) => {
             });
             for (let i = 0; i < 4; i++) {
                 const waveDisplay = document.getElementById(`lfo-wave-display-${i}`);
-                const destDisplay = document.getElementById(`lfo-dest-display-${i}`);
                 if (waveDisplay) waveDisplay.textContent = 'SINE';
-                if (destDisplay) destDisplay.textContent = 'NONE';
+                updateLfoDestDisplay(i);
             }
         }
         
@@ -2269,13 +2284,11 @@ lfoState.forEach((lfo, lfoIndex) => {
 
         ensureLfoAnimationRunning();
         updateLfoTempoSwitchStates();
-           
+
     } else {
             lfoState.forEach((lfo, idx) => {
         if (getLfoDestChain(lfo).length) {
             setLfoDestChain(idx, []);
-            const destDisplay = document.getElementById(`lfo-dest-display-${idx}`);
-            if (destDisplay) destDisplay.textContent = 'NONE';
         }
     });
             lfoTempoLinkState.forEach((link, idx) => {
@@ -2393,17 +2406,13 @@ function applyPreset(p) {
                        if (depthKnobId) setFxValue(parseInt(depthKnobId), lfoState[index].depth, true);
                        if (waveKnobId) {
                            const waveIndex = lfoState[index].wave;
-                           const waveKnobValue = (waveIndex + 0.5) / LFO_WAVEFORMS.length; 
+                           const waveKnobValue = (waveIndex + 0.5) / LFO_WAVEFORMS.length;
                            setFxValue(parseInt(waveKnobId), waveKnobValue, true);
                            const waveDisplay = document.getElementById(`lfo-wave-display-${index}`);
                            if (waveDisplay) waveDisplay.textContent = LFO_WAVEFORMS[waveIndex];
                        }
 
-                       const destDisplay = document.getElementById(`lfo-dest-display-${index}`);
-                       if (destDisplay) {
-                           const destName = lfoState[index].dest === LFO_DEST_NONE ? 'NONE' : (KNOB_ID_TO_NAME_MAP[lfoState[index].dest] || 'OFF');
-                           destDisplay.textContent = destName;
-                       }
+                       updateLfoDestDisplay(index);
                        
                        if (synthNode) {
                            synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'rate', value: lfoState[index].rate } });
@@ -2434,9 +2443,8 @@ function applyPreset(p) {
                // Reset UI Text
                for (let i = 0; i < 4; i++) {
                     const waveDisplay = document.getElementById(`lfo-wave-display-${i}`);
-                    const destDisplay = document.getElementById(`lfo-dest-display-${i}`);
                     if (waveDisplay) waveDisplay.textContent = 'SINE';
-                    if (destDisplay) destDisplay.textContent = 'NONE';
+                    updateLfoDestDisplay(i);
                }
            }
            
@@ -3056,29 +3064,41 @@ function generateAndApplyRandomSound() {
             synthContainer.addEventListener('touchstart', () => { isScrollingGlobal = false; }, { passive: true });
 
             const handleGlobalPatchClick = (e) => {
-                if (!isLfoMode || activePatchingLfo === null) return;
+                if (!isLfoMode) return;
                 if (e.type === 'touchend' && isScrollingGlobal) return;
                 if (e.type === 'touchend' && e.cancelable) e.preventDefault();
 
                 const targetKnobEl = e.target.closest('.fx-knob-container, .main-knob');
-                
+
                 if (!targetKnobEl) {
-                    stopLfoPatching();
+                    if (activePatchingLfo !== null) stopLfoPatching();
                     return;
                 }
 
                 const targetFxId = targetKnobEl.classList.contains('main-knob') ? MAIN_LFO_DEST_IDS[parseInt(targetKnobEl.dataset.knobId, 10)] : parseInt(targetKnobEl.dataset.fxId, 10);
                 if (targetFxId === undefined || Number.isNaN(targetFxId)) {
-                    stopLfoPatching();
+                    if (activePatchingLfo !== null) stopLfoPatching();
                     return;
                 }
+                const targetKnobData = fxKnobData[targetFxId];
+                const wasDragging = targetKnobData?.isDragging || targetKnobData?.touchMoved;
+
+                if (activePatchingLfo === null) {
+                    const owningLfoIndex = wasDragging ? -1 : lfoState.findIndex(lfo => lfoTargetsInclude(lfo, targetFxId));
+                    if (owningLfoIndex !== -1) {
+                        startLfoPatching(owningLfoIndex);
+                    }
+                    return;
+                }
+
                 const sourceKnobInfo = Object.values(LFO_KNOB_MAP).find(d => d.lfo === activePatchingLfo && d.param === 'dest');
                 const sourceFxId = parseInt(Object.keys(LFO_KNOB_MAP).find(key => LFO_KNOB_MAP[key] === sourceKnobInfo));
                 const ownLfoKnobs = Object.keys(LFO_KNOB_MAP).filter(id => LFO_KNOB_MAP[id].lfo === activePatchingLfo).map(id => parseInt(id));
-                
+                const currentChain = getLfoDestChain(lfoState[activePatchingLfo]);
+                let nextChain = [...currentChain];
+
                 if (targetFxId === sourceFxId) {
                     setLfoDestChain(activePatchingLfo, []);
-                    document.getElementById(`lfo-dest-display-${activePatchingLfo}`).textContent = 'NONE';
                     stopLfoPatching();
                      drawLfoCables();
                     return;
@@ -3086,11 +3106,18 @@ function generateAndApplyRandomSound() {
 
                 if (ownLfoKnobs.includes(targetFxId)) return;
 
-                setLfoDestChain(activePatchingLfo, [targetFxId]);
-                const targetName = KNOB_ID_TO_NAME_MAP[targetFxId] || "UNKNOWN";
-                document.getElementById(`lfo-dest-display-${activePatchingLfo}`).textContent = targetName;
+                if (nextChain.includes(targetFxId)) {
+                    nextChain = nextChain.filter(dest => dest !== targetFxId);
+                } else {
+                    nextChain.push(targetFxId);
+                }
 
-                stopLfoPatching();
+                setLfoDestChain(activePatchingLfo, nextChain);
+
+                if (!nextChain.length) {
+                    stopLfoPatching();
+                }
+
                  drawLfoCables();
             };
             
@@ -3240,7 +3267,6 @@ function generateAndApplyRandomSound() {
                          const lfo = lfoState[lfoInfo.lfo];
                          if (getLfoDestChain(lfo).length) {
                              setLfoDestChain(lfoInfo.lfo, []);
-                             document.getElementById(`lfo-dest-display-${lfoInfo.lfo}`).textContent = 'NONE';
                              drawLfoCables();
                              if (!shouldKeepLfoAnimationRunning() && lfoAnimationId !== null) {
                                  clearInterval(lfoAnimationId);
