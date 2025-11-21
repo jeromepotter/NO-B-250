@@ -2,7 +2,7 @@
 
 
 ##Future Plans
-New Oscillators? More Extreme Detune?
+New Oscillators? More Extreme Detune? New Presets?
 
 ## [11.20] - 2025-11-20
 ### Added
@@ -11,6 +11,9 @@ New Oscillators? More Extreme Detune?
 
   ### Changed
 - MS rate minimum from 50ms to 10ms
+
+  ### Fixed
+- LFO Sync Division Logic
 
 ## [11.19] - 2025-11-19
 ### Added
