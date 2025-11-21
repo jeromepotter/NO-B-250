@@ -2795,26 +2795,34 @@ function generateAndApplyRandomSound() {
             });
         }
       function drawLfoCables() {
+    const patchBay = document.getElementById('lfo-patch-bay');
     if (!isLfoMode) {
         for (let i = 0; i < 4; i++) {
             const cable = document.getElementById(`lfo-cable-${i}`);
-            if (cable) { 
+            if (cable) {
                 cable.setAttribute('d', '');
                 // Hide parent if possible to prevent layout interference
                 if (cable.ownerSVGElement) cable.ownerSVGElement.style.display = 'none';
             }
         }
+        if (patchBay) patchBay.style.display = 'none';
         return;
     };
 
+    if (!synthContainer || !patchBay) return;
+
     const containerRect = synthContainer.getBoundingClientRect();
+    patchBay.style.display = 'block';
+    patchBay.setAttribute('width', containerRect.width);
+    patchBay.setAttribute('height', containerRect.height);
+    patchBay.setAttribute('viewBox', `0 0 ${containerRect.width} ${containerRect.height}`);
 
     lfoState.forEach((lfo, index) => {
         const cable = document.getElementById(`lfo-cable-${index}`);
         if (!cable) return;
 
         // --- FIX: Make cables "ghosts" to clicks/touches ---
-        cable.style.pointerEvents = 'none'; 
+        cable.style.pointerEvents = 'none';
         if (cable.ownerSVGElement) {
             cable.ownerSVGElement.style.pointerEvents = 'none';
             cable.ownerSVGElement.style.display = 'block';
