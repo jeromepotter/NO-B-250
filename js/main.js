@@ -54,6 +54,9 @@ let liveLfoOutputs = [0, 0, 0, 0];
         const LFO_RATE_RANGE_RATIO = MAX_LFO_RATE_HZ / MIN_LFO_RATE_HZ;
         const SIXTEENTH_NOTES_PER_QUARTER = 4;
   const LFO_RATE_DIVISION_STEPS = [
+    { label: '32', multiplier: 512 },      // 32 bars (ultra slow)
+    { label: '16', multiplier: 256 },      // 16 bars
+    { label: '8', multiplier: 128 },       // 8 bars
     { label: '4', multiplier: 64 },        // 4 bars
     { label: '2', multiplier: 32 },        // 2 bars
     { label: '1', multiplier: 16 },        // 1 bar
@@ -3334,6 +3337,7 @@ function generateAndApplyRandomSound() {
            updateRateButtonLockState();
        }
        init();
+
 
 
 
