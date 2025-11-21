@@ -3135,7 +3135,7 @@ function generateAndApplyRandomSound() {
                 const usedDests = new Set(destChain);
 
                 if (targetFxId === sourceFxId) {
-                    setLfoDestChain(activePatchingLfo, []);
+                    // Park the chain without clearing any existing destinations
                     stopLfoPatching();
                     return;
                 }
