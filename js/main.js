@@ -116,6 +116,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: lfoIndex, param: 'destChain', value: uniqueChain } });
             }
             updateLfoDestDisplay(lfoIndex);
+            drawLfoCables();
             return primaryDest;
         }
       
@@ -2773,17 +2774,25 @@ function generateAndApplyRandomSound() {
             });
         }
       function drawLfoCables() {
-    if (!isLfoMode) {
+    const patchBay = document.getElementById('lfo-patch-bay');
+    if (!patchBay) return;
+
+    const hasChains = lfoState.some(lfo => getLfoDestChain(lfo).length);
+    const shouldHide = !isLfoMode && !hasChains;
+
+    if (shouldHide) {
         for (let i = 0; i < 4; i++) {
             const cable = document.getElementById(`lfo-cable-${i}`);
             if (cable) {
                 cable.setAttribute('d', '');
-                // Hide parent if possible to prevent layout interference
                 if (cable.ownerSVGElement) cable.ownerSVGElement.style.display = 'none';
             }
         }
+        patchBay.style.display = 'none';
         return;
-    };
+    }
+
+    patchBay.style.display = 'block';
 
     const containerRect = synthContainer.getBoundingClientRect();
 
@@ -2796,7 +2805,6 @@ function generateAndApplyRandomSound() {
         if (cable.ownerSVGElement) {
             cable.ownerSVGElement.style.pointerEvents = 'none';
             cable.ownerSVGElement.style.display = 'block';
-            // REMOVED: cable.ownerSVGElement.style.zIndex = '10'; <--- THIS WAS BLOCKING PRESETS
         }
 
         const sourceKnobInfo = Object.values(LFO_KNOB_MAP).find(d => d.lfo === index && d.param === 'dest');
