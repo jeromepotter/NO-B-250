@@ -213,6 +213,22 @@ body { font-family: 'Poppins', sans-serif; background-color: #1e1b4b; touch-acti
         margin-top: 1rem;
         padding-top: 1rem;
       }
+
+      .fx-pair-box {
+        border: 1px solid currentColor;
+        border-radius: 12px;
+        padding: 6px 8px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 14px;
+      }
+
+      .lfo-outline-box {
+        border: 1px solid currentColor;
+        border-radius: 12px;
+        padding: 12px 10px 6px 10px;
+      }
       .lfo-display {
         color: #facc15; /* Bright yellow for contrast */
         font-size: 10px;
