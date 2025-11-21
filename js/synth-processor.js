@@ -236,8 +236,8 @@ for(let i=0;i<oL.length;i++){
     this.currentFrequency2+=(this.targetFrequency2-this.currentFrequency2)*pt;
     
     // --- VOICE VARIANCE LOGIC ---
-    const dA1 = 1.0 + currentParams[4] * 0.01; 
-    const dA2 = 1.0 + currentParams[4] * 0.013; 
+    const dA1 = 1.0 + currentParams[4] * 0.03; 
+    const dA2 = 1.0 + currentParams[4] * 0.04; 
 
     let s1=0, s2=0;
 
@@ -368,5 +368,6 @@ return true;
 }
 }
 registerProcessor('synth-processor', SynthProcessor);
+
 
 
