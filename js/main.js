@@ -2801,6 +2801,7 @@ function generateAndApplyRandomSound() {
             const cable = document.getElementById(`lfo-cable-${i}`);
             if (cable) {
                 cable.setAttribute('d', '');
+                cable.style.display = 'none';
                 // Hide parent if possible to prevent layout interference
                 if (cable.ownerSVGElement) cable.ownerSVGElement.style.display = 'none';
             }
@@ -2816,6 +2817,8 @@ function generateAndApplyRandomSound() {
     patchBay.setAttribute('width', containerRect.width);
     patchBay.setAttribute('height', containerRect.height);
     patchBay.setAttribute('viewBox', `0 0 ${containerRect.width} ${containerRect.height}`);
+
+    let hasAnyCable = false;
 
     lfoState.forEach((lfo, index) => {
         const cable = document.getElementById(`lfo-cable-${index}`);
@@ -2843,9 +2846,12 @@ function generateAndApplyRandomSound() {
             const destChain = getLfoDestChain(lfo);
             if (destChain.length === 0) {
                 cable.setAttribute('d', '');
-                if (cable.ownerSVGElement) cable.ownerSVGElement.style.display = 'none';
+                cable.style.display = 'none';
                 return;
             }
+
+            cable.style.display = 'block';
+            hasAnyCable = true;
 
             const points = [{ x: startX, y: startY }];
             let lastDirection = (startX > containerRect.width / 2) ? 1 : -1;
@@ -2866,7 +2872,7 @@ function generateAndApplyRandomSound() {
 
             if (points.length < 2) {
                 cable.setAttribute('d', '');
-                if (cable.ownerSVGElement) cable.ownerSVGElement.style.display = 'none';
+                cable.style.display = 'none';
                 return;
             }
 
@@ -2887,6 +2893,11 @@ function generateAndApplyRandomSound() {
             cable.setAttribute('d', pathData);
         }
     });
+
+    // If none of the LFOs have cables, keep the patch bay hidden to avoid overlaying empty SVG
+    if (!hasAnyCable && patchBay) {
+        patchBay.style.display = 'none';
+    }
 }
 
 
