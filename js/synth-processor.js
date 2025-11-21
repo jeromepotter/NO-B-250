@@ -14,7 +14,7 @@ const LFO_RATE_RANGE_RATIO = MAX_LFO_RATE_HZ / MIN_LFO_RATE_HZ;
                    // Envelope state
                    this.envStage1='off'; this.envValue1=0.0; this.envStage2='off'; this.envValue2=0.0;
                    // FX params (from main thread)
-                   this.params=new Array(30).fill(0.0);
+                   this.params=new Array(32).fill(0.0);
                    // Envelope times
                    this.attackTime=0.01; this.decayTime=0.2; this.sustainLevel=0.8; this.releaseTime=0.1;
                    this.releaseRate = Math.exp(-1 / (this.releaseTime * sampleRate));
@@ -26,6 +26,9 @@ const LFO_RATE_RANGE_RATIO = MAX_LFO_RATE_HZ / MIN_LFO_RATE_HZ;
                    this.filterCoeffs={b0:1,b1:0,b2:0,a1:0,a2:0}; this.updateFilterCoefficients(this.filterCoeffs, 1.0, 0.0);
                    this.filterOsc1Coeffs={b0:1,b1:0,b2:0,a1:0,a2:0}; this.filter_osc1_x1=0; this.filter_osc1_x2=0; this.filter_osc1_y1=0; this.filter_osc1_y2=0; this.updateFilterCoefficients(this.filterOsc1Coeffs, 1.0, 0.0);
                    this.filterOsc2Coeffs={b0:1,b1:0,b2:0,a1:0,a2:0}; this.filter_osc2_x1=0; this.filter_osc2_x2=0; this.filter_osc2_y1=0; this.filter_osc2_y2=0; this.updateFilterCoefficients(this.filterOsc2Coeffs, 1.0, 0.0);
+                   // Big Muff tone stack state
+                   this.muffToneLowL = 0; this.muffToneLowR = 0;
+                   this.muffToneHighL = 0; this.muffToneHighR = 0;
                    // Delay & Chorus state
                    this.delayBufferL=new Float32Array(sampleRate*2);this.delayBufferR=new Float32Array(sampleRate*2);this.delayWritePos=0;
                    this.smoothDelayTime = 0.01;
@@ -100,6 +103,7 @@ case 'ping':
                    // Initialize default FX params that are not 0
                    this.params[2] = 1.0; this.params[7] = 0.5; this.params[10] = 0.8;
                    this.params[20] = 1.0; this.params[21] = 1.0; this.params[26] = 0.5; this.params[27] = 0.5;
+                   this.params[30] = 0.7; this.params[31] = 0.5;
                }
       
                updateFilterCoefficients(c,v, res){ const p=Math.pow(v,3); const Q=0.707 + Math.pow(res, 2) * 24; const w=2*Math.PI*(40+p*(sampleRate/2.2-40))/sampleRate; const s=Math.sin(w); const a=s/(2*Q); const i=1/(1+a); c.b0=(1-Math.cos(w))/2*i; c.b1=(1-Math.cos(w))*i; c.b2=(1-Math.cos(w))/2*i; c.a1=-2*Math.cos(w)*i; c.a2=(1-a)*i; }
@@ -315,7 +319,55 @@ for(let i=0;i<oL.length;i++){
     } 
     this.chorusWritePos = (this.chorusWritePos + 1) % this.chorusDelayBufferL.length;
     
-    const dV=currentParams[1]; if (dV>0.01){ const dr=1+dV*19; const k=2*dr/(1+dr); s_L=(1+k)*s_L/(1+k*Math.abs(s_L)); s_R=(1+k)*s_R/(1+k*Math.abs(s_R)); const nS=Math.max(2,Math.floor(Math.pow(1-dV,2.5)*64)); const sS=2.0/nS; s_L=sS*Math.floor(s_L/sS+0.5); s_R=sS*Math.floor(s_R/sS+0.5); const gC=1/(1+dV*1.5); s_L*=gC; s_R*=gC; }
+    const muffMix = currentParams[1];
+    const muffSustain = currentParams[30] ?? 0.7;
+    const muffTone = currentParams[31] ?? 0.5;
+
+    const preGain = 5 + muffSustain * 28;
+    const diodeTightness = 2.5 + muffSustain * 2.5;
+    const diodeLevel = 0.75;
+
+    const toneLowCoeff = Math.exp(-2 * Math.PI * 500 / sr);
+    const toneHighCoeff = Math.exp(-2 * Math.PI * 1400 / sr);
+    const scoopBlend = 0.65;
+
+    if (muffMix > 0.001) {
+        const dryL = s_L;
+        const dryR = s_R;
+
+        let preL = Math.tanh(s_L * preGain * 0.5);
+        let preR = Math.tanh(s_R * preGain * 0.5);
+
+        preL = Math.max(-diodeLevel, Math.min(diodeLevel, preL * 1.4));
+        preR = Math.max(-diodeLevel, Math.min(diodeLevel, preR * 1.4));
+
+        const fuzzL = Math.tanh(preL * diodeTightness);
+        const fuzzR = Math.tanh(preR * diodeTightness);
+
+        this.muffToneLowL += (fuzzL - this.muffToneLowL) * (1 - toneLowCoeff);
+        this.muffToneLowR += (fuzzR - this.muffToneLowR) * (1 - toneLowCoeff);
+
+        this.muffToneHighL += (fuzzL - this.muffToneHighL) * (1 - toneHighCoeff);
+        this.muffToneHighR += (fuzzR - this.muffToneHighR) * (1 - toneHighCoeff);
+
+        const lowL = this.muffToneLowL;
+        const lowR = this.muffToneLowR;
+        const highL = fuzzL - this.muffToneHighL;
+        const highR = fuzzR - this.muffToneHighR;
+
+        const scoopedL = lowL * (1 - muffTone) + highL * muffTone;
+        const scoopedR = lowR * (1 - muffTone) + highR * muffTone;
+
+        const flatMixL = (scoopedL * scoopBlend) + (fuzzL * (1 - scoopBlend));
+        const flatMixR = (scoopedR * scoopBlend) + (fuzzR * (1 - scoopBlend));
+
+        const outputLevel = 0.55 + muffSustain * 0.35;
+        const muffL = flatMixL * outputLevel;
+        const muffR = flatMixR * outputLevel;
+
+        s_L = dryL * (1 - muffMix) + muffL * muffMix;
+        s_R = dryR * (1 - muffMix) + muffR * muffMix;
+    }
     if(currentParams[5] > 0){ 
          const tremRateHz = 2 + (Math.pow(currentParams[5], 3) * 500);
          const tD = currentParams[5] * 0.8; 

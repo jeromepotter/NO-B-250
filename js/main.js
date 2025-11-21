@@ -2529,6 +2529,8 @@ function resetAllFxToDefaults() {
                if (id === 2) defaultValue = 1.0;
                if (id === 7) defaultValue = 0.7;
                if (id === 10) defaultValue = 1.0;
+               if (id === 30) defaultValue = 0.7;
+               if (id === 31) defaultValue = 0.5;
                if (id === 16 || id === 17) defaultValue = arpRateBpmToValue(DEFAULT_ARP_RATE_BPM);
                if (id === 20 || id === 21) defaultValue = 1.0;
                if (id === 26 || id === 27) defaultValue = 0.5;
@@ -2582,6 +2584,7 @@ function generateAndApplyRandomPreset() {
     const fxSettings = [
         { id: 8, value: Math.random() * 0.4 }, { id: 9, value: Math.random() }, { id: 10, value: Math.random() }, { id: 11, value: 0.1 + Math.random() * 0.7 },
         { id: 0, value: Math.random() < 0.2 ? Math.random() * 0.4 : 0 }, { id: 1, value: Math.random() * Math.random() }, { id: 2, value: 0.5 + Math.random() * 0.5 },
+        { id: 30, value: 0.4 + Math.random() * 0.5 }, { id: 31, value: Math.random() },
         { id: 3, value: Math.random() }, { id: 4, value: Math.random() * 0.6 }, { id: 5, value: Math.random() < 0.3 ? Math.random() : 0 }, { id: 6, value: Math.random() * 0.8 },
         { id: 12, value: Math.random() * 0.8 }, { id: 13, value: Math.random() }, { id: 14, value: Math.random() * 0.7 }, { id: 15, value: Math.random() },
         { id: 20, value: Math.random() * 0.5 + 0.5 }, { id: 21, value: Math.random() * 0.5 + 0.5 }, { id: 28, value: Math.random() }, { id: 29, value: Math.random() }
@@ -2664,6 +2667,7 @@ function generateAndApplyRandomSound() {
             const fxSettings = [
                 { id: 8, value: Math.random() * 0.4 }, { id: 9, value: Math.random() }, { id: 10, value: Math.random() }, { id: 11, value: 0.1 + Math.random() * 0.7 },
                 { id: 0, value: Math.random() < 0.2 ? Math.random() * 0.4 : 0 }, { id: 1, value: Math.random() * Math.random() }, { id: 2, value: 0.5 + Math.random() * 0.5 },
+                { id: 30, value: 0.4 + Math.random() * 0.5 }, { id: 31, value: Math.random() },
                 { id: 3, value: Math.random() }, { id: 4, value: Math.random() * 0.6 }, { id: 5, value: Math.random() < 0.3 ? Math.random() : 0 }, { id: 6, value: Math.random() * 0.8 },
                 { id: 12, value: Math.random() * 0.8 }, { id: 13, value: Math.random() }, { id: 14, value: Math.random() * 0.7 }, { id: 15, value: Math.random() },
                 { id: 20, value: Math.random() * 0.5 + 0.5 }, { id: 21, value: Math.random() * 0.5 + 0.5 }, { id: 28, value: Math.random() }, { id: 29, value: Math.random() }

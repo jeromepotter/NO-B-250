@@ -429,23 +429,28 @@
 
 <h3>Row 3: Effects (Part 1)</h3>
 <ul>
-    <li><strong>DISTORTION:</strong> Adds harmonic saturation and overdrive, ranging from subtle analog warmth to aggressive distortion. Also includes bit-crushing at higher settings for digital, lo-fi textures.</li>
+    <li><strong>FUZZ MIX:</strong> Blends a Big Muff-style fuzz circuit with the dry signal. At low values you retain more of the clean tone; at high values you hear almost entirely the fuzzed signal.</li>
+    <li><strong>MUFF SUST:</strong> Controls the pre-clipping gain feeding the fuzz stage. Higher settings drive the high-gain transistor block harder for more compression and sustain before the diode pair clips.</li>
+    <li><strong>MUFF TONE:</strong> Sweeps the tone stack between bass-heavy (left) and bright (right). The stack is voiced like the classic Big Muff network with a mild flat blend so mids stay present when needed.</li>
     <li><strong>AM (Amplitude Modulation):</strong> Modulates the volume at varying speeds. At low settings (0-30%), creates classic <strong>tremolo</strong> - a gentle pulsing of the volume. As you increase the knob past 30%, the modulation rate enters audio frequencies (up to 500 Hz), producing <strong>ring modulation</strong> - a metallic, bell-like timbre with inharmonic overtones. This is a powerful tool for creating everything from subtle movement to aggressive, robotic textures.</li>
-    <li><strong>DELAY:</strong> A rhythmic echo effect with stereo ping-pong behavior. This knob controls the wet/dry mix - how much delayed signal is blended with the original sound.</li>
-    <li><strong>DLY TIME:</strong> Sets the delay time from 10ms (slapback echo) to 1.5 seconds (long atmospheric echoes). The left and right channels use slightly different delay times (50% ratio) for a natural stereo effect. The delayed signal feeds back into itself at 60% for multiple repeats.</li>
 </ul>
 
-<h3>Row 4: Effects (Part 2) & Global Controls</h3>
+<h3>Row 4: Effects (Part 2) & Delay/Reverb</h3>
 <ul>
-    
-<li><strong>REVERB:</strong> Simulates acoustic spaces, from small rooms to large halls. Uses a Freeverb-style stereo algorithm with four comb filters per channel (eight total) and two allpass filters per channel for realistic spatial imaging. Add subtle amounts for natural space, or turn it up for ambient, atmospheric textures.</li>
+    <li><strong>DELAY:</strong> A rhythmic echo effect with stereo ping-pong behavior. This knob controls the wet/dry mix - how much delayed signal is blended with the original sound.</li>
+    <li><strong>DLY TIME:</strong> Sets the delay time from 10ms (slapback echo) to 1.5 seconds (long atmospheric echoes). The left and right channels use slightly different delay times (50% ratio) for a natural stereo effect. The delayed signal feeds back into itself at 60% for multiple repeats.</li>
+    <li><strong>REVERB:</strong> Simulates acoustic spaces, from small rooms to large halls. Uses a Freeverb-style stereo algorithm with four comb filters per channel (eight total) and two allpass filters per channel for realistic spatial imaging. Add subtle amounts for natural space, or turn it up for ambient, atmospheric textures.</li>
     <li><strong>RVB TIME:</strong> Controls how long the reverb tail lasts before fading to silence. Low values create tight, room-like spaces. High values create expansive, cathedral-like ambience. This knob adjusts the feedback in the reverb's comb filters (0.75 to 0.98).</li>
+</ul>
+
+<h3>Row 5: Master Controls</h3>
+<ul>
     <li><strong>MASTER FILTER:</strong> A global low-pass filter that affects the entire mix after all other processing. Use it to darken the overall sound or create dramatic filter sweeps. At its lowest setting, it cuts everything above 40 Hz (extreme darkness). At its highest setting, it allows frequencies up to 22 kHz through (full brightness).</li>
     <li><strong>MASTER VOLUME:</strong> The final output level control. Use this to balance the synthesizer with other instruments or prevent clipping. The internal signal path has headroom for hot signals, but this control ensures your final output is at an appropriate level.</li>
 </ul>
 
 <div class="pro-tip">
-    <strong>Signal Flow:</strong> The audio is processed in the following order: Oscillators → Glide → Detune → OSC3 Mix → Envelopes (ADSR) → Saturation (no parameter) → Individual Filters/Resonance → Individual Volumes → Stereo Panning (subtle no parameter) → Chorus → Distortion → AM → Delay → Reverb → Master Filter → Master Volume. Understanding this signal chain helps you predict how effects will interact with each other.
+    <strong>Signal Flow:</strong> The audio is processed in the following order: Oscillators → Glide → Detune → OSC3 Mix → Envelopes (ADSR) → Saturation (no parameter) → Individual Filters/Resonance → Individual Volumes → Stereo Panning (subtle no parameter) → Chorus → Big Muff Fuzz (Mix → Sustain → Diode Clip → Tone Stack → Level) → AM → Delay → Reverb → Master Filter → Master Volume. Understanding this signal chain helps you predict how effects will interact with each other.
 </div>
 
 
@@ -679,16 +684,22 @@
 
     <h3>GLOBAL EFFECTS (ROW 3)</h3>
     <ul>
-        <li><strong>DISTORTION:</strong> Z</li>
+        <li><strong>FUZZ MIX:</strong> Z</li>
+        <li><strong>MUFF SUST:</strong> (touch/mouse)</li>
+        <li><strong>MUFF TONE:</strong> (touch/mouse)</li>
         <li><strong>AM:</strong> X</li>
-        <li><strong>DELAY:</strong> C</li>
-        <li><strong>DLY TIME:</strong> V</li>
     </ul>
 
     <h3>GLOBAL EFFECTS (ROW 4)</h3>
     <ul>
+        <li><strong>DELAY:</strong> C</li>
+        <li><strong>DLY TIME:</strong> V</li>
         <li><strong>REVERB:</strong> T</li>
         <li><strong>RVB TIME:</strong> Y</li>
+    </ul>
+
+    <h3>GLOBAL EFFECTS (ROW 5)</h3>
+    <ul>
         <li><strong>MASTER FILTER:</strong> U</li>
         <li><strong>MASTER VOLUME:</strong> I</li>
     </ul>
