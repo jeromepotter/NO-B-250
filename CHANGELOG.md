@@ -4,6 +4,15 @@
 ##Future Plans
 New Oscillators? More Extreme Detune? New Presets?
 
+## [11.21] - 2025-11-21
+  ### Changed
+- Knob Colors for Reverb and Delay
+- N-OB Prefix on File Save
+
+###Added
+- Box around each LFO Control
+
+
 ## [11.20] - 2025-11-20
 ### Added
 - System and User presets can load with LFO Sync On
