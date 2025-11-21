@@ -2820,16 +2820,17 @@ function generateAndApplyRandomSound() {
 
         const pathSegments = [];
         const destChain = getLfoDestChain(lfo);
+        const pathTargets = destChain.length ? destChain : [LFO_DEST_NONE];
 
-        if (sourceKnobEl && destChain.length) {
+        if (sourceKnobEl) {
             const sourceRect = sourceKnobEl.getBoundingClientRect();
             const startX = sourceRect.left - containerRect.left + sourceRect.width / 2;
             const startY = sourceRect.top - containerRect.top + sourceRect.height / 2;
 
-            destChain.forEach(destId => {
+            pathTargets.forEach(destId => {
                 let endX;
                 let endY;
-                const destKnobEl = getLfoTargetElement(destId);
+                const destKnobEl = destId === LFO_DEST_NONE ? null : getLfoTargetElement(destId);
 
                 if (!destKnobEl || destKnobEl.offsetParent === null) {
                     const direction = (startX > containerRect.width / 2) ? 1 : -1;
