@@ -1971,7 +1971,7 @@ lfoState.forEach((lfo, lfoIndex) => {
            };
            const color = FILE_NOUNS[Math.floor(Math.random() * FILE_NOUNS.length)];
            const date = new Date(); const fDate = `${String(date.getMonth() + 1).padStart(2, '0')}_${String(date.getDate()).padStart(2, '0')}_${date.getFullYear()}`;
-           const fname = `${fDate}_n-ob_${color}.json`; const blob = new Blob([JSON.stringify(preset, null, 2)], { type: 'application/json' });
+           const fname = `N-OB-${fDate}_${color}.json`; const blob = new Blob([JSON.stringify(preset, null, 2)], { type: 'application/json' });
            const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = fname; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
        }
        function loadPreset(e) {
@@ -3354,6 +3354,7 @@ function generateAndApplyRandomSound() {
            updateRateButtonLockState();
        }
        init();
+
 
 
 
