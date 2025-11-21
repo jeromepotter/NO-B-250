@@ -1,4 +1,5 @@
-
+<h3>Welcome to the real-time HTML editor!</h3>
+<p>Type HTML in the textarea above, and it will magically appear in the frame below.</p>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -400,12 +401,54 @@
     <p class="back-to-index"><a href="#index">↑ Back to Index</a></p>
 
     <h2 id="global-effects">6. Global Effects (The Small Knobs)</h2>
-    <p>These knobs affect the overall sound coming from both <a href="#oscillators">oscillators</a>.</p>
-    <ul>
-        <li><strong>Row 1 (ADSR):</strong> ATTACK, DECAY, SUSTAIN, and RELEASE control the volume shape of each note over time.</li>
-        <li><strong>Row 2 (Timbre/Tuning):</strong> CHORUS (widens sound), OSC3 MIX (adds bass), DETUNE (sightly detunes each oscillator by varying amounts), and GLIDE (slides between notes).</li>
-        <li><strong>Rows 3 & 4 (Global Effects):</strong> DISTORTION, AM, REVERB, DELAY, and the final GLOBAL FILTER and VOLUME.</li>
-    </ul>
+<p>These knobs affect the overall sound coming from both <a href="#oscillators">oscillators</a>. They are arranged in a 4x4 grid below the main oscillator sections.</p>
+
+<h3>Row 1: Envelope (ADSR)</h3>
+<p>The envelope shapes the volume of each note over time. These four controls work together to create the characteristic "shape" of a sound:</p>
+
+<ul>
+    <li><strong>ATTACK:</strong> How long it takes for the sound to reach full volume after you press a note (0.001s to 2s). Low values create punchy, percussive sounds like drums or plucked strings. High values create slow swells like a violin or pad.</li>
+    <li><strong>DECAY:</strong> After reaching full volume, how long it takes to drop to the sustain level (0.001s to 2s). Short decay creates plucky sounds; long decay creates evolving textures.</li>
+    <li><strong>SUSTAIN:</strong> The volume level the note holds at while you continue to hold it (0% to 100%). At 0%, notes behave like a piano - they fade away even if held. At 100%, notes stay at full volume.</li>
+    <li><strong>RELEASE:</strong> After you release a note, how long it takes to fade to silence (0.001s to 1.25s). Short release stops notes abruptly; long release creates smooth, overlapping transitions between notes.</li>
+</ul>
+
+<div class="pro-tip">
+    <strong>Quick Start Presets:</strong> For a <strong>pluck</strong>, try: Attack: 0%, Decay: 30%, Sustain: 0%, Release: 20%. For a <strong>pad</strong>, try: Attack: 60%, Decay: 40%, Sustain: 80%, Release: 70%.
+</div>
+
+<h3>Row 2: Timbre & Tuning</h3>
+<p>These controls shape the character and richness of the sound:</p>
+
+<ul>
+    <li><strong>CHORUS:</strong> Widens and thickens the sound by creating subtle pitch and timing variations, simulating multiple voices playing at once. This emulates the classic Juno-106 chorus circuit. At low settings, it adds subtle depth. At high settings, it creates a lush, swirling stereo image.</li>
+    <li><strong>OSC3 MIX:</strong> Blends in a third oscillator tuned an octave below the main oscillators, adding weight and bass to your sound. This is particularly useful for creating sub-bass in electronic music or adding body to lead sounds.</li>
+    <li><strong>DETUNE:</strong> Slightly shifts the pitch of each oscillator's internal voices, creating a richer, more analog-sounding texture. At low settings, it adds subtle warmth; at high settings, it creates wide sounds. </li>
+    <li><strong>GLIDE:</strong> Causes notes to slide smoothly from one pitch to the next instead of jumping instantly. Creates portamento effects. Low values give subtle pitch bends; high values create dramatic, swooping transitions.</li>
+</ul>
+
+<h3>Row 3: Effects (Part 1)</h3>
+<ul>
+    <li><strong>DISTORTION:</strong> Adds harmonic saturation and overdrive, ranging from subtle analog warmth to aggressive distortion. Also includes bit-crushing at higher settings for digital, lo-fi textures.</li>
+    <li><strong>AM (Amplitude Modulation):</strong> Modulates the volume at varying speeds. At low settings (0-30%), creates classic <strong>tremolo</strong> - a gentle pulsing of the volume. As you increase the knob past 30%, the modulation rate enters audio frequencies (up to 500 Hz), producing <strong>ring modulation</strong> - a metallic, bell-like timbre with inharmonic overtones. This is a powerful tool for creating everything from subtle movement to aggressive, robotic textures.</li>
+    <li><strong>DELAY:</strong> A rhythmic echo effect with stereo ping-pong behavior. This knob controls the wet/dry mix - how much delayed signal is blended with the original sound.</li>
+    <li><strong>DLY TIME:</strong> Sets the delay time from 10ms (slapback echo) to 1.5 seconds (long atmospheric echoes). The left and right channels use slightly different delay times (50% ratio) for a natural stereo effect. The delayed signal feeds back into itself at 60% for multiple repeats.</li>
+</ul>
+
+<h3>Row 4: Effects (Part 2) & Global Controls</h3>
+<ul>
+    
+<li><strong>REVERB:</strong> Simulates acoustic spaces, from small rooms to large halls. Uses a Freeverb-style stereo algorithm with four comb filters per channel (eight total) and two allpass filters per channel for realistic spatial imaging. Add subtle amounts for natural space, or turn it up for ambient, atmospheric textures.</li>
+    <li><strong>RVB TIME:</strong> Controls how long the reverb tail lasts before fading to silence. Low values create tight, room-like spaces. High values create expansive, cathedral-like ambience. This knob adjusts the feedback in the reverb's comb filters (0.75 to 0.98).</li>
+    <li><strong>MASTER FILTER:</strong> A global low-pass filter that affects the entire mix after all other processing. Use it to darken the overall sound or create dramatic filter sweeps. At its lowest setting, it cuts everything above 40 Hz (extreme darkness). At its highest setting, it allows frequencies up to 22 kHz through (full brightness).</li>
+    <li><strong>MASTER VOLUME:</strong> The final output level control. Use this to balance the synthesizer with other instruments or prevent clipping. The internal signal path has headroom for hot signals, but this control ensures your final output is at an appropriate level.</li>
+</ul>
+
+<div class="pro-tip">
+    <strong>Signal Flow:</strong> The audio is processed in the following order: Oscillators → Glide → Detune → OSC3 Mix → Envelopes (ADSR) → Saturation (no parameter) → Individual Filters/Resonance → Individual Volumes → Stereo Panning (subtle no parameter) → Chorus → Distortion → AM → Delay → Reverb → Master Filter → Master Volume. Understanding this signal chain helps you predict how effects will interact with each other.
+</div>
+
+
 
     <p class="back-to-index"><a href="#index">↑ Back to Index</a></p>
 
@@ -657,4 +700,3 @@
 
 </body>
 </html>
-
