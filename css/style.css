@@ -225,7 +225,7 @@ body { font-family: 'Poppins', sans-serif; background-color: #1e1b4b; touch-acti
       }
 
       .fx-delay-indicator {
-        background-color: #000000;
+        background-color: #1e40af;
       }
 
       .fx-reverb-knob {
@@ -233,7 +233,7 @@ body { font-family: 'Poppins', sans-serif; background-color: #1e1b4b; touch-acti
       }
 
       .fx-reverb-indicator {
-        background-color: #000000;
+        background-color: #1e40af;
       }
       .lfo-display {
         color: #facc15; /* Bright yellow for contrast */
@@ -361,4 +361,5 @@ body { font-family: 'Poppins', sans-serif; background-color: #1e1b4b; touch-acti
     cursor: pointer;
   }
 }
+
 
