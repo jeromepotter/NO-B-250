@@ -54,17 +54,18 @@ let liveLfoOutputs = [0, 0, 0, 0];
         const LFO_RATE_RANGE_RATIO = MAX_LFO_RATE_HZ / MIN_LFO_RATE_HZ;
         const SIXTEENTH_NOTES_PER_QUARTER = 4;
 const LFO_RATE_DIVISION_STEPS = [
-    { label: '8', multiplier: 1 / 2 },      // 8 bars (super slow)
-    { label: '4', multiplier: 1 },          // 4 bars
-    { label: '2', multiplier: 2 },          // 2 bars
-    { label: '1', multiplier: 4 },          // 1 bar (4 beats)
-    { label: '1/2', multiplier: 8 },        // Half note (2 beats)
-    { label: '1/4', multiplier: 16 },       // Quarter note (1 beat) ← FIXED
-    { label: '1/8', multiplier: 32 },       // 8th note ← FIXED
-    { label: '1/16', multiplier: 64 },      // 16th note
-    { label: '1/32', multiplier: 128 },     // 32nd note
-    { label: '1/64', multiplier: 256 },     // 64th note (audio-rate territory!)
-    { label: '1/128', multiplier: 512 },    // 128th note (extreme!)
+const LFO_RATE_DIVISION_STEPS = [
+    { label: '8', multiplier: 128 },     // 8 bars (super slow)
+    { label: '4', multiplier: 64 },      // 4 bars
+    { label: '2', multiplier: 32 },      // 2 bars
+    { label: '1', multiplier: 16 },      // 1 bar (4 beats)
+    { label: '1/2', multiplier: 8 },     // Half note (2 beats)
+    { label: '1/4', multiplier: 4 },     // Quarter note (1 beat)
+    { label: '1/8', multiplier: 2 },     // 8th note
+    { label: '1/16', multiplier: 1 },    // 16th note (matches arp)
+    { label: '1/32', multiplier: 0.5 },  // 32nd note
+    { label: '1/64', multiplier: 0.25 }, // 64th note
+    { label: '1/128', multiplier: 0.125 }, // 128th note (extreme!)
 ];
         const LFO_RATE_DIVISION_LABELS = LFO_RATE_DIVISION_STEPS.map(step => step.label);
         const LFO_RATE_DIVISION_MULTIPLIERS = LFO_RATE_DIVISION_STEPS.map(step => step.multiplier);
@@ -3332,6 +3333,7 @@ function generateAndApplyRandomSound() {
            updateRateButtonLockState();
        }
        init();
+
 
 
 
