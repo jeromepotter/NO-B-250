@@ -216,18 +216,18 @@ body { font-family: 'Poppins', sans-serif; background-color: #1e1b4b; touch-acti
 
       .fx-pair-box {
         border: 1px solid currentColor;
-        border-radius: 12px;
-        padding: 6px 8px;
+        border-radius: 0;
+        padding: 10px 10px 8px 10px;
         display: flex;
         justify-content: center;
         align-items: center;
         gap: 14px;
       }
 
-      .lfo-outline-box {
+      .lfo-column-box {
         border: 1px solid currentColor;
-        border-radius: 12px;
-        padding: 12px 10px 6px 10px;
+        border-radius: 0;
+        padding: 14px 10px 10px 10px;
       }
       .lfo-display {
         color: #facc15; /* Bright yellow for contrast */
