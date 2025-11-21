@@ -214,16 +214,6 @@ body { font-family: 'Poppins', sans-serif; background-color: #1e1b4b; touch-acti
         padding-top: 1rem;
       }
 
-      .fx-pair-box {
-        border: 1px solid currentColor;
-        border-radius: 0;
-        padding: 8px 10px;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        gap: 14px;
-      }
-
       .lfo-column-box {
         border: 1px solid currentColor;
         border-radius: 0;
