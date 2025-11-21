@@ -2737,6 +2737,8 @@ function generateAndApplyRandomSound() {
             if (mainId !== undefined) {
                 return knobState[mainId]?.dom?.knob || null;
             }
+            const fallback = document.querySelector(`[data-fx-id="${destId}"]`);
+            if (fallback) return fallback;
             return null;
         }
 
@@ -2795,6 +2797,9 @@ function generateAndApplyRandomSound() {
     patchBay.style.display = 'block';
 
     const containerRect = synthContainer.getBoundingClientRect();
+    patchBay.setAttribute('width', containerRect.width);
+    patchBay.setAttribute('height', containerRect.height);
+    patchBay.setAttribute('viewBox', `0 0 ${containerRect.width} ${containerRect.height}`);
 
     lfoState.forEach((lfo, index) => {
         const cable = document.getElementById(`lfo-cable-${index}`);
@@ -2811,7 +2816,7 @@ function generateAndApplyRandomSound() {
         if (!sourceKnobInfo) return;
 
         const sourceFxId = Object.keys(LFO_KNOB_MAP).find(key => LFO_KNOB_MAP[key] === sourceKnobInfo);
-        const sourceKnobEl = fxKnobData[sourceFxId]?.knobEl;
+        const sourceKnobEl = fxKnobData[sourceFxId]?.knobEl || document.querySelector(`[data-fx-id="${sourceFxId}"]`);
 
         const pathSegments = [];
         const destChain = getLfoDestChain(lfo);
