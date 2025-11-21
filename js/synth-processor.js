@@ -40,6 +40,9 @@ const LFO_DEST_NONE = -1;
                    // Recording state
                    this.isRecording = false; this.recordBlockSize = 8192; this.recL = new Float32Array(this.recordBlockSize); this.recR = new Float32Array(this.recordBlockSize); this.recIndex = 0;
 
+                   // Drive sag state
+                   this.sagL = 1.0; this.sagR = 1.0;
+
                    // --- LFO State ---
                    this.lfoParams = [
                        { rate: 0, depth: 0, wave: 0, dest: LFO_DEST_NONE, phase: 0, lastRandom: 0 },
@@ -316,7 +319,42 @@ for(let i=0;i<oL.length;i++){
     } 
     this.chorusWritePos = (this.chorusWritePos + 1) % this.chorusDelayBufferL.length;
     
-    const dV=currentParams[1]; if (dV>0.01){ const dr=1+dV*19; const k=2*dr/(1+dr); s_L=(1+k)*s_L/(1+k*Math.abs(s_L)); s_R=(1+k)*s_R/(1+k*Math.abs(s_R)); const nS=Math.max(2,Math.floor(Math.pow(1-dV,2.5)*64)); const sS=2.0/nS; s_L=sS*Math.floor(s_L/sS+0.5); s_R=sS*Math.floor(s_R/sS+0.5); const gC=1/(1+dV*1.5); s_L*=gC; s_R*=gC; }
+    const dV=currentParams[1];
+    if (dV > 0.001) {
+        const drive = 1 + dV * 18;
+        const bias = (dV * 0.6) - 0.15;
+        const sustain = 0.25 + dV * 0.65;
+        const sagIntensity = 0.2 + dV * 1.8;
+        const sagCoeff = 0.0008 + dV * 0.0025;
+
+        const shapeTube = (x, sagState) => {
+            let pre = (x + bias) * drive;
+            const sagTarget = 1 / (1 + Math.abs(pre) * sagIntensity);
+            sagState += (sagTarget - sagState) * sagCoeff;
+            pre *= Math.max(0.25, sagState);
+
+            const asymmetric = pre >= 0
+                ? pre / (1 + pre)
+                : pre / (1 + Math.abs(pre) * (0.6 + dV));
+
+            const fuzz = Math.tanh(asymmetric * (1 + dV * 5));
+            const sustainShape = Math.sign(asymmetric) * Math.pow(Math.min(1, Math.abs(asymmetric)), 0.5 + (1 - dV) * 0.2);
+            return {
+                value: (1 - sustain) * fuzz + sustain * sustainShape,
+                sag: sagState
+            };
+        };
+
+        const shapedL = shapeTube(s_L, this.sagL);
+        const shapedR = shapeTube(s_R, this.sagR);
+
+        this.sagL = shapedL.sag;
+        this.sagR = shapedR.sag;
+
+        const norm = 1 / (1 + dV * 0.9);
+        s_L = shapedL.value * norm;
+        s_R = shapedR.value * norm;
+    }
     if(currentParams[5] > 0){ 
          const tremRateHz = 2 + (Math.pow(currentParams[5], 3) * 500);
          const tD = currentParams[5] * 0.8; 
