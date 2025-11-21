@@ -4,6 +4,7 @@ class Comb { constructor(size, feedback, damping) { this.buffer = new Float32Arr
 const MIN_LFO_RATE_HZ = 0.01;
 const MAX_LFO_RATE_HZ = 100;
 const LFO_RATE_RANGE_RATIO = MAX_LFO_RATE_HZ / MIN_LFO_RATE_HZ;
+const LFO_DEST_NONE = -1;
 
            class SynthProcessor extends AudioWorkletProcessor {
                constructor() {
@@ -41,10 +42,10 @@ const LFO_RATE_RANGE_RATIO = MAX_LFO_RATE_HZ / MIN_LFO_RATE_HZ;
 
                    // --- LFO State ---
                    this.lfoParams = [
-                       { rate: 0, depth: 0, wave: 0, dest: 0, phase: 0, lastRandom: 0 },
-                       { rate: 0, depth: 0, wave: 0, dest: 0, phase: 0, lastRandom: 0 },
-                       { rate: 0, depth: 0, wave: 0, dest: 0, phase: 0, lastRandom: 0 },
-                       { rate: 0, depth: 0, wave: 0, dest: 0, phase: 0, lastRandom: 0 },
+                       { rate: 0, depth: 0, wave: 0, dest: LFO_DEST_NONE, phase: 0, lastRandom: 0 },
+                       { rate: 0, depth: 0, wave: 0, dest: LFO_DEST_NONE, phase: 0, lastRandom: 0 },
+                       { rate: 0, depth: 0, wave: 0, dest: LFO_DEST_NONE, phase: 0, lastRandom: 0 },
+                       { rate: 0, depth: 0, wave: 0, dest: LFO_DEST_NONE, phase: 0, lastRandom: 0 },
                    ];
                    this.lfoOutputs = [0,0,0,0];
       
@@ -148,7 +149,7 @@ const LFO_KNOB_IDS = { 101: {lfo: 0, param: 'wave'}, 103: {lfo: 1, param: 'depth
 
 for (let l = 0; l < 4; l++) {
     const lfo = this.lfoParams[l];
-    if (lfo.dest !== 0 && rawLfoOutputs[l] !== 0) {
+    if (lfo.dest !== LFO_DEST_NONE && rawLfoOutputs[l] !== 0) {
         const targetLfoInfo = LFO_KNOB_IDS[lfo.dest];
         if (targetLfoInfo) {
             const targetLfo = this.lfoParams[targetLfoInfo.lfo];
@@ -202,7 +203,7 @@ this.lfoOutputs = rawLfoOutputs;
 let modulatedFx = {};
 for (let l = 0; l < 4; l++) {
     const lfo = this.lfoParams[l];
-    if (lfo.dest !== 0) {
+    if (lfo.dest !== LFO_DEST_NONE) {
         if (!modulatedFx[lfo.dest]) modulatedFx[lfo.dest] = 0;
         modulatedFx[lfo.dest] += this.lfoOutputs[l];
     }

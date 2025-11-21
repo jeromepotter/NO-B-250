@@ -30,13 +30,14 @@
         let KNOB_ID_TO_NAME_MAP = {}; // NEW: Populated at init
         const MAIN_LFO_DEST_IDS = { 0: 300, 1: 301 };
         const LFO_DEST_TO_MAIN_KNOB = { 300: 0, 301: 1 };
+        const LFO_DEST_NONE = -1;
         const lfoState = [
-    { id: 0, rate: 0.5, depth: 0, wave: 0, dest: 0, phase: 0, lastRandom: 0, output: 0 },
-    { id: 1, rate: 0.5, depth: 0, wave: 0, dest: 0, phase: 0, lastRandom: 0, output: 0 },
-    { id: 2, rate: 0.5, depth: 0, wave: 0, dest: 0, phase: 0, lastRandom: 0, output: 0 },
-    { id: 3, rate: 0.5, depth: 0, wave: 0, dest: 0, phase: 0, lastRandom: 0, output: 0 },
+    { id: 0, rate: 0.5, depth: 0, wave: 0, dest: LFO_DEST_NONE, phase: 0, lastRandom: 0, output: 0 },
+    { id: 1, rate: 0.5, depth: 0, wave: 0, dest: LFO_DEST_NONE, phase: 0, lastRandom: 0, output: 0 },
+    { id: 2, rate: 0.5, depth: 0, wave: 0, dest: LFO_DEST_NONE, phase: 0, lastRandom: 0, output: 0 },
+    { id: 3, rate: 0.5, depth: 0, wave: 0, dest: LFO_DEST_NONE, phase: 0, lastRandom: 0, output: 0 },
 ];
-let liveLfoOutputs = [0, 0, 0, 0]; 
+let liveLfoOutputs = [0, 0, 0, 0];
         const LFO_KNOB_MAP = {
             // Rates
             108: { lfo: 0, param: 'rate' }, 109: { lfo: 1, param: 'rate' }, 110: { lfo: 2, param: 'rate' }, 111: { lfo: 3, param: 'rate' },
@@ -1660,7 +1661,7 @@ let modulatedOctaveRange = state.arpOctaveRange;
 let modulatedFeelPattern = state.currentFeelPattern;
 
 lfoState.forEach((lfo, lfoIndex) => {
-    if (lfo.dest === 0 || lfo.depth < 0.001) return;
+    if (lfo.dest === LFO_DEST_NONE || lfo.depth < 0.001) return;
 
     // Use the LIVE output from the audio worklet
     const lfoModValue = liveLfoOutputs[lfoIndex] || 0;
@@ -2019,7 +2020,7 @@ lfoState.forEach((lfo, lfoIndex) => {
     const modulatedValues = {}; // key: destination id, value: total modulation amount
 
     lfoState.forEach((lfo, index) => {
-        if (lfo.dest > 0) { // Ignore OFF and parked cables
+        if (lfo.dest !== LFO_DEST_NONE) { // Ignore OFF and parked cables
             modulatedValues[lfo.dest] = (modulatedValues[lfo.dest] || 0) + lfoOutputs[index];
         }
     });
@@ -2184,7 +2185,7 @@ lfoState.forEach((lfo, lfoIndex) => {
         }
 
         function shouldKeepLfoAnimationRunning() {
-            return isLfoMode || lfoState.some(lfo => lfo.dest !== 0);
+            return isLfoMode || lfoState.some(lfo => lfo.dest !== LFO_DEST_NONE);
         }
       
       function toggleEasterEggMode() {
@@ -2218,9 +2219,10 @@ lfoState.forEach((lfo, lfoIndex) => {
                 setFxValue(id, 0, true);
                 const lfoInfo = LFO_KNOB_MAP[id];
                 if (lfoInfo) {
-                    lfoState[lfoInfo.lfo][lfoInfo.param] = 0;
+                    const resetValue = lfoInfo.param === 'dest' ? LFO_DEST_NONE : 0;
+                    lfoState[lfoInfo.lfo][lfoInfo.param] = resetValue;
                     if (synthNode) {
-                        synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: lfoInfo.lfo, param: lfoInfo.param, value: 0 } });
+                        synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: lfoInfo.lfo, param: lfoInfo.param, value: resetValue } });
                     }
                 }
             });
@@ -2239,12 +2241,12 @@ lfoState.forEach((lfo, lfoIndex) => {
            
     } else {
             lfoState.forEach((lfo, idx) => {
-        if (lfo.dest !== 0) {
-            lfo.dest = 0; // Set to OFF
+        if (lfo.dest !== LFO_DEST_NONE) {
+            lfo.dest = LFO_DEST_NONE; // Set to OFF
             if (synthNode) {
-                synthNode.port.postMessage({ 
-                    type: 'setLfo', 
-                    data: { lfoId: idx, param: 'dest', value: 0 } 
+                synthNode.port.postMessage({
+                    type: 'setLfo',
+                    data: { lfoId: idx, param: 'dest', value: LFO_DEST_NONE }
                 });
             }
             const destDisplay = document.getElementById(`lfo-dest-display-${idx}`);
@@ -2268,21 +2270,24 @@ lfoState.forEach((lfo, lfoIndex) => {
 }
 
     function normalizePresetLfoDest(rawDest) {
-        if (rawDest === null || rawDest === undefined) return 0;
+        if (rawDest === null || rawDest === undefined) return LFO_DEST_NONE;
 
         if (typeof rawDest === 'number' && !Number.isNaN(rawDest)) {
             if (rawDest === 200 || rawDest === 300) return MAIN_LFO_DEST_IDS[0];
             if (rawDest === 201 || rawDest === 301) return MAIN_LFO_DEST_IDS[1];
+            if (rawDest === LFO_DEST_NONE) return LFO_DEST_NONE;
             return rawDest;
         }
 
         if (typeof rawDest === 'string') {
             const trimmed = rawDest.trim();
-            if (!trimmed) return 0;
+            if (!trimmed) return LFO_DEST_NONE;
 
             const compact = trimmed.replace(/\s+/g, '').toUpperCase();
+            if (compact === 'NONE' || compact === 'OFF') return LFO_DEST_NONE;
             if (['MAIN1', 'OSC1', 'OSCILLATOR1', 'VOICE1'].includes(compact)) return MAIN_LFO_DEST_IDS[0];
             if (['MAIN2', 'OSC2', 'OSCILLATOR2', 'VOICE2'].includes(compact)) return MAIN_LFO_DEST_IDS[1];
+            if (compact === 'GLIDE') return 0;
 
             for (const [id, name] of Object.entries(KNOB_ID_TO_NAME_MAP)) {
                 if (!name) continue;
@@ -2293,7 +2298,7 @@ lfoState.forEach((lfo, lfoIndex) => {
             }
         }
 
-        return 0;
+        return LFO_DEST_NONE;
     }
 
 function applyPreset(p) {
@@ -2327,14 +2332,14 @@ function applyPreset(p) {
            // --- 4. APPLY LFO STATE (IMPORTANT: Do this before FX settings) ---
             const presetTempoSyncTargets = [];
             if (p.lfoState && Array.isArray(p.lfoState)) {
-               // Reset all LFOs to 0 first to ensure no partial state lingers if the preset has fewer than 4 LFOs
+               // Reset all LFOs to defaults first to ensure no partial state lingers if the preset has fewer than 4 LFOs
                lfoState.forEach((lfo, index) => {
-                    lfo.rate = 0; lfo.depth = 0; lfo.wave = 0; lfo.dest = 0;
+                    lfo.rate = 0; lfo.depth = 0; lfo.wave = 0; lfo.dest = LFO_DEST_NONE;
                     if (synthNode) {
                         synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'rate', value: 0 } });
                         synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'depth', value: 0 } });
                         synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'wave', value: 0 } });
-                        synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'dest', value: 0 } });
+                        synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'dest', value: LFO_DEST_NONE } });
                     }
                });
 
@@ -2371,7 +2376,7 @@ function applyPreset(p) {
 
                        const destDisplay = document.getElementById(`lfo-dest-display-${index}`);
                        if (destDisplay) {
-                           const destName = KNOB_ID_TO_NAME_MAP[lfoState[index].dest] || 'OFF';
+                           const destName = lfoState[index].dest === LFO_DEST_NONE ? 'NONE' : (KNOB_ID_TO_NAME_MAP[lfoState[index].dest] || 'OFF');
                            destDisplay.textContent = destName;
                        }
                        
@@ -2389,14 +2394,14 @@ function applyPreset(p) {
                }
            } else { // Reset LFOs for older presets (THE FIX IS HERE)
                lfoState.forEach((lfo, index) => {
-                   lfo.rate = 0; lfo.depth = 0; lfo.wave = 0; lfo.dest = 0;
+                   lfo.rate = 0; lfo.depth = 0; lfo.wave = 0; lfo.dest = LFO_DEST_NONE;
                    
                    // *** FORCE UPDATE THE AUDIO ENGINE ***
                    if (synthNode) {
                        synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'rate', value: 0 } });
                        synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'depth', value: 0 } });
                        synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'wave', value: 0 } });
-                       synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'dest', value: 0 } });
+                       synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'dest', value: LFO_DEST_NONE } });
                    }
                });
                
@@ -2760,7 +2765,7 @@ function generateAndApplyRandomSound() {
             // REMOVED: cable.ownerSVGElement.style.zIndex = '10'; <--- THIS WAS BLOCKING PRESETS
         }
 
-        if (lfo.dest === 0) {
+        if (lfo.dest === LFO_DEST_NONE) {
             cable.setAttribute('d', '');
             return;
         }
@@ -2778,21 +2783,15 @@ function generateAndApplyRandomSound() {
             
             let endX, endY;
 
-            if (lfo.dest === -1) {
-                const direction = (index < 2) ? -1 : 1; 
-                endX = startX + (500 * direction);
-                endY = startY + 100; 
+            const destKnobEl = getLfoTargetElement(lfo.dest);
+            if (!destKnobEl || destKnobEl.offsetParent === null) {
+                    const direction = (startX > containerRect.width / 2) ? 1 : -1;
+                    endX = startX + (250 * direction);
+                    endY = startY + 80;
             } else {
-                const destKnobEl = getLfoTargetElement(lfo.dest);
-                if (!destKnobEl || destKnobEl.offsetParent === null) {
-                        const direction = (startX > containerRect.width / 2) ? 1 : -1;
-                        endX = startX + (250 * direction);
-                        endY = startY + 80;
-                } else {
-                    const destRect = destKnobEl.getBoundingClientRect();
-                    endX = destRect.left - containerRect.left + destRect.width / 2;
-                    endY = destRect.top - containerRect.top + destRect.height / 2;
-                }
+                const destRect = destKnobEl.getBoundingClientRect();
+                endX = destRect.left - containerRect.left + destRect.width / 2;
+                endY = destRect.top - containerRect.top + destRect.height / 2;
             }
             
             const midX = (startX + endX) / 2;
@@ -3056,9 +3055,9 @@ function generateAndApplyRandomSound() {
                 const ownLfoKnobs = Object.keys(LFO_KNOB_MAP).filter(id => LFO_KNOB_MAP[id].lfo === activePatchingLfo).map(id => parseInt(id));
                 
                 if (targetFxId === sourceFxId) {
-                    lfoState[activePatchingLfo].dest = 0; 
+                    lfoState[activePatchingLfo].dest = LFO_DEST_NONE;
                     document.getElementById(`lfo-dest-display-${activePatchingLfo}`).textContent = 'NONE';
-                     if (synthNode) synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: activePatchingLfo, param: 'dest', value: 0 } });
+                     if (synthNode) synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: activePatchingLfo, param: 'dest', value: LFO_DEST_NONE } });
                     stopLfoPatching();
                      drawLfoCables();
                     return;
@@ -3219,11 +3218,11 @@ function generateAndApplyRandomSound() {
 
                     if (isDoubleTap) {
                          const lfo = lfoState[lfoInfo.lfo];
-                         if (lfo.dest > 0) {
-                             lfo.dest = -1; 
+                         if (lfo.dest !== LFO_DEST_NONE) {
+                             lfo.dest = LFO_DEST_NONE;
                              document.getElementById(`lfo-dest-display-${lfoInfo.lfo}`).textContent = 'NONE';
                              if (synthNode) {
-                                 synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: lfoInfo.lfo, param: 'dest', value: 0 } });
+                                 synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: lfoInfo.lfo, param: 'dest', value: LFO_DEST_NONE } });
                              }
                              drawLfoCables();
                              if (!shouldKeepLfoAnimationRunning() && lfoAnimationId !== null) {
