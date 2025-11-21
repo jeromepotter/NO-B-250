@@ -216,8 +216,6 @@ body { font-family: 'Poppins', sans-serif; background-color: #1e1b4b; touch-acti
 
       .lfo-column-box {
 		  background: rgba(255, 153, 0, 0.8);
-    mix-blend-mode: difference;
-
         border-radius: 0;
         padding: 14px 10px 10px 10px;
       }
@@ -355,4 +353,5 @@ body { font-family: 'Poppins', sans-serif; background-color: #1e1b4b; touch-acti
     cursor: pointer;
   }
 }
+
 
