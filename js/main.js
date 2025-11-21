@@ -3107,43 +3107,67 @@ function generateAndApplyRandomSound() {
             synthContainer.addEventListener('touchstart', () => { isScrollingGlobal = false; }, { passive: true });
             let lastPatchTap = { id: null, time: 0 };
 
+            const findLfoByDest = (destId) => lfoState.findIndex(lfo => getLfoDestChain(lfo).includes(destId));
+
             const handleLfoPatchTarget = (targetFxId) => {
-                if (!isLfoMode || activePatchingLfo === null) return;
+                if (!isLfoMode) return;
 
                 const now = Date.now();
                 const isDouble = lastPatchTap.id === targetFxId && now - lastPatchTap.time < 300;
                 lastPatchTap = { id: targetFxId, time: now };
 
-                const sourceKnobInfo = Object.values(LFO_KNOB_MAP).find(d => d.lfo === activePatchingLfo && d.param === 'dest');
+                const resolvedLfo = activePatchingLfo !== null ? activePatchingLfo : findLfoByDest(targetFxId);
+                if (resolvedLfo === -1 || resolvedLfo === null) return;
+
+                const sourceKnobInfo = Object.values(LFO_KNOB_MAP).find(d => d.lfo === resolvedLfo && d.param === 'dest');
                 const sourceFxId = parseInt(Object.keys(LFO_KNOB_MAP).find(key => LFO_KNOB_MAP[key] === sourceKnobInfo));
-                const ownLfoKnobs = Object.keys(LFO_KNOB_MAP).filter(id => LFO_KNOB_MAP[id].lfo === activePatchingLfo).map(id => parseInt(id));
-                const destChain = getLfoDestChain(lfoState[activePatchingLfo]);
+                const ownLfoKnobs = Object.keys(LFO_KNOB_MAP).filter(id => LFO_KNOB_MAP[id].lfo === resolvedLfo).map(id => parseInt(id));
+                const destChain = getLfoDestChain(lfoState[resolvedLfo]);
                 const usedDests = new Set(destChain);
+                const inChainIndex = destChain.indexOf(targetFxId);
+
+                if (activePatchingLfo === null) {
+                    if (inChainIndex === -1) return;
+
+                    if (isDouble) {
+                        if (inChainIndex > 0) {
+                            setLfoDestChain(resolvedLfo, destChain.slice(0, inChainIndex));
+                        }
+                        stopLfoPatching();
+                        return;
+                    }
+
+                    startLfoPatching(resolvedLfo);
+                    return;
+                }
+
+                if (resolvedLfo !== activePatchingLfo) return;
 
                 if (targetFxId === sourceFxId) {
-                    // Park the chain without clearing any existing destinations
                     stopLfoPatching();
                     return;
                 }
 
                 if (ownLfoKnobs.includes(targetFxId)) return;
 
-                if (isDouble && usedDests.has(targetFxId)) {
-                    const cutIndex = destChain.indexOf(targetFxId);
-                    const newChain = cutIndex >= 0 ? destChain.slice(0, cutIndex) : destChain;
-                    setLfoDestChain(activePatchingLfo, newChain);
-                    startLfoPatching(activePatchingLfo);
+                if (inChainIndex !== -1) {
+                    if (isDouble) {
+                        if (inChainIndex === 0) {
+                            stopLfoPatching();
+                            return;
+                        }
+                        setLfoDestChain(activePatchingLfo, destChain.slice(0, inChainIndex));
+                    }
+                    stopLfoPatching();
                     return;
                 }
 
-                if (usedDests.has(targetFxId)) return;
-
                 setLfoDestChain(activePatchingLfo, [...destChain, targetFxId]);
-                startLfoPatching(activePatchingLfo);
+                stopLfoPatching();
             };
 
             const handleGlobalPatchClick = (e) => {
-                if (!isLfoMode || activePatchingLfo === null) return;
+                if (!isLfoMode) return;
                 if (e.type === 'touchend' && isScrollingGlobal) return;
                 if (e.type === 'touchend' && e.cancelable) e.preventDefault();
 
@@ -3179,7 +3203,7 @@ function generateAndApplyRandomSound() {
                 if (isLfoDestKnob) return;
 
                 const forwardPatchTap = (e) => {
-                    if (!isLfoMode || activePatchingLfo === null) return;
+                    if (!isLfoMode) return;
                     if (e.type === 'touchend') {
                         if (e.cancelable) e.preventDefault();
                         e.stopPropagation();
