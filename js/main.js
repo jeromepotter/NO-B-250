@@ -1187,29 +1187,31 @@ function sendMidiMessage(message) {
                       updateSequenceDisplay(knobId);
                   }
                }
-           } else if (state.isHeld && synthNode && isPowerOn) {
-               // Audio update
-               synthNode.port.postMessage({ type: 'setFreq', data: { voice: knobId, freq: getNoteFrequency(baseMidi) } });
-               
-               // --- FIX START: Handle MIDI update while spinning in Freestyle mode ---
-               if (!state.isArpOn && state.lastPlayedMidi !== baseMidi) {
-                   // 1. Kill the old note
-                   if (state.lastPlayedMidi !== null) {
-                       sendMidiMessage([0x80 + knobId, state.lastPlayedMidi, 0]);
-                       captureMidiEvent(knobId, 'noteOff', state.lastPlayedMidi, 0);
-                   }
-                   
-                   // 2. Start the new note
-                   sendMidiMessage([0x90 + knobId, baseMidi, 100]);
-                   captureMidiEvent(knobId, 'noteOn', baseMidi, 100);
-                   
-                   // 3. Update state so we know what to kill next time
-                   state.lastPlayedMidi = baseMidi;
-               }
-               // --- FIX END ---
-
-               updateKnobColor(knobId);
-           }
+          } else if (state.isHeld && synthNode && isPowerOn) {
+    const baseMidi = getMidiNote(knobId);
+    
+    // --- FIX: Re-trigger envelope on pitch change during drag ---
+    if (!state.isArpOn && state.lastPlayedMidi !== baseMidi) {
+        // 1. Kill the old note (internal synth envelope)
+        synthNode.port.postMessage({ type: 'noteOff', data: { voice: knobId } });
+        
+        // 2. Start the new note (internal synth envelope)
+        const freq = getNoteFrequency(baseMidi);
+        synthNode.port.postMessage({ type: 'noteOn', data: { voice: knobId, freq: freq } });
+        
+        // 3. MIDI handling (this was already there)
+        if (state.lastPlayedMidi !== null) {
+            sendMidiMessage([0x80 + knobId, state.lastPlayedMidi, 0]);
+            captureMidiEvent(knobId, 'noteOff', state.lastPlayedMidi, 0);
+        }
+        sendMidiMessage([0x90 + knobId, baseMidi, 100]);
+        captureMidiEvent(knobId, 'noteOn', baseMidi, 100);
+        
+        state.lastPlayedMidi = baseMidi;
+    }
+    
+    updateKnobColor(knobId);
+}
      }
       
        const updateFxKnob = (id, deltaY) => {
@@ -3492,6 +3494,7 @@ function generateAndApplyRandomSound() {
            updateRateButtonLockState();
        }
        init();
+
 
 
 
