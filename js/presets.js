@@ -17,58 +17,24 @@ export const PRESETS = {
                 { id: 1, totalAngle: 1441.5447563157886 }
             ],
             fxSettings: [
-                { id: 0, value: 0 },
-                { id: 1, value: 0 },
-                { id: 2, value: 1 },
-                { id: 3, value: 0 },
-                { id: 4, value: 0 },
-                { id: 5, value: 0 },
-                { id: 6, value: 0 },
-                { id: 7, value: 0.7 },
-                { id: 8, value: 0.001 },
-                { id: 9, value: 1 },
-                { id: 10, value: 1 },
-                { id: 11, value: 0.1 },
-                { id: 12, value: 0 },
-                { id: 13, value: 0 },
-                { id: 14, value: 0 },
-                { id: 15, value: 0 },
-                { id: 16, value: 0.5 },
-                { id: 17, value: 0.5 },
-                { id: 18, value: 0 },
-                { id: 19, value: 0 },
-                { id: 20, value: 1 },
-                { id: 21, value: 1 },
-                { id: 22, value: 0 },
-                { id: 23, value: 0 },
-                { id: 24, value: 0.5 },
-                { id: 25, value: 0.5 },
-                { id: 26, value: 0.5 },
-                { id: 27, value: 0.5 },
-                { id: 28, value: 0 },
-                { id: 29, value: 0 },
-                { id: 100, value: 0 },
-                { id: 101, value: 0 },
-                { id: 102, value: 0 },
-                { id: 103, value: 0 },
-                { id: 104, value: 0 },
-                { id: 105, value: 0 },
-                { id: 106, value: 0 },
-                { id: 107, value: 0 },
-                { id: 108, value: 0 },
-                { id: 109, value: 0 },
-                { id: 110, value: 0 },
-                { id: 111, value: 0 },
-                { id: 112, value: 0 },
-                { id: 113, value: 0 },
-                { id: 114, value: 0 },
-                { id: 115, value: 0 }
+                { id: 0, value: 0 }, { id: 1, value: 0 }, { id: 2, value: 1 }, { id: 3, value: 0 },
+                { id: 4, value: 0 }, { id: 5, value: 0 }, { id: 6, value: 0 }, { id: 7, value: 0.7 },
+                { id: 8, value: 0.001 }, { id: 9, value: 1 }, { id: 10, value: 1 }, { id: 11, value: 0.1 },
+                { id: 12, value: 0 }, { id: 13, value: 0 }, { id: 14, value: 0 }, { id: 15, value: 0 },
+                { id: 16, value: 0.5 }, { id: 17, value: 0.5 }, { id: 18, value: 0 }, { id: 19, value: 0 },
+                { id: 20, value: 1 }, { id: 21, value: 1 }, { id: 22, value: 0 }, { id: 23, value: 0 },
+                { id: 24, value: 0.5 }, { id: 25, value: 0.5 }, { id: 26, value: 0.5 }, { id: 27, value: 0.5 },
+                { id: 28, value: 0 }, { id: 29, value: 0 }, { id: 100, value: 0 }, { id: 101, value: 0 },
+                { id: 102, value: 0 }, { id: 103, value: 0 }, { id: 104, value: 0 }, { id: 105, value: 0 },
+                { id: 106, value: 0 }, { id: 107, value: 0 }, { id: 108, value: 0 }, { id: 109, value: 0 },
+                { id: 110, value: 0 }, { id: 111, value: 0 }, { id: 112, value: 0 }, { id: 113, value: 0 },
+                { id: 114, value: 0 }, { id: 115, value: 0 }
             ],
             arpSettings: {
                 isArpRateSynced: false,
                 currentArpOrder: "As Played",
                 arp1: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 },
-                arp2: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 },
+                arp2: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 }
             }
         },
              'MUTED HORN': {
@@ -127,12 +93,12 @@ export const PRESETS = {
                 { id: 1, totalAngle: 2100 }
             ],
             fxSettings: [
-                { id: 0, value: 0.35 }, { id: 1, value: 0.2222 }, { id: 2, value: 0.35 }, { id: 3, value: 1 },
+                { id: 0, value: 0.35 }, { id: 1, value: 0.2222222222222222 }, { id: 2, value: 0.35 }, { id: 3, value: 1 },
                 { id: 4, value: 0 }, { id: 5, value: 0 }, { id: 6, value: 0 }, { id: 7, value: 0.8 },
-                { id: 8, value: 0 }, { id: 9, value: 0.1833 }, { id: 10, value: 0.2666 }, { id: 11, value: 0.5722 },
+                { id: 8, value: 0 }, { id: 9, value: 0.18333333333333332 }, { id: 10, value: 0.26666666666666666 }, { id: 11, value: 0.5722222222222222 },
                 { id: 12, value: 0 }, { id: 13, value: 0 }, { id: 14, value: 0 }, { id: 15, value: 0 },
-                { id: 16, value: 0.4344 }, { id: 17, value: 0.4344 }, { id: 18, value: 0 }, { id: 19, value: 0 },
-                { id: 20, value: 0.3943 }, { id: 21, value: 0.3611 }, { id: 22, value: 0.3166 }, { id: 23, value: 0 },
+                { id: 16, value: 0.4344284780347278 }, { id: 17, value: 0.4344284780347278 }, { id: 18, value: 0 }, { id: 19, value: 0 },
+                { id: 20, value: 0.39437777777777777 }, { id: 21, value: 0.3611111111111111 }, { id: 22, value: 0.31666666666666665 }, { id: 23, value: 0 },
                 { id: 24, value: 0.5 }, { id: 25, value: 0.5 }, { id: 26, value: 0.8333 }, { id: 27, value: 0.9388 },
                 { id: 28, value: 0 }, { id: 29, value: 0 }, { id: 100, value: 0 }, { id: 101, value: 0.0833 },
                 { id: 102, value: 0 }, { id: 103, value: 0 }, { id: 104, value: 0 }, { id: 105, value: 0.0833 },
@@ -143,7 +109,7 @@ export const PRESETS = {
             arpSettings: {
                 isArpRateSynced: false,
                 currentArpOrder: "As Played",
-                arp1: { isOn: false, isArpOn: false, isSweepMode: false, octaves: 0, feelValue: 0.3166, notes: [], transpose: 0 },
+                arp1: { isOn: false, isArpOn: false, isSweepMode: false, octaves: 0, feelValue: 0.31666666666666665, notes: [], transpose: 0 },
                 arp2: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 }
             }
         },
@@ -1476,4 +1442,5 @@ export const PRESETS = {
         'RANDOM ARP': { tempoMode: 'BPM' }
     }
 };
+
 
