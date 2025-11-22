@@ -178,6 +178,9 @@ body { font-family: 'Poppins', sans-serif; background-color: #1e1b4b; touch-acti
       body.lfo-mode #lfo-patch-bay {
         display: block; /* Shown only in LFO mode */
       }
+      .lfo-cable-group {
+        pointer-events: none;
+      }
       .lfo-cable {
         stroke-width: 3;
         fill: none;

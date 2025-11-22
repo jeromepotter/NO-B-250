@@ -31,6 +31,7 @@
         const MAIN_LFO_DEST_IDS = { 0: 300, 1: 301 };
         const LFO_DEST_TO_MAIN_KNOB = { 300: 0, 301: 1 };
         const LFO_DEST_NONE = -1;
+        const LFO_CABLE_COLORS = ['#FF9900', '#42A5F5', '#EC407A', '#9CCC65'];
         const lfoState = [
     { id: 0, rate: 0.5, depth: 0, wave: 0, dest: LFO_DEST_NONE, destChain: [], phase: 0, lastRandom: 0, output: 0 },
     { id: 1, rate: 0.5, depth: 0, wave: 0, dest: LFO_DEST_NONE, destChain: [], phase: 0, lastRandom: 0, output: 0 },
@@ -93,6 +94,25 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const destDisplay = document.getElementById(`lfo-dest-display-${lfoIndex}`);
             if (!destDisplay) return;
             destDisplay.textContent = formatLfoDestDisplay(getLfoDestChain(lfoState[lfoIndex]));
+        }
+
+        function hexToRgb(hex) {
+            const normalized = hex.replace('#', '');
+            if (normalized.length !== 6) return null;
+            const bigint = parseInt(normalized, 16);
+            return {
+                r: (bigint >> 16) & 255,
+                g: (bigint >> 8) & 255,
+                b: bigint & 255,
+            };
+        }
+
+        function darkenHexColor(hex, step) {
+            const rgb = hexToRgb(hex);
+            if (!rgb) return hex;
+            const attenuation = 1 - Math.min(step * 0.02, 0.6); // Subtle darkening capped at 60%
+            const toHex = (value) => Math.max(0, Math.min(255, Math.round(value * attenuation))).toString(16).padStart(2, '0');
+            return `#${toHex(rgb.r)}${toHex(rgb.g)}${toHex(rgb.b)}`;
         }
 
         function lfoTargetsInclude(lfo, targetId) {
@@ -2775,22 +2795,31 @@ function generateAndApplyRandomSound() {
                 }
             });
         }
-      function drawLfoCables() {
+        function drawLfoCables() {
     const patchBay = document.getElementById('lfo-patch-bay');
     if (!patchBay) return;
+
+    const ensureCableGroup = (index) => {
+        let group = document.getElementById(`lfo-cable-group-${index}`);
+        if (!group) {
+            group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            group.id = `lfo-cable-group-${index}`;
+            group.classList.add('lfo-cable-group');
+            group.dataset.baseColor = LFO_CABLE_COLORS[index] || LFO_CABLE_COLORS[0];
+            patchBay.appendChild(group);
+        }
+        return group;
+    };
 
     const hasChains = lfoState.some(lfo => getLfoDestChain(lfo).length);
     const shouldHide = !isLfoMode && !hasChains;
 
     if (shouldHide) {
-        for (let i = 0; i < 4; i++) {
-            const cable = document.getElementById(`lfo-cable-${i}`);
-            if (cable) {
-                cable.setAttribute('d', '');
-                if (cable.ownerSVGElement) cable.ownerSVGElement.style.display = 'none';
-            }
-        }
         patchBay.style.display = 'none';
+        for (let i = 0; i < 4; i++) {
+            const group = ensureCableGroup(i);
+            group.innerHTML = '';
+        }
         return;
     }
 
@@ -2802,23 +2831,17 @@ function generateAndApplyRandomSound() {
     patchBay.setAttribute('viewBox', `0 0 ${containerRect.width} ${containerRect.height}`);
 
     lfoState.forEach((lfo, index) => {
-        const cable = document.getElementById(`lfo-cable-${index}`);
-        if (!cable) return;
+        const group = ensureCableGroup(index);
+        group.innerHTML = '';
+        group.style.pointerEvents = 'none';
 
-        // --- FIX: Make cables "ghosts" to clicks/touches ---
-        cable.style.pointerEvents = 'none';
-        if (cable.ownerSVGElement) {
-            cable.ownerSVGElement.style.pointerEvents = 'none';
-            cable.ownerSVGElement.style.display = 'block';
-        }
-
+        const baseColor = group.dataset.baseColor || LFO_CABLE_COLORS[index] || LFO_CABLE_COLORS[0];
         const sourceKnobInfo = Object.values(LFO_KNOB_MAP).find(d => d.lfo === index && d.param === 'dest');
         if (!sourceKnobInfo) return;
 
         const sourceFxId = Object.keys(LFO_KNOB_MAP).find(key => LFO_KNOB_MAP[key] === sourceKnobInfo);
         const sourceKnobEl = fxKnobData[sourceFxId]?.knobEl || document.querySelector(`[data-fx-id="${sourceFxId}"]`);
 
-        const pathSegments = [];
         const destChain = getLfoDestChain(lfo);
         const chainTargets = destChain.length ? destChain : [LFO_DEST_NONE];
 
@@ -2845,7 +2868,7 @@ function generateAndApplyRandomSound() {
             const startPoint = getPointFromElement(sourceKnobEl);
             let previousPoint = startPoint;
 
-            chainTargets.forEach(destId => {
+            chainTargets.forEach((destId, segmentIndex) => {
                 const destKnobEl = destId === LFO_DEST_NONE ? null : getLfoTargetElement(destId);
                 let nextPoint;
 
@@ -2859,16 +2882,14 @@ function generateAndApplyRandomSound() {
                     nextPoint = getPointFromElement(destKnobEl);
                 }
 
-                pathSegments.push(curveBetweenPoints(previousPoint, nextPoint));
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.classList.add('lfo-cable');
+                path.setAttribute('stroke', darkenHexColor(baseColor, segmentIndex));
+                path.setAttribute('d', curveBetweenPoints(previousPoint, nextPoint));
+                group.appendChild(path);
+
                 previousPoint = nextPoint;
             });
-        }
-
-        if (pathSegments.length) {
-            cable.setAttribute('d', pathSegments.join(' '));
-        } else {
-            cable.setAttribute('d', '');
-            if (cable.ownerSVGElement) cable.ownerSVGElement.style.display = 'none';
         }
     });
 }
