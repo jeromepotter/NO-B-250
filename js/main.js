@@ -3101,6 +3101,10 @@ function generateAndApplyRandomSound() {
             const handleGlobalPatchClick = (e) => {
                 if (!isLfoMode) return;
                 if (e.type === 'touchend' && isScrollingGlobal) return;
+
+                // Allow the LFO mode switch to remain tappable on mobile by skipping patch handling entirely
+                if (e.target.closest('#lfo-switch-container')) return;
+
                 if (e.type === 'touchend' && e.cancelable) e.preventDefault();
 
                 const targetKnobEl = e.target.closest('.fx-knob-container, .main-knob');
