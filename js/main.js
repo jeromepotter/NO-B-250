@@ -110,7 +110,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
         function darkenHexColor(hex, step) {
             const rgb = hexToRgb(hex);
             if (!rgb) return hex;
-            const attenuation = 1 - Math.min(step * 0.02, 0.6); // Subtle darkening capped at 60%
+            // More aggressive darkening for clearer chain contrast; keep at least 15% brightness
+            const attenuation = Math.max(0.15, 1 - step * 0.07);
             const toHex = (value) => Math.max(0, Math.min(255, Math.round(value * attenuation))).toString(16).padStart(2, '0');
             return `#${toHex(rgb.r)}${toHex(rgb.g)}${toHex(rgb.b)}`;
         }
