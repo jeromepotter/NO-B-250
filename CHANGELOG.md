@@ -8,6 +8,7 @@ New Oscillators? More Extreme Detune? New Presets?
   ### Changed
 - Knob Colors for Reverb and Delay
 - N-OB Prefix on File Save
+- Freestyle mode no longer is legato and now triggers envelope each note
 
 ### Added
 - Major upgrade to LFO patching allowing chaining with multiple destinations per LFO
