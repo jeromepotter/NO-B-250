@@ -32,7 +32,7 @@
         const LFO_DEST_TO_MAIN_KNOB = { 300: 0, 301: 1 };
         const LFO_DEST_NONE = -1;
         const LFO_CABLE_COLORS = ['#FF9900', '#42A5F5', '#EC407A', '#9CCC65'];
-        const LFO_CABLE_TARGET_COLORS = ['#FF1A00', '#888888', '#8E24AA', '#8B5A2B'];
+        const LFO_CABLE_TARGET_COLORS = ['#FF1A00', '#FFFFFF', '#8E24AA', '#8B5A2B'];
         const lfoState = [
     { id: 0, rate: 0.5, depth: 0, wave: 0, dest: LFO_DEST_NONE, destChain: [], phase: 0, lastRandom: 0, output: 0 },
     { id: 1, rate: 0.5, depth: 0, wave: 0, dest: LFO_DEST_NONE, destChain: [], phase: 0, lastRandom: 0, output: 0 },
@@ -3121,17 +3121,19 @@ function generateAndApplyRandomSound() {
            });
            updateLfoTempoSwitchStates();
             
-           document.querySelectorAll('.fx-knob-container').forEach(knobEl => {
+            document.querySelectorAll('.fx-knob-container').forEach(knobEl => {
                 const id = knobEl.dataset.fxId;
                 const labelEl = knobEl.nextElementSibling;
                 if (id && labelEl) {
-                    KNOB_ID_TO_NAME_MAP[id] = labelEl.textContent.trim().replace(/\s/g, ' '); 
+                    KNOB_ID_TO_NAME_MAP[id] = labelEl.textContent.trim().replace(/\s/g, ' ');
                 }
             });
             KNOB_ID_TO_NAME_MAP[MAIN_LFO_DEST_IDS[0]] = 'MAIN 1';
             KNOB_ID_TO_NAME_MAP[MAIN_LFO_DEST_IDS[1]] = 'MAIN 2';
             KNOB_ID_TO_NAME_MAP[16] = 'TEMPO 1';
             KNOB_ID_TO_NAME_MAP[17] = 'TEMPO 2';
+            KNOB_ID_TO_NAME_MAP[22] = 'FEEL';
+            KNOB_ID_TO_NAME_MAP[23] = 'FEEL';
 
             // --- GLOBAL PATCHING HANDLER ---
             let isScrollingGlobal = false;
