@@ -9,8 +9,10 @@ New Oscillators? More Extreme Detune? New Presets?
 - Knob Colors for Reverb and Delay
 - N-OB Prefix on File Save
 
-###Added
+### Added
+- Major upgrade to LFO patching allowing chaining with multiple destinations per LFO
 - Box around each LFO Control
+- New Preset Sounds
 
 
 ## [11.20] - 2025-11-20
