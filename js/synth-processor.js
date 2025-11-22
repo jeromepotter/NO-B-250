@@ -42,10 +42,10 @@ const LFO_DEST_NONE = -1;
 
                    // --- LFO State ---
                    this.lfoParams = [
-                       { rate: 0, depth: 0, wave: 0, dest: LFO_DEST_NONE, phase: 0, lastRandom: 0 },
-                       { rate: 0, depth: 0, wave: 0, dest: LFO_DEST_NONE, phase: 0, lastRandom: 0 },
-                       { rate: 0, depth: 0, wave: 0, dest: LFO_DEST_NONE, phase: 0, lastRandom: 0 },
-                       { rate: 0, depth: 0, wave: 0, dest: LFO_DEST_NONE, phase: 0, lastRandom: 0 },
+                       { rate: 0, depth: 0, wave: 0, dest: LFO_DEST_NONE, destChain: [], phase: 0, lastRandom: 0 },
+                       { rate: 0, depth: 0, wave: 0, dest: LFO_DEST_NONE, destChain: [], phase: 0, lastRandom: 0 },
+                       { rate: 0, depth: 0, wave: 0, dest: LFO_DEST_NONE, destChain: [], phase: 0, lastRandom: 0 },
+                       { rate: 0, depth: 0, wave: 0, dest: LFO_DEST_NONE, destChain: [], phase: 0, lastRandom: 0 },
                    ];
                    this.lfoOutputs = [0,0,0,0];
       
@@ -84,8 +84,19 @@ const LFO_DEST_NONE = -1;
                                else if(id===21 || id===29){ this.updateFilterCoefficients(this.filterOsc2Coeffs, this.params[21], this.params[29]); }
                                break;
                             case 'setLfo':
-                                if (lfoId >= 0 && lfoId < this.lfoParams.length && this.lfoParams[lfoId][param] !== undefined) {
-                                    this.lfoParams[lfoId][param] = value;
+                                if (lfoId >= 0 && lfoId < this.lfoParams.length) {
+                                    const lfoTarget = this.lfoParams[lfoId];
+                                    if (param === 'destChain') {
+                                        if (Array.isArray(value)) {
+                                            lfoTarget.destChain = value.filter(v => Number.isFinite(v));
+                                            lfoTarget.dest = lfoTarget.destChain.length ? lfoTarget.destChain[0] : LFO_DEST_NONE;
+                                        }
+                                    } else if (lfoTarget[param] !== undefined) {
+                                        lfoTarget[param] = value;
+                                        if (param === 'dest') {
+                                            lfoTarget.destChain = value === LFO_DEST_NONE ? [] : [value];
+                                        }
+                                    }
                                 }
                                 break;
                             case 'requestLfoUpdate':
@@ -121,6 +132,16 @@ case 'ping':
                    const oL=o[0][0]; const oR=o[0][1]; const sr=sampleRate;
 // --- LFO Processing (with LFO-to-LFO modulation) ---
 let rawLfoOutputs = [0, 0, 0, 0];
+const getLfoDestinations = (lfo) => {
+    if (lfo && Array.isArray(lfo.destChain) && lfo.destChain.length) {
+        return lfo.destChain;
+    }
+    if (lfo && lfo.dest !== undefined && lfo.dest !== LFO_DEST_NONE) {
+        return [lfo.dest];
+    }
+    return [];
+};
+
 for (let l = 0; l < 4; l++) {
     const lfo = this.lfoParams[l];
     if (lfo.depth > 0.001) {
@@ -147,14 +168,28 @@ for (let l = 0; l < 4; l++) {
 
 const LFO_KNOB_IDS = { 101: {lfo: 0, param: 'wave'}, 103: {lfo: 1, param: 'depth'}, 104: {lfo: 2, param: 'depth'}, 105: {lfo: 1, param: 'wave'}, 106: {lfo: 0, param: 'depth'}, 107: {lfo: 3, param: 'dest'}, 108: {lfo: 0, param: 'rate'}, 109: {lfo: 1, param: 'rate'}, 110: {lfo: 2, param: 'rate'}, 111: {lfo: 3, param: 'rate'}, 112: {lfo: 2, param: 'wave'}, 113: {lfo: 3, param: 'wave'}, 100: {lfo: 3, param: 'depth'}, 102: {lfo: 2, param: 'dest'}, 114: {lfo: 0, param: 'dest'}, 115: {lfo: 1, param: 'dest'} };
 
+const appliedLfoTargets = new Set();
+
 for (let l = 0; l < 4; l++) {
     const lfo = this.lfoParams[l];
-    if (lfo.dest !== LFO_DEST_NONE && rawLfoOutputs[l] !== 0) {
-        const targetLfoInfo = LFO_KNOB_IDS[lfo.dest];
-        if (targetLfoInfo) {
-            const targetLfo = this.lfoParams[targetLfoInfo.lfo];
+    const destinations = getLfoDestinations(lfo);
+    if (destinations.length && rawLfoOutputs[l] !== 0) {
+        for (const dest of destinations) {
+            const targetLfoInfo = LFO_KNOB_IDS[dest];
+            if (!targetLfoInfo) continue;
+
+            const targetIndex = targetLfoInfo.lfo;
             const param = targetLfoInfo.param;
-            
+            const loopKey = `${l}->${targetIndex}:${param}`;
+            if (appliedLfoTargets.has(loopKey)) continue;
+            const potentialLoop = targetIndex === l || getLfoDestinations(this.lfoParams[targetIndex]).some(d => {
+                const info = LFO_KNOB_IDS[d];
+                return info && info.lfo === l;
+            });
+            if (potentialLoop) continue;
+            appliedLfoTargets.add(loopKey);
+
+            const targetLfo = this.lfoParams[targetIndex];
             if (param === 'rate') {
                 const baseRate = targetLfo.rate;
                 const modulatedRate = Math.max(0, Math.min(1, baseRate + rawLfoOutputs[l]));
@@ -174,10 +209,10 @@ for (let l = 0; l < 4; l++) {
                     case 4: val = 1 - (targetLfo.phase / Math.PI); break;
                     case 5: val = targetLfo.lastRandom; break;
                 }
-                rawLfoOutputs[targetLfoInfo.lfo] = val * targetLfo.depth;
+                rawLfoOutputs[targetIndex] = val * targetLfo.depth;
            } else if (param === 'depth') {
                 const modulatedDepth = Math.max(0, Math.min(1, targetLfo.depth + rawLfoOutputs[l]));
-                rawLfoOutputs[targetLfoInfo.lfo] = rawLfoOutputs[targetLfoInfo.lfo] * (modulatedDepth / (targetLfo.depth || 1));
+                rawLfoOutputs[targetIndex] = rawLfoOutputs[targetIndex] * (modulatedDepth / (targetLfo.depth || 1));
             } else if (param === 'wave') {
                 const baseWave = targetLfo.wave;
                 const modulatedWaveValue = Math.max(0, Math.min(1, (baseWave / 5) + rawLfoOutputs[l]));
@@ -191,7 +226,7 @@ for (let l = 0; l < 4; l++) {
                     case 4: val = 1 - (targetLfo.phase / Math.PI); break;
                     case 5: val = targetLfo.lastRandom; break;
                 }
-                rawLfoOutputs[targetLfoInfo.lfo] = val * targetLfo.depth;
+                rawLfoOutputs[targetIndex] = val * targetLfo.depth;
             }
         }
     }
@@ -203,9 +238,12 @@ this.lfoOutputs = rawLfoOutputs;
 let modulatedFx = {};
 for (let l = 0; l < 4; l++) {
     const lfo = this.lfoParams[l];
-    if (lfo.dest !== LFO_DEST_NONE) {
-        if (!modulatedFx[lfo.dest]) modulatedFx[lfo.dest] = 0;
-        modulatedFx[lfo.dest] += this.lfoOutputs[l];
+    const destinations = getLfoDestinations(lfo);
+    if (destinations.length) {
+        for (const dest of destinations) {
+            if (!modulatedFx[dest]) modulatedFx[dest] = 0;
+            modulatedFx[dest] = Math.max(-1, Math.min(1, modulatedFx[dest] + this.lfoOutputs[l]));
+        }
     }
 }
 
@@ -214,7 +252,7 @@ let currentParams = [...this.params];
 for (const fxId in modulatedFx) {
     const id = parseInt(fxId, 10);
     if(currentParams[id] !== undefined) {
-        currentParams[id] = Math.max(0, Math.min(1, currentParams[id] + modulatedFx[id]));
+        currentParams[id] = Math.max(0, Math.min(1, currentParams[id] + Math.max(-1, Math.min(1, modulatedFx[id]))));
     }
 }
 
