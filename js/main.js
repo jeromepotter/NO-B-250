@@ -32,6 +32,7 @@
         const LFO_DEST_TO_MAIN_KNOB = { 300: 0, 301: 1 };
         const LFO_DEST_NONE = -1;
         const LFO_CABLE_COLORS = ['#FF9900', '#42A5F5', '#EC407A', '#9CCC65'];
+        const LFO_CABLE_TARGET_COLORS = ['#FF1A00', '#888888', '#8E24AA', '#8B5A2B'];
         const lfoState = [
     { id: 0, rate: 0.5, depth: 0, wave: 0, dest: LFO_DEST_NONE, destChain: [], phase: 0, lastRandom: 0, output: 0 },
     { id: 1, rate: 0.5, depth: 0, wave: 0, dest: LFO_DEST_NONE, destChain: [], phase: 0, lastRandom: 0, output: 0 },
@@ -107,13 +108,30 @@ let liveLfoOutputs = [0, 0, 0, 0];
             };
         }
 
-        function darkenHexColor(hex, step) {
-            const rgb = hexToRgb(hex);
-            if (!rgb) return hex;
-            // More aggressive darkening for clearer chain contrast; keep at least 15% brightness
-            const attenuation = Math.max(0.15, 1 - step * 0.07);
-            const toHex = (value) => Math.max(0, Math.min(255, Math.round(value * attenuation))).toString(16).padStart(2, '0');
-            return `#${toHex(rgb.r)}${toHex(rgb.g)}${toHex(rgb.b)}`;
+        function blendHexColors(hexA, hexB, t) {
+            const rgbA = hexToRgb(hexA);
+            const rgbB = hexToRgb(hexB);
+            if (!rgbA || !rgbB) return hexA;
+            const clamp = (val) => Math.max(0, Math.min(1, val));
+            const ratio = clamp(t);
+            const mix = (a, b) => Math.round(a + (b - a) * ratio);
+            const toHex = (value) => value.toString(16).padStart(2, '0');
+            return `#${toHex(mix(rgbA.r, rgbB.r))}${toHex(mix(rgbA.g, rgbB.g))}${toHex(mix(rgbA.b, rgbB.b))}`;
+        }
+
+        function getLfoSegmentColor(baseColor, lfoIndex, segmentIndex) {
+            const targetColor = LFO_CABLE_TARGET_COLORS[lfoIndex] || baseColor;
+            const position = ((segmentIndex) % 10) + 1; // 1-10 cycle
+
+            // First five patches intensify toward the target color
+            if (position <= 5) {
+                const t = (position - 1) / 4; // 1st stays base, 5th hits target
+                return blendHexColors(baseColor, targetColor, t);
+            }
+
+            // Next five patches fade back toward the base hue
+            const tBack = (position - 6) / 4; // 6th starts at target, 10th returns to base
+            return blendHexColors(targetColor, baseColor, tBack);
         }
 
         function lfoTargetsInclude(lfo, targetId) {
@@ -2885,7 +2903,7 @@ function generateAndApplyRandomSound() {
 
                 const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                 path.classList.add('lfo-cable');
-                path.setAttribute('stroke', darkenHexColor(baseColor, segmentIndex));
+                path.setAttribute('stroke', getLfoSegmentColor(baseColor, index, segmentIndex));
                 path.setAttribute('d', curveBetweenPoints(previousPoint, nextPoint));
                 group.appendChild(path);
 

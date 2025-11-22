@@ -217,20 +217,12 @@ body { font-family: 'Poppins', sans-serif; background-color: #1e1b4b; touch-acti
         padding-top: 1rem;
       }
 
-      /* Keep the LFO mode switch tappable even when the patch bay grows on mobile */
+      /* Keep the LFO mode switch tappable without floating during scroll */
       #lfo-switch-container {
         position: static;
         z-index: 20;
         pointer-events: auto;
         background: inherit;
-      }
-
-      /* Only stick the switch to the bottom on smaller screens */
-      @media (max-width: 768px) {
-        #lfo-switch-container {
-          position: sticky;
-          bottom: 0;
-        }
       }
 
       .lfo-column-box {
