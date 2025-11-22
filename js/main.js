@@ -3149,7 +3149,8 @@ function generateAndApplyRandomSound() {
                 // Allow the LFO mode switch to remain tappable on mobile by skipping patch handling entirely
                 if (e.target.closest('#lfo-switch-container')) return;
 
-                if (e.type === 'touchend' && e.cancelable) e.preventDefault();
+                // Skip patch handling for preset/system controls so their default interactions work
+                if (e.target.closest('#presets-submenu-container, #system-preset-selector')) return;
 
                 const targetKnobEl = e.target.closest('.fx-knob-container, .main-knob');
 
@@ -3157,6 +3158,8 @@ function generateAndApplyRandomSound() {
                     if (activePatchingLfo !== null) stopLfoPatching();
                     return;
                 }
+
+                if (e.type === 'touchend' && e.cancelable) e.preventDefault();
 
                 const targetFxId = targetKnobEl.classList.contains('main-knob') ? MAIN_LFO_DEST_IDS[parseInt(targetKnobEl.dataset.knobId, 10)] : parseInt(targetKnobEl.dataset.fxId, 10);
                 if (targetFxId === undefined || Number.isNaN(targetFxId)) {
