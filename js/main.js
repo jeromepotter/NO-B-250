@@ -3611,6 +3611,16 @@ function generateAndApplyRandomSound() {
                 closePresetDropdown();
            });
 
+           presetListSelector?.addEventListener('focusout', () => {
+                if (!isPresetDropdownOpen) return;
+                closePresetDropdown();
+           });
+
+           presetListSelector?.addEventListener('keydown', (e) => {
+                if (e.key !== 'Escape') return;
+                closePresetDropdown();
+           });
+
            loadPresetInput?.addEventListener('change', loadPreset);
            
            addTouchListener(arpSyncSwitch, () => {
