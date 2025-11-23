@@ -2421,16 +2421,21 @@ function applyPreset(p) {
            setTempoMode(presetTempoMode);
 
            // --- 4. APPLY all new settings from the preset ---
-           scaleSelector.value = p.scale ?? 'Major';
-           scaleSelector.dispatchEvent(new Event('change'));
-           keySelector.value = p.key ?? 'C';
+           if (!isArpLockEnabled) {
+               scaleSelector.value = p.scale ?? 'Major';
+               scaleSelector.dispatchEvent(new Event('change'));
+               keySelector.value = p.key ?? 'C';
+           }
 
            if (p.allowDuplicateNotesMode !== undefined) {
                allowDuplicateNotesMode = p.allowDuplicateNotesMode;
            }
            document.body.classList.toggle('easter-egg-mode', allowDuplicateNotesMode);
 
-           if (p.scale === 'Custom') { customScale = p.customScale || []; document.querySelectorAll('#custom-scale-builder .key').forEach(k => { const n = parseInt(k.dataset.note); k.classList.toggle('selected', customScale.includes(n)); }); }
+           if (!isArpLockEnabled && p.scale === 'Custom') {
+               customScale = p.customScale || [];
+               document.querySelectorAll('#custom-scale-builder .key').forEach(k => { const n = parseInt(k.dataset.note); k.classList.toggle('selected', customScale.includes(n)); });
+           }
            
            // --- 4. APPLY LFO STATE (IMPORTANT: Do this before FX settings) ---
             const presetTempoSyncTargets = [];
