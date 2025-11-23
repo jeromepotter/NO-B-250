@@ -82,19 +82,27 @@ body { font-family: 'Poppins', sans-serif; background-color: #665; touch-action:
       #presets-submenu-container {
         position: absolute;
         z-index: 10;
+        background: rgba(0, 0, 0, 0.85);
+        border: 2px solid rgba(255, 255, 255, 0.7);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+        color: #ffffff;
+        backdrop-filter: blur(2px);
       }
       .preset-category-button:focus { outline: none; }
-      #preset-list-selector {
-        position: absolute;
-        left: -9999px;
-        top: -9999px;
-        width: 1px;
-        height: 1px;
-        opacity: 0;
-        margin: 0;
-        padding: 0;
-        border: 0;
-      }
+       #preset-list-selector {
+         position: absolute;
+         left: -9999px;
+         top: -9999px;
+         width: 1px;
+         height: 1px;
+         opacity: 0;
+         margin: 0;
+         padding: 0;
+         border: 2px solid rgba(255, 255, 255, 0.7);
+         background: rgba(0, 0, 0, 0.9);
+         color: #ffffff;
+         box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+       }
       .arp-rate-button {
         min-width: 1.75rem;
         padding: 0.1rem 0.4rem;
