@@ -219,10 +219,9 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
         function applyIndicatorTransform(indicator, angle) {
             if (!indicator) return;
-            const baseTransform = indicator.dataset.baseTransform || 'translate(-50%, -100%)';
-            indicator.dataset.baseTransform = baseTransform;
+            const baseTransform = indicator.dataset.baseTransform || '';
             const rotation = `rotate(${angle}deg)`;
-            indicator.style.transform = `${baseTransform} ${rotation}`;
+            indicator.style.transform = baseTransform ? `${baseTransform} ${rotation}` : rotation;
         }
 
         function getNowMs() {
@@ -1164,7 +1163,8 @@ function sendMidiMessage(message) {
            if (!state.dom || !state.dom.knob || !state.dom.indicator) return;
            const displayAngle = state.totalAngle % 360;
            state.baseColor = getKnobColor(displayAngle);
-           state.dom.indicator.style.transformOrigin = '50% 100%';
+           const knobRadius = state.dom.knob.offsetHeight / 2;
+           state.dom.indicator.style.transformOrigin = `center ${knobRadius > 0 ? knobRadius - 16 : 0}px`;
            applyIndicatorTransform(state.dom.indicator, displayAngle);
            const baseMidi = getMidiNote(knobId);
            let displayMidi = baseMidi;
@@ -1404,10 +1404,6 @@ function sendMidiMessage(message) {
            document.querySelectorAll('.fx-knob-container').forEach(k => {
                const id = parseInt(k.dataset.fxId, 10);
                fxKnobData[id] = { id:id, knobEl:k, indicator:k.querySelector('.indicator'), angle:MIN_FX_ANGLE, value:0.0, isDragging:false, startY:0, touchId:null, touchStartX:null, touchStartY:null, touchMoved:false, lastTapTime:0 };
-               if (fxKnobData[id].indicator) {
-                   fxKnobData[id].indicator.dataset.baseTransform = fxKnobData[id].indicator.dataset.baseTransform || 'translate(-50%, -100%)';
-                   fxKnobData[id].indicator.style.transformOrigin = '50% 100%';
-               }
                if(id===2){fxKnobData[id].value=1.0;} else if(id===7){fxKnobData[id].value=0.5;} else if(id===8){fxKnobData[id].value=0.0045;}
                else if(id===9){fxKnobData[id].value=0.0995;} else if(id===10){fxKnobData[id].value=0.8;} else if(id===11){fxKnobData[id].value=0.2;}
                else if(id===13){fxKnobData[id].value=0.5;} else if(id===15){fxKnobData[id].value=0.25;} else if(id===16||id===17){fxKnobData[id].value=arpRateBpmToValue(DEFAULT_ARP_RATE_BPM);}
@@ -3307,11 +3303,6 @@ function generateAndApplyRandomSound() {
                s.dom.transposeDisplay = document.getElementById(`transpose-display-${id}`);
                s.dom.rateDisplay = document.getElementById(`rate-display-${id}`);
       
-               if (s.dom.indicator) {
-                   s.dom.indicator.dataset.baseTransform = s.dom.indicator.dataset.baseTransform || 'translate(-50%, -100%)';
-                   s.dom.indicator.style.transformOrigin = '50% 100%';
-               }
-
                s.dom.knob?.addEventListener('mousedown', handleInteractionStart); s.dom.knob?.addEventListener('touchstart', handleInteractionStart, {passive: false});
       
                const spinLeftButton = document.getElementById(`spin-left-${id}`);
