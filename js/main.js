@@ -3101,7 +3101,9 @@ function generateAndApplyRandomSound() {
            const presetsSubmenuContainer = document.getElementById('presets-submenu-container');
            const submenuSaveButton = document.getElementById('submenu-save-button');
            const submenuLoadButton = document.getElementById('submenu-load-button');
-           const systemPresetSelector = document.getElementById('system-preset-selector'); 
+           const presetListSelector = document.getElementById('preset-list-selector');
+           const presetCategoryButtons = document.querySelectorAll('.preset-category-button');
+           let activePresetCategory = 'BASS';
            
            const handlePresetToggle = (e) => {
                if(e.cancelable) e.preventDefault();
@@ -3191,8 +3193,8 @@ function generateAndApplyRandomSound() {
                 // Allow the LFO mode switch to remain tappable on mobile by skipping patch handling entirely
                 if (e.target.closest('#lfo-switch-container')) return;
 
-                // Skip patch handling for preset/system controls so their default interactions work
-                if (e.target.closest('#presets-submenu-container, #system-preset-selector')) return;
+                 // Skip patch handling for preset/system controls so their default interactions work
+                 if (e.target.closest('#presets-submenu-container, #preset-list-selector, #preset-category-buttons')) return;
 
                 const targetKnobEl = e.target.closest('.fx-knob-container, .main-knob');
 
@@ -3424,35 +3426,57 @@ function generateAndApplyRandomSound() {
                 destKnob.addEventListener('touchend', handleDestInteraction);
             });
 
-           const initialOption = document.createElement('option');
-           initialOption.textContent = 'SYSTEM';
-           initialOption.disabled = true;
-           initialOption.selected = true;
-           systemPresetSelector.appendChild(initialOption);
+           const populatePresetList = (category) => {
+                if (!presetListSelector) return;
+                presetListSelector.innerHTML = '';
 
-           for (const groupName in PRESETS) {
-                const optgroup = document.createElement('optgroup');
-                optgroup.label = groupName;
-                for (const presetName in PRESETS[groupName]) {
+                const placeholder = document.createElement('option');
+                placeholder.textContent = `${category} PRESETS`;
+                placeholder.disabled = true;
+                placeholder.selected = true;
+                presetListSelector.appendChild(placeholder);
+
+                const presetsForCategory = PRESETS[category] || {};
+                Object.keys(presetsForCategory).forEach((presetName) => {
                     const option = document.createElement('option');
                     option.value = presetName;
-                    option.dataset.group = groupName;
+                    option.dataset.group = category;
                     option.textContent = presetName;
-                    optgroup.appendChild(option);
-                }
-                systemPresetSelector.appendChild(optgroup);
-           }
+                    presetListSelector.appendChild(option);
+                });
 
-           systemPresetSelector.addEventListener('change', (e) => {
+                presetListSelector.disabled = !Object.keys(presetsForCategory).length;
+           };
+
+           const setActivePresetCategory = (category) => {
+                activePresetCategory = category;
+                presetCategoryButtons.forEach((button) => {
+                    button.classList.toggle('active', button.dataset.category === category);
+                });
+                populatePresetList(category);
+           };
+
+           protectDropdown(presetListSelector);
+
+           presetCategoryButtons.forEach((button) => {
+                const category = button.dataset.category;
+                addTouchListener(button, () => setActivePresetCategory(category));
+           });
+
+           setActivePresetCategory(activePresetCategory);
+
+           presetListSelector?.addEventListener('change', (e) => {
                 const selectedOption = e.target.options[e.target.selectedIndex];
-                const presetName = selectedOption.value;
-                
+                const presetName = selectedOption?.value;
+
+                if (!presetName) return;
+
                 if (presetName === "RANDOM ARP") {
                     generateAndApplyRandomPreset();
                 } else if (presetName === "RANDOM SOUND") {
                     generateAndApplyRandomSound();
                 } else {
-                    const groupName = selectedOption.dataset.group;
+                    const groupName = selectedOption.dataset.group || activePresetCategory;
                     if (!groupName || !PRESETS[groupName] || !PRESETS[groupName][presetName]) return;
 
                     const presetData = JSON.parse(JSON.stringify(PRESETS[groupName][presetName]));
@@ -3463,8 +3487,8 @@ function generateAndApplyRandomSound() {
                         key: presetData.key,
                         scale: presetData.scale,
                         customScale: presetData.customScale || [],
-                        isLfoMode: presetData.isLfoMode || false,  
-                        lfoState: presetData.lfoState || [], 
+                        isLfoMode: presetData.isLfoMode || false,
+                        lfoState: presetData.lfoState || [],
                         knobSettings: presetData.knobSettings || [],
                         fxSettings: [...(presetData.fxSettings || [])],
                         arpSettings: {
@@ -3486,7 +3510,7 @@ function generateAndApplyRandomSound() {
                             }
                         }
                     };
-                    
+
                     if (presetData.arpSettings && presetData.arpSettings.fx) {
                         for (const [fxId, value] of Object.entries(presetData.arpSettings.fx)) {
                             fullPreset.fxSettings.push({ id: parseInt(fxId), value: value });
@@ -3495,12 +3519,12 @@ function generateAndApplyRandomSound() {
                     applyPreset(fullPreset);
                 }
 
-                systemPresetSelector.blur();
+                presetListSelector.blur();
                 e.target.selectedIndex = 0;
                 presetsSubmenuContainer.style.display = 'none';
                 presetsToggleButton.classList.remove('active');
             });
-           
+
            loadPresetInput?.addEventListener('change', loadPreset);
            
            addTouchListener(arpSyncSwitch, () => {

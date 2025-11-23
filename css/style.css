@@ -69,6 +69,13 @@ body { font-family: 'Poppins', sans-serif; background-color: #665; touch-action:
       .retro-button { transition: color 0.2s; }
       .retro-button:hover { color: #facc15; }
       .retro-button.active { color: #facc15; text-decoration: underline; }
+      .preset-save-button { color: #60a5fa; }
+      .preset-load-button { color: #34d399; }
+      .preset-category-button {
+        border: none;
+        background: transparent;
+      }
+      .preset-category-button:focus { outline: none; }
       .arp-rate-button {
         min-width: 1.75rem;
         padding: 0.1rem 0.4rem;

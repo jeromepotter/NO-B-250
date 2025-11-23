@@ -1076,6 +1076,7 @@ export const PRESETS = {
                             }
                         }
     },
+    "FX": {},
     "OTHER": {
         '-INIT-': {
                             tempoMode: "BPM",
