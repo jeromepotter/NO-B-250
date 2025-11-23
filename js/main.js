@@ -3104,24 +3104,44 @@ function generateAndApplyRandomSound() {
            const presetListSelector = document.getElementById('preset-list-selector');
            const presetCategoryButtons = document.querySelectorAll('.preset-category-button');
            let activePresetCategory = 'BASS';
+
+           const collapsePresetList = () => {
+                if (!presetListSelector) return;
+                presetListSelector.size = 1;
+           };
+
+           const expandPresetList = () => {
+                if (!presetListSelector) return;
+                const optionCount = Math.max(1, presetListSelector.options.length);
+                const visibleOptions = Math.min(optionCount, 10);
+                presetListSelector.size = visibleOptions > 1 ? visibleOptions : 1;
+                presetListSelector.focus();
+           };
            
            const handlePresetToggle = (e) => {
                if(e.cancelable) e.preventDefault();
                const isVisible = presetsSubmenuContainer.style.display === 'flex';
                presetsSubmenuContainer.style.display = isVisible ? 'none' : 'flex';
                presetsToggleButton.classList.toggle('active', !isVisible);
+               if (isVisible) {
+                    collapsePresetList();
+               } else {
+                    expandPresetList();
+               }
            };
            presetsToggleButton?.addEventListener('touchend', handlePresetToggle);
            presetsToggleButton?.addEventListener('click', handlePresetToggle);
 
            addTouchListener(submenuSaveButton, () => {
                 savePreset();
+                collapsePresetList();
                 presetsSubmenuContainer.style.display = 'none';
                 presetsToggleButton.classList.remove('active');
            });
 
            addTouchListener(submenuLoadButton, () => {
                 loadPresetInput.click();
+                collapsePresetList();
                 presetsSubmenuContainer.style.display = 'none';
                 presetsToggleButton.classList.remove('active');
            });
@@ -3454,6 +3474,11 @@ function generateAndApplyRandomSound() {
                     button.classList.toggle('active', button.dataset.category === category);
                 });
                 populatePresetList(category);
+                if (presetsSubmenuContainer.style.display === 'flex') {
+                    expandPresetList();
+                } else {
+                    collapsePresetList();
+                }
            };
 
            protectDropdown(presetListSelector);
@@ -3519,6 +3544,7 @@ function generateAndApplyRandomSound() {
                     applyPreset(fullPreset);
                 }
 
+                collapsePresetList();
                 presetListSelector.blur();
                 e.target.selectedIndex = 0;
                 presetsSubmenuContainer.style.display = 'none';
