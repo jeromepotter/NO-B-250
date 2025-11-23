@@ -80,7 +80,8 @@ body { font-family: 'Poppins', sans-serif; background-color: #665; touch-action:
         text-decoration: none;
       }
       #presets-submenu-container {
-        position: relative;
+        position: absolute;
+        z-index: 10;
       }
       .preset-category-button:focus { outline: none; }
       #preset-list-selector {
