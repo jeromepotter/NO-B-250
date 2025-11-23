@@ -760,11 +760,12 @@ let liveLfoOutputs = [0, 0, 0, 0];
       
        // --- Global Arp State ---
        let isArpRateSynced = false;
+       let isArpLockEnabled = false;
        let currentArpOrder = "As Played";
       
        // --- DOM Elements ---
        let synthContainer, powerSwitch, keySelector, scaleSelector, customScaleBuilder, savePresetButton, loadPresetInput, arpSyncSwitch;
-       let masterArpControls, arpOrderSelector;
+       let masterArpControls, arpOrderSelector, arpLockSwitch;
        let allArpControlGrids;
        let rateDisplayRows = [];
        let modalOverlay, howToButton, closeModalButton;
@@ -2417,19 +2418,26 @@ function applyPreset(p) {
 
            // --- 3. RESTORE tempo mode before applying rate-dependent settings ---
            const presetTempoMode = p.tempoMode ?? TEMPO_MODE_BPM;
-           setTempoMode(presetTempoMode);
+           if (!isArpLockEnabled) {
+               setTempoMode(presetTempoMode);
+           }
 
            // --- 4. APPLY all new settings from the preset ---
-           scaleSelector.value = p.scale ?? 'Major';
-           scaleSelector.dispatchEvent(new Event('change'));
-           keySelector.value = p.key ?? 'C';
+           if (!isArpLockEnabled) {
+               scaleSelector.value = p.scale ?? 'Major';
+               scaleSelector.dispatchEvent(new Event('change'));
+               keySelector.value = p.key ?? 'C';
+           }
 
            if (p.allowDuplicateNotesMode !== undefined) {
                allowDuplicateNotesMode = p.allowDuplicateNotesMode;
            }
            document.body.classList.toggle('easter-egg-mode', allowDuplicateNotesMode);
 
-           if (p.scale === 'Custom') { customScale = p.customScale || []; document.querySelectorAll('#custom-scale-builder .key').forEach(k => { const n = parseInt(k.dataset.note); k.classList.toggle('selected', customScale.includes(n)); }); }
+           if (!isArpLockEnabled && p.scale === 'Custom') {
+               customScale = p.customScale || [];
+               document.querySelectorAll('#custom-scale-builder .key').forEach(k => { const n = parseInt(k.dataset.note); k.classList.toggle('selected', customScale.includes(n)); });
+           }
            
            // --- 4. APPLY LFO STATE (IMPORTANT: Do this before FX settings) ---
             const presetTempoSyncTargets = [];
@@ -2516,9 +2524,14 @@ function applyPreset(p) {
 
            if (p.knobSettings) { p.knobSettings.forEach(kD => { const s = knobState.find(k => k.id === kD.id); if (s) s.totalAngle = kD.totalAngle ?? 0; }); }
            
-           if (p.fxSettings) { p.fxSettings.forEach(fx => { setFxValue(fx.id, fx.value ?? 0); }); }
+           if (p.fxSettings) {
+               p.fxSettings.forEach(fx => {
+                   if (isArpLockEnabled && [16, 17, 18, 19, 22, 23, 24, 25].includes(fx.id)) return;
+                   setFxValue(fx.id, fx.value ?? 0);
+               });
+           }
            
-           if (p.arpSettings) {
+           if (p.arpSettings && !isArpLockEnabled) {
                isArpRateSynced = p.arpSettings.isArpRateSynced ?? false;
                currentArpOrder = p.arpSettings.currentArpOrder ?? "Up";
                arpSyncSwitch.classList.toggle('on', isArpRateSynced);
@@ -2632,6 +2645,7 @@ function resetAllFxToDefaults() {
            resetLfoTempoSyncState();
            Object.keys(fxKnobData).forEach(idStr => {
                const id = parseInt(idStr, 10);
+               if (isArpLockEnabled && [16, 17, 18, 19, 22, 23, 24, 25].includes(id)) return;
                let defaultValue = 0.0;
                if (id === 2) defaultValue = 1.0;
                if (id === 7) defaultValue = 0.7;
@@ -3119,6 +3133,7 @@ function generateAndApplyRandomSound() {
            // --- 10. ARP & SYNTH CONTROLS ---
            arpSyncSwitch = document.getElementById('arp-sync-switch');
            masterArpControls = document.getElementById('master-arp-controls');
+           arpLockSwitch = document.getElementById('arp-lock-switch');
            allArpControlGrids = document.querySelectorAll('.arp-controls');
            const lfoModeSwitch = document.getElementById('lfo-mode-switch');
 
@@ -3509,6 +3524,11 @@ function generateAndApplyRandomSound() {
                }
                updateRateButtonLockState();
                updateLfoTempoSwitchStates();
+           });
+
+           addTouchListener(arpLockSwitch, () => {
+               isArpLockEnabled = !isArpLockEnabled;
+               arpLockSwitch.classList.toggle('on', isArpLockEnabled);
            });
 
            // --- FIX: RATE BUTTONS (1/2, 2x) ---
