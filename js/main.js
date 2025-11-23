@@ -3108,6 +3108,20 @@ function generateAndApplyRandomSound() {
            let isPresetDropdownOpen = false;
            let removePresetDismissListener = null;
 
+           const positionPresetsSubmenu = () => {
+                if (!presetsSubmenuContainer || !presetsToggleButton || !synthContainer) return;
+                if (presetsSubmenuContainer.style.display !== 'flex') return;
+
+                const buttonRect = presetsToggleButton.getBoundingClientRect();
+                const containerRect = synthContainer.getBoundingClientRect();
+
+                const left = Math.max(0, buttonRect.left - containerRect.left);
+                const top = buttonRect.bottom - containerRect.top + 8;
+
+                presetsSubmenuContainer.style.left = `${left}px`;
+                presetsSubmenuContainer.style.top = `${top}px`;
+           };
+
            const clearPresetCategoryHighlight = () => {
                 presetCategoryButtons.forEach((button) => {
                     button.classList.remove('active');
@@ -3205,12 +3219,18 @@ function generateAndApplyRandomSound() {
                presetsSubmenuContainer.style.display = willShow ? 'flex' : 'none';
                presetsToggleButton.classList.toggle('active', willShow);
 
+               if (willShow) {
+                    positionPresetsSubmenu();
+               }
+
                if (!willShow) {
                     closePresetDropdown();
                }
            };
            presetsToggleButton?.addEventListener('touchend', handlePresetToggle);
            presetsToggleButton?.addEventListener('click', handlePresetToggle);
+           window.addEventListener('resize', positionPresetsSubmenu);
+           window.addEventListener('orientationchange', positionPresetsSubmenu);
 
            addTouchListener(submenuSaveButton, () => {
                 savePreset();
