@@ -350,7 +350,7 @@ body { font-family: 'Poppins', sans-serif; background-color: #7D728A; touch-acti
         user-select: none;
       }
 
-     @media (max-width: 1024px) {
+@media (max-width: 1024px) {
   .fx-knob-container {
     transition: none;
     transform: translateZ(0);
@@ -368,12 +368,26 @@ body { font-family: 'Poppins', sans-serif; background-color: #7D728A; touch-acti
     /* transform: translateZ(0); */
     /* -webkit-transform: translateZ(0); */
   }
-  
-  
+
+
   #octave-display-1, #octave-display-2 {
     height: 36px;
   }
-  
+
+}
+
+@media (max-width: 480px) {
+  .fx-knob-container {
+    padding-top: 6px;
+  }
+
+  .fx-knob-container > .indicator {
+    width: 0.25rem;
+    height: 0.6rem;
+    top: 6px;
+    left: 50%;
+    transform: translate(-50%, 0);
+  }
 }
 
 
