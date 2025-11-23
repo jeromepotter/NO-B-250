@@ -1258,5 +1258,4 @@ export const PRESETS = {
          "OTHER": {
         'RANDOM SOUND': { tempoMode: 'BPM' },
         'RANDOM ARP': { tempoMode: 'BPM' }
-    }
 };
