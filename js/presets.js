@@ -778,12 +778,12 @@ export const PRESETS = {
                 arp2: { isOn: true, isArpOn: true, isSweepMode: true, octaves: 0, feelValue: 0.2259, notes: [ { midi: 64, active: true }, { midi: 71, active: true }, { midi: 76, active: true }, { midi: 65, active: true }, { midi: 71, active: true }, { midi: 81, active: true }, { midi: 79, active: true }, { midi: 93, active: true } ], transpose: 0 }
             }
         },
-        'BULLS': {
+       'BULLS': {
             tempoMode: "BPM",
             key: "D",
             scale: "Major",
             customScale: [],
-            allowDuplicateNotesMode: true,
+            allowDuplicateNotesMode: false,
             isLfoMode: true,
             lfoState: [
                 { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
@@ -800,7 +800,7 @@ export const PRESETS = {
                 { id: 4, value: 0.3962 }, { id: 5, value: 0 }, { id: 6, value: 0.2 }, { id: 7, value: 0.5722 },
                 { id: 8, value: 0.0656 }, { id: 9, value: 0.2833 }, { id: 10, value: 0 }, { id: 11, value: 0.1 },
                 { id: 12, value: 0.2222 }, { id: 13, value: 0.7325 }, { id: 14, value: 0.6233 }, { id: 15, value: 0.0781 },
-                { id: 16, value: 0.324861302239814 }, { id: 17, value: 1 }, { id: 18, value: 0 }, { id: 19, value: 0 },
+                { id: 16, value: 0.28668616087102006 }, { id: 17, value: 1 }, { id: 18, value: 0 }, { id: 19, value: 0 },
                 { id: 20, value: 0.4665 }, { id: 21, value: 0.3611 }, { id: 22, value: 0 }, { id: 23, value: 0 },
                 { id: 24, value: 0.5055 }, { id: 25, value: 0.511 }, { id: 26, value: 0.5722222222222222 }, { id: 27, value: 0.5443888888888889 },
                 { id: 28, value: 0.5999 }, { id: 29, value: 0.2722 }, { id: 100, value: 0.2 }, { id: 101, value: 0.08333333333333333 },
@@ -1141,6 +1141,7 @@ export const PRESETS = {
         'RANDOM ARP': { tempoMode: 'BPM' }
     }
 };
+
 
 
 
