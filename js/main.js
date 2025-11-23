@@ -217,6 +217,13 @@ let liveLfoOutputs = [0, 0, 0, 0];
             return Math.min(max, Math.max(min, value));
         }
 
+        function applyIndicatorTransform(indicator, angle) {
+            if (!indicator) return;
+            const baseTransform = indicator.dataset.baseTransform || '';
+            const rotation = `rotate(${angle}deg)`;
+            indicator.style.transform = baseTransform ? `${baseTransform} ${rotation}` : rotation;
+        }
+
         function getNowMs() {
             return performance.now();
         }
@@ -400,9 +407,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const clampedValue = clamp(normalizedValue, 0, 1);
             knobData.value = clampedValue;
             knobData.angle = MIN_FX_ANGLE + clampedValue * (MAX_FX_ANGLE - MIN_FX_ANGLE);
-            if (knobData.indicator) {
-                knobData.indicator.style.transform = `rotate(${knobData.angle}deg)`;
-            }
+            applyIndicatorTransform(knobData.indicator, knobData.angle);
         }
 
         function updateTempoDisplays() {
@@ -443,9 +448,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const clampedValue = clamp(normalizedValue, 0, 1);
             knobData.value = clampedValue;
             knobData.angle = MIN_FX_ANGLE + clampedValue * (MAX_FX_ANGLE - MIN_FX_ANGLE);
-            if (knobData.indicator) {
-                knobData.indicator.style.transform = `rotate(${knobData.angle}deg)`;
-            }
+            applyIndicatorTransform(knobData.indicator, knobData.angle);
         }
 
         function formatLfoRateHzLabel(normalizedValue) {
@@ -1162,7 +1165,7 @@ function sendMidiMessage(message) {
            state.baseColor = getKnobColor(displayAngle);
            const knobRadius = state.dom.knob.offsetHeight / 2;
            state.dom.indicator.style.transformOrigin = `center ${knobRadius > 0 ? knobRadius - 16 : 0}px`;
-           state.dom.indicator.style.transform = `rotate(${displayAngle}deg)`;
+           applyIndicatorTransform(state.dom.indicator, displayAngle);
            const baseMidi = getMidiNote(knobId);
            let displayMidi = baseMidi;
            if (state.isArpOn) {
@@ -1233,7 +1236,7 @@ function sendMidiMessage(message) {
            d.angle = newAngle; 
            d.value = (d.angle - MIN_FX_ANGLE) / (MAX_FX_ANGLE - MIN_FX_ANGLE);
            
-           if (d.indicator) d.indicator.style.transform = `rotate(${d.angle}deg)`;
+           applyIndicatorTransform(d.indicator, d.angle);
 
            if (id === 30 || id === 31) {
                updateVoiceWaveDisplay(id === 30 ? 0 : 1, d.value);
@@ -1407,7 +1410,7 @@ function sendMidiMessage(message) {
                else if(id===18||id===19){fxKnobData[id].value=0.0;} else if(id===20||id===21){fxKnobData[id].value=1.0;}
                else if(id===22||id===23){fxKnobData[id].value=0.0;} else if(id===24||id===25){fxKnobData[id].value=0.5;} else if(id===26||id===27){fxKnobData[id].value=0.5;} else if(id===28||id===29){fxKnobData[id].value=0.0;} else if(id===30||id===31){fxKnobData[id].value=0.0;}
                fxKnobData[id].angle = MIN_FX_ANGLE + (fxKnobData[id].value * (MAX_FX_ANGLE - MIN_FX_ANGLE));
-               if (fxKnobData[id].indicator) { fxKnobData[id].indicator.style.transform = `rotate(${fxKnobData[id].angle}deg)`; }
+               if (fxKnobData[id].indicator) { applyIndicatorTransform(fxKnobData[id].indicator, fxKnobData[id].angle); }
                if(id===30||id===31){ updateVoiceWaveDisplay(id === 30 ? 0 : 1, fxKnobData[id].value); }
                if(id === 7) { updateFxKnob(id, 0); }
                const kId = (id >= 16 && id <= 25 && id % 2 === 0) ? 0 : (id >= 16 && id <= 25 && id % 2 !== 0) ? 1 : -1;
@@ -1710,7 +1713,7 @@ function sendMidiMessage(message) {
            updateKnobColor(knobId);
            const displayAngle = state.totalAngle % 360;
            if (state.dom.indicator) {
-               state.dom.indicator.style.transform = `rotate(${displayAngle}deg)`;
+               applyIndicatorTransform(state.dom.indicator, displayAngle);
            }
        }
       
@@ -2138,7 +2141,7 @@ lfoState.forEach((lfo, lfoIndex) => {
 
         if (knobData.indicator) {
             const newAngle = MIN_FX_ANGLE + clampedValue * (MAX_FX_ANGLE - MIN_FX_ANGLE);
-            knobData.indicator.style.transform = `rotate(${newAngle}deg)`;
+            applyIndicatorTransform(knobData.indicator, newAngle);
         }
 
         if (knobId === 30 || knobId === 31) {
@@ -2168,7 +2171,7 @@ lfoState.forEach((lfo, lfoIndex) => {
         // state.dom.indicator.style.transformOrigin = `center ${knobRadius > 0 ? knobRadius - 16 : 0}px`;
         // ---------------------------------------------
        
-        state.dom.indicator.style.transform = `rotate(${displayAngle}deg)`;
+        applyIndicatorTransform(state.dom.indicator, displayAngle);
 
         const modMidi = getMidiNoteFromAngle(knobId, modulatedAngle);
         let displayMidi = modMidi;
@@ -2362,7 +2365,7 @@ lfoState.forEach((lfo, lfoIndex) => {
             lfoAnimationId = null;
         }
         Object.values(fxKnobData).forEach(d => {
-            if (d.indicator) d.indicator.style.transform = `rotate(${d.angle}deg)`;
+            applyIndicatorTransform(d.indicator, d.angle);
         });
         drawLfoCables();
     }
@@ -2571,7 +2574,7 @@ function setFxValue(id, value, forceVisualUpdate = false) {
             d.value = Math.max(0, Math.min(1, value));
             d.angle = MIN_FX_ANGLE + (d.value * (MAX_FX_ANGLE - MIN_FX_ANGLE));
             if (d.indicator && (!isLfoMode || forceVisualUpdate)) {
-                d.indicator.style.transform = `rotate(${d.angle}deg)`;
+                applyIndicatorTransform(d.indicator, d.angle);
             }
 
             if (id === 30 || id === 31) {
