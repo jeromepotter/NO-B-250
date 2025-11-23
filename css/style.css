@@ -373,6 +373,17 @@ body { font-family: 'Poppins', sans-serif; background-color: #1e1b4b; touch-acti
   #octave-display-1, #octave-display-2 {
     height: 36px;
   }
+		 .fx-knob-container .indicator {
+  /* Mobile: Knob is 36px, Indicator is at top-1 (4px). Center is 18px. 18 - 4 = 14px */
+  transform-origin: 50% 14px; 
+}
+
+@media (min-width: 640px) {
+  .fx-knob-container .indicator {
+    /* Desktop: Knob is 44px, Indicator is at top-1 (4px). Center is 22px. 22 - 4 = 18px */
+    transform-origin: 50% 18px; 
+  }
+}
   
 }
 
