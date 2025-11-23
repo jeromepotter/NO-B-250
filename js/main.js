@@ -2,10 +2,11 @@
        let audioContext; let synthNode; let isPowerOn = false;
       let allowDuplicateNotesMode = false;
       let isLfoMode = false;
-      let visualUpdatePending = false; 
+      let visualUpdatePending = false;
       let activeMainKnobId = null; // For MOUSE input only
       let lastTouchTime = 0; // Mobile double-trigger fix
-       const fxKnobData = {}; 
+       const fxKnobData = {};
+       const VOICE_WAVEFORMS = ['SAW', 'SQR', 'SINE', 'TRI'];
        const spinIntervals = {};
        const activeKeyControls = {};
        let customScale = [];
@@ -91,10 +92,19 @@ let liveLfoOutputs = [0, 0, 0, 0];
             return chain.map(dest => KNOB_ID_TO_NAME_MAP[dest] || `ID ${dest}`).join(' + ');
         }
 
-        function updateLfoDestDisplay(lfoIndex) {
+       function updateLfoDestDisplay(lfoIndex) {
             const destDisplay = document.getElementById(`lfo-dest-display-${lfoIndex}`);
             if (!destDisplay) return;
             destDisplay.textContent = formatLfoDestDisplay(getLfoDestChain(lfoState[lfoIndex]));
+        }
+
+        function updateVoiceWaveDisplay(voiceIndex, value) {
+            const clamped = Math.max(0, Math.min(1, value ?? 0));
+            const waveIndex = Math.min(VOICE_WAVEFORMS.length - 1, Math.floor(clamped * VOICE_WAVEFORMS.length));
+            const displayEl = document.getElementById(`voice-${voiceIndex}-wave-display`);
+            if (displayEl) {
+                displayEl.textContent = VOICE_WAVEFORMS[waveIndex];
+            }
         }
 
         function hexToRgb(hex) {
@@ -205,6 +215,13 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
         function clamp(value, min, max) {
             return Math.min(max, Math.max(min, value));
+        }
+
+        function applyIndicatorTransform(indicator, angle) {
+            if (!indicator) return;
+            const baseTransform = indicator.dataset.baseTransform || '';
+            const rotation = `rotate(${angle}deg)`;
+            indicator.style.transform = baseTransform ? `${baseTransform} ${rotation}` : rotation;
         }
 
         function getNowMs() {
@@ -390,9 +407,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const clampedValue = clamp(normalizedValue, 0, 1);
             knobData.value = clampedValue;
             knobData.angle = MIN_FX_ANGLE + clampedValue * (MAX_FX_ANGLE - MIN_FX_ANGLE);
-            if (knobData.indicator) {
-                knobData.indicator.style.transform = `rotate(${knobData.angle}deg)`;
-            }
+            applyIndicatorTransform(knobData.indicator, knobData.angle);
         }
 
         function updateTempoDisplays() {
@@ -433,9 +448,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const clampedValue = clamp(normalizedValue, 0, 1);
             knobData.value = clampedValue;
             knobData.angle = MIN_FX_ANGLE + clampedValue * (MAX_FX_ANGLE - MIN_FX_ANGLE);
-            if (knobData.indicator) {
-                knobData.indicator.style.transform = `rotate(${knobData.angle}deg)`;
-            }
+            applyIndicatorTransform(knobData.indicator, knobData.angle);
         }
 
         function formatLfoRateHzLabel(normalizedValue) {
@@ -1152,7 +1165,7 @@ function sendMidiMessage(message) {
            state.baseColor = getKnobColor(displayAngle);
            const knobRadius = state.dom.knob.offsetHeight / 2;
            state.dom.indicator.style.transformOrigin = `center ${knobRadius > 0 ? knobRadius - 16 : 0}px`;
-           state.dom.indicator.style.transform = `rotate(${displayAngle}deg)`;
+           applyIndicatorTransform(state.dom.indicator, displayAngle);
            const baseMidi = getMidiNote(knobId);
            let displayMidi = baseMidi;
            if (state.isArpOn) {
@@ -1223,7 +1236,11 @@ function sendMidiMessage(message) {
            d.angle = newAngle; 
            d.value = (d.angle - MIN_FX_ANGLE) / (MAX_FX_ANGLE - MIN_FX_ANGLE);
            
-           if (d.indicator) d.indicator.style.transform = `rotate(${d.angle}deg)`;
+           applyIndicatorTransform(d.indicator, d.angle);
+
+           if (id === 30 || id === 31) {
+               updateVoiceWaveDisplay(id === 30 ? 0 : 1, d.value);
+           }
 
            if (isLfoMode && LFO_KNOB_MAP[id] && LFO_KNOB_MAP[id].param !== 'dest') {
                 const { lfo, param } = LFO_KNOB_MAP[id];
@@ -1391,9 +1408,10 @@ function sendMidiMessage(message) {
                else if(id===9){fxKnobData[id].value=0.0995;} else if(id===10){fxKnobData[id].value=0.8;} else if(id===11){fxKnobData[id].value=0.2;}
                else if(id===13){fxKnobData[id].value=0.5;} else if(id===15){fxKnobData[id].value=0.25;} else if(id===16||id===17){fxKnobData[id].value=arpRateBpmToValue(DEFAULT_ARP_RATE_BPM);}
                else if(id===18||id===19){fxKnobData[id].value=0.0;} else if(id===20||id===21){fxKnobData[id].value=1.0;}
-               else if(id===22||id===23){fxKnobData[id].value=0.0;} else if(id===24||id===25){fxKnobData[id].value=0.5;} else if(id===26||id===27){fxKnobData[id].value=0.5;} else if(id===28||id===29){fxKnobData[id].value=0.0;}
+               else if(id===22||id===23){fxKnobData[id].value=0.0;} else if(id===24||id===25){fxKnobData[id].value=0.5;} else if(id===26||id===27){fxKnobData[id].value=0.5;} else if(id===28||id===29){fxKnobData[id].value=0.0;} else if(id===30||id===31){fxKnobData[id].value=0.0;}
                fxKnobData[id].angle = MIN_FX_ANGLE + (fxKnobData[id].value * (MAX_FX_ANGLE - MIN_FX_ANGLE));
-               if (fxKnobData[id].indicator) { fxKnobData[id].indicator.style.transform = `rotate(${fxKnobData[id].angle}deg)`; }
+               if (fxKnobData[id].indicator) { applyIndicatorTransform(fxKnobData[id].indicator, fxKnobData[id].angle); }
+               if(id===30||id===31){ updateVoiceWaveDisplay(id === 30 ? 0 : 1, fxKnobData[id].value); }
                if(id === 7) { updateFxKnob(id, 0); }
                const kId = (id >= 16 && id <= 25 && id % 2 === 0) ? 0 : (id >= 16 && id <= 25 && id % 2 !== 0) ? 1 : -1;
                if (kId !== -1 && knobState[kId]) {
@@ -1695,7 +1713,7 @@ function sendMidiMessage(message) {
            updateKnobColor(knobId);
            const displayAngle = state.totalAngle % 360;
            if (state.dom.indicator) {
-               state.dom.indicator.style.transform = `rotate(${displayAngle}deg)`;
+               applyIndicatorTransform(state.dom.indicator, displayAngle);
            }
        }
       
@@ -2119,16 +2137,20 @@ lfoState.forEach((lfo, lfoIndex) => {
             finalValue += modulatedValues[knobId];
         }
 
+        const clampedValue = Math.max(0, Math.min(1, finalValue));
+
         if (knobData.indicator) {
-            finalValue = Math.max(0, Math.min(1, finalValue));
-            const newAngle = MIN_FX_ANGLE + finalValue * (MAX_FX_ANGLE - MIN_FX_ANGLE);
-            knobData.indicator.style.transform = `rotate(${newAngle}deg)`;
+            const newAngle = MIN_FX_ANGLE + clampedValue * (MAX_FX_ANGLE - MIN_FX_ANGLE);
+            applyIndicatorTransform(knobData.indicator, newAngle);
         }
-        
+
+        if (knobId === 30 || knobId === 31) {
+            updateVoiceWaveDisplay(knobId === 30 ? 0 : 1, clampedValue);
+        }
+
         const lfoRateIndex = LFO_RATE_KNOB_IDS.indexOf(knobId);
         if (lfoRateIndex !== -1) {
-            finalValue = Math.max(0, Math.min(1, finalValue));
-            updateLfoRateDisplay(lfoRateIndex, finalValue, lfoTempoLinkState[lfoRateIndex]?.enabled);
+            updateLfoRateDisplay(lfoRateIndex, clampedValue, lfoTempoLinkState[lfoRateIndex]?.enabled);
         }
     }
 
@@ -2149,7 +2171,7 @@ lfoState.forEach((lfo, lfoIndex) => {
         // state.dom.indicator.style.transformOrigin = `center ${knobRadius > 0 ? knobRadius - 16 : 0}px`;
         // ---------------------------------------------
        
-        state.dom.indicator.style.transform = `rotate(${displayAngle}deg)`;
+        applyIndicatorTransform(state.dom.indicator, displayAngle);
 
         const modMidi = getMidiNoteFromAngle(knobId, modulatedAngle);
         let displayMidi = modMidi;
@@ -2343,7 +2365,7 @@ lfoState.forEach((lfo, lfoIndex) => {
             lfoAnimationId = null;
         }
         Object.values(fxKnobData).forEach(d => {
-            if (d.indicator) d.indicator.style.transform = `rotate(${d.angle}deg)`;
+            applyIndicatorTransform(d.indicator, d.angle);
         });
         drawLfoCables();
     }
@@ -2552,7 +2574,11 @@ function setFxValue(id, value, forceVisualUpdate = false) {
             d.value = Math.max(0, Math.min(1, value));
             d.angle = MIN_FX_ANGLE + (d.value * (MAX_FX_ANGLE - MIN_FX_ANGLE));
             if (d.indicator && (!isLfoMode || forceVisualUpdate)) {
-                d.indicator.style.transform = `rotate(${d.angle}deg)`;
+                applyIndicatorTransform(d.indicator, d.angle);
+            }
+
+            if (id === 30 || id === 31) {
+                updateVoiceWaveDisplay(id === 30 ? 0 : 1, d.value);
             }
 
             const rateIndex = LFO_RATE_KNOB_IDS.indexOf(id);
@@ -2614,6 +2640,7 @@ function resetAllFxToDefaults() {
                if (id === 20 || id === 21) defaultValue = 1.0;
                if (id === 26 || id === 27) defaultValue = 0.5;
                if (id === 24 || id === 25) defaultValue = 0.5;
+               if (id === 30 || id === 31) defaultValue = 0.0;
                setFxValue(id, defaultValue);
            });
        }

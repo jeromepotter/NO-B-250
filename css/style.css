@@ -144,6 +144,10 @@ body { font-family: 'Poppins', sans-serif; background-color: #1e1b4b; touch-acti
       body.easter-egg-mode .piano {
       border-color: #000000;
       }
+      body.easter-egg-mode #voice-0-wave-display,
+      body.easter-egg-mode #voice-1-wave-display {
+        color: #cc5500;
+      }
       body.easter-egg-mode .retro-select {
       color: #000000;
       }
@@ -330,7 +334,18 @@ body { font-family: 'Poppins', sans-serif; background-color: #1e1b4b; touch-acti
         transform: scale(1.15);
       }
       .mobile-spin-button {
-        display: none; 
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+        color: white;
+        mix-blend-mode: difference;
+        width: 36px;
+        height: 36px;
+        font-size: 20px;
+        font-weight: bold;
+        line-height: 1;
+        cursor: pointer;
         -webkit-user-select: none;
         user-select: none;
       }
@@ -359,20 +374,6 @@ body { font-family: 'Poppins', sans-serif; background-color: #1e1b4b; touch-acti
     height: 36px;
   }
   
-  .mobile-spin-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: transparent;
-    color: white;
-    mix-blend-mode: difference;
-    width: 36px;
-    height: 36px;
-    font-size: 20px;
-    font-weight: bold;
-    line-height: 1;
-    cursor: pointer;
-  }
 }
 
 

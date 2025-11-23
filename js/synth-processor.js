@@ -15,7 +15,7 @@ const LFO_DEST_NONE = -1;
                    // Envelope state
                    this.envStage1='off'; this.envValue1=0.0; this.envStage2='off'; this.envValue2=0.0;
                    // FX params (from main thread)
-                   this.params=new Array(30).fill(0.0);
+                   this.params=new Array(32).fill(0.0);
                    // Envelope times
                    this.attackTime=0.01; this.decayTime=0.2; this.sustainLevel=0.8; this.releaseTime=0.1;
                    this.releaseRate = Math.exp(-1 / (this.releaseTime * sampleRate));
@@ -263,6 +263,19 @@ this.sustainLevel = currentParams[10];
 this.releaseTime = 0.001 + Math.pow(currentParams[11], 2) * 1.25;
 this.releaseRate = Math.exp(-1 / (this.releaseTime * sampleRate));
 
+const getWaveSample = (phase, waveType) => {
+    switch (waveType) {
+        case 0: return (phase / Math.PI) - 1.0; // Saw
+        case 1: return phase < Math.PI ? 1.0 : -1.0; // Square
+        case 2: return Math.sin(phase); // Sine
+        case 3: return (2 / Math.PI) * Math.asin(Math.sin(phase)); // Triangle
+        default: return (phase / Math.PI) - 1.0;
+    }
+};
+
+const waveType1 = Math.min(3, Math.max(0, Math.floor((currentParams[30] || 0) * 4)));
+const waveType2 = Math.min(3, Math.max(0, Math.floor((currentParams[31] || 0) * 4)));
+
 for(let i=0;i<oL.length;i++){
 
     // Envelopes
@@ -281,33 +294,33 @@ for(let i=0;i<oL.length;i++){
     let s1=0, s2=0;
 
     // --- VOICE 1 (Standard Detune, Uses dA1) ---
-    if(this.noteOn1 || this.envStage1 === 'release'){ 
-        const o1_1=(this.phase1_1/Math.PI)-1.0;
-        this.phase1_1=(this.phase1_1+2*Math.PI*this.currentFrequency1/sr)%(2*Math.PI); 
-        
-        const o2_1=(this.phase2_1/Math.PI)-1.0;
-        this.phase2_1=(this.phase2_1+2*Math.PI*this.currentFrequency1*dA1/sr)%(2*Math.PI); 
-        
-        const o3_1=this.phase3_1<Math.PI?1.0:-1.0;
-        this.phase3_1=(this.phase3_1+2*Math.PI*(this.currentFrequency1/2)/sr)%(2*Math.PI); 
-        
+    if(this.noteOn1 || this.envStage1 === 'release'){
+        const o1_1=getWaveSample(this.phase1_1, waveType1);
+        this.phase1_1=(this.phase1_1+2*Math.PI*this.currentFrequency1/sr)%(2*Math.PI);
+
+        const o2_1=getWaveSample(this.phase2_1, waveType1);
+        this.phase2_1=(this.phase2_1+2*Math.PI*this.currentFrequency1*dA1/sr)%(2*Math.PI);
+
+        const o3_1=getWaveSample(this.phase3_1, waveType1);
+        this.phase3_1=(this.phase3_1+2*Math.PI*(this.currentFrequency1/2)/sr)%(2*Math.PI);
+
         s1=(o1_1+o2_1)*0.5;
-        s1 = (s1 + (o3_1 * currentParams[3])) * 0.8; 
+        s1 = (s1 + (o3_1 * currentParams[3])) * 0.8;
     }
 
     // --- VOICE 2 (Drifty Detune, Uses dA2) ---
-    if(this.noteOn2 || this.envStage2 === 'release'){ 
-        const o1_2=(this.phase1_2/Math.PI)-1.0;
-        this.phase1_2=(this.phase1_2+2*Math.PI*this.currentFrequency2/sr)%(2*Math.PI); 
-        
-        const o2_2=(this.phase2_2/Math.PI)-1.0;
-        this.phase2_2=(this.phase2_2+2*Math.PI*this.currentFrequency2*dA2/sr)%(2*Math.PI); 
-        
-        const o3_2=this.phase3_2<Math.PI?1.0:-1.0;
-        this.phase3_2=(this.phase3_2+2*Math.PI*(this.currentFrequency2/2)/sr)%(2*Math.PI); 
-        
+    if(this.noteOn2 || this.envStage2 === 'release'){
+        const o1_2=getWaveSample(this.phase1_2, waveType2);
+        this.phase1_2=(this.phase1_2+2*Math.PI*this.currentFrequency2/sr)%(2*Math.PI);
+
+        const o2_2=getWaveSample(this.phase2_2, waveType2);
+        this.phase2_2=(this.phase2_2+2*Math.PI*this.currentFrequency2*dA2/sr)%(2*Math.PI);
+
+        const o3_2=getWaveSample(this.phase3_2, waveType2);
+        this.phase3_2=(this.phase3_2+2*Math.PI*(this.currentFrequency2/2)/sr)%(2*Math.PI);
+
         s2=(o1_2+o2_2)*0.5;
-        s2 = (s2 + (o3_2 * currentParams[3])) * 0.8; 
+        s2 = (s2 + (o3_2 * currentParams[3])) * 0.8;
     }
 
     const dither = (Math.random() - 0.5) * 0.00001;
