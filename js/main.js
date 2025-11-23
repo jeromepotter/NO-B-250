@@ -3104,6 +3104,8 @@ function generateAndApplyRandomSound() {
            const presetListSelector = document.getElementById('preset-list-selector');
            const presetCategoryButtons = document.querySelectorAll('.preset-category-button');
            let activePresetCategory = 'BASS';
+           let isPresetDropdownOpen = false;
+           let removePresetDismissListener = null;
 
            const clearPresetCategoryHighlight = () => {
                 presetCategoryButtons.forEach((button) => {
@@ -3112,11 +3114,38 @@ function generateAndApplyRandomSound() {
                 });
            };
 
+           const cleanupPresetDismissListener = () => {
+                if (typeof removePresetDismissListener === 'function') {
+                    removePresetDismissListener();
+                    removePresetDismissListener = null;
+                }
+           };
+
            const collapsePresetList = () => {
                 if (!presetListSelector) return;
                 presetListSelector.size = 1;
                 presetListSelector.selectedIndex = -1;
                 presetListSelector.style.display = 'none';
+           };
+
+           const closePresetDropdown = (shouldClearHighlight = true) => {
+                collapsePresetList();
+                if (shouldClearHighlight) clearPresetCategoryHighlight();
+                isPresetDropdownOpen = false;
+                cleanupPresetDismissListener();
+           };
+
+           const attachPresetDismissListener = () => {
+                cleanupPresetDismissListener();
+
+                const handler = (event) => {
+                    if (!isPresetDropdownOpen) return;
+                    if (event.target.closest('#presets-submenu-container') || event.target.closest('#preset-list-selector')) return;
+                    closePresetDropdown();
+                };
+
+                window.addEventListener('pointerdown', handler, true);
+                removePresetDismissListener = () => window.removeEventListener('pointerdown', handler, true);
            };
 
            const showPresetList = () => {
@@ -3129,6 +3158,8 @@ function generateAndApplyRandomSound() {
 
                 collapsePresetList();
                 showPresetList();
+                isPresetDropdownOpen = true;
+                attachPresetDismissListener();
 
                 const showNativePicker = presetListSelector.showPicker;
                 if (typeof showNativePicker === 'function') {
@@ -3153,8 +3184,7 @@ function generateAndApplyRandomSound() {
                presetsToggleButton.classList.toggle('active', willShow);
 
                if (!willShow) {
-                    collapsePresetList();
-                    clearPresetCategoryHighlight();
+                    closePresetDropdown();
                }
            };
            presetsToggleButton?.addEventListener('touchend', handlePresetToggle);
@@ -3162,18 +3192,16 @@ function generateAndApplyRandomSound() {
 
            addTouchListener(submenuSaveButton, () => {
                 savePreset();
-                collapsePresetList();
+                closePresetDropdown();
                 presetsSubmenuContainer.style.display = 'none';
                 presetsToggleButton.classList.remove('active');
-                clearPresetCategoryHighlight();
            });
 
            addTouchListener(submenuLoadButton, () => {
                 loadPresetInput.click();
-                collapsePresetList();
+                closePresetDropdown();
                 presetsSubmenuContainer.style.display = 'none';
                 presetsToggleButton.classList.remove('active');
-                clearPresetCategoryHighlight();
            });
 
            const midiConnectButton = document.getElementById('midi-connect-button');
@@ -3569,16 +3597,14 @@ function generateAndApplyRandomSound() {
                     applyPreset(fullPreset);
                 }
 
-                collapsePresetList();
+                closePresetDropdown();
                 presetListSelector.blur();
                 presetsSubmenuContainer.style.display = 'none';
                 presetsToggleButton.classList.remove('active');
-                clearPresetCategoryHighlight();
             });
 
            presetListSelector?.addEventListener('blur', () => {
-                collapsePresetList();
-                clearPresetCategoryHighlight();
+                closePresetDropdown();
            });
 
            loadPresetInput?.addEventListener('change', loadPreset);
