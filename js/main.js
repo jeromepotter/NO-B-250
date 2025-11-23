@@ -3127,6 +3127,8 @@ function generateAndApplyRandomSound() {
                 presetListSelector.size = 1;
                 presetListSelector.selectedIndex = presetListSelector.options.length ? 0 : -1;
                 presetListSelector.style.display = 'none';
+                presetListSelector.style.left = '-9999px';
+                presetListSelector.style.top = '-9999px';
            };
 
            const closePresetDropdown = (shouldClearHighlight = true) => {
@@ -3564,6 +3566,14 @@ function generateAndApplyRandomSound() {
 
            protectDropdown(presetListSelector);
 
+           const handlePresetBlur = () => {
+                if (!isPresetDropdownOpen) return;
+                closePresetDropdown();
+           };
+
+           presetListSelector?.addEventListener('blur', handlePresetBlur);
+           presetListSelector?.addEventListener('focusout', handlePresetBlur);
+
            presetCategoryButtons.forEach((button) => {
                 const category = button.dataset.category;
                 addTouchListener(button, () => {
@@ -3632,15 +3642,6 @@ function generateAndApplyRandomSound() {
                 presetsSubmenuContainer.style.display = 'none';
                 presetsToggleButton.classList.remove('active');
             });
-
-           presetListSelector?.addEventListener('blur', () => {
-                closePresetDropdown();
-           });
-
-           presetListSelector?.addEventListener('focusout', () => {
-                if (!isPresetDropdownOpen) return;
-                closePresetDropdown();
-           });
 
            presetListSelector?.addEventListener('keydown', (e) => {
                 if (e.key !== 'Escape') return;
