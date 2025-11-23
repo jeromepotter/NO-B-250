@@ -3103,7 +3103,7 @@ function generateAndApplyRandomSound() {
            const submenuLoadButton = document.getElementById('submenu-load-button');
            const presetListSelector = document.getElementById('preset-list-selector');
            const presetCategoryButtons = document.querySelectorAll('.preset-category-button');
-           let activePresetCategory = 'BASS';
+           let activePresetCategory = null;
            let isPresetDropdownOpen = false;
            let removePresetDismissListener = null;
 
@@ -3130,7 +3130,10 @@ function generateAndApplyRandomSound() {
 
            const closePresetDropdown = (shouldClearHighlight = true) => {
                 collapsePresetList();
-                if (shouldClearHighlight) clearPresetCategoryHighlight();
+                if (shouldClearHighlight) {
+                    clearPresetCategoryHighlight();
+                    activePresetCategory = null;
+                }
                 isPresetDropdownOpen = false;
                 cleanupPresetDismissListener();
            };
@@ -3521,6 +3524,8 @@ function generateAndApplyRandomSound() {
            };
 
            const setActivePresetCategory = (category) => {
+                if (!category) return;
+                clearPresetCategoryHighlight();
                 activePresetCategory = category;
                 presetCategoryButtons.forEach((button) => {
                     button.classList.toggle('active', button.dataset.category === category);
@@ -3540,7 +3545,6 @@ function generateAndApplyRandomSound() {
                 });
            });
 
-           setActivePresetCategory(activePresetCategory);
            collapsePresetList();
 
            presetListSelector?.addEventListener('change', (e) => {
