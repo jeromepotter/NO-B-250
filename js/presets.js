@@ -1254,8 +1254,10 @@ export const PRESETS = {
             arp1: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 },
             arp2: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 }
         }
+      }
     },
          "OTHER": {
         'RANDOM SOUND': { tempoMode: 'BPM' },
         'RANDOM ARP': { tempoMode: 'BPM' }
+      }        
 };
