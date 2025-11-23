@@ -75,6 +75,13 @@ body { font-family: 'Poppins', sans-serif; background-color: #665; touch-action:
         border: none;
         background: transparent;
       }
+      #presets-toggle-button.active,
+      .preset-category-button.active {
+        text-decoration: none;
+      }
+      #presets-submenu-container {
+        position: relative;
+      }
       .preset-category-button:focus { outline: none; }
       #preset-list-selector {
         position: absolute;

@@ -3155,11 +3155,15 @@ function generateAndApplyRandomSound() {
            };
 
            const positionPresetList = (anchorEl) => {
-                if (!presetListSelector || !anchorEl) return;
-                const rect = anchorEl.getBoundingClientRect();
-                presetListSelector.style.left = `${rect.left + window.scrollX}px`;
-                presetListSelector.style.top = `${rect.bottom + window.scrollY}px`;
-                presetListSelector.style.width = `${Math.max(rect.width, 1)}px`;
+                if (!presetListSelector || !anchorEl || !presetsSubmenuContainer) return;
+                const anchorRect = anchorEl.getBoundingClientRect();
+                const containerRect = presetsSubmenuContainer.getBoundingClientRect();
+                const left = anchorRect.left - containerRect.left;
+                const top = anchorRect.bottom - containerRect.top;
+
+                presetListSelector.style.left = `${left}px`;
+                presetListSelector.style.top = `${top}px`;
+                presetListSelector.style.width = `${Math.max(anchorRect.width, 1)}px`;
                 presetListSelector.style.height = '1px';
            };
 
