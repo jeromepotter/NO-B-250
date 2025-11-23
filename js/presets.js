@@ -1396,9 +1396,8 @@ export const PRESETS = {
             arp2: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 }
         }
     }
-}
-        },
-    "OTHER": {
+},
+         "OTHER": {
         '-INIT-': {
                             tempoMode: "BPM",
                             key: "C",
