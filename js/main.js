@@ -2418,7 +2418,9 @@ function applyPreset(p) {
 
            // --- 3. RESTORE tempo mode before applying rate-dependent settings ---
            const presetTempoMode = p.tempoMode ?? TEMPO_MODE_BPM;
-           setTempoMode(presetTempoMode);
+           if (!isArpLockEnabled) {
+               setTempoMode(presetTempoMode);
+           }
 
            // --- 4. APPLY all new settings from the preset ---
            if (!isArpLockEnabled) {
@@ -2522,7 +2524,12 @@ function applyPreset(p) {
 
            if (p.knobSettings) { p.knobSettings.forEach(kD => { const s = knobState.find(k => k.id === kD.id); if (s) s.totalAngle = kD.totalAngle ?? 0; }); }
            
-           if (p.fxSettings) { p.fxSettings.forEach(fx => { setFxValue(fx.id, fx.value ?? 0); }); }
+           if (p.fxSettings) {
+               p.fxSettings.forEach(fx => {
+                   if (isArpLockEnabled && [16, 17, 18, 19, 22, 23, 24, 25].includes(fx.id)) return;
+                   setFxValue(fx.id, fx.value ?? 0);
+               });
+           }
            
            if (p.arpSettings && !isArpLockEnabled) {
                isArpRateSynced = p.arpSettings.isArpRateSynced ?? false;
