@@ -3108,12 +3108,20 @@ function generateAndApplyRandomSound() {
            const collapsePresetList = () => {
                 if (!presetListSelector) return;
                 presetListSelector.size = 1;
+                presetListSelector.selectedIndex = -1;
+                presetListSelector.style.display = 'none';
+           };
+
+           const showPresetList = () => {
+                if (!presetListSelector) return;
+                presetListSelector.style.display = 'block';
            };
 
            const openPresetDropdown = () => {
-                if (!presetListSelector) return;
+                if (!presetListSelector || !presetListSelector.options.length) return;
 
                 collapsePresetList();
+                showPresetList();
 
                 const showNativePicker = presetListSelector.showPicker;
                 if (typeof showNativePicker === 'function') {
@@ -3121,14 +3129,12 @@ function generateAndApplyRandomSound() {
                         showNativePicker.call(presetListSelector);
                         return;
                     } catch (_) {
-                        // Fallback to size expansion below
+                        // Fall through to a standard click below
                     }
                 }
 
-                const optionCount = Math.max(1, presetListSelector.options.length);
-                const visibleOptions = Math.min(optionCount, 10);
-                presetListSelector.size = visibleOptions > 1 ? visibleOptions : 1;
                 presetListSelector.focus();
+                presetListSelector.click();
            };
            
            const handlePresetToggle = (e) => {
@@ -3139,9 +3145,7 @@ function generateAndApplyRandomSound() {
                presetsSubmenuContainer.style.display = willShow ? 'flex' : 'none';
                presetsToggleButton.classList.toggle('active', willShow);
 
-               if (willShow) {
-                    openPresetDropdown();
-               } else {
+               if (!willShow) {
                     collapsePresetList();
                }
            };
@@ -3466,12 +3470,6 @@ function generateAndApplyRandomSound() {
                 if (!presetListSelector) return;
                 presetListSelector.innerHTML = '';
 
-                const placeholder = document.createElement('option');
-                placeholder.textContent = `${category} PRESETS`;
-                placeholder.disabled = true;
-                placeholder.selected = true;
-                presetListSelector.appendChild(placeholder);
-
                 const presetsForCategory = PRESETS[category] || {};
                 Object.keys(presetsForCategory).forEach((presetName) => {
                     const option = document.createElement('option');
@@ -3492,8 +3490,6 @@ function generateAndApplyRandomSound() {
                 populatePresetList(category);
                 if (presetsSubmenuContainer.style.display === 'flex') {
                     openPresetDropdown();
-                } else {
-                    collapsePresetList();
                 }
            };
 
@@ -3503,11 +3499,11 @@ function generateAndApplyRandomSound() {
                 const category = button.dataset.category;
                 addTouchListener(button, () => {
                     setActivePresetCategory(category);
-                    openPresetDropdown();
                 });
            });
 
            setActivePresetCategory(activePresetCategory);
+           collapsePresetList();
 
            presetListSelector?.addEventListener('change', (e) => {
                 const selectedOption = e.target.options[e.target.selectedIndex];
@@ -3565,10 +3561,13 @@ function generateAndApplyRandomSound() {
 
                 collapsePresetList();
                 presetListSelector.blur();
-                e.target.selectedIndex = 0;
                 presetsSubmenuContainer.style.display = 'none';
                 presetsToggleButton.classList.remove('active');
             });
+
+           presetListSelector?.addEventListener('blur', () => {
+                collapsePresetList();
+           });
 
            loadPresetInput?.addEventListener('change', loadPreset);
            
