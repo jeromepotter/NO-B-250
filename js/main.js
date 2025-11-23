@@ -3110,8 +3110,21 @@ function generateAndApplyRandomSound() {
                 presetListSelector.size = 1;
            };
 
-           const expandPresetList = () => {
+           const openPresetDropdown = () => {
                 if (!presetListSelector) return;
+
+                collapsePresetList();
+
+                const showNativePicker = presetListSelector.showPicker;
+                if (typeof showNativePicker === 'function') {
+                    try {
+                        showNativePicker.call(presetListSelector);
+                        return;
+                    } catch (_) {
+                        // Fallback to size expansion below
+                    }
+                }
+
                 const optionCount = Math.max(1, presetListSelector.options.length);
                 const visibleOptions = Math.min(optionCount, 10);
                 presetListSelector.size = visibleOptions > 1 ? visibleOptions : 1;
@@ -3121,12 +3134,15 @@ function generateAndApplyRandomSound() {
            const handlePresetToggle = (e) => {
                if(e.cancelable) e.preventDefault();
                const isVisible = presetsSubmenuContainer.style.display === 'flex';
-               presetsSubmenuContainer.style.display = isVisible ? 'none' : 'flex';
-               presetsToggleButton.classList.toggle('active', !isVisible);
-               if (isVisible) {
-                    collapsePresetList();
+               const willShow = !isVisible;
+
+               presetsSubmenuContainer.style.display = willShow ? 'flex' : 'none';
+               presetsToggleButton.classList.toggle('active', willShow);
+
+               if (willShow) {
+                    openPresetDropdown();
                } else {
-                    expandPresetList();
+                    collapsePresetList();
                }
            };
            presetsToggleButton?.addEventListener('touchend', handlePresetToggle);
@@ -3475,7 +3491,7 @@ function generateAndApplyRandomSound() {
                 });
                 populatePresetList(category);
                 if (presetsSubmenuContainer.style.display === 'flex') {
-                    expandPresetList();
+                    openPresetDropdown();
                 } else {
                     collapsePresetList();
                 }
@@ -3485,7 +3501,10 @@ function generateAndApplyRandomSound() {
 
            presetCategoryButtons.forEach((button) => {
                 const category = button.dataset.category;
-                addTouchListener(button, () => setActivePresetCategory(category));
+                addTouchListener(button, () => {
+                    setActivePresetCategory(category);
+                    openPresetDropdown();
+                });
            });
 
            setActivePresetCategory(activePresetCategory);
