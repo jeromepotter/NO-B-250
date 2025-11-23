@@ -3104,6 +3104,7 @@ function generateAndApplyRandomSound() {
            const presetListSelector = document.getElementById('preset-list-selector');
            const presetCategoryButtons = document.querySelectorAll('.preset-category-button');
            let activePresetCategory = null;
+           let activePresetButton = null;
            let isPresetDropdownOpen = false;
            let removePresetDismissListener = null;
 
@@ -3151,8 +3152,20 @@ function generateAndApplyRandomSound() {
                 removePresetDismissListener = () => window.removeEventListener('pointerdown', handler, true);
            };
 
+           const positionPresetList = (anchorEl) => {
+                if (!presetListSelector || !anchorEl) return;
+                const rect = anchorEl.getBoundingClientRect();
+                presetListSelector.style.left = `${rect.left + window.scrollX}px`;
+                presetListSelector.style.top = `${rect.bottom + window.scrollY}px`;
+                presetListSelector.style.width = `${Math.max(rect.width, 1)}px`;
+                presetListSelector.style.height = '1px';
+           };
+
            const showPresetList = () => {
                 if (!presetListSelector) return;
+                if (activePresetButton) {
+                    positionPresetList(activePresetButton);
+                }
                 presetListSelector.style.display = 'block';
            };
 
@@ -3535,8 +3548,13 @@ function generateAndApplyRandomSound() {
                 if (!category) return;
                 clearPresetCategoryHighlight();
                 activePresetCategory = category;
+                activePresetButton = null;
                 presetCategoryButtons.forEach((button) => {
-                    button.classList.toggle('active', button.dataset.category === category);
+                    const isActive = button.dataset.category === category;
+                    button.classList.toggle('active', isActive);
+                    if (isActive) {
+                        activePresetButton = button;
+                    }
                 });
                 populatePresetList(category);
                 if (presetsSubmenuContainer.style.display === 'flex') {
