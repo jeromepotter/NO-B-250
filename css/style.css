@@ -144,6 +144,10 @@ body { font-family: 'Poppins', sans-serif; background-color: #1e1b4b; touch-acti
       body.easter-egg-mode .piano {
       border-color: #000000;
       }
+      body.easter-egg-mode #voice-0-wave-display,
+      body.easter-egg-mode #voice-1-wave-display {
+        color: #cc5500;
+      }
       body.easter-egg-mode .retro-select {
       color: #000000;
       }
