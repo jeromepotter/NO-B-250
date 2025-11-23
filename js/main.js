@@ -3105,6 +3105,13 @@ function generateAndApplyRandomSound() {
            const presetCategoryButtons = document.querySelectorAll('.preset-category-button');
            let activePresetCategory = 'BASS';
 
+           const clearPresetCategoryHighlight = () => {
+                presetCategoryButtons.forEach((button) => {
+                    button.classList.remove('active');
+                    button.blur();
+                });
+           };
+
            const collapsePresetList = () => {
                 if (!presetListSelector) return;
                 presetListSelector.size = 1;
@@ -3147,6 +3154,7 @@ function generateAndApplyRandomSound() {
 
                if (!willShow) {
                     collapsePresetList();
+                    clearPresetCategoryHighlight();
                }
            };
            presetsToggleButton?.addEventListener('touchend', handlePresetToggle);
@@ -3157,6 +3165,7 @@ function generateAndApplyRandomSound() {
                 collapsePresetList();
                 presetsSubmenuContainer.style.display = 'none';
                 presetsToggleButton.classList.remove('active');
+                clearPresetCategoryHighlight();
            });
 
            addTouchListener(submenuLoadButton, () => {
@@ -3164,6 +3173,7 @@ function generateAndApplyRandomSound() {
                 collapsePresetList();
                 presetsSubmenuContainer.style.display = 'none';
                 presetsToggleButton.classList.remove('active');
+                clearPresetCategoryHighlight();
            });
 
            const midiConnectButton = document.getElementById('midi-connect-button');
@@ -3563,10 +3573,12 @@ function generateAndApplyRandomSound() {
                 presetListSelector.blur();
                 presetsSubmenuContainer.style.display = 'none';
                 presetsToggleButton.classList.remove('active');
+                clearPresetCategoryHighlight();
             });
 
            presetListSelector?.addEventListener('blur', () => {
                 collapsePresetList();
+                clearPresetCategoryHighlight();
            });
 
            loadPresetInput?.addEventListener('change', loadPreset);
