@@ -3124,7 +3124,7 @@ function generateAndApplyRandomSound() {
            const collapsePresetList = () => {
                 if (!presetListSelector) return;
                 presetListSelector.size = 1;
-                presetListSelector.selectedIndex = -1;
+                presetListSelector.selectedIndex = presetListSelector.options.length ? 0 : -1;
                 presetListSelector.style.display = 'none';
            };
 
@@ -3510,6 +3510,14 @@ function generateAndApplyRandomSound() {
            const populatePresetList = (category) => {
                 if (!presetListSelector) return;
                 presetListSelector.innerHTML = '';
+
+                const placeholder = document.createElement('option');
+                placeholder.value = '';
+                placeholder.dataset.group = category;
+                placeholder.textContent = `${category} PRESETS`;
+                placeholder.disabled = true;
+                placeholder.selected = true;
+                presetListSelector.appendChild(placeholder);
 
                 const presetsForCategory = PRESETS[category] || {};
                 Object.keys(presetsForCategory).forEach((presetName) => {
