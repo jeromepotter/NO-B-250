@@ -66,10 +66,18 @@
 
       <div id="presets-submenu-container" class="flex flex-col items-center p-2 space-y-2" style="display: none;">
         <div class="flex space-x-4">
-            <button id="submenu-save-button" class="retro-button text-xs sm:text-sm font-bold">SAVE</button>
-            <select id="system-preset-selector" class="retro-button retro-select text-xs sm:text-sm cursor-pointer border-none focus:outline-none w-audo"></select>
-            <button id="submenu-load-button" class="retro-button text-xs sm:text-sm font-bold">LOAD</button>
+            <button id="submenu-save-button" class="retro-button text-xs sm:text-sm font-bold preset-save-button">SAVE</button>
+            <button id="submenu-load-button" class="retro-button text-xs sm:text-sm font-bold preset-load-button">LOAD</button>
         </div>
+        <div id="preset-category-buttons" class="flex flex-wrap justify-center gap-2">
+            <button class="retro-button text-xs sm:text-sm font-bold preset-category-button" data-category="BASS">BASS</button>
+            <button class="retro-button text-xs sm:text-sm font-bold preset-category-button" data-category="PADS">PADS</button>
+            <button class="retro-button text-xs sm:text-sm font-bold preset-category-button" data-category="LEADS">LEADS</button>
+            <button class="retro-button text-xs sm:text-sm font-bold preset-category-button" data-category="ARPS">ARPS</button>
+            <button class="retro-button text-xs sm:text-sm font-bold preset-category-button" data-category="OTHER">OTHER</button>
+            <button class="retro-button text-xs sm:text-sm font-bold preset-category-button" data-category="FX">FX</button>
+        </div>
+        <select id="preset-list-selector" class="retro-button retro-select text-xs sm:text-sm cursor-pointer border-none focus:outline-none w-audo" style="display: none;"></select>
       </div>
        <div class="flex justify-center items-center p-2 space-x-4">
         <select id="keySelector" class="retro-select text-base sm:text-lg focus:outline-none">

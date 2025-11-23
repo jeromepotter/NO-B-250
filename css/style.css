@@ -69,6 +69,31 @@ body { font-family: 'Poppins', sans-serif; background-color: #665; touch-action:
       .retro-button { transition: color 0.2s; }
       .retro-button:hover { color: #facc15; }
       .retro-button.active { color: #facc15; text-decoration: underline; }
+      .preset-save-button { color: #60a5fa; }
+      .preset-load-button { color: #34d399; }
+      .preset-category-button {
+        border: none;
+        background: transparent;
+      }
+      #presets-toggle-button.active,
+      .preset-category-button.active {
+        text-decoration: none;
+      }
+      #presets-submenu-container {
+        position: relative;
+      }
+      .preset-category-button:focus { outline: none; }
+      #preset-list-selector {
+        position: absolute;
+        left: -9999px;
+        top: -9999px;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+        margin: 0;
+        padding: 0;
+        border: 0;
+      }
       .arp-rate-button {
         min-width: 1.75rem;
         padding: 0.1rem 0.4rem;

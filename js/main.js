@@ -3101,25 +3101,127 @@ function generateAndApplyRandomSound() {
            const presetsSubmenuContainer = document.getElementById('presets-submenu-container');
            const submenuSaveButton = document.getElementById('submenu-save-button');
            const submenuLoadButton = document.getElementById('submenu-load-button');
-           const systemPresetSelector = document.getElementById('system-preset-selector'); 
+           const presetListSelector = document.getElementById('preset-list-selector');
+           const presetCategoryButtons = document.querySelectorAll('.preset-category-button');
+           let activePresetCategory = null;
+           let activePresetButton = null;
+           let isPresetDropdownOpen = false;
+           let removePresetDismissListener = null;
+
+           const clearPresetCategoryHighlight = () => {
+                presetCategoryButtons.forEach((button) => {
+                    button.classList.remove('active');
+                    button.blur();
+                });
+           };
+
+           const cleanupPresetDismissListener = () => {
+                if (typeof removePresetDismissListener === 'function') {
+                    removePresetDismissListener();
+                    removePresetDismissListener = null;
+                }
+           };
+
+           const collapsePresetList = () => {
+                if (!presetListSelector) return;
+                presetListSelector.size = 1;
+                presetListSelector.selectedIndex = presetListSelector.options.length ? 0 : -1;
+                presetListSelector.style.display = 'none';
+                presetListSelector.style.left = '-9999px';
+                presetListSelector.style.top = '-9999px';
+           };
+
+           const closePresetDropdown = (shouldClearHighlight = true) => {
+                collapsePresetList();
+                if (shouldClearHighlight) {
+                    clearPresetCategoryHighlight();
+                    activePresetCategory = null;
+                }
+                isPresetDropdownOpen = false;
+                cleanupPresetDismissListener();
+           };
+
+           const attachPresetDismissListener = () => {
+                cleanupPresetDismissListener();
+
+                const handler = (event) => {
+                    if (!isPresetDropdownOpen) return;
+                    if (event.target.closest('#presets-submenu-container') || event.target.closest('#preset-list-selector')) return;
+                    closePresetDropdown();
+                };
+
+                window.addEventListener('pointerdown', handler, true);
+                removePresetDismissListener = () => window.removeEventListener('pointerdown', handler, true);
+           };
+
+           const positionPresetList = (anchorEl) => {
+                if (!presetListSelector || !anchorEl || !presetsSubmenuContainer) return;
+                const anchorRect = anchorEl.getBoundingClientRect();
+                const containerRect = presetsSubmenuContainer.getBoundingClientRect();
+                const left = anchorRect.left - containerRect.left;
+                const top = anchorRect.bottom - containerRect.top;
+
+                presetListSelector.style.left = `${left}px`;
+                presetListSelector.style.top = `${top}px`;
+                presetListSelector.style.width = `${Math.max(anchorRect.width, 1)}px`;
+                presetListSelector.style.height = '1px';
+           };
+
+           const showPresetList = () => {
+                if (!presetListSelector) return;
+                if (activePresetButton) {
+                    positionPresetList(activePresetButton);
+                }
+                presetListSelector.style.display = 'block';
+           };
+
+           const openPresetDropdown = () => {
+                if (!presetListSelector || !presetListSelector.options.length) return;
+
+                collapsePresetList();
+                showPresetList();
+                isPresetDropdownOpen = true;
+                attachPresetDismissListener();
+
+                const showNativePicker = presetListSelector.showPicker;
+                if (typeof showNativePicker === 'function') {
+                    try {
+                        showNativePicker.call(presetListSelector);
+                        return;
+                    } catch (_) {
+                        // Fall through to a standard click below
+                    }
+                }
+
+                presetListSelector.focus();
+                presetListSelector.click();
+           };
            
            const handlePresetToggle = (e) => {
                if(e.cancelable) e.preventDefault();
                const isVisible = presetsSubmenuContainer.style.display === 'flex';
-               presetsSubmenuContainer.style.display = isVisible ? 'none' : 'flex';
-               presetsToggleButton.classList.toggle('active', !isVisible);
+               const willShow = !isVisible;
+
+               presetsSubmenuContainer.style.display = willShow ? 'flex' : 'none';
+               presetsToggleButton.classList.toggle('active', willShow);
+
+               if (!willShow) {
+                    closePresetDropdown();
+               }
            };
            presetsToggleButton?.addEventListener('touchend', handlePresetToggle);
            presetsToggleButton?.addEventListener('click', handlePresetToggle);
 
            addTouchListener(submenuSaveButton, () => {
                 savePreset();
+                closePresetDropdown();
                 presetsSubmenuContainer.style.display = 'none';
                 presetsToggleButton.classList.remove('active');
            });
 
            addTouchListener(submenuLoadButton, () => {
                 loadPresetInput.click();
+                closePresetDropdown();
                 presetsSubmenuContainer.style.display = 'none';
                 presetsToggleButton.classList.remove('active');
            });
@@ -3191,8 +3293,8 @@ function generateAndApplyRandomSound() {
                 // Allow the LFO mode switch to remain tappable on mobile by skipping patch handling entirely
                 if (e.target.closest('#lfo-switch-container')) return;
 
-                // Skip patch handling for preset/system controls so their default interactions work
-                if (e.target.closest('#presets-submenu-container, #system-preset-selector')) return;
+                 // Skip patch handling for preset/system controls so their default interactions work
+                 if (e.target.closest('#presets-submenu-container, #preset-list-selector, #preset-category-buttons')) return;
 
                 const targetKnobEl = e.target.closest('.fx-knob-container, .main-knob');
 
@@ -3424,35 +3526,79 @@ function generateAndApplyRandomSound() {
                 destKnob.addEventListener('touchend', handleDestInteraction);
             });
 
-           const initialOption = document.createElement('option');
-           initialOption.textContent = 'SYSTEM';
-           initialOption.disabled = true;
-           initialOption.selected = true;
-           systemPresetSelector.appendChild(initialOption);
+           const populatePresetList = (category) => {
+                if (!presetListSelector) return;
+                presetListSelector.innerHTML = '';
 
-           for (const groupName in PRESETS) {
-                const optgroup = document.createElement('optgroup');
-                optgroup.label = groupName;
-                for (const presetName in PRESETS[groupName]) {
+                const placeholder = document.createElement('option');
+                placeholder.value = '';
+                placeholder.dataset.group = category;
+                placeholder.textContent = `${category} PRESETS`;
+                placeholder.disabled = true;
+                placeholder.selected = true;
+                presetListSelector.appendChild(placeholder);
+
+                const presetsForCategory = PRESETS[category] || {};
+                Object.keys(presetsForCategory).forEach((presetName) => {
                     const option = document.createElement('option');
                     option.value = presetName;
-                    option.dataset.group = groupName;
+                    option.dataset.group = category;
                     option.textContent = presetName;
-                    optgroup.appendChild(option);
-                }
-                systemPresetSelector.appendChild(optgroup);
-           }
+                    presetListSelector.appendChild(option);
+                });
 
-           systemPresetSelector.addEventListener('change', (e) => {
+                presetListSelector.disabled = !Object.keys(presetsForCategory).length;
+           };
+
+           const setActivePresetCategory = (category) => {
+                if (!category) return;
+                clearPresetCategoryHighlight();
+                activePresetCategory = category;
+                activePresetButton = null;
+                presetCategoryButtons.forEach((button) => {
+                    const isActive = button.dataset.category === category;
+                    button.classList.toggle('active', isActive);
+                    if (isActive) {
+                        activePresetButton = button;
+                    }
+                });
+                populatePresetList(category);
+                if (presetsSubmenuContainer.style.display === 'flex') {
+                    openPresetDropdown();
+                }
+           };
+
+           protectDropdown(presetListSelector);
+
+           const handlePresetBlur = () => {
+                if (!isPresetDropdownOpen) return;
+                closePresetDropdown();
+           };
+
+           presetListSelector?.addEventListener('blur', handlePresetBlur);
+           presetListSelector?.addEventListener('focusout', handlePresetBlur);
+
+           presetCategoryButtons.forEach((button) => {
+                const category = button.dataset.category;
+                addTouchListener(button, () => {
+                    setActivePresetCategory(category);
+                });
+           });
+
+           collapsePresetList();
+
+           presetListSelector?.addEventListener('change', (e) => {
                 const selectedOption = e.target.options[e.target.selectedIndex];
-                const presetName = selectedOption.value;
-                
+                const presetName = selectedOption?.value;
+
+                if (!presetName) return;
+
                 if (presetName === "RANDOM ARP") {
                     generateAndApplyRandomPreset();
                 } else if (presetName === "RANDOM SOUND") {
                     generateAndApplyRandomSound();
                 } else {
-                    const groupName = selectedOption.dataset.group;
+                    const groupName = selectedOption.dataset.group || activePresetCategory;
                     if (!groupName || !PRESETS[groupName] || !PRESETS[groupName][presetName]) return;
 
                     const presetData = JSON.parse(JSON.stringify(PRESETS[groupName][presetName]));
@@ -3463,8 +3609,8 @@ function generateAndApplyRandomSound() {
                         key: presetData.key,
                         scale: presetData.scale,
                         customScale: presetData.customScale || [],
-                        isLfoMode: presetData.isLfoMode || false,  
-                        lfoState: presetData.lfoState || [], 
+                        isLfoMode: presetData.isLfoMode || false,
+                        lfoState: presetData.lfoState || [],
                         knobSettings: presetData.knobSettings || [],
                         fxSettings: [...(presetData.fxSettings || [])],
                         arpSettings: {
@@ -3486,7 +3632,7 @@ function generateAndApplyRandomSound() {
                             }
                         }
                     };
-                    
+
                     if (presetData.arpSettings && presetData.arpSettings.fx) {
                         for (const [fxId, value] of Object.entries(presetData.arpSettings.fx)) {
                             fullPreset.fxSettings.push({ id: parseInt(fxId), value: value });
@@ -3495,12 +3641,17 @@ function generateAndApplyRandomSound() {
                     applyPreset(fullPreset);
                 }
 
-                systemPresetSelector.blur();
-                e.target.selectedIndex = 0;
+                closePresetDropdown();
+                presetListSelector.blur();
                 presetsSubmenuContainer.style.display = 'none';
                 presetsToggleButton.classList.remove('active');
             });
-           
+
+           presetListSelector?.addEventListener('keydown', (e) => {
+                if (e.key !== 'Escape') return;
+                closePresetDropdown();
+           });
+
            loadPresetInput?.addEventListener('change', loadPreset);
            
            addTouchListener(arpSyncSwitch, () => {
