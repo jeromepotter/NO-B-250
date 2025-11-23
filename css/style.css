@@ -5,6 +5,14 @@ body { font-family: 'Poppins', sans-serif; background-color: #7D728A; touch-acti
       background-color: white;
       mix-blend-mode: difference;
       }
+      .osc-sub-knob > .osc-sub-indicator {
+        top: 50%;
+        left: 50%;
+        width: 0.25rem;
+        height: 42%;
+        border-radius: 9999px;
+        transform-origin: 50% 100%;
+      }
       .main-knob:active { cursor: grabbing; }
       .fx-knob-container { cursor: ns-resize; aspect-ratio: 1 / 1; transition: background-color 0.1s linear; will-change: transform; }
       .retro-select { 
