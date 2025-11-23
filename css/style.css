@@ -78,7 +78,8 @@ body { font-family: 'Poppins', sans-serif; background-color: #665; touch-action:
       .preset-category-button:focus { outline: none; }
       #preset-list-selector {
         position: absolute;
-        left: -9999px;
+        left: 0;
+        top: 0;
         width: 1px;
         height: 1px;
         opacity: 0;
