@@ -6,7 +6,7 @@
       let activeMainKnobId = null; // For MOUSE input only
       let lastTouchTime = 0; // Mobile double-trigger fix
        const fxKnobData = {};
-       const VOICE_WAVEFORMS = ['SAW', 'SQUARE', 'SINE', 'TRI'];
+       const VOICE_WAVEFORMS = ['SAW', 'SQR', 'SINE', 'TRI'];
        const spinIntervals = {};
        const activeKeyControls = {};
        let customScale = [];
@@ -99,7 +99,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
         }
 
         function updateVoiceWaveDisplay(voiceIndex, value) {
-            const waveIndex = Math.min(VOICE_WAVEFORMS.length - 1, Math.floor(value * VOICE_WAVEFORMS.length));
+            const clamped = Math.max(0, Math.min(1, value ?? 0));
+            const waveIndex = Math.min(VOICE_WAVEFORMS.length - 1, Math.floor(clamped * VOICE_WAVEFORMS.length));
             const displayEl = document.getElementById(`voice-${voiceIndex}-wave-display`);
             if (displayEl) {
                 displayEl.textContent = VOICE_WAVEFORMS[waveIndex];
@@ -2133,16 +2134,20 @@ lfoState.forEach((lfo, lfoIndex) => {
             finalValue += modulatedValues[knobId];
         }
 
+        const clampedValue = Math.max(0, Math.min(1, finalValue));
+
         if (knobData.indicator) {
-            finalValue = Math.max(0, Math.min(1, finalValue));
-            const newAngle = MIN_FX_ANGLE + finalValue * (MAX_FX_ANGLE - MIN_FX_ANGLE);
+            const newAngle = MIN_FX_ANGLE + clampedValue * (MAX_FX_ANGLE - MIN_FX_ANGLE);
             knobData.indicator.style.transform = `rotate(${newAngle}deg)`;
         }
-        
+
+        if (knobId === 30 || knobId === 31) {
+            updateVoiceWaveDisplay(knobId === 30 ? 0 : 1, clampedValue);
+        }
+
         const lfoRateIndex = LFO_RATE_KNOB_IDS.indexOf(knobId);
         if (lfoRateIndex !== -1) {
-            finalValue = Math.max(0, Math.min(1, finalValue));
-            updateLfoRateDisplay(lfoRateIndex, finalValue, lfoTempoLinkState[lfoRateIndex]?.enabled);
+            updateLfoRateDisplay(lfoRateIndex, clampedValue, lfoTempoLinkState[lfoRateIndex]?.enabled);
         }
     }
 
