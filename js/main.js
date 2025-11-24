@@ -257,30 +257,49 @@ let liveLfoOutputs = [0, 0, 0, 0];
             return 1 - Math.cbrt(clamp(normalized, 0, 1));
         }
 
-        let masterClockId = null;
+        let masterClockWorker = null;
+        let masterClockRunning = false;
         let masterClockStartTime = null;
+        let midiClockEnabled = false;
+        let midiClockRunning = false;
+        let midiClockBpm = DEFAULT_ARP_RATE_BPM;
         let tempoMode = TEMPO_MODE_BPM;
 
+        function initMasterClockWorker() {
+            if (masterClockWorker) return;
+            masterClockWorker = new Worker(new URL('./clock-worker.js', import.meta.url), { type: 'module' });
+            masterClockWorker.onmessage = (event) => {
+                const { type } = event.data || {};
+                if (type === 'tick') {
+                    const timestamp = getNowMs();
+                    knobState.forEach((state, idx) => {
+                        if (state?.arpRunning) {
+                            updateArpeggiator(idx, timestamp);
+                        }
+                    });
+                } else if (type === 'midiTick' && midiClockEnabled && midiClockRunning) {
+                    sendMidiMessage([0xF8]);
+                }
+            };
+        }
+
         function ensureMasterClock() {
-            if (tempoMode !== TEMPO_MODE_BPM) return;
-            if (masterClockId) return;
-            if (masterClockStartTime === null) masterClockStartTime = getNowMs();
-            masterClockId = setInterval(() => {
-                const timestamp = getNowMs();
-                knobState.forEach((state, idx) => {
-                    if (state.arpRunning) {
-                        updateArpeggiator(idx, timestamp);
-                    }
-                });
-            }, MASTER_CLOCK_INTERVAL_MS);
+            initMasterClockWorker();
+            if (tempoMode === TEMPO_MODE_BPM && masterClockStartTime === null) {
+                masterClockStartTime = getNowMs();
+            }
+            if (masterClockRunning || !masterClockWorker) return;
+            masterClockWorker.postMessage({ type: 'start', intervalMs: MASTER_CLOCK_INTERVAL_MS });
+            masterClockRunning = true;
         }
 
         function stopMasterClockIfIdle() {
-            if (!masterClockId) return;
-            if (knobState.some(state => state.arpRunning)) return;
-            clearInterval(masterClockId);
-            masterClockId = null;
+            if (!masterClockRunning || !masterClockWorker) return;
+            if (knobState.some(state => state?.arpRunning)) return;
+            masterClockWorker.postMessage({ type: 'stop' });
+            masterClockRunning = false;
             masterClockStartTime = null;
+            updateMidiClockState();
         }
 
         function quantizeToNextSixteenth(now, intervalMs) {
@@ -293,30 +312,64 @@ let liveLfoOutputs = [0, 0, 0, 0];
             return nextTime;
         }
 
+        function getMidiClockBpm() {
+            midiClockBpm = calculateMidiBpm();
+            return midiClockBpm;
+        }
+
+        function startMidiClockTransport() {
+            if (!midiClockEnabled || midiClockRunning) return;
+            initMasterClockWorker();
+            const bpm = getMidiClockBpm();
+            if (masterClockWorker) {
+                masterClockWorker.postMessage({ type: 'enableMidiClock', bpm });
+            }
+            midiClockRunning = true;
+            sendMidiMessage([0xFA]);
+        }
+
+        function stopMidiClockTransport() {
+            if (!midiClockRunning) return;
+            if (masterClockWorker) {
+                masterClockWorker.postMessage({ type: 'disableMidiClock' });
+            }
+            midiClockRunning = false;
+            sendMidiMessage([0xFC]);
+        }
+
+        function updateMidiClockBpm() {
+            if (!midiClockRunning || !masterClockWorker) return;
+            const bpm = getMidiClockBpm();
+            masterClockWorker.postMessage({ type: 'updateMidiBpm', bpm });
+        }
+
+        function updateMidiClockState() {
+            const shouldRun = midiClockEnabled && knobState.some(state => state?.arpRunning);
+            if (shouldRun && !midiClockRunning) {
+                startMidiClockTransport();
+            } else if (!shouldRun && midiClockRunning) {
+                stopMidiClockTransport();
+            } else if (shouldRun && midiClockRunning) {
+                updateMidiClockBpm();
+            }
+        }
+
         function startArpClockForState(knobId) {
             const state = knobState[knobId];
             if (!state || !state.arpRunning) return;
             if (tempoMode === TEMPO_MODE_BPM) {
                 const interval = bpmToSixteenthMs(state.arpRateBpm);
                 state.nextArpStepTime = quantizeToNextSixteenth(getNowMs(), interval);
-                ensureMasterClock();
             } else {
-                if (state.arpRafId) {
-                    clearInterval(state.arpRafId);
-                }
-                const tick = () => updateArpeggiator(knobId, getNowMs());
-                state.lastArpStepTime = getNowMs();
-                state.arpRafId = setInterval(tick, 0);
-                tick();
+                const now = getNowMs();
+                const interval = state.arpRateMs ?? DEFAULT_ARP_RATE_MS;
+                state.lastArpStepTime = now - interval;
             }
+            ensureMasterClock();
+            updateMidiClockState();
         }
 
         function restartArpClocksForMode() {
-            if (tempoMode !== TEMPO_MODE_BPM && masterClockId) {
-                clearInterval(masterClockId);
-                masterClockId = null;
-                masterClockStartTime = null;
-            }
             knobState.forEach((state, idx) => {
                 if (!state) return;
                 if (state.arpRafId) {
@@ -328,6 +381,11 @@ let liveLfoOutputs = [0, 0, 0, 0];
                     startArpClockForState(idx);
                 }
             });
+            if (knobState.some(state => state?.arpRunning)) {
+                ensureMasterClock();
+            } else {
+                stopMasterClockIfIdle();
+            }
         }
 
         function setTempoMode(newMode) {
@@ -335,11 +393,6 @@ let liveLfoOutputs = [0, 0, 0, 0];
             if (tempoMode === newMode) return;
             tempoMode = newMode;
 
-            if (tempoMode === TEMPO_MODE_MS && masterClockId) {
-                clearInterval(masterClockId);
-                masterClockId = null;
-                masterClockStartTime = null;
-            }
             if (tempoMode === TEMPO_MODE_BPM) {
                 masterClockStartTime = null;
             }
@@ -369,6 +422,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             updateTempoDisplays();
             applyModulatedArpUiPreviews();
             handleTempoLinkedControls();
+            updateMidiClockState();
             if (document.body) {
                 document.body.setAttribute('data-tempo-mode', tempoMode);
             }
@@ -694,6 +748,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 : arpRateMsToValue(state.arpRateMs);
             updateTempoKnobIndicator(knobId, knobValue);
             handleTempoLinkedControls();
+            updateMidiClockState();
         }
 
         function setArpRateFromMs(knobId, rateMs) {
@@ -726,6 +781,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 : arpRateBpmToValue(state.arpRateBpm);
             updateTempoKnobIndicator(knobId, knobValue);
             handleTempoLinkedControls();
+            updateMidiClockState();
         }
 
         function handleArpRateButton(knobId, multiplier) {
@@ -1686,6 +1742,7 @@ function sendMidiMessage(message) {
               state.arpRafId = null;
           }
           stopMasterClockIfIdle();
+          updateMidiClockState();
           if (state.isNoteOn && state.lastPlayedMidi !== null) {
            // Stop the internal synth sound
            if (synthNode) {
@@ -3486,7 +3543,13 @@ function generateAndApplyRandomSound() {
            const midiConnectButton = document.getElementById('midi-connect-button');
            midiConnectButton?.addEventListener('click', () => {
                setupMidiOutput();
-               midiConnectButton.textContent = 'RESCAN'; 
+               midiConnectButton.textContent = 'RESCAN';
+           });
+
+           const midiClockToggle = document.getElementById('midi-clock-toggle');
+           midiClockToggle?.addEventListener('change', () => {
+               midiClockEnabled = midiClockToggle.checked;
+               updateMidiClockState();
            });
 
            // --- 10. ARP & SYNTH CONTROLS ---
