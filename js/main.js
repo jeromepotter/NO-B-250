@@ -129,6 +129,18 @@ let liveLfoOutputs = [0, 0, 0, 0];
             return preserved;
         }
 
+        function captureFullLfoState() {
+            return lfoState.map((lfo, index) => ({
+                index,
+                rate: lfo.rate,
+                depth: lfo.depth,
+                wave: lfo.wave,
+                destChain: sanitizeLfoDestinations(getLfoDestChain(lfo)),
+                tempoSync: lfoTempoLinkState[index]?.enabled ?? false,
+                storedFreeValue: lfoTempoLinkState[index]?.storedFreeValue ?? 0.5,
+            }));
+        }
+
         function restorePreservedLfos(preservedLfos) {
             if (!Array.isArray(preservedLfos) || preservedLfos.length === 0) return;
 
@@ -842,11 +854,12 @@ let liveLfoOutputs = [0, 0, 0, 0];
        // --- Global Arp State ---
        let isArpRateSynced = false;
        let isArpLockEnabled = false;
+       let isLfoLockEnabled = false;
        let currentArpOrder = "As Played";
       
        // --- DOM Elements ---
        let synthContainer, powerSwitch, keySelector, scaleSelector, customScaleBuilder, savePresetButton, loadPresetInput, arpSyncSwitch;
-       let masterArpControls, arpOrderSelector, arpLockSwitch;
+       let masterArpControls, arpOrderSelector, arpLockSwitch, lfoLockSwitch;
        let allArpControlGrids;
        let rateDisplayRows = [];
        let modalOverlay, howToButton, closeModalButton;
@@ -2159,7 +2172,7 @@ lfoState.forEach((lfo, lfoIndex) => {
        function loadPreset(e) {
            const file=e.target.files[0]; if(!file)return;
            const reader=new FileReader();
-           reader.onload=function(e){try{const p=JSON.parse(e.target.result);applyPreset(p);}catch(err){console.error("Error parsing preset:",err);}};
+           reader.onload=function(e){try{const p=JSON.parse(e.target.result);lastAppliedPresetCategory = null;applyPreset(p);}catch(err){console.error("Error parsing preset:",err);}};
            reader.readAsText(file); e.target.value='';
        }
       
@@ -2490,10 +2503,21 @@ function applyPreset(p) {
 
            if (!isPowerOn) powerOn();
 
-           const preservedArpLockedLfos = isArpLockEnabled ? captureArpLockedLfoState() : [];
-           const preservedLfoIndices = new Set(preservedArpLockedLfos.map(l => l.index));
+           const presetCategory = lastAppliedPresetCategory || activePresetCategory;
+           const isArpCategoryPreset = presetCategory === 'ARPS';
+           const shouldApplyArpLock = isArpLockEnabled && !isArpCategoryPreset;
+           const shouldApplyLfoLock = isLfoLockEnabled && !isArpCategoryPreset;
+           const lfoModeBeforePreset = isLfoMode;
+
+           const preservedArpLockedLfos = shouldApplyArpLock ? captureArpLockedLfoState() : [];
+           const preservedLfoLockLfos = shouldApplyLfoLock ? captureFullLfoState() : [];
+           const restorationMap = new Map();
+           preservedArpLockedLfos.forEach(lfo => restorationMap.set(lfo.index, lfo));
+           preservedLfoLockLfos.forEach(lfo => restorationMap.set(lfo.index, lfo));
+
+           const preservedLfoIndices = new Set(restorationMap.keys());
            const protectedLfoFxIds = new Set();
-           preservedArpLockedLfos.forEach(({ index }) => {
+           preservedLfoIndices.forEach((index) => {
                Object.entries(LFO_KNOB_MAP).forEach(([id, info]) => {
                    if (info.lfo === index) protectedLfoFxIds.add(parseInt(id, 10));
                });
@@ -2504,16 +2528,16 @@ function applyPreset(p) {
            stopArpeggiator(1);
 
            // --- 2. WIPE all knobs to a clean state ---
-           resetAllFxToDefaults(protectedLfoFxIds, preservedLfoIndices);
+           resetAllFxToDefaults(protectedLfoFxIds, preservedLfoIndices, shouldApplyArpLock);
 
            // --- 3. RESTORE tempo mode before applying rate-dependent settings ---
            const presetTempoMode = p.tempoMode ?? TEMPO_MODE_BPM;
-           if (!isArpLockEnabled) {
+           if (!shouldApplyArpLock) {
                setTempoMode(presetTempoMode);
            }
 
            // --- 4. APPLY all new settings from the preset ---
-           if (!isArpLockEnabled) {
+           if (!shouldApplyArpLock) {
                scaleSelector.value = p.scale ?? 'Major';
                scaleSelector.dispatchEvent(new Event('change'));
                keySelector.value = p.key ?? 'C';
@@ -2524,14 +2548,15 @@ function applyPreset(p) {
            }
            document.body.classList.toggle('easter-egg-mode', allowDuplicateNotesMode);
 
-           if (!isArpLockEnabled && p.scale === 'Custom') {
+           if (!shouldApplyArpLock && p.scale === 'Custom') {
                customScale = p.customScale || [];
                document.querySelectorAll('#custom-scale-builder .key').forEach(k => { const n = parseInt(k.dataset.note); k.classList.toggle('selected', customScale.includes(n)); });
            }
            
            // --- 4. APPLY LFO STATE (IMPORTANT: Do this before FX settings) ---
             const presetTempoSyncTargets = [];
-            if (p.lfoState && Array.isArray(p.lfoState)) {
+            const shouldApplyPresetLfos = !shouldApplyLfoLock && p.lfoState && Array.isArray(p.lfoState);
+            if (shouldApplyPresetLfos) {
                // Reset all LFOs to defaults first to ensure no partial state lingers if the preset has fewer than 4 LFOs
                lfoState.forEach((lfo, index) => {
                     if (preservedLfoIndices.has(index)) return;
@@ -2563,7 +2588,7 @@ function applyPreset(p) {
                        const rateKnobId = getLfoKnobId(index, 'rate');
                        const depthKnobId = getLfoKnobId(index, 'depth');
                        const waveKnobId = getLfoKnobId(index, 'wave');
-                       
+
                        if (rateKnobId) {
                            const rateKnobValue = savedLfo.tempoSync ? storedFreeValue : lfoState[index].rate;
                            setFxValue(parseInt(rateKnobId), rateKnobValue, true);
@@ -2578,7 +2603,7 @@ function applyPreset(p) {
                        }
 
                        updateLfoDestDisplay(index);
-                       
+
                        if (synthNode) {
                            synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'rate', value: lfoState[index].rate } });
                            synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'depth', value: lfoState[index].depth } });
@@ -2591,7 +2616,7 @@ function applyPreset(p) {
                if (lfoState.some(lfo => getLfoDestChain(lfo).some(dest => LFO_DEST_TO_MAIN_KNOB[dest]))) {
                    ensureLfoAnimationRunning();
                }
-           } else { // Reset LFOs for older presets (THE FIX IS HERE)
+           } else if (!shouldApplyLfoLock) { // Reset LFOs for older presets (THE FIX IS HERE)
                lfoState.forEach((lfo, index) => {
                    if (preservedLfoIndices.has(index)) return;
                    lfo.rate = 0; lfo.depth = 0; lfo.wave = 0;
@@ -2605,7 +2630,7 @@ function applyPreset(p) {
                         synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'destChain', value: [] } });
                     }
                 });
-               
+
                // Reset UI Text
                for (let i = 0; i < 4; i++) {
                     const waveDisplay = document.getElementById(`lfo-wave-display-${i}`);
@@ -2614,18 +2639,19 @@ function applyPreset(p) {
                }
            }
            
-           toggleLfoModeUI(p.isLfoMode ?? false, true); 
+           const targetLfoMode = shouldApplyLfoLock ? (lfoModeBeforePreset || true) : (p.isLfoMode ?? false);
+           toggleLfoModeUI(targetLfoMode, true);
 
            if (p.knobSettings) { p.knobSettings.forEach(kD => { const s = knobState.find(k => k.id === kD.id); if (s) s.totalAngle = kD.totalAngle ?? 0; }); }
            
            if (p.fxSettings) {
                p.fxSettings.forEach(fx => {
-                   if (isArpLockEnabled && [16, 17, 18, 19, 22, 23, 24, 25].includes(fx.id)) return;
+                   if (shouldApplyArpLock && [16, 17, 18, 19, 22, 23, 24, 25].includes(fx.id)) return;
                    setFxValue(fx.id, fx.value ?? 0);
                });
            }
-           
-           if (p.arpSettings && !isArpLockEnabled) {
+
+           if (p.arpSettings && !shouldApplyArpLock) {
                isArpRateSynced = p.arpSettings.isArpRateSynced ?? false;
                currentArpOrder = p.arpSettings.currentArpOrder ?? "Up";
                arpSyncSwitch.classList.toggle('on', isArpRateSynced);
@@ -2665,8 +2691,8 @@ function applyPreset(p) {
                });
            }
 
-           if (isArpLockEnabled && preservedArpLockedLfos.length > 0) {
-               restorePreservedLfos(preservedArpLockedLfos);
+           if (restorationMap.size > 0) {
+               restorePreservedLfos([...restorationMap.values()]);
            }
 
            updateGlobalArpVisibility();
@@ -2739,12 +2765,12 @@ function setFxValue(id, value, forceVisualUpdate = false) {
             }
         }
 
-function resetAllFxToDefaults(protectedFxIds = new Set(), protectedLfoIndices = new Set()) {
+function resetAllFxToDefaults(protectedFxIds = new Set(), protectedLfoIndices = new Set(), isArpLockActive = isArpLockEnabled) {
            resetLfoTempoSyncState(protectedLfoIndices);
            Object.keys(fxKnobData).forEach(idStr => {
                const id = parseInt(idStr, 10);
                if (protectedFxIds.has(id)) return;
-               if (isArpLockEnabled && [16, 17, 18, 19, 22, 23, 24, 25].includes(id)) return;
+               if (isArpLockActive && [16, 17, 18, 19, 22, 23, 24, 25].includes(id)) return;
                let defaultValue = 0.0;
                if (id === 2) defaultValue = 1.0;
                if (id === 7) defaultValue = 0.7;
@@ -2833,6 +2859,7 @@ function generateAndApplyRandomPreset() {
     }
     
     // 6. --- Apply the new preset! ---
+    lastAppliedPresetCategory = null;
     applyPreset(randomPreset);
 }
 function snapArpNotesToScale() {
@@ -2900,6 +2927,7 @@ function generateAndApplyRandomSound() {
                 }
             };
             
+            lastAppliedPresetCategory = null;
             applyPreset(randomPreset);
        }
       
@@ -3203,6 +3231,7 @@ function generateAndApplyRandomSound() {
            const presetListSelector = document.getElementById('preset-list-selector');
            const presetCategoryButtons = document.querySelectorAll('.preset-category-button');
            let activePresetCategory = null;
+           let lastAppliedPresetCategory = null;
            let activePresetButton = null;
            let isPresetDropdownOpen = false;
            let removePresetDismissListener = null;
@@ -3378,8 +3407,13 @@ function generateAndApplyRandomSound() {
            masterArpControls = document.getElementById('master-arp-controls');
            arpLockSwitch = document.getElementById('arp-lock-switch');
            allArpControlGrids = document.querySelectorAll('.arp-controls');
+           lfoLockSwitch = document.getElementById('lfo-lock-switch');
            const lfoModeSwitch = document.getElementById('lfo-mode-switch');
 
+           addTouchListener(lfoLockSwitch, () => {
+               isLfoLockEnabled = !isLfoLockEnabled;
+               lfoLockSwitch.classList.toggle('on', isLfoLockEnabled);
+           });
            lfoModeSwitch?.addEventListener('click', () => toggleLfoModeUI());
            new ResizeObserver(drawLfoCables).observe(synthContainer);
       
@@ -3744,6 +3778,8 @@ function generateAndApplyRandomSound() {
 
                     const presetData = JSON.parse(JSON.stringify(PRESETS[groupName][presetName]));
                     if (!isPowerOn) powerOn();
+
+                    lastAppliedPresetCategory = groupName;
 
                     const fullPreset = {
                         tempoMode: presetData.tempoMode ?? TEMPO_MODE_BPM,
