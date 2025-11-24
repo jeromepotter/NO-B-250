@@ -78,7 +78,7 @@
         </div>
         <select id="preset-list-selector" class="retro-button retro-select text-xs sm:text-sm cursor-pointer border-none focus:outline-none w-audo" style="display: none;"></select>
       </div>
-        <div class="flex flex-col items-center p-2 space-y-2">
+        <div id="preset-display-row" class="flex justify-center items-center p-2">
           <div id="preset-display-container" class="flex items-center space-x-2">
             <button id="preset-prev-button" class="retro-button preset-nav-button text-xs sm:text-sm font-bold px-2" aria-label="Previous preset">
               <svg viewBox="0 0 12 12" aria-hidden="true" focusable="false" class="preset-nav-icon">
@@ -94,6 +94,8 @@
               </svg>
             </button>
           </div>
+        </div>
+        <div class="flex flex-col items-center p-2 space-y-2">
           <div class="flex justify-center items-center space-x-4">
             <select id="keySelector" class="retro-select text-base sm:text-lg focus:outline-none">
                 <option value="C">C</option>
