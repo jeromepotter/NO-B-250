@@ -1062,7 +1062,7 @@ for (const event of events) {
 };
            synthNode.connect(audioContext.destination);
            Object.values(fxKnobData).forEach(d => {
-               if (synthNode && d.id <= 29 && d.id !== 1) { synthNode.port.postMessage({type:'setFx', data:{id:d.id, value:d.value}}); }
+               if (synthNode && ((d.id <= 29 && d.id !== 1) || d.id === 30 || d.id === 31)) { synthNode.port.postMessage({type:'setFx', data:{id:d.id, value:d.value}}); }
                if (synthNode && d.id === 7) { synthNode.port.postMessage({type:'setFx', data:{id:d.id, value:d.value}}); }
            });
        }
@@ -2031,6 +2031,12 @@ lfoState.forEach((lfo, lfoIndex) => {
          });
       }
       
+       function getRandomWaveValue() {
+           const waveCount = VOICE_WAVEFORMS.length || 1;
+           const waveIndex = Math.floor(Math.random() * waveCount);
+           return (waveIndex + 0.5) / waveCount;
+       }
+
        function randomizeSettings() {
            keySelector.selectedIndex = Math.floor(Math.random() * keySelector.options.length);
            const scales = Array.from(scaleSelector.options).filter(o=>o.value!=='Custom');
@@ -2042,7 +2048,13 @@ lfoState.forEach((lfo, lfoIndex) => {
                if (!excluded.includes(id)) {
                    const kData = fxKnobData[id];
                    if (kData) {
-                       const randVal = Math.random();
+                       let randVal;
+                       if (id === 30 || id === 31) {
+                           randVal = getRandomWaveValue();
+                       } else {
+                           const maxValue = (id >= 12 && id <= 15) ? 0.3 : 1;
+                           randVal = Math.random() * maxValue;
+                       }
                        const targetAngle = MIN_FX_ANGLE + (randVal * (MAX_FX_ANGLE - MIN_FX_ANGLE));
                        updateFxKnob(id, targetAngle - kData.angle);
                    }
@@ -2754,7 +2766,8 @@ function generateAndApplyRandomPreset() {
         { id: 0, value: Math.random() < 0.2 ? Math.random() * 0.4 : 0 }, { id: 1, value: Math.random() * Math.random() }, { id: 2, value: 0.5 + Math.random() * 0.5 },
         { id: 3, value: Math.random() }, { id: 4, value: Math.random() * 0.6 }, { id: 5, value: Math.random() < 0.3 ? Math.random() : 0 }, { id: 6, value: Math.random() * 0.8 },
         { id: 12, value: Math.random() * 0.8 }, { id: 13, value: Math.random() }, { id: 14, value: Math.random() * 0.7 }, { id: 15, value: Math.random() },
-        { id: 20, value: Math.random() * 0.5 + 0.5 }, { id: 21, value: Math.random() * 0.5 + 0.5 }, { id: 28, value: Math.random() }, { id: 29, value: Math.random() }
+        { id: 20, value: Math.random() * 0.5 + 0.5 }, { id: 21, value: Math.random() * 0.5 + 0.5 }, { id: 28, value: Math.random() }, { id: 29, value: Math.random() },
+        { id: 30, value: getRandomWaveValue() }, { id: 31, value: getRandomWaveValue() }
     ];
 
     // 5. --- Final Assembly ---
@@ -2836,7 +2849,8 @@ function generateAndApplyRandomSound() {
                 { id: 0, value: Math.random() < 0.2 ? Math.random() * 0.4 : 0 }, { id: 1, value: Math.random() * Math.random() }, { id: 2, value: 0.5 + Math.random() * 0.5 },
                 { id: 3, value: Math.random() }, { id: 4, value: Math.random() * 0.6 }, { id: 5, value: Math.random() < 0.3 ? Math.random() : 0 }, { id: 6, value: Math.random() * 0.8 },
                 { id: 12, value: Math.random() * 0.8 }, { id: 13, value: Math.random() }, { id: 14, value: Math.random() * 0.7 }, { id: 15, value: Math.random() },
-                { id: 20, value: Math.random() * 0.5 + 0.5 }, { id: 21, value: Math.random() * 0.5 + 0.5 }, { id: 28, value: Math.random() }, { id: 29, value: Math.random() }
+                { id: 20, value: Math.random() * 0.5 + 0.5 }, { id: 21, value: Math.random() * 0.5 + 0.5 }, { id: 28, value: Math.random() }, { id: 29, value: Math.random() },
+                { id: 30, value: getRandomWaveValue() }, { id: 31, value: getRandomWaveValue() }
             ];
 
             const randomPreset = {
