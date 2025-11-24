@@ -3107,6 +3107,7 @@ function generateAndApplyRandomSound() {
            let activePresetButton = null;
            let isPresetDropdownOpen = false;
            let removePresetDismissListener = null;
+           let removePresetsSubmenuDismissListener = null;
 
            const positionPresetsSubmenu = () => {
                 if (!presetsSubmenuContainer || !presetsToggleButton || !synthContainer) return;
@@ -3133,6 +3134,13 @@ function generateAndApplyRandomSound() {
                 if (typeof removePresetDismissListener === 'function') {
                     removePresetDismissListener();
                     removePresetDismissListener = null;
+                }
+           };
+
+           const cleanupPresetsSubmenuDismissListener = () => {
+                if (typeof removePresetsSubmenuDismissListener === 'function') {
+                    removePresetsSubmenuDismissListener();
+                    removePresetsSubmenuDismissListener = null;
                 }
            };
 
@@ -3221,10 +3229,22 @@ function generateAndApplyRandomSound() {
 
                if (willShow) {
                     positionPresetsSubmenu();
+                    const handler = (event) => {
+                        const isMenuVisible = presetsSubmenuContainer.style.display === 'flex';
+                        if (!isMenuVisible) return;
+                        if (event.target.closest('#presets-submenu-container') || event.target.closest('#preset-list-selector') || event.target.closest('#presets-toggle-button')) return;
+                        presetsSubmenuContainer.style.display = 'none';
+                        presetsToggleButton.classList.remove('active');
+                        closePresetDropdown();
+                        cleanupPresetsSubmenuDismissListener();
+                    };
+                    window.addEventListener('pointerdown', handler, true);
+                    removePresetsSubmenuDismissListener = () => window.removeEventListener('pointerdown', handler, true);
                }
 
                if (!willShow) {
                     closePresetDropdown();
+                    cleanupPresetsSubmenuDismissListener();
                }
            };
            presetsToggleButton?.addEventListener('touchend', handlePresetToggle);
@@ -3232,19 +3252,21 @@ function generateAndApplyRandomSound() {
            window.addEventListener('resize', positionPresetsSubmenu);
            window.addEventListener('orientationchange', positionPresetsSubmenu);
 
-           addTouchListener(submenuSaveButton, () => {
+            addTouchListener(submenuSaveButton, () => {
                 savePreset();
                 closePresetDropdown();
                 presetsSubmenuContainer.style.display = 'none';
                 presetsToggleButton.classList.remove('active');
+                cleanupPresetsSubmenuDismissListener();
            });
 
-           addTouchListener(submenuLoadButton, () => {
+            addTouchListener(submenuLoadButton, () => {
                 loadPresetInput.click();
                 closePresetDropdown();
                 presetsSubmenuContainer.style.display = 'none';
                 presetsToggleButton.classList.remove('active');
-           });
+                cleanupPresetsSubmenuDismissListener();
+            });
 
            const midiConnectButton = document.getElementById('midi-connect-button');
            midiConnectButton?.addEventListener('click', () => {
