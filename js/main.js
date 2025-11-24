@@ -2446,7 +2446,7 @@ function applyPreset(p, isArpCategoryPreset = false) {
            }
            
            // --- 4. APPLY LFO STATE (IMPORTANT: Do this before FX settings) ---
-            const presetTempoSyncTargets = [];
+           const presetTempoSyncTargets = [];
             if (!lfoLockActive) {
                 if (p.lfoState && Array.isArray(p.lfoState)) {
                    // Reset all LFOs to defaults first to ensure no partial state lingers if the preset has fewer than 4 LFOs
@@ -2525,6 +2525,41 @@ function applyPreset(p, isArpCategoryPreset = false) {
                         if (waveDisplay) waveDisplay.textContent = 'SINE';
                         updateLfoDestDisplay(i);
                    }
+               }
+           } else {
+               // Reassert the existing LFO configuration when locked so newer presets without LFO data
+               // keep the previous modulation routing and depth.
+               lfoState.forEach((lockedLfo, index) => {
+                   const rateKnobId = Object.keys(LFO_KNOB_MAP).find(id => LFO_KNOB_MAP[id].lfo === index && LFO_KNOB_MAP[id].param === 'rate');
+                   const depthKnobId = Object.keys(LFO_KNOB_MAP).find(id => LFO_KNOB_MAP[id].lfo === index && LFO_KNOB_MAP[id].param === 'depth');
+                   const waveKnobId = Object.keys(LFO_KNOB_MAP).find(id => LFO_KNOB_MAP[id].lfo === index && LFO_KNOB_MAP[id].param === 'wave');
+
+                   // Destinations must always be reasserted to keep the modulation patch live.
+                   setLfoDestChain(index, getLfoDestChain(lockedLfo));
+
+                   if (rateKnobId) {
+                       const rateValue = lfoTempoLinkState[index]?.enabled ? lfoTempoLinkState[index].storedFreeValue : (lockedLfo.rate ?? 0);
+                       setFxValue(parseInt(rateKnobId, 10), rateValue, true);
+                   }
+                   if (depthKnobId) setFxValue(parseInt(depthKnobId, 10), lockedLfo.depth ?? 0, true);
+                   if (waveKnobId) {
+                       const waveIndex = lockedLfo.wave ?? 0;
+                       const waveValue = (waveIndex + 0.5) / LFO_WAVEFORMS.length;
+                       setFxValue(parseInt(waveKnobId, 10), waveValue, true);
+                       const waveDisplay = document.getElementById(`lfo-wave-display-${index}`);
+                       if (waveDisplay) waveDisplay.textContent = LFO_WAVEFORMS[waveIndex];
+                   }
+
+                   if (synthNode) {
+                       synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'rate', value: lockedLfo.rate ?? 0 } });
+                       synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'depth', value: lockedLfo.depth ?? 0 } });
+                       synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'wave', value: lockedLfo.wave ?? 0 } });
+                       synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'destChain', value: getLfoDestChain(lockedLfo) } });
+                   }
+               });
+
+               if (lfoState.some(lfo => getLfoDestChain(lfo).length)) {
+                   ensureLfoAnimationRunning();
                }
            }
 
