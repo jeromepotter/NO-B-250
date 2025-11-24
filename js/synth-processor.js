@@ -23,6 +23,7 @@ const LFO_DEST_NONE = -1;
                    this.sampleCounter = 0; this.tremoloPhase=0; this.pannerL=1;this.pannerR=1;
                    this.distLpL = 0; this.distLpR = 0;
                    this.smoothedDist = 0;
+                   this.distWet = 0;
                    // Filter state
                    this.filter_x1_L=0; this.filter_x2_L=0; this.filter_y1_L=0; this.filter_y2_L=0;
                    this.filter_x1_R=0; this.filter_x2_R=0; this.filter_y1_R=0; this.filter_y2_R=0;
@@ -385,32 +386,41 @@ for(let i=0;i<oL.length;i++){
     
     this.smoothedDist += (currentParams[1] - this.smoothedDist) * 0.0025;
     const dV=this.smoothedDist;
+    const dryL = s_L;
+    const dryR = s_R;
+    const targetDistWet = Math.max(0, Math.min(1, (dV - 0.001) * 5));
+    this.distWet += (targetDistWet - this.distWet) * 0.01;
+    let distL = s_L;
+    let distR = s_R;
     if (dV>0.001){
         const distDrive = dV <= 0.5 ? 0.5 * Math.pow(dV / 0.5, 2) : dV;
         const dr=1+distDrive*19;
         const k=2*dr/(1+dr);
-        s_L=(1+k)*s_L/(1+k*Math.abs(s_L)); s_R=(1+k)*s_R/(1+k*Math.abs(s_R));
+        distL=(1+k)*distL/(1+k*Math.abs(distL)); distR=(1+k)*distR/(1+k*Math.abs(distR));
         const nS=Math.max(2,Math.floor(Math.pow(1-distDrive,2.5)*64));
         const sS=2.0/nS;
-        s_L=sS*Math.floor(s_L/sS+0.5); s_R=sS*Math.floor(s_R/sS+0.5);
-        const gC=1/(1+dV*1.5); s_L*=gC; s_R*=gC;
+        distL=sS*Math.floor(distL/sS+0.5); distR=sS*Math.floor(distR/sS+0.5);
+        const gC=1/(1+dV*1.5); distL*=gC; distR*=gC;
         if (dV < 0.5) {
             const filterMix = (dV - 0.01) / (0.5 - 0.01);
             const cutoff = 500 + Math.max(0, filterMix) * ((sr * 0.5) - 500);
             const omega = 2 * Math.PI * cutoff / sr;
             const alpha = omega / (omega + 1);
-            this.distLpL += alpha * (s_L - this.distLpL);
-            this.distLpR += alpha * (s_R - this.distLpR);
-            s_L = this.distLpL;
-            s_R = this.distLpR;
+            this.distLpL += alpha * (distL - this.distLpL);
+            this.distLpR += alpha * (distR - this.distLpR);
+            distL = this.distLpL;
+            distR = this.distLpR;
         } else {
-            this.distLpL = s_L;
-            this.distLpR = s_R;
+            this.distLpL = distL;
+            this.distLpR = distR;
         }
     } else {
-        this.distLpL = s_L;
-        this.distLpR = s_R;
+        this.distLpL = distL;
+        this.distLpR = distR;
     }
+    const wetMix = Math.min(1, Math.max(0, this.distWet));
+    s_L = dryL + (distL - dryL) * wetMix;
+    s_R = dryR + (distR - dryR) * wetMix;
     if(currentParams[5] > 0){ 
          const tremRateHz = 2 + (Math.pow(currentParams[5], 3) * 500);
          const tD = currentParams[5] * 0.8; 
