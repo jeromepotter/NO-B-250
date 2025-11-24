@@ -767,13 +767,18 @@ let liveLfoOutputs = [0, 0, 0, 0];
       
        // --- DOM Elements ---
       let synthContainer, powerSwitch, keySelector, scaleSelector, customScaleBuilder, savePresetButton, loadPresetInput, arpSyncSwitch;
-      let presetNameDisplay;
-       let masterArpControls, arpOrderSelector, arpLockSwitch, lfoLockSwitch;
-       let allArpControlGrids;
-       let rateDisplayRows = [];
-       let modalOverlay, howToButton, closeModalButton;
-       
+      let presetNameDisplay, presetDisplayContainer, presetPrevButton, presetNextButton;
+      let masterArpControls, arpOrderSelector, arpLockSwitch, lfoLockSwitch;
+      let allArpControlGrids;
+      let rateDisplayRows = [];
+      let modalOverlay, howToButton, closeModalButton;
+
       import { PRESETS } from './presets.js';
+
+
+      const PRESET_NAV_EXCLUDED_CATEGORIES = new Set(['ARPS', 'RANDOM']);
+      let presetNavigationList = [];
+      let currentPresetNavIndex = null;
 
        
 
@@ -2064,9 +2069,12 @@ lfoState.forEach((lfo, lfoIndex) => {
            knobState.forEach(k => updateStateFromTotalAngle(k.id));
        }
 
-       function updatePresetDisplay(name = '', sourceType = 'factory') {
+       function updatePresetDisplay(name = '', sourceType = 'factory', category = null) {
            if (!presetNameDisplay) {
                presetNameDisplay = document.getElementById('preset-display');
+           }
+           if (!presetDisplayContainer) {
+               presetDisplayContainer = document.getElementById('preset-display-container');
            }
            if (!presetNameDisplay) return;
 
@@ -2078,11 +2086,116 @@ lfoState.forEach((lfo, lfoIndex) => {
            if (!displayText) {
                presetNameDisplay.textContent = 'PRESET';
                presetNameDisplay.title = '';
+               if (presetDisplayContainer) presetDisplayContainer.style.display = 'none';
+               syncPresetNavigationState(null, null, sourceType);
                return;
            }
 
            presetNameDisplay.textContent = displayText;
            presetNameDisplay.title = displayText;
+           if (presetDisplayContainer) presetDisplayContainer.style.display = 'flex';
+           syncPresetNavigationState(category, name, sourceType);
+       }
+
+       function updatePresetNavButtonsState() {
+           const hasPresets = presetNavigationList.length > 0;
+           if (presetPrevButton) presetPrevButton.disabled = !hasPresets;
+           if (presetNextButton) presetNextButton.disabled = !hasPresets;
+       }
+
+       function buildPresetNavigationList() {
+           presetNavigationList = Object.entries(PRESETS || {})
+               .filter(([category]) => !PRESET_NAV_EXCLUDED_CATEGORIES.has(category))
+               .flatMap(([category, presets]) => Object.keys(presets || {}).map((presetName) => ({
+                   category,
+                   name: presetName,
+               })));
+
+           updatePresetNavButtonsState();
+       }
+
+       function syncPresetNavigationState(category, presetName, sourceType = 'factory') {
+           if (sourceType === 'factory' && category && !PRESET_NAV_EXCLUDED_CATEGORIES.has(category)) {
+               const matchIndex = presetNavigationList.findIndex(
+                   (entry) => entry.category === category && entry.name === presetName
+               );
+               currentPresetNavIndex = matchIndex >= 0 ? matchIndex : null;
+           } else {
+               currentPresetNavIndex = null;
+           }
+
+           updatePresetNavButtonsState();
+       }
+
+       function applyFactoryPreset(category, presetName) {
+           if (!category || !presetName) return false;
+           const categoryPresets = PRESETS[category];
+           if (!categoryPresets || !categoryPresets[presetName]) return false;
+
+           const presetData = JSON.parse(JSON.stringify(categoryPresets[presetName]));
+           if (!isPowerOn) powerOn();
+
+           const fullPreset = {
+               tempoMode: presetData.tempoMode ?? TEMPO_MODE_BPM,
+               key: presetData.key,
+               scale: presetData.scale,
+               customScale: presetData.customScale || [],
+               isLfoMode: presetData.isLfoMode || false,
+               lfoState: presetData.lfoState || [],
+               knobSettings: presetData.knobSettings || [],
+               fxSettings: [...(presetData.fxSettings || [])],
+               arpSettings: {
+                   isArpRateSynced: presetData.arpSettings?.isArpRateSynced ?? false,
+                   currentArpOrder: presetData.arpSettings?.currentArpOrder ?? 'As Played',
+                   arp1: {
+                       isArpOn: presetData.arpSettings?.arp1?.isArpOn ?? false,
+                       isOn: presetData.arpSettings?.arp1?.isArpOn ?? false,
+                       isSweepMode: presetData.arpSettings?.arp1?.isSweepMode ?? true,
+                       notes: presetData.arpSettings?.arp1?.notes ?? [],
+                       transpose: presetData.arpSettings?.arp1?.transpose ?? 0,
+                   },
+                   arp2: {
+                       isArpOn: presetData.arpSettings?.arp2?.isArpOn ?? false,
+                       isOn: presetData.arpSettings?.arp2?.isArpOn ?? false,
+                       isSweepMode: presetData.arpSettings?.arp2?.isSweepMode ?? true,
+                       notes: presetData.arpSettings?.arp2?.notes ?? [],
+                       transpose: presetData.arpSettings?.arp2?.transpose ?? 0,
+                   },
+               },
+           };
+
+           if (presetData.arpSettings && presetData.arpSettings.fx) {
+               for (const [fxId, value] of Object.entries(presetData.arpSettings.fx)) {
+                   fullPreset.fxSettings.push({ id: parseInt(fxId, 10), value });
+               }
+           }
+
+           const isArpCategoryPreset = category === 'ARPS';
+           applyPreset(fullPreset, isArpCategoryPreset);
+           return true;
+       }
+
+       function applyPresetFromNavigation(targetIndex) {
+           const targetPreset = presetNavigationList[targetIndex];
+           if (!targetPreset) return;
+
+           if (applyFactoryPreset(targetPreset.category, targetPreset.name)) {
+               updatePresetDisplay(targetPreset.name, 'factory', targetPreset.category);
+           }
+       }
+
+       function handlePresetNavigation(direction) {
+           if (!presetNavigationList.length || !Number.isFinite(direction) || direction === 0) return;
+           const dir = direction > 0 ? 1 : -1;
+
+           let nextIndex = currentPresetNavIndex;
+           if (nextIndex === null) {
+               nextIndex = dir > 0 ? 0 : presetNavigationList.length - 1;
+           } else {
+               nextIndex = (nextIndex + dir + presetNavigationList.length) % presetNavigationList.length;
+           }
+
+           applyPresetFromNavigation(nextIndex);
        }
 
      function savePreset() {
@@ -3068,6 +3181,10 @@ function generateAndApplyRandomSound() {
            recordMidiButton = document.getElementById('record-midi-button');
            loadPresetInput = document.getElementById('load-preset-input');
            presetNameDisplay = document.getElementById('preset-display');
+           presetDisplayContainer = document.getElementById('preset-display-container');
+           presetPrevButton = document.getElementById('preset-prev-button');
+           presetNextButton = document.getElementById('preset-next-button');
+           buildPresetNavigationList();
            updatePresetDisplay();
            
            // --- 3. TOUCH HELPER FUNCTION ---
@@ -3080,6 +3197,9 @@ function generateAndApplyRandomSound() {
                element.addEventListener('touchend', handler);
                element.addEventListener('click', handler);
            };
+
+           addTouchListener(presetPrevButton, () => handlePresetNavigation(-1));
+           addTouchListener(presetNextButton, () => handlePresetNavigation(1));
 
            // --- 4. FIX: POWER SWITCH ---
            addTouchListener(powerSwitch, () => {
@@ -3739,48 +3859,9 @@ function generateAndApplyRandomSound() {
                     generateAndApplyRandomSound();
                 } else {
                     const groupName = selectedOption.dataset.group || activePresetCategory;
-                    if (!groupName || !PRESETS[groupName] || !PRESETS[groupName][presetName]) return;
+                    if (!applyFactoryPreset(groupName, presetName)) return;
 
-                    const presetData = JSON.parse(JSON.stringify(PRESETS[groupName][presetName]));
-                    if (!isPowerOn) powerOn();
-
-                    const fullPreset = {
-                        tempoMode: presetData.tempoMode ?? TEMPO_MODE_BPM,
-                        key: presetData.key,
-                        scale: presetData.scale,
-                        customScale: presetData.customScale || [],
-                        isLfoMode: presetData.isLfoMode || false,
-                        lfoState: presetData.lfoState || [],
-                        knobSettings: presetData.knobSettings || [],
-                        fxSettings: [...(presetData.fxSettings || [])],
-                        arpSettings: {
-                            isArpRateSynced: presetData.arpSettings?.isArpRateSynced ?? false,
-                            currentArpOrder: presetData.arpSettings?.currentArpOrder ?? 'As Played',
-                            arp1: {
-                                isArpOn: presetData.arpSettings?.arp1?.isArpOn ?? false,
-                                isOn: presetData.arpSettings?.arp1?.isArpOn ?? false,
-                                isSweepMode: presetData.arpSettings?.arp1?.isSweepMode ?? true,
-                                notes: presetData.arpSettings?.arp1?.notes ?? [],
-                                transpose: presetData.arpSettings?.arp1?.transpose ?? 0,
-                            },
-                            arp2: {
-                                isArpOn: presetData.arpSettings?.arp2?.isArpOn ?? false,
-                                isOn: presetData.arpSettings?.arp2?.isArpOn ?? false,
-                                isSweepMode: presetData.arpSettings?.arp2?.isSweepMode ?? true,
-                                notes: presetData.arpSettings?.arp2?.notes ?? [],
-                                transpose: presetData.arpSettings?.arp2?.transpose ?? 0,
-                            }
-                        }
-                    };
-
-                    if (presetData.arpSettings && presetData.arpSettings.fx) {
-                        for (const [fxId, value] of Object.entries(presetData.arpSettings.fx)) {
-                            fullPreset.fxSettings.push({ id: parseInt(fxId), value: value });
-                        }
-                    }
-                    const isArpCategoryPreset = groupName === 'ARPS';
-                    applyPreset(fullPreset, isArpCategoryPreset);
-                    updatePresetDisplay(presetName, 'factory');
+                    updatePresetDisplay(presetName, 'factory', groupName);
                 }
 
                 closePresetDropdown();
