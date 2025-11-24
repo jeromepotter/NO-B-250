@@ -20,7 +20,7 @@ A browser-based dual-oscillator synthesizer with vintage-inspired sound and mode
 
 ### Modulation & Sequencing
 - **4 LFOs** - Sine, triangle, saw, square, random with Tempo Sync
-- **LFO Cross-Modulation** - LFOs can modulate each other before destinations
+- **Advanced LFO Patching** - Chain multiple destinations to a single LFO and use Cross-Modulation (LFOs controlling LFOs) for complex, evolving textures.
 - **Visual Patch Bay** - Cable-style routing interface for modulation
 - **Dual Tempo Engines** - Switch between BPM Mode (grid-locked) and MS Mode (milliseconds/free-running)
 - **Interactive Sequencer** - Visualize, mute, and delete notes from a sequence
@@ -33,20 +33,21 @@ A browser-based dual-oscillator synthesizer with vintage-inspired sound and mode
 - **Keyboard Controls** - Comprehensive QWERTY mapping for desktop
 - **Mobile Optimized** - Touch-friendly interface with spin controls
 - **ARP and LFO Lock - Change your preset sounds while keeping a sequence and/or modulation
+- **Euclidean Rhythms** - Algorithmic rhythm generation using pre-calculated Euclidean patterns for complex polyrhythms.
 
 ### Recording & MIDI
 - **Audio Recording** - Export your performances as WAV files
 - **MIDI Recording** - Capture note data
 - **MIDI Output** - Control external hardware/software with optional Midi Clock
-- **Preset System** - Save and load your sounds or load system presets including "arp" patches
+- **Preset System** - Save/load user patches or browse factory sounds with quick-navigation arrows and category filtering.
 
 ## Technical Details
-
 - Built with Web Audio API and AudioWorkletProcessor
 - Zero-latency synthesis engine
 - Custom DSP implementations (no external synth libraries)
+- PWA Support - Fully installable as a native-like app on mobile and desktop; works 100% offline
+- Precision Timing Engine - Dedicated Web Worker handles the master clock and event scheduling, preventing timing drift caused by main thread UI blocking.
 
-## Usage
 
 Visit [https://no-b-250.netlify.app](https://no-b-250.netlify.app) and flip the power switch. No installation required.
 
