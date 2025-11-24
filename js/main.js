@@ -2042,7 +2042,8 @@ lfoState.forEach((lfo, lfoIndex) => {
                if (!excluded.includes(id)) {
                    const kData = fxKnobData[id];
                    if (kData) {
-                       const randVal = Math.random();
+                       const maxValue = (id >= 12 && id <= 15) ? 0.3 : 1;
+                       const randVal = Math.random() * maxValue;
                        const targetAngle = MIN_FX_ANGLE + (randVal * (MAX_FX_ANGLE - MIN_FX_ANGLE));
                        updateFxKnob(id, targetAngle - kData.angle);
                    }
