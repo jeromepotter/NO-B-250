@@ -241,12 +241,20 @@ body { font-family: 'Poppins', sans-serif; background-color: #665; touch-action:
   background-color: #2B5C2B;
     }
    body.easter-egg-mode.lfo-mode #note-display-1,
-   body.easter-egg-mode.lfo-mode #note-display-2,
+body.easter-egg-mode.lfo-mode #note-display-2,
    body.easter-egg-mode.lfo-mode .arp-note-indicator {
-  color: #FF8C00; 
+  color: #FF8C00;
 }
 
-	body.easter-egg-mode.lfo-mode .retro-select {
+#lfo-lock-container {
+  display: none;
+}
+
+body.lfo-mode #lfo-lock-container {
+  display: flex;
+}
+
+        body.easter-egg-mode.lfo-mode .retro-select {
   color: white;
   border-color: white;
   background-color: #2B5C2B; /* Match the green background */
