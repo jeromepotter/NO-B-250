@@ -76,26 +76,33 @@
           <button class="retro-button text-xs sm:text-sm font-bold preset-category-button w-full text-center" data-category="ORCHESTRAL">ORCHESTRAL</button>
             <button class="retro-button text-xs sm:text-sm font-bold preset-category-button w-full text-center" data-category="FX">FX</button>
             <button class="retro-button text-xs sm:text-sm font-bold preset-category-button w-full text-center" data-category="ARPS">ARPS</button>
-            <button class="retro-button text-xs sm:text-sm font-bold preset-category-button w-full text-center" data-category="OTHER">RANDOM</button>
+            <button class="retro-button text-xs sm:text-sm font-bold preset-category-button w-full text-center" data-category="RANDOM">RANDOM</button>
         </div>
         <select id="preset-list-selector" class="retro-button retro-select text-xs sm:text-sm cursor-pointer border-none focus:outline-none w-audo" style="display: none;"></select>
       </div>
-       <div class="flex justify-center items-center p-2 space-x-4">
-        <select id="keySelector" class="retro-select text-base sm:text-lg focus:outline-none">
-            <option value="C">C</option>
-            <option value="C#">C#</option>
-            <option value="D">D</option>
-            <option value="D#">D#</option>
-            <option value="E">E</option>
-            <option value="F">F</option>
-            <option value="F#">F#</option>
-            <option value="G">G</option>
-            <option value="G#">G#</option>
-            <option value="A">A</option>
-            <option value="A#">A#</option>
-            <option value="B">B</option>
-        </select>
-        <select id="scaleSelector" class="retro-select text-base sm:text-lg focus:outline-none"></select>
+        <div class="flex flex-col items-center p-2 space-y-2">
+          <div id="preset-display-container" class="flex items-center space-x-2" style="display: none;">
+            <button id="preset-prev-button" class="retro-button text-xs sm:text-sm font-bold px-2" aria-label="Previous preset">&#9664;</button>
+            <div id="preset-display" class="retro-select preset-display text-xs sm:text-sm font-bold text-center leading-tight w-44 sm:w-56" role="button" tabindex="0" aria-label="Open presets menu">PRESET</div>
+            <button id="preset-next-button" class="retro-button text-xs sm:text-sm font-bold px-2" aria-label="Next preset">&#9654;</button>
+          </div>
+          <div class="flex justify-center items-center space-x-4">
+            <select id="keySelector" class="retro-select text-base sm:text-lg focus:outline-none">
+                <option value="C">C</option>
+                <option value="C#">C#</option>
+              <option value="D">D</option>
+              <option value="D#">D#</option>
+              <option value="E">E</option>
+              <option value="F">F</option>
+              <option value="F#">F#</option>
+              <option value="G">G</option>
+              <option value="G#">G#</option>
+              <option value="A">A</option>
+              <option value="A#">A#</option>
+              <option value="B">B</option>
+          </select>
+          <select id="scaleSelector" class="retro-select text-base sm:text-lg focus:outline-none"></select>
+        </div>
       </div>
       
       <div class="flex justify-around items-start p-2 gap-x-4">
