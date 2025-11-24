@@ -394,7 +394,7 @@ for(let i=0;i<oL.length;i++){
         const gC=1/(1+dV*1.5); s_L*=gC; s_R*=gC;
         if (dV < 0.5) {
             const filterMix = (dV - 0.01) / (0.5 - 0.01);
-            const cutoff = 4000 + Math.max(0, filterMix) * ((sr * 0.5) - 4000);
+            const cutoff = 500 + Math.max(0, filterMix) * ((sr * 0.5) - 500);
             const omega = 2 * Math.PI * cutoff / sr;
             const alpha = omega / (omega + 1);
             this.distLpL += alpha * (s_L - this.distLpL);
