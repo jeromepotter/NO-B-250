@@ -22,6 +22,7 @@ const LFO_DEST_NONE = -1;
                    // Misc
                    this.sampleCounter = 0; this.tremoloPhase=0; this.pannerL=1;this.pannerR=1;
                    this.distLpL = 0; this.distLpR = 0;
+                   this.smoothedDist = 0;
                    // Filter state
                    this.filter_x1_L=0; this.filter_x2_L=0; this.filter_y1_L=0; this.filter_y2_L=0;
                    this.filter_x1_R=0; this.filter_x2_R=0; this.filter_y1_R=0; this.filter_y2_R=0;
@@ -382,8 +383,9 @@ for(let i=0;i<oL.length;i++){
     } 
     this.chorusWritePos = (this.chorusWritePos + 1) % this.chorusDelayBufferL.length;
     
-    const dV=currentParams[1];
-    if (dV>0.01){
+    this.smoothedDist += (currentParams[1] - this.smoothedDist) * 0.0025;
+    const dV=this.smoothedDist;
+    if (dV>0.001){
         const distDrive = dV <= 0.5 ? 0.5 * Math.pow(dV / 0.5, 2) : dV;
         const dr=1+distDrive*19;
         const k=2*dr/(1+dr);
@@ -405,6 +407,9 @@ for(let i=0;i<oL.length;i++){
             this.distLpL = s_L;
             this.distLpR = s_R;
         }
+    } else {
+        this.distLpL = s_L;
+        this.distLpR = s_R;
     }
     if(currentParams[5] > 0){ 
          const tremRateHz = 2 + (Math.pow(currentParams[5], 3) * 500);
