@@ -3370,6 +3370,7 @@ function generateAndApplyRandomSound() {
 
            // --- 9. PRESET MENU LOGIC ---
            const presetsToggleButton = document.getElementById('presets-toggle-button');
+           const presetMenuAnchor = presetsToggleButton || presetDisplayContainer;
            const presetsSubmenuContainer = document.getElementById('presets-submenu-container');
            const submenuSaveButton = document.getElementById('submenu-save-button');
            const submenuLoadButton = document.getElementById('submenu-load-button');
@@ -3382,14 +3383,14 @@ function generateAndApplyRandomSound() {
            let removePresetsSubmenuDismissListener = null;
 
            const positionPresetsSubmenu = () => {
-                if (!presetsSubmenuContainer || !presetsToggleButton || !synthContainer) return;
+                if (!presetsSubmenuContainer || !presetMenuAnchor || !synthContainer) return;
                 if (presetsSubmenuContainer.style.display !== 'flex') return;
 
-                const buttonRect = presetsToggleButton.getBoundingClientRect();
+                const anchorRect = presetMenuAnchor.getBoundingClientRect();
                 const containerRect = synthContainer.getBoundingClientRect();
 
-                const left = Math.max(0, buttonRect.left - containerRect.left);
-                const top = buttonRect.bottom - containerRect.top + 8;
+                const left = Math.max(0, anchorRect.left - containerRect.left);
+                const top = anchorRect.bottom - containerRect.top + 8;
 
                 presetsSubmenuContainer.style.left = `${left}px`;
                 presetsSubmenuContainer.style.top = `${top}px`;
@@ -3497,7 +3498,7 @@ function generateAndApplyRandomSound() {
                const willShow = !isVisible;
 
                presetsSubmenuContainer.style.display = willShow ? 'flex' : 'none';
-               presetsToggleButton.classList.toggle('active', willShow);
+               presetsToggleButton?.classList.toggle('active', willShow);
 
                if (willShow) {
                     positionPresetsSubmenu();
@@ -3506,7 +3507,7 @@ function generateAndApplyRandomSound() {
                         if (!isMenuVisible) return;
                         if (event.target.closest('#presets-submenu-container') || event.target.closest('#preset-list-selector') || event.target.closest('#presets-toggle-button') || event.target.closest('#preset-display-container')) return;
                         presetsSubmenuContainer.style.display = 'none';
-                        presetsToggleButton.classList.remove('active');
+                        presetsToggleButton?.classList.remove('active');
                         closePresetDropdown();
                         cleanupPresetsSubmenuDismissListener();
                     };
@@ -3528,7 +3529,7 @@ function generateAndApplyRandomSound() {
                 savePreset();
                 closePresetDropdown();
                 presetsSubmenuContainer.style.display = 'none';
-                presetsToggleButton.classList.remove('active');
+                presetsToggleButton?.classList.remove('active');
                 cleanupPresetsSubmenuDismissListener();
            });
 
@@ -3536,9 +3537,9 @@ function generateAndApplyRandomSound() {
                 loadPresetInput.click();
                 closePresetDropdown();
                 presetsSubmenuContainer.style.display = 'none';
-                presetsToggleButton.classList.remove('active');
+                presetsToggleButton?.classList.remove('active');
                 cleanupPresetsSubmenuDismissListener();
-            });
+           });
 
            const midiConnectButton = document.getElementById('midi-connect-button');
            midiConnectButton?.addEventListener('click', () => {
@@ -3937,7 +3938,7 @@ function generateAndApplyRandomSound() {
                 closePresetDropdown();
                 presetListSelector.blur();
                 presetsSubmenuContainer.style.display = 'none';
-                presetsToggleButton.classList.remove('active');
+                presetsToggleButton?.classList.remove('active');
             });
 
            presetListSelector?.addEventListener('keydown', (e) => {
