@@ -10,6 +10,7 @@
 -  Clamped Reverb and Delay on start up randomization to 30% max because was sick of them
 -  Applied all 4 waveforms to randomization logic for startup randomization, and random arp preset and random sound preset.
 -  Preset display and arrows to quickly select thru non arp non FX presets
+-  MIDI clock out option and more robust clock
   
    ### Fixed
 - ARP presets now override ARP lock and newly implemented LFO lock
