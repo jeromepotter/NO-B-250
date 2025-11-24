@@ -776,7 +776,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
       import { PRESETS } from './presets.js';
 
 
-      const PRESET_NAV_EXCLUDED_CATEGORIES = new Set(['ARPS', 'RANDOM']);
+      const PRESET_NAV_EXCLUDED_CATEGORIES = new Set(['ARPS', 'RANDOM', 'FX']);
       let presetNavigationList = [];
       let currentPresetNavIndex = null;
 
