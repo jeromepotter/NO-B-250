@@ -2,7 +2,17 @@
 
 
 ##Future Plans
-New Oscillators? More Extreme Detune? New Presets?
+ - New Presets
+ - LFO lock? F
+ - Fix Randomization settings to include new waveforms and lower Reverb and Delay
+ - Include LFOs in Random ARPs a certain percentage
+
+## [11.21] - 2025-11-22
+### Added
+- Square, Sine, Triangle to Each Oscillator
+- New Presets Submenu
+- Arp Lock - allowing users to write an arp and select a preset
+
 
 ## [11.21] - 2025-11-21
   ### Changed
