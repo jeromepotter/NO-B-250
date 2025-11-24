@@ -2,6 +2,7 @@
        let audioContext; let synthNode; let isPowerOn = false;
       let allowDuplicateNotesMode = false;
       let isLfoMode = false;
+      let isLfoLockEnabled = false;
       let visualUpdatePending = false;
       let activeMainKnobId = null; // For MOUSE input only
       let lastTouchTime = 0; // Mobile double-trigger fix
@@ -2310,6 +2311,11 @@ lfoState.forEach((lfo, lfoIndex) => {
 
     document.body.classList.toggle('lfo-mode', isLfoMode);
     document.getElementById('lfo-mode-switch')?.classList.toggle('on', isLfoMode);
+    document.getElementById('lfo-lock-switch')?.classList.toggle('on', isLfoLockEnabled);
+    const lfoLockControl = document.getElementById('lfo-lock-control');
+    if (lfoLockControl) {
+        lfoLockControl.style.display = isLfoMode ? 'flex' : 'none';
+    }
 
     const lfoGrid = document.getElementById('lfo-grid-container');
     const fxGrid = document.getElementById('fx-grid-container');
@@ -3280,8 +3286,20 @@ function generateAndApplyRandomSound() {
            arpLockSwitch = document.getElementById('arp-lock-switch');
            allArpControlGrids = document.querySelectorAll('.arp-controls');
            const lfoModeSwitch = document.getElementById('lfo-mode-switch');
+           const lfoLockSwitch = document.getElementById('lfo-lock-switch');
+           const lfoLockControl = document.getElementById('lfo-lock-control');
 
-           lfoModeSwitch?.addEventListener('click', () => toggleLfoModeUI());
+           const toggleLfoLock = () => {
+               isLfoLockEnabled = !isLfoLockEnabled;
+               lfoLockSwitch?.classList.toggle('on', isLfoLockEnabled);
+           };
+
+           if (lfoLockControl && isLfoMode) {
+               lfoLockControl.style.display = 'flex';
+           }
+
+           addTouchListener(lfoLockSwitch, toggleLfoLock);
+           addTouchListener(lfoModeSwitch, () => toggleLfoModeUI());
            new ResizeObserver(drawLfoCables).observe(synthContainer);
       
            populateScales();
