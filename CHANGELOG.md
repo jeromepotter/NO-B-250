@@ -3,11 +3,18 @@
 
 ##Future Plans
  - New Presets
- - LFO lock? F
- - Fix Randomization settings to include new waveforms and lower Reverb and Delay
- - Include LFOs in Random ARPs a certain percentage
+ 
+## [11.23] - 2025-11-23
+### Added
+-  LFO lock with similar logic to ARP lock
+-  Clamped Reverb and Delay on start up randomization to 30% max because was sick of them
+-  Applied all 4 waveforms to randomization logic for startup randomization, and random arp preset and random sound preset.
+-  Preset display and arrows to quickly select thru non arp non FX presets
+  
+   ### Fixed
+- ARP presets now override ARP lock and newly implemented LFO lock
 
-## [11.21] - 2025-11-22
+## [11.22] - 2025-11-22
 ### Added
 - Square, Sine, Triangle to Each Oscillator
 - New Presets Submenu
