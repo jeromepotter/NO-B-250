@@ -2143,7 +2143,7 @@ lfoState.forEach((lfo, lfoIndex) => {
            if (!displayText) {
                presetNameDisplay.textContent = 'PRESET';
                presetNameDisplay.title = '';
-               if (presetDisplayContainer) presetDisplayContainer.style.display = 'none';
+               if (presetDisplayContainer) presetDisplayContainer.style.display = 'flex';
                syncPresetNavigationState(null, null, sourceType);
                return;
            }
