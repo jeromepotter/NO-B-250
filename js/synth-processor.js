@@ -24,6 +24,10 @@ const LFO_DEST_NONE = -1;
                    // Filter state
                    this.filter_x1_L=0; this.filter_x2_L=0; this.filter_y1_L=0; this.filter_y2_L=0;
                    this.filter_x1_R=0; this.filter_x2_R=0; this.filter_y1_R=0; this.filter_y2_R=0;
+                   this.smoothedCutoff1 = 0.5;
+                   this.smoothedCutoff2 = 0.5;
+                   this.smoothedRes1 = 0.0;
+                   this.smoothedRes2 = 0.0;
                    this.filterCoeffs={b0:1,b1:0,b2:0,a1:0,a2:0}; this.updateFilterCoefficients(this.filterCoeffs, 1.0, 0.0);
                    this.filterOsc1Coeffs={b0:1,b1:0,b2:0,a1:0,a2:0}; this.filter_osc1_x1=0; this.filter_osc1_x2=0; this.filter_osc1_y1=0; this.filter_osc1_y2=0; this.updateFilterCoefficients(this.filterOsc1Coeffs, 1.0, 0.0);
                    this.filterOsc2Coeffs={b0:1,b1:0,b2:0,a1:0,a2:0}; this.filter_osc2_x1=0; this.filter_osc2_x2=0; this.filter_osc2_y1=0; this.filter_osc2_y2=0; this.updateFilterCoefficients(this.filterOsc2Coeffs, 1.0, 0.0);
@@ -332,10 +336,20 @@ for(let i=0;i<oL.length;i++){
     const s1_e = Math.tanh(s1 * this.envValue1 * drive);
     const s2_e = Math.tanh(s2 * this.envValue2 * drive);
     
-    this.updateFilterCoefficients(this.filterOsc1Coeffs, currentParams[20], currentParams[28]);
+    this.smoothedCutoff1 += (currentParams[20] - this.smoothedCutoff1) * 0.05;
+    this.smoothedRes1 += (currentParams[28] - this.smoothedRes1) * 0.05; // Smooth Res
+    
+    // Pass BOTH smoothed values
+    this.updateFilterCoefficients(this.filterOsc1Coeffs, this.smoothedCutoff1, this.smoothedRes1);
+
     let s1_f=0; if (this.envStage1 !== 'off'){ const c1=this.filterOsc1Coeffs; s1_f=c1.b0*s1_e+c1.b1*this.filter_osc1_x1+c1.b2*this.filter_osc1_x2-c1.a1*this.filter_osc1_y1-c1.a2*this.filter_osc1_y2; this.filter_osc1_x2=this.filter_osc1_x1;this.filter_osc1_x1=s1_e;this.filter_osc1_y2=this.filter_osc1_y1;this.filter_osc1_y1=s1_f; } else { this.filter_osc1_x1=0;this.filter_osc1_x2=0;this.filter_osc1_y1=0;this.filter_osc1_y2=0; }
     
-    this.updateFilterCoefficients(this.filterOsc2Coeffs, currentParams[21], currentParams[29]);
+    // Voice 2: Smooth Cutoff AND Resonance
+    this.smoothedCutoff2 += (currentParams[21] - this.smoothedCutoff2) * 0.05;
+    this.smoothedRes2 += (currentParams[29] - this.smoothedRes2) * 0.05; // Smooth Res
+
+    // Pass BOTH smoothed values
+    this.updateFilterCoefficients(this.filterOsc2Coeffs, this.smoothedCutoff2, this.smoothedRes2);
     let s2_f=0; if (this.envStage2 !== 'off'){ const c2=this.filterOsc2Coeffs; s2_f=c2.b0*s2_e+c2.b1*this.filter_osc2_x1+c2.b2*this.filter_osc2_x2-c2.a1*this.filter_osc2_y1-c2.a2*this.filter_osc2_y2; this.filter_osc2_x2=this.filter_osc2_x1;this.filter_osc2_x1=s2_e;this.filter_osc2_y2=this.filter_osc2_y1;this.filter_osc2_y1=s2_f; } else { this.filter_osc2_x1=0;this.filter_osc2_x2=0;this.filter_osc2_y1=0;this.filter_osc2_y2=0; }
     
     s1_f *= currentParams[26] * 2.0; s2_f *= currentParams[27] * 2.0;
@@ -420,6 +434,7 @@ return true;
 }
 }
 registerProcessor('synth-processor', SynthProcessor);
+
 
 
 
