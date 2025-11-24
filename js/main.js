@@ -3390,7 +3390,7 @@ function generateAndApplyRandomSound() {
                 const containerRect = synthContainer.getBoundingClientRect();
 
                 const left = Math.max(0, anchorRect.left - containerRect.left);
-                const top = anchorRect.bottom - containerRect.top + 8;
+                const top = anchorRect.top - containerRect.top;
 
                 presetsSubmenuContainer.style.left = `${left}px`;
                 presetsSubmenuContainer.style.top = `${top}px`;
