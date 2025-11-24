@@ -381,7 +381,17 @@ for(let i=0;i<oL.length;i++){
     } 
     this.chorusWritePos = (this.chorusWritePos + 1) % this.chorusDelayBufferL.length;
     
-    const dV=currentParams[1]; if (dV>0.01){ const dr=1+dV*19; const k=2*dr/(1+dr); s_L=(1+k)*s_L/(1+k*Math.abs(s_L)); s_R=(1+k)*s_R/(1+k*Math.abs(s_R)); const nS=Math.max(2,Math.floor(Math.pow(1-dV,2.5)*64)); const sS=2.0/nS; s_L=sS*Math.floor(s_L/sS+0.5); s_R=sS*Math.floor(s_R/sS+0.5); const gC=1/(1+dV*1.5); s_L*=gC; s_R*=gC; }
+    const dV=currentParams[1];
+    if (dV>0.01){
+        const distDrive = dV <= 0.5 ? 0.5 * Math.pow(dV / 0.5, 2) : dV;
+        const dr=1+distDrive*19;
+        const k=2*dr/(1+dr);
+        s_L=(1+k)*s_L/(1+k*Math.abs(s_L)); s_R=(1+k)*s_R/(1+k*Math.abs(s_R));
+        const nS=Math.max(2,Math.floor(Math.pow(1-distDrive,2.5)*64));
+        const sS=2.0/nS;
+        s_L=sS*Math.floor(s_L/sS+0.5); s_R=sS*Math.floor(s_R/sS+0.5);
+        const gC=1/(1+dV*1.5); s_L*=gC; s_R*=gC;
+    }
     if(currentParams[5] > 0){ 
          const tremRateHz = 2 + (Math.pow(currentParams[5], 3) * 500);
          const tD = currentParams[5] * 0.8; 
