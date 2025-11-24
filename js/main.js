@@ -3200,6 +3200,13 @@ function generateAndApplyRandomSound() {
 
            addTouchListener(presetPrevButton, () => handlePresetNavigation(-1));
            addTouchListener(presetNextButton, () => handlePresetNavigation(1));
+           addTouchListener(presetNameDisplay, (event) => handlePresetToggle(event));
+           presetNameDisplay?.addEventListener('keydown', (event) => {
+               if (event.key === 'Enter' || event.key === ' ') {
+                   event.preventDefault();
+                   handlePresetToggle(event);
+               }
+           });
 
            // --- 4. FIX: POWER SWITCH ---
            addTouchListener(powerSwitch, () => {
@@ -3440,7 +3447,7 @@ function generateAndApplyRandomSound() {
                     const handler = (event) => {
                         const isMenuVisible = presetsSubmenuContainer.style.display === 'flex';
                         if (!isMenuVisible) return;
-                        if (event.target.closest('#presets-submenu-container') || event.target.closest('#preset-list-selector') || event.target.closest('#presets-toggle-button')) return;
+                        if (event.target.closest('#presets-submenu-container') || event.target.closest('#preset-list-selector') || event.target.closest('#presets-toggle-button') || event.target.closest('#preset-display-container')) return;
                         presetsSubmenuContainer.style.display = 'none';
                         presetsToggleButton.classList.remove('active');
                         closePresetDropdown();
