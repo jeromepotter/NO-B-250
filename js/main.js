@@ -31,6 +31,7 @@
         let KNOB_ID_TO_NAME_MAP = {}; // NEW: Populated at init
         const MAIN_LFO_DEST_IDS = { 0: 300, 1: 301 };
         const LFO_DEST_TO_MAIN_KNOB = { 300: 0, 301: 1 };
+        const ARP_LOCKED_LFO_DEST_IDS = [16, 17, 18, 19, 22, 23, 24, 25, MAIN_LFO_DEST_IDS[0], MAIN_LFO_DEST_IDS[1]];
         const LFO_DEST_NONE = -1;
         const LFO_CABLE_COLORS = ['#FF9900', '#42A5F5', '#EC407A', '#9CCC65'];
         const LFO_CABLE_TARGET_COLORS = ['#FF1A00', '#FFFFFF', '#8E24AA', '#8B5A2B'];
@@ -51,6 +52,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
             // Dests
             114: { lfo: 0, param: 'dest' }, 115: { lfo: 1, param: 'dest' }, 102: { lfo: 2, param: 'dest' }, 107: { lfo: 3, param: 'dest' },
         };
+
+        const LFO_CONTROL_KNOB_IDS = new Set(Object.keys(LFO_KNOB_MAP).map(id => parseInt(id, 10)));
 
         const LFO_RATE_KNOB_IDS = [108, 109, 110, 111];
         const MIN_LFO_RATE_HZ = 0.01;
@@ -96,6 +99,84 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const destDisplay = document.getElementById(`lfo-dest-display-${lfoIndex}`);
             if (!destDisplay) return;
             destDisplay.textContent = formatLfoDestDisplay(getLfoDestChain(lfoState[lfoIndex]));
+        }
+
+        function getLfoKnobId(lfoIndex, param) {
+            const entry = Object.entries(LFO_KNOB_MAP).find(([, cfg]) => cfg.lfo === lfoIndex && cfg.param === param);
+            return entry ? parseInt(entry[0], 10) : null;
+        }
+
+        function sanitizeLfoDestinations(destinations) {
+            return (Array.isArray(destinations) ? destinations : []).filter(dest => !LFO_CONTROL_KNOB_IDS.has(dest));
+        }
+
+        function captureArpLockedLfoState() {
+            const preserved = [];
+            lfoState.forEach((lfo, index) => {
+                const destChain = sanitizeLfoDestinations(getLfoDestChain(lfo));
+                if (!destChain.length || !destChain.some(dest => ARP_LOCKED_LFO_DEST_IDS.includes(dest))) return;
+
+                preserved.push({
+                    index,
+                    rate: lfo.rate,
+                    depth: lfo.depth,
+                    wave: lfo.wave,
+                    destChain,
+                    tempoSync: lfoTempoLinkState[index]?.enabled ?? false,
+                    storedFreeValue: lfoTempoLinkState[index]?.storedFreeValue ?? 0.5,
+                });
+            });
+            return preserved;
+        }
+
+        function restorePreservedLfos(preservedLfos) {
+            if (!Array.isArray(preservedLfos) || preservedLfos.length === 0) return;
+
+            preservedLfos.forEach(({ index, rate, depth, wave, destChain, tempoSync, storedFreeValue }) => {
+                if (!lfoState[index]) return;
+
+                lfoState[index].rate = rate ?? 0;
+                lfoState[index].depth = depth ?? 0;
+                lfoState[index].wave = wave ?? 0;
+                setLfoDestChain(index, sanitizeLfoDestinations(destChain));
+
+                const rateKnobId = getLfoKnobId(index, 'rate');
+                const depthKnobId = getLfoKnobId(index, 'depth');
+                const waveKnobId = getLfoKnobId(index, 'wave');
+
+                if (rateKnobId !== null) {
+                    const rateValue = tempoSync ? (storedFreeValue ?? rate ?? 0) : (rate ?? 0);
+                    setFxValue(rateKnobId, rateValue, true);
+                    if (!tempoSync && storedFreeValue !== undefined) {
+                        lfoTempoLinkState[index].storedFreeValue = clamp(storedFreeValue, 0, 1);
+                    }
+                }
+                if (depthKnobId !== null) setFxValue(depthKnobId, depth ?? 0, true);
+                if (waveKnobId !== null) {
+                    const waveIndex = Math.max(0, Math.min(LFO_WAVEFORMS.length - 1, wave ?? 0));
+                    const waveKnobValue = (waveIndex + 0.5) / LFO_WAVEFORMS.length;
+                    setFxValue(waveKnobId, waveKnobValue, true);
+                    const waveDisplay = document.getElementById(`lfo-wave-display-${index}`);
+                    if (waveDisplay) waveDisplay.textContent = LFO_WAVEFORMS[waveIndex];
+                }
+
+                if (tempoSync) {
+                    setLfoTempoSync(index, true, clamp(storedFreeValue ?? lfoTempoLinkState[index].storedFreeValue ?? 0.5, 0, 1));
+                }
+
+                updateLfoDestDisplay(index);
+
+                if (synthNode) {
+                    synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'rate', value: lfoState[index].rate } });
+                    synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'depth', value: lfoState[index].depth } });
+                    synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'wave', value: lfoState[index].wave } });
+                    synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'destChain', value: getLfoDestChain(lfoState[index]) } });
+                }
+            });
+
+            if (preservedLfos.some(lfo => lfo.destChain?.some(dest => LFO_DEST_TO_MAIN_KNOB[dest]))) {
+                ensureLfoAnimationRunning();
+            }
         }
 
         function updateVoiceWaveDisplay(voiceIndex, value) {
@@ -151,7 +232,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         function setLfoDestChain(lfoIndex, rawDestinations) {
             const normalizedChain = (Array.isArray(rawDestinations) ? rawDestinations : (rawDestinations === undefined ? [] : [rawDestinations]))
                 .map(normalizePresetLfoDest)
-                .filter(d => Number.isFinite(d) && d !== LFO_DEST_NONE);
+                .filter(d => Number.isFinite(d) && d !== LFO_DEST_NONE && !LFO_CONTROL_KNOB_IDS.has(d));
             const uniqueChain = [];
             normalizedChain.forEach(dest => {
                 if (!uniqueChain.includes(dest)) uniqueChain.push(dest);
@@ -613,14 +694,14 @@ let liveLfoOutputs = [0, 0, 0, 0];
         }
     });
 }
-        function resetLfoTempoSyncState() {
+        function resetLfoTempoSyncState(protectedLfoIndices = new Set()) {
             lfoTempoLinkState.forEach((link, idx) => {
-                if (link.enabled) {
+                if (link.enabled && !protectedLfoIndices.has(idx)) {
                     setLfoTempoSync(idx, false);
                 }
                 const rateKnobId = LFO_RATE_KNOB_IDS[idx];
                 const knobData = fxKnobData[rateKnobId];
-                if (knobData) {
+                if (knobData && !protectedLfoIndices.has(idx)) {
                     link.storedFreeValue = knobData.value;
                     updateLfoRateDisplay(idx, knobData.value, false);
                 }
@@ -2409,12 +2490,21 @@ function applyPreset(p) {
 
            if (!isPowerOn) powerOn();
 
+           const preservedArpLockedLfos = isArpLockEnabled ? captureArpLockedLfoState() : [];
+           const preservedLfoIndices = new Set(preservedArpLockedLfos.map(l => l.index));
+           const protectedLfoFxIds = new Set();
+           preservedArpLockedLfos.forEach(({ index }) => {
+               Object.entries(LFO_KNOB_MAP).forEach(([id, info]) => {
+                   if (info.lfo === index) protectedLfoFxIds.add(parseInt(id, 10));
+               });
+           });
+
            // --- 1. STOP old arps completely FIRST ---
            stopArpeggiator(0);
            stopArpeggiator(1);
 
            // --- 2. WIPE all knobs to a clean state ---
-           resetAllFxToDefaults();
+           resetAllFxToDefaults(protectedLfoFxIds, preservedLfoIndices);
 
            // --- 3. RESTORE tempo mode before applying rate-dependent settings ---
            const presetTempoMode = p.tempoMode ?? TEMPO_MODE_BPM;
@@ -2444,6 +2534,7 @@ function applyPreset(p) {
             if (p.lfoState && Array.isArray(p.lfoState)) {
                // Reset all LFOs to defaults first to ensure no partial state lingers if the preset has fewer than 4 LFOs
                lfoState.forEach((lfo, index) => {
+                    if (preservedLfoIndices.has(index)) return;
                     lfo.rate = 0; lfo.depth = 0; lfo.wave = 0;
                     setLfoDestChain(index, []);
                     if (synthNode) {
@@ -2455,10 +2546,12 @@ function applyPreset(p) {
 
                p.lfoState.forEach((savedLfo, index) => {
                    if (index < lfoState.length) {
+                       if (preservedLfoIndices.has(index)) return;
                        lfoState[index].rate = savedLfo.rate ?? 0;
                        lfoState[index].depth = savedLfo.depth ?? 0;
                        lfoState[index].wave = savedLfo.wave ?? 0;
-                       const savedDestChain = Array.isArray(savedLfo.destChain) && savedLfo.destChain.length ? savedLfo.destChain : [savedLfo.dest];
+                       const rawDestChain = Array.isArray(savedLfo.destChain) && savedLfo.destChain.length ? savedLfo.destChain : [savedLfo.dest];
+                       const savedDestChain = sanitizeLfoDestinations(rawDestChain);
                        setLfoDestChain(index, savedDestChain);
 
                        const storedFreeValue = clamp(savedLfo.storedFreeValue ?? lfoTempoLinkState[index].storedFreeValue ?? 0.5, 0, 1);
@@ -2466,10 +2559,10 @@ function applyPreset(p) {
                        if (savedLfo.tempoSync) {
                            presetTempoSyncTargets.push({ index, storedFreeValue });
                        }
-                       
-                       const rateKnobId = Object.keys(LFO_KNOB_MAP).find(id => LFO_KNOB_MAP[id].lfo === index && LFO_KNOB_MAP[id].param === 'rate');
-                       const depthKnobId = Object.keys(LFO_KNOB_MAP).find(id => LFO_KNOB_MAP[id].lfo === index && LFO_KNOB_MAP[id].param === 'depth');
-                       const waveKnobId = Object.keys(LFO_KNOB_MAP).find(id => LFO_KNOB_MAP[id].lfo === index && LFO_KNOB_MAP[id].param === 'wave');
+
+                       const rateKnobId = getLfoKnobId(index, 'rate');
+                       const depthKnobId = getLfoKnobId(index, 'depth');
+                       const waveKnobId = getLfoKnobId(index, 'wave');
                        
                        if (rateKnobId) {
                            const rateKnobValue = savedLfo.tempoSync ? storedFreeValue : lfoState[index].rate;
@@ -2500,9 +2593,10 @@ function applyPreset(p) {
                }
            } else { // Reset LFOs for older presets (THE FIX IS HERE)
                lfoState.forEach((lfo, index) => {
+                   if (preservedLfoIndices.has(index)) return;
                    lfo.rate = 0; lfo.depth = 0; lfo.wave = 0;
                    setLfoDestChain(index, []);
-                   
+
                    // *** FORCE UPDATE THE AUDIO ENGINE ***
                    if (synthNode) {
                        synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'rate', value: 0 } });
@@ -2569,6 +2663,10 @@ function applyPreset(p) {
                presetTempoSyncTargets.forEach(({ index, storedFreeValue }) => {
                    setLfoTempoSync(index, true, storedFreeValue);
                });
+           }
+
+           if (isArpLockEnabled && preservedArpLockedLfos.length > 0) {
+               restorePreservedLfos(preservedArpLockedLfos);
            }
 
            updateGlobalArpVisibility();
@@ -2641,10 +2739,11 @@ function setFxValue(id, value, forceVisualUpdate = false) {
             }
         }
 
-function resetAllFxToDefaults() {
-           resetLfoTempoSyncState();
+function resetAllFxToDefaults(protectedFxIds = new Set(), protectedLfoIndices = new Set()) {
+           resetLfoTempoSyncState(protectedLfoIndices);
            Object.keys(fxKnobData).forEach(idStr => {
                const id = parseInt(idStr, 10);
+               if (protectedFxIds.has(id)) return;
                if (isArpLockEnabled && [16, 17, 18, 19, 22, 23, 24, 25].includes(id)) return;
                let defaultValue = 0.0;
                if (id === 2) defaultValue = 1.0;
