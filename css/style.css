@@ -52,6 +52,29 @@ body { font-family: 'Poppins', sans-serif; background-color: #665; touch-action:
         white-space: normal;
         cursor: pointer;
       }
+      .preset-nav-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.25rem;
+        height: 2.25rem;
+        padding: 0;
+        color: #ffffff;
+        font-family: 'Poppins', 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+        line-height: 1;
+        letter-spacing: 0;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+      }
+      .preset-nav-button:hover {
+        color: #facc15;
+      }
+      .preset-nav-icon {
+        width: 0.9rem;
+        height: 0.9rem;
+        stroke: currentColor;
+        stroke-width: 1.6;
+      }
   .retro-select:disabled { opacity: 0.5; cursor: not-allowed; background-color: #374151; }
       .retro-select option { background-color: #000000; }
       .retro-select:focus { outline: 2px solid #ffffff; }
