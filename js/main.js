@@ -766,7 +766,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
        let currentArpOrder = "As Played";
       
        // --- DOM Elements ---
-       let synthContainer, powerSwitch, keySelector, scaleSelector, customScaleBuilder, savePresetButton, loadPresetInput, arpSyncSwitch;
+      let synthContainer, powerSwitch, keySelector, scaleSelector, customScaleBuilder, savePresetButton, loadPresetInput, arpSyncSwitch;
+      let presetNameDisplay;
        let masterArpControls, arpOrderSelector, arpLockSwitch, lfoLockSwitch;
        let allArpControlGrids;
        let rateDisplayRows = [];
@@ -2062,7 +2063,28 @@ lfoState.forEach((lfo, lfoIndex) => {
            });
            knobState.forEach(k => updateStateFromTotalAngle(k.id));
        }
-      
+
+       function updatePresetDisplay(name = '', sourceType = 'factory') {
+           if (!presetNameDisplay) {
+               presetNameDisplay = document.getElementById('preset-display');
+           }
+           if (!presetNameDisplay) return;
+
+           let displayText = (name || '').trim();
+           if (sourceType === 'user' && displayText.toLowerCase().endsWith('.json')) {
+               displayText = displayText.slice(0, -5);
+           }
+
+           if (!displayText) {
+               presetNameDisplay.textContent = 'PRESET';
+               presetNameDisplay.title = '';
+               return;
+           }
+
+           presetNameDisplay.textContent = displayText;
+           presetNameDisplay.title = displayText;
+       }
+
      function savePreset() {
            const preset = {
                tempoMode: tempoMode,
@@ -2092,7 +2114,7 @@ lfoState.forEach((lfo, lfoIndex) => {
        function loadPreset(e) {
            const file=e.target.files[0]; if(!file)return;
            const reader=new FileReader();
-           reader.onload=function(e){try{const p=JSON.parse(e.target.result);applyPreset(p);}catch(err){console.error("Error parsing preset:",err);}};
+           reader.onload=function(loadEvent){try{const p=JSON.parse(loadEvent.target.result);applyPreset(p);updatePresetDisplay(file.name,'user');}catch(err){console.error("Error parsing preset:",err);}};
            reader.readAsText(file); e.target.value='';
        }
       
@@ -2721,6 +2743,7 @@ function resetAllFxToDefaults({ skipArpKnobs = false, skipLfoKnobs = false } = {
 
 function generateAndApplyRandomPreset() {
     if (!isPowerOn) powerOn();
+    updatePresetDisplay('RANDOM ARP', 'random');
 
     // 1. --- Foundation: Pick a random Key and Scale ---
     const randomKey = NOTES[Math.floor(Math.random() * NOTES.length)];
@@ -2840,6 +2863,7 @@ function snapArpNotesToScale() {
        }
 function generateAndApplyRandomSound() {
             if (!isPowerOn) powerOn();
+            updatePresetDisplay('RANDOM SOUND', 'random');
             const randomKey = NOTES[Math.floor(Math.random() * NOTES.length)];
             const availableScales = Object.keys(SCALES).filter(s => s !== 'Blues' && s !== 'Custom');
             const randomScaleName = availableScales[Math.floor(Math.random() * availableScales.length)];
@@ -3043,6 +3067,8 @@ function generateAndApplyRandomSound() {
            recordButton = document.getElementById('record-button');
            recordMidiButton = document.getElementById('record-midi-button');
            loadPresetInput = document.getElementById('load-preset-input');
+           presetNameDisplay = document.getElementById('preset-display');
+           updatePresetDisplay();
            
            // --- 3. TOUCH HELPER FUNCTION ---
            const addTouchListener = (element, callback) => {
@@ -3706,8 +3732,10 @@ function generateAndApplyRandomSound() {
                 if (!presetName) return;
 
                 if (presetName === "RANDOM ARP") {
+                    updatePresetDisplay('RANDOM ARP', 'random');
                     generateAndApplyRandomPreset();
                 } else if (presetName === "RANDOM SOUND") {
+                    updatePresetDisplay('RANDOM SOUND', 'random');
                     generateAndApplyRandomSound();
                 } else {
                     const groupName = selectedOption.dataset.group || activePresetCategory;
@@ -3752,6 +3780,7 @@ function generateAndApplyRandomSound() {
                     }
                     const isArpCategoryPreset = groupName === 'ARPS';
                     applyPreset(fullPreset, isArpCategoryPreset);
+                    updatePresetDisplay(presetName, 'factory');
                 }
 
                 closePresetDropdown();
