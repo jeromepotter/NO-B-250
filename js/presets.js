@@ -502,6 +502,44 @@ export const PRESETS = {
                                 arp2: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0.9596, notes: [], transpose: 0 }
                             }
                         },
+        'FLUTE': {
+            tempoMode: "BPM",
+            key: "D#",
+            scale: "Minor",
+            customScale: [],
+            allowDuplicateNotesMode: false,
+            isLfoMode: false,
+            lfoState: [
+                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
+                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
+                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
+                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 }
+            ],
+            knobSettings: [
+                { id: 0, totalAngle: 1802.4482325643417 },
+                { id: 1, totalAngle: 2376.2911988225196 }
+            ],
+            fxSettings: [
+                { id: 0, value: 0 }, { id: 1, value: 0.04972674033158453 }, { id: 2, value: 0.859952307165641 }, { id: 3, value: 0.5706124961998139 },
+                { id: 4, value: 0.8616402216384366 }, { id: 5, value: 0 }, { id: 6, value: 0.1530706328547365 }, { id: 7, value: 0.7444444444444445 },
+                { id: 8, value: 0.26916028490717897 }, { id: 9, value: 0.2635012596449118 }, { id: 10, value: 0.760246167048529 }, { id: 11, value: 0.6574917227604731 },
+                { id: 12, value: 0.20899896894588485 }, { id: 13, value: 0.1799611966097766 }, { id: 14, value: 0.6916653242841634 }, { id: 15, value: 0.29671481201377514 },
+                { id: 16, value: 0.3097952045381368 }, { id: 17, value: 0.7234583420520097 }, { id: 18, value: 0.7146464160511354 }, { id: 19, value: 0.3236207581431463 },
+                { id: 20, value: 0.8279990474359983 }, { id: 21, value: 0.826747765806065 }, { id: 22, value: 0.7112010730710777 }, { id: 23, value: 0.8413746013338788 },
+                { id: 24, value: 0.5 }, { id: 25, value: 0.5 }, { id: 26, value: 0.5 }, { id: 27, value: 0.5 },
+                { id: 28, value: 0.6156344671394546 }, { id: 29, value: 0.5401734351009281 }, { id: 30, value: 0.6861111111111111 }, { id: 31, value: 0.625 },
+                { id: 100, value: 0 }, { id: 101, value: 0 }, { id: 102, value: 0 }, { id: 103, value: 0 },
+                { id: 104, value: 0 }, { id: 105, value: 0 }, { id: 106, value: 0 }, { id: 107, value: 0 },
+                { id: 108, value: 0 }, { id: 109, value: 0 }, { id: 110, value: 0 }, { id: 111, value: 0 },
+                { id: 112, value: 0 }, { id: 113, value: 0 }, { id: 114, value: 0 }, { id: 115, value: 0 }
+            ],
+            arpSettings: {
+                isArpRateSynced: false,
+                currentArpOrder: "Up/Down",
+                arp1: { isOn: true, isArpOn: false, isSweepMode: true, octaves: 2, feelValue: 0.7112010730710777, notes: [], transpose: 0 },
+                arp2: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 1, feelValue: 0.8413746013338788, notes: [], transpose: 0 }
+            }
+        },
         'KOTO': {
             tempoMode: "BPM",
             key: "C",
