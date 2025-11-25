@@ -368,15 +368,27 @@ for(let i=0;i<oL.length;i++){
     this.distWet += (targetDistWet - this.distWet) * 0.01;
     let distL = s_L;
     let distR = s_R;
-    if (dV>0.001){
+    if (dV > 0.001) {
         const distDrive = dV <= 0.5 ? 0.5 * Math.pow(dV / 0.5, 2) : dV;
-        const dr=1+distDrive*19;
-        const k=2*dr/(1+dr);
-        distL=(1+k)*distL/(1+k*Math.abs(distL)); distR=(1+k)*distR/(1+k*Math.abs(distR));
-        const nS=Math.max(2,Math.floor(Math.pow(1-distDrive,2.5)*64));
-        const sS=2.0/nS;
-        distL=sS*Math.floor(distL/sS+0.5); distR=sS*Math.floor(distR/sS+0.5);
-        const gC=1/(1+dV*1.5); distL*=gC; distR*=gC;
+        const dr = 1 + distDrive * 19;
+        const k = 2 * dr / (1 + dr);
+        
+        // 1. Analog Saturation
+        distL = (1 + k) * distL / (1 + k * Math.abs(distL));
+        distR = (1 + k) * distR / (1 + k * Math.abs(distR));
+
+        // 2. Bit-Crushing (High Definition / Subtle Mode)
+        const nS = Math.max(2, Math.floor(Math.pow(1 - distDrive, 2.5) * 1024));
+        const sS = 2.0 / nS;
+        distL = sS * Math.floor(distL / sS + 0.5);
+        distR = sS * Math.floor(distR / sS + 0.5);
+
+        // 3. Gain Comp
+        const gC = 1 / (1 + dV * 1.5);
+        distL *= gC;
+        distR *= gC;
+
+        // 4. Adaptive Filter (Anti-Fizz)
         if (dV < 0.5) {
             const filterMix = (dV - 0.01) / (0.5 - 0.01);
             const cutoff = 500 + Math.max(0, filterMix) * ((sr * 0.5) - 500);
@@ -390,7 +402,21 @@ for(let i=0;i<oL.length;i++){
             this.distLpL = distL;
             this.distLpR = distR;
         }
+
+        // 5. DC Blocker (Crucial for safety)
+        const R = 0.995; 
+        const yL = distL - this.dcBlocker.x1L + R * this.dcBlocker.y1L;
+        this.dcBlocker.x1L = distL;
+        this.dcBlocker.y1L = yL;
+        distL = yL;
+
+        const yR = distR - this.dcBlocker.x1R + R * this.dcBlocker.y1R;
+        this.dcBlocker.x1R = distR;
+        this.dcBlocker.y1R = yR;
+        distR = yR;
+
     } else {
+        // Distortion Off - Passthrough filter state
         this.distLpL = distL;
         this.distLpR = distR;
     }
@@ -495,6 +521,7 @@ return true;
 }
 }
 registerProcessor('synth-processor', SynthProcessor);
+
 
 
 
