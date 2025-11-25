@@ -1270,15 +1270,38 @@ let liveLfoOutputs = [0, 0, 0, 0];
            },
       };
 
+      function decodeCompressedPreset(encodedPreset) {
+           if (!encodedPreset) return null;
+           try {
+               const decompressed = LZString.decompressFromEncodedURIComponent(encodedPreset);
+               if (decompressed) return JSON.parse(decompressed);
+           } catch (err) {
+               console.error('Failed to decode compressed preset from URL', err);
+           }
+           return null;
+      }
+
       function encodePresetForUrl(presetObj) {
            const json = JSON.stringify(presetObj);
-           return LZString.compressToEncodedURIComponent(json) || '';
+           const compressed = LZString.compressToEncodedURIComponent(json) || '';
+
+           // Validate compression so bad strings never break sharing
+           if (compressed && decodeCompressedPreset(compressed)) {
+               return compressed;
+           }
+
+           console.warn('Compressed preset failed validation, falling back to base64 url encoding');
+           return btoa(unescape(encodeURIComponent(json)))
+               .replace(/\+/g, '-')
+               .replace(/\//g, '_')
+               .replace(/=+$/, '');
       }
 
       function decodePresetFromUrl(encodedPreset) {
            if (!encodedPreset) return null;
-           const decompressed = LZString.decompressFromEncodedURIComponent(encodedPreset);
-           if (decompressed) return JSON.parse(decompressed);
+
+           const decompressedPreset = decodeCompressedPreset(encodedPreset);
+           if (decompressedPreset) return decompressedPreset;
 
            // Backward compatibility: fall back to legacy base64 URLs
            const fromBase64Url = (base64Url) => base64Url
