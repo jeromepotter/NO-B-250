@@ -413,7 +413,13 @@ for(let i=0;i<oL.length;i++){
             this.distLpR += alpha * (distR - this.distLpR);
             distL = this.distLpL;
             distR = this.distLpR;
-            const R = 0.995; // Coefficient for ~10Hz cutoff at 44.1kHz
+            
+        // --- DC BLOCKER END --
+        } else {
+            this.distLpL = distL;
+            this.distLpR = distR;
+        }
+               const R = 0.995; // Coefficient for ~10Hz cutoff at 44.1kHz
         // Left Channel
         const yL = distL - this.dcBlocker.x1L + R * this.dcBlocker.y1L;
         this.dcBlocker.x1L = distL;
@@ -425,11 +431,6 @@ for(let i=0;i<oL.length;i++){
         this.dcBlocker.x1R = distR;
         this.dcBlocker.y1R = yR;
         distR = yR;
-        // --- DC BLOCKER END --
-        } else {
-            this.distLpL = distL;
-            this.distLpR = distR;
-        }
     } else {
         this.distLpL = distL;
         this.distLpR = distR;
@@ -489,6 +490,7 @@ return true;
 }
 }
 registerProcessor('synth-processor', SynthProcessor);
+
 
 
 
