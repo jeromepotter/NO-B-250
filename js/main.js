@@ -2230,7 +2230,7 @@ lfoState.forEach((lfo, lfoIndex) => {
            }
 
            const isArpCategoryPreset = category === 'ARPS';
-           applyPreset(fullPreset, isArpCategoryPreset);
+           applyPreset(fullPreset, isArpCategoryPreset, options);
            return true;
        }
 
@@ -2615,14 +2615,16 @@ lfoState.forEach((lfo, lfoIndex) => {
         return LFO_DEST_NONE;
     }
 
-function applyPreset(p, isArpCategoryPreset = false) {
+function applyPreset(p, isArpCategoryPreset = false, options = {}) {
            if (!p) return;
+
+           const { skipPowerOn = false } = options;
 
            const ignoreLocks = !!isArpCategoryPreset;
            const arpLockActive = ignoreLocks ? false : isArpLockEnabled;
            const lfoLockActive = ignoreLocks ? false : isLfoLockEnabled;
 
-           if (!isPowerOn) powerOn();
+           if (!skipPowerOn && !isPowerOn) powerOn();
 
            // --- 1. STOP old arps completely FIRST ---
            stopArpeggiator(0);
