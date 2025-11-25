@@ -832,7 +832,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
       import { PRESETS } from './presets.js';
 
 
-      const PRESET_NAV_EXCLUDED_CATEGORIES = new Set(['ARPS', 'RANDOM', 'FX']);
+      const PRESET_NAV_EXCLUDED_CATEGORIES = new Set(['ARPS', 'RANDOM', 'FX', 'INIT']);
       let presetNavigationList = [];
       let currentPresetNavIndex = null;
 
@@ -3992,10 +3992,9 @@ function generateAndApplyRandomSound() {
            });
 
            updateGlobalArpVisibility();
-           const initialPresetCategory = 'LEADS';
-           const initialPresetName = 'MARIMBA';
+           const initialPresetCategory = 'KEYS';
+           const initialPresetName = 'DREAMY MALLET';
            if (applyFactoryPreset(initialPresetCategory, initialPresetName, { skipPowerOn: true })) {
-               setActivePresetCategory(initialPresetCategory);
                updatePresetDisplay(initialPresetName, 'factory', initialPresetCategory);
            } else {
                updatePresetDisplay();
