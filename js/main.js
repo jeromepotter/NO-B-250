@@ -1396,7 +1396,7 @@ function sendMidiMessage(message) {
                if (activeMouseFxKnobId === null) return;
                const d = fxKnobData[activeMouseFxKnobId]; if (!d || !d.isDragging) return;
                e.preventDefault(); const cY = e.clientY; let sensitivity = .6;
-               if (activeMouseFxKnobId === 16 || activeMouseFxKnobId === 17) { sensitivity = 0.6; }
+               if (activeMouseFxKnobId === 16 || activeMouseFxKnobId === 17) { sensitivity = 1.0; }
                const dY = (d.startY - cY) * sensitivity; d.startY = cY; updateFxKnob(activeMouseFxKnobId, dY);
            };
            const handleFxMouseUp = () => {
@@ -1429,7 +1429,7 @@ function sendMidiMessage(message) {
                    const [id, d] = kEntry;
                    const cY = t.clientY;
                    let sensitivity = .6;
-                   if (id === '16' || id === '17') { sensitivity = 0.6; }
+                   if (id === '16' || id === '17') { sensitivity = 1.0; }
                    const deltaX = d.touchStartX === null ? 0 : Math.abs(t.clientX - d.touchStartX);
                    const deltaYAbs = d.touchStartY === null ? 0 : Math.abs(t.clientY - d.touchStartY);
                    if (!d.touchMoved && (deltaX > 6 || deltaYAbs > 6)) {
@@ -1609,7 +1609,7 @@ function sendMidiMessage(message) {
                 
                 const direction = e.shiftKey ? -1 : 1;
                 const intervalId = setInterval(() => {
-                    updateFxKnob(fxId, KNOB_KEY_SPEED * direction * 0.2);
+                    updateFxKnob(fxId, KNOB_KEY_SPEED * direction * 0.5);
                 }, 10);
                 activeKeyControls[key] = { intervalId, fxId, direction };
             }
@@ -4003,6 +4003,7 @@ function generateAndApplyRandomSound() {
            updateRateButtonLockState();
        }
        init();
+
 
 
 
