@@ -1,6 +1,7 @@
        // --- App State ---
       let audioContext; let synthNode; let isPowerOn = false;
       let allowDuplicateNotesMode = false;
+      let shouldResumeHeldArps = false;
       let isLfoMode = false;
       let isLfoLockEnabled = false;
       let visualUpdatePending = false;
@@ -120,7 +121,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             };
         }
 
-        function blendHexColors(hexA, hexB, t) {
+       function blendHexColors(hexA, hexB, t) {
             const rgbA = hexToRgb(hexA);
             const rgbB = hexToRgb(hexB);
             if (!rgbA || !rgbB) return hexA;
@@ -129,6 +130,26 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const mix = (a, b) => Math.round(a + (b - a) * ratio);
             const toHex = (value) => value.toString(16).padStart(2, '0');
             return `#${toHex(mix(rgbA.r, rgbB.r))}${toHex(mix(rgbA.g, rgbB.g))}${toHex(mix(rgbA.b, rgbB.b))}`;
+        }
+
+        function resumeHeldArpsIfReady() {
+            const hasHeldArps = knobState?.some(state => state && state.isArpOn && state.isArpHoldOn && state.arpNotes?.length);
+            if (!hasHeldArps) {
+                shouldResumeHeldArps = false;
+                return;
+            }
+
+            if (!isPowerOn || !synthNode) {
+                shouldResumeHeldArps = true;
+                return;
+            }
+
+            shouldResumeHeldArps = false;
+            knobState.forEach(k => {
+                if (k && k.isArpOn && k.isArpHoldOn && k.arpNotes?.length > 0) {
+                    startArpeggiator(k.id);
+                }
+            });
         }
 
         function getLfoSegmentColor(baseColor, lfoIndex, segmentIndex) {
@@ -1129,7 +1150,7 @@ for (const event of events) {
            });
        }
       
-       function powerOn(){ if(isPowerOn) return; isPowerOn=true; powerSwitch.classList.add('on'); synthContainer.classList.remove('is-off'); setupAudio().then(()=>{ if(audioContext.state==='suspended') audioContext.resume(); }); }
+       function powerOn(){ if(isPowerOn) return; isPowerOn=true; powerSwitch.classList.add('on'); synthContainer.classList.remove('is-off'); setupAudio().then(()=>{ if(audioContext.state==='suspended') audioContext.resume(); resumeHeldArpsIfReady(); }); }
        function powerOff(){
            if(!isPowerOn)return;
            if (isRecordingAudio && synthNode) { synthNode.port.postMessage({ type: 'stopRecording', data: {} }); }
@@ -1138,6 +1159,7 @@ for (const event of events) {
            knobState.forEach(k=>{ stopNote(k.id, true); if (k.isArpOn) { k.isArpOn = false; k.dom.arpSwitch.classList.remove('on'); } k.isSweepMode = true; if (k.dom.arpModeSwitch) { k.dom.arpModeSwitch.classList.add('on'); } });
            isArpRateSynced = false; if(arpSyncSwitch) arpSyncSwitch.classList.remove('on');
            if (isLfoMode) { toggleLfoModeUI(false); }
+           shouldResumeHeldArps = false;
            updateGlobalArpVisibility(); powerSwitch.classList.remove('on'); synthContainer.classList.add('is-off');
            if(audioContext){audioContext.close().then(()=>{audioContext=null;synthNode=null;});}
        }
@@ -2937,11 +2959,7 @@ function applyPreset(p, isArpCategoryPreset = false, options = {}) {
 
            updateGlobalArpVisibility();
            knobState.forEach(k => { updateStateFromTotalAngle(k.id); });
-           knobState.forEach(k => {
-               if (isPowerOn && k.isArpOn && k.isArpHoldOn && k.arpNotes.length > 0) {
-                   startArpeggiator(k.id);
-               }
-           });
+           resumeHeldArpsIfReady();
        }
 
 function setFxValue(id, value, forceVisualUpdate = false) {
