@@ -378,7 +378,7 @@ for(let i=0;i<oL.length;i++){
         distR = (1 + k) * distR / (1 + k * Math.abs(distR));
 
         // 2. Bit-Crushing (High Definition / Subtle Mode)
-        const nS = Math.max(2, Math.floor(Math.pow(1 - distDrive, 2.5) * 1024));
+        const nS = Math.max(2, Math.floor(Math.pow(1 - distDrive, 2.5) * 128));
         const sS = 2.0 / nS;
         distL = sS * Math.floor(distL / sS + 0.5);
         distR = sS * Math.floor(distR / sS + 0.5);
@@ -391,7 +391,7 @@ for(let i=0;i<oL.length;i++){
         // 4. Adaptive Filter (Anti-Fizz)
         if (dV < 0.5) {
             const filterMix = (dV - 0.01) / (0.5 - 0.01);
-            const cutoff = 475 + Math.max(0, filterMix) * ((sr * 0.5) - 475);
+            const cutoff = 500 + Math.max(0, filterMix) * ((sr * 0.5) - 500);
             const omega = 2 * Math.PI * cutoff / sr;
             const alpha = omega / (omega + 1);
             this.distLpL += alpha * (distL - this.distLpL);
@@ -509,6 +509,7 @@ return true;
 }
 }
 registerProcessor('synth-processor', SynthProcessor);
+
 
 
 
