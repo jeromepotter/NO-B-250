@@ -2286,6 +2286,7 @@ lfoState.forEach((lfo, lfoIndex) => {
 
      function buildCurrentPresetPayload() {
            return {
+               powerOn: isPowerOn,
                tempoMode: tempoMode,
                key: keySelector.value,
                scale: scaleSelector.value,
@@ -4126,7 +4127,8 @@ function generateAndApplyRandomSound() {
            const sharedPreset = loadSharedPresetFromUrl();
            let appliedSharedPreset = false;
            if (sharedPreset) {
-               applyPreset(sharedPreset, false, { skipPowerOn: true });
+               const shouldPowerOn = sharedPreset.powerOn !== false;
+               applyPreset(sharedPreset, false, { skipPowerOn: !shouldPowerOn });
                updatePresetDisplay('SHARED', 'user');
                appliedSharedPreset = true;
            }
