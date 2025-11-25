@@ -2184,13 +2184,15 @@ lfoState.forEach((lfo, lfoIndex) => {
            updatePresetNavButtonsState();
        }
 
-       function applyFactoryPreset(category, presetName) {
+       function applyFactoryPreset(category, presetName, options = {}) {
            if (!category || !presetName) return false;
            const categoryPresets = PRESETS[category];
            if (!categoryPresets || !categoryPresets[presetName]) return false;
 
+           const { skipPowerOn = false } = options;
+
            const presetData = JSON.parse(JSON.stringify(categoryPresets[presetName]));
-           if (!isPowerOn) powerOn();
+           if (!isPowerOn && !skipPowerOn) powerOn();
 
            const fullPreset = {
                tempoMode: presetData.tempoMode ?? TEMPO_MODE_BPM,
@@ -2228,7 +2230,7 @@ lfoState.forEach((lfo, lfoIndex) => {
            }
 
            const isArpCategoryPreset = category === 'ARPS';
-           applyPreset(fullPreset, isArpCategoryPreset);
+           applyPreset(fullPreset, isArpCategoryPreset, options);
            return true;
        }
 
@@ -2613,14 +2615,16 @@ lfoState.forEach((lfo, lfoIndex) => {
         return LFO_DEST_NONE;
     }
 
-function applyPreset(p, isArpCategoryPreset = false) {
+function applyPreset(p, isArpCategoryPreset = false, options = {}) {
            if (!p) return;
+
+           const { skipPowerOn = false } = options;
 
            const ignoreLocks = !!isArpCategoryPreset;
            const arpLockActive = ignoreLocks ? false : isArpLockEnabled;
            const lfoLockActive = ignoreLocks ? false : isLfoLockEnabled;
 
-           if (!isPowerOn) powerOn();
+           if (!skipPowerOn && !isPowerOn) powerOn();
 
            // --- 1. STOP old arps completely FIRST ---
            stopArpeggiator(0);
@@ -3988,7 +3992,15 @@ function generateAndApplyRandomSound() {
            });
 
            updateGlobalArpVisibility();
-           randomizeSettings();
+           const initialPresetCategory = 'LEADS';
+           const initialPresetName = 'MARIMBA';
+           if (applyFactoryPreset(initialPresetCategory, initialPresetName, { skipPowerOn: true })) {
+               setActivePresetCategory(initialPresetCategory);
+               updatePresetDisplay(initialPresetName, 'factory', initialPresetCategory);
+           } else {
+               updatePresetDisplay();
+               knobState.forEach(k => updateStateFromTotalAngle(k.id));
+           }
            updateRateButtonLockState();
        }
        init();
