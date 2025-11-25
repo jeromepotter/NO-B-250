@@ -1,8 +1,20 @@
 # Changelog
 
 
-##Future Plans
- - New Presets
+## [11.24] - 2025-11-24
+### Added
+- New Presets incuding new "Hero Preset" and new INIT Patch
+- A soft clipper with slight signal boost into it
+
+ ### Removed
+- Removed Redundant PRESETS button and PRESETS Window is now perpetually displayed
+
+ ### Fixed
+ - Audio Signal Path to place Chorus After Distortion and AM.
+
+###Changed
+- Distortion now has a low pass filter applied for the first half of the knon to tame the bitcrushing that is applied later
+  
  
 ## [11.23] - 2025-11-23
 ### Added
