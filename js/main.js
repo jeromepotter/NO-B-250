@@ -3991,7 +3991,11 @@ function generateAndApplyRandomSound() {
            const initialPresetCategory = 'PADS';
            const initialPresetName = 'MARIMBA';
            if (applyFactoryPreset(initialPresetCategory, initialPresetName)) {
+               setActivePresetCategory(initialPresetCategory);
                updatePresetDisplay(initialPresetName, 'factory', initialPresetCategory);
+           } else {
+               updatePresetDisplay();
+               knobState.forEach(k => updateStateFromTotalAngle(k.id));
            }
            updateRateButtonLockState();
        }
