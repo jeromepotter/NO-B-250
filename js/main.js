@@ -892,21 +892,36 @@ let liveLfoOutputs = [0, 0, 0, 0];
            }
       }
 
-      function loadPresetFromUrl() {
+      async function loadPresetFromUrl() {
            const params = new URLSearchParams(window.location.search);
            const encodedPreset = params.get('preset');
-           if (!encodedPreset) return false;
+           const presetUrl = params.get('presetUrl');
+           let parsedPreset = null;
 
-           try {
-               const decoded = decodeURIComponent(escape(atob(encodedPreset)));
-               const parsedPreset = JSON.parse(decoded);
-               applyPreset(parsedPreset);
-               updatePresetDisplay('LINK', 'user');
-               return true;
-           } catch (err) {
-               console.error('Failed to load preset from URL', err);
-               return false;
+           if (encodedPreset) {
+               try {
+                   const decoded = decodeURIComponent(escape(atob(encodedPreset)));
+                   parsedPreset = JSON.parse(decoded);
+               } catch (err) {
+                   console.error('Failed to load preset from encoded URL data', err);
+               }
            }
+
+           if (!parsedPreset && presetUrl) {
+               try {
+                   const response = await fetch(presetUrl);
+                   if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                   parsedPreset = await response.json();
+               } catch (err) {
+                   console.error('Failed to fetch preset from URL', err);
+               }
+           }
+
+           if (!parsedPreset) return false;
+
+           applyPreset(parsedPreset, false, { skipPowerOn: false });
+           updatePresetDisplay('LINK', 'user');
+           return true;
       }
        function float32ToPCM16(f) {
            const out = new Int16Array(f.length);
@@ -3254,7 +3269,7 @@ function generateAndApplyRandomSound() {
 }
 
 
-       function init(){
+       async function init(){
            synthContainer = document.getElementById('synth-container');
            rateDisplayRows = Array.from(document.querySelectorAll('.rate-display-row'));
            powerSwitch = document.getElementById('power-switch');
@@ -3286,7 +3301,7 @@ function generateAndApplyRandomSound() {
           buildPresetNavigationList();
           updatePresetDisplay();
 
-          const presetLoadedFromUrl = loadPresetFromUrl();
+          const presetLoadedFromUrl = await loadPresetFromUrl();
            
            // --- 3. TOUCH HELPER FUNCTION ---
            const addTouchListener = (element, callback) => {
