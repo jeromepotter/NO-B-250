@@ -827,7 +827,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
       let masterArpControls, arpOrderSelector, arpLockSwitch, lfoLockSwitch;
       let allArpControlGrids;
       let rateDisplayRows = [];
-      let modalOverlay, howToButton, closeModalButton;
+      let modalOverlay, howToButton, closeModalButton, shareButton;
 
       import { PRESETS } from './presets.js';
 
@@ -849,12 +849,65 @@ let liveLfoOutputs = [0, 0, 0, 0];
       
        // --- WAV helpers ---
        const FILE_NOUNS=["street","light","area","field","cloud","river","forest","stone","glass","paper","pixel","laser","echo","wave","dawn","dusk","night","sun","moon","star","comet","orbit","nova","aurora","ridge","valley","canyon","desert","oasis","island","harbor","shore","coast","dune","meadow","prairie","plain","hill","mountain","summit","cliff","cave","tunnel","bridge","path","trail","road","alley","lane","plaza","square","tower","temple","vault","cellar","attic","loft","studio","cabin","bunker","hangar","depot","station","port","dock","yard","market","arcade","gate","portal","arch","courtyard","garden","grove","orchard","hedge","lawn","terrace","balcony","gallery","museum","library","factory","engine","boiler","furnace","mill","forge","workshop","lab","module","circuit","socket","relay","switch","sensor","motor","servo","valve","gear","spring","bearing","magnet","coil","antenna","radar","beacon","signal","channel","grid","matrix","vector","scalar","apex","nadir","zenith","horizon","meridian","delta","gamma","omega","alpha","sigma","vertex","stripe","pattern","phase","pulse","current","voltage","charge","flux","plasma","neon","vapor","ember","ash","smoke","steam","mist","haze","fog","rain","thunder","spark","arc","glow","flare","beam","ray","shadow","mirror","crystal","prism","facet","tile","brick","steel","iron","copper","silver","gold","chrome","titanium","carbon","graphite","fiber","weave","fabric","canvas","ink","paint","charcoal","grain","ripple","foam","surf","tide","wharf","canopy","pillar","column","spire","span","truss","frame","panel","plate","fin","wing","keel","hull","chassis","bay","slot","rack","array","stack","cache","buffer","packet","cluster","node","router","bus","queue","gate","clock","cycle","kernel","shell","daemon","sprite","shader","fragment","sample","key","scale","octave","tempo","rhythm","chord","tone","drift","drone","hum","whirl","whisper","rattle","clatter","stride","fold","crease","hinge","joint","anchor","bracket"];
-       function generateRecordingFilename(extension = 'wav') {
+      function generateRecordingFilename(extension = 'wav') {
            const pick = () => FILE_NOUNS[Math.floor(Math.random() * FILE_NOUNS.length)];
            let a = pick(), b = pick(); for (let i = 0; i < 5 && a === b; i++) b = pick();
            const xxx = String(Math.floor(Math.random() * 1000)).padStart(3, '0');
            return `N-OB-${a}-${b}-${xxx}-.${extension}`;
        }
+
+      function buildPresetData() {
+           return {
+               tempoMode: tempoMode,
+               key: keySelector.value,
+               scale: scaleSelector.value,
+               customScale: scaleSelector.value === 'Custom' ? customScale : [],
+               allowDuplicateNotesMode: allowDuplicateNotesMode,
+               isLfoMode: isLfoMode,
+               lfoState: lfoState.map(lfo => ({
+                   rate: lfo.rate,
+                   depth: lfo.depth,
+                   wave: lfo.wave,
+                   dest: lfo.dest,
+                   destChain: getLfoDestChain(lfo),
+                   tempoSync: lfoTempoLinkState[lfo.id]?.enabled || false,
+                   storedFreeValue: lfoTempoLinkState[lfo.id]?.storedFreeValue ?? 0.5
+                })),
+               knobSettings: knobState.map(k => ({ id: k.id, totalAngle: k.totalAngle })),
+               fxSettings: Object.values(fxKnobData).map(k => ({ id: k.id, value: k.value })),
+               arpSettings: { isArpRateSynced: isArpRateSynced, currentArpOrder: currentArpOrder, arp1: { isOn: knobState[0].isArpHoldOn, isArpOn: knobState[0].isArpOn, isSweepMode: knobState[0].isSweepMode, octaves: knobState[0].arpOctaveRange, feelValue: knobState[0].feelKnobValue, notes: knobState[0].arpNotes, transpose: knobState[0].arpTranspose }, arp2: { isOn: knobState[1].isArpHoldOn, isArpOn: knobState[1].isArpOn, isSweepMode: knobState[1].isSweepMode, octaves: knobState[1].arpOctaveRange, feelValue: knobState[1].feelKnobValue, notes: knobState[1].arpNotes, transpose: knobState[1].arpTranspose } }
+           };
+      }
+
+      function generateShareableUrl() {
+           try {
+               const preset = buildPresetData();
+               const serialized = btoa(unescape(encodeURIComponent(JSON.stringify(preset))));
+               const url = new URL(window.location.href);
+               url.searchParams.set('preset', serialized);
+               return url.toString();
+           } catch (err) {
+               console.error('Failed to generate shareable URL', err);
+               return window.location.href;
+           }
+      }
+
+      function loadPresetFromUrl() {
+           const params = new URLSearchParams(window.location.search);
+           const encodedPreset = params.get('preset');
+           if (!encodedPreset) return false;
+
+           try {
+               const decoded = decodeURIComponent(escape(atob(encodedPreset)));
+               const parsedPreset = JSON.parse(decoded);
+               applyPreset(parsedPreset);
+               updatePresetDisplay('LINK', 'user');
+               return true;
+           } catch (err) {
+               console.error('Failed to load preset from URL', err);
+               return false;
+           }
+      }
        function float32ToPCM16(f) {
            const out = new Int16Array(f.length);
            for (let i = 0; i < f.length; i++) { let s = f[i]; if (s > 1) s = 1; else if (s < -1) s = -1; out[i] = s < 0 ? (s * 0x8000) : (s * 0x7FFF); }
@@ -2261,26 +2314,7 @@ lfoState.forEach((lfo, lfoIndex) => {
       }
 
      function savePreset() {
-           const preset = {
-               tempoMode: tempoMode,
-               key: keySelector.value,
-               scale: scaleSelector.value,
-               customScale: scaleSelector.value === 'Custom' ? customScale : [],
-               allowDuplicateNotesMode: allowDuplicateNotesMode,
-               isLfoMode: isLfoMode,
-               lfoState: lfoState.map(lfo => ({
-                   rate: lfo.rate,
-                   depth: lfo.depth,
-                   wave: lfo.wave,
-                   dest: lfo.dest,
-                   destChain: getLfoDestChain(lfo),
-                   tempoSync: lfoTempoLinkState[lfo.id]?.enabled || false,
-                   storedFreeValue: lfoTempoLinkState[lfo.id]?.storedFreeValue ?? 0.5
-                })),
-               knobSettings: knobState.map(k => ({ id: k.id, totalAngle: k.totalAngle })),
-               fxSettings: Object.values(fxKnobData).map(k => ({ id: k.id, value: k.value })),
-               arpSettings: { isArpRateSynced: isArpRateSynced, currentArpOrder: currentArpOrder, arp1: { isOn: knobState[0].isArpHoldOn, isArpOn: knobState[0].isArpOn, isSweepMode: knobState[0].isSweepMode, octaves: knobState[0].arpOctaveRange, feelValue: knobState[0].feelKnobValue, notes: knobState[0].arpNotes, transpose: knobState[0].arpTranspose }, arp2: { isOn: knobState[1].isArpHoldOn, isArpOn: knobState[1].isArpOn, isSweepMode: knobState[1].isSweepMode, octaves: knobState[1].arpOctaveRange, feelValue: knobState[1].feelKnobValue, notes: knobState[1].arpNotes, transpose: knobState[1].arpTranspose } }
-           };
+           const preset = buildPresetData();
            const color = FILE_NOUNS[Math.floor(Math.random() * FILE_NOUNS.length)];
            const date = new Date(); const fDate = `${String(date.getMonth() + 1).padStart(2, '0')}_${String(date.getDate()).padStart(2, '0')}_${date.getFullYear()}`;
            const fname = `N-OB-${fDate}_${color}.json`; const blob = new Blob([JSON.stringify(preset, null, 2)], { type: 'application/json' });
@@ -3240,6 +3274,7 @@ function generateAndApplyRandomSound() {
            modalOverlay = document.getElementById('how-to-modal-overlay');
            howToButton = document.getElementById('how-to-button-header');
            closeModalButton = document.getElementById('close-modal-button');
+           shareButton = document.getElementById('share-button');
            customScaleBuilder = document.getElementById('custom-scale-builder');
            recordButton = document.getElementById('record-button');
            recordMidiButton = document.getElementById('record-midi-button');
@@ -3250,6 +3285,8 @@ function generateAndApplyRandomSound() {
            presetNextButton = document.getElementById('preset-next-button');
            buildPresetNavigationList();
            updatePresetDisplay();
+
+           loadPresetFromUrl();
            
            // --- 3. TOUCH HELPER FUNCTION ---
            const addTouchListener = (element, callback) => {
@@ -3281,6 +3318,23 @@ function generateAndApplyRandomSound() {
            // --- 5. FIX: HEADER & MODAL BUTTONS ---
            addTouchListener(howToButton, () => {
                modalOverlay.classList.remove('opacity-0', 'pointer-events-none');
+           });
+
+           addTouchListener(shareButton, async () => {
+               if (!shareButton) return;
+               const originalLabel = shareButton.textContent;
+               try {
+                   const shareUrl = generateShareableUrl();
+                   await navigator.clipboard.writeText(shareUrl);
+                   shareButton.textContent = 'URL COPIED';
+               } catch (err) {
+                   console.error('Failed to copy share URL', err);
+                   shareButton.textContent = 'COPY FAILED';
+               }
+               setTimeout(() => {
+                   if (shareButton) shareButton.textContent = originalLabel;
+               }, 1200);
+               shareButton.blur();
            });
 
            addTouchListener(closeModalButton, () => {
