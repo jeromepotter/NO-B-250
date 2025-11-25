@@ -1,499 +1,4 @@
 export const PRESETS = {
-    "BASS": {
-        '808': {
-                            tempoMode: "BPM",
-                            key: "F",
-                            scale: "Minor",
-                            customScale: [],
-                            allowDuplicateNotesMode: true,
-                            isLfoMode: false,
-                            lfoState: [
-                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
-                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
-                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
-                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 }
-                            ],
-                            knobSettings: [
-                                { id: 0, totalAngle: 744 },
-                                { id: 1, totalAngle: 960 }
-                            ],
-                            fxSettings: [
-                                { id: 0, value: 0.35 }, { id: 1, value: 0.2222222222222222 }, { id: 2, value: 0.2388888888888889 }, { id: 3, value: 1 },
-                                { id: 4, value: 0 }, { id: 5, value: 0 }, { id: 6, value: 0 }, { id: 7, value: 0.8 },
-                                { id: 8, value: 0 }, { id: 9, value: 0.18333333333333332 }, { id: 10, value: 0.26666666666666666 }, { id: 11, value: 0.5722222222222222 },
-                                { id: 12, value: 0 }, { id: 13, value: 0 }, { id: 14, value: 0 }, { id: 15, value: 0 },
-                                { id: 16, value: 0.4344284780347278 }, { id: 17, value: 0.4344284780347278 }, { id: 18, value: 0 }, { id: 19, value: 0 },
-                                { id: 20, value: 0.39437777777777777 }, { id: 21, value: 0.3611111111111111 }, { id: 22, value: 0.31666666666666665 }, { id: 23, value: 0 },
-                                { id: 24, value: 0.5 }, { id: 25, value: 0.5 }, { id: 26, value: 0.8333 }, { id: 27, value: 0.9388 },
-                                { id: 28, value: 0 }, { id: 29, value: 0 }, { id: 30, value: 0 }, { id: 31, value: 0.5944444444444444 },
-                                { id: 100, value: 0 }, { id: 101, value: 0.0833 }, { id: 102, value: 0 }, { id: 103, value: 0 },
-                                { id: 104, value: 0 }, { id: 105, value: 0.0833 }, { id: 106, value: 0 }, { id: 107, value: 0 },
-                                { id: 108, value: 0 }, { id: 109, value: 0 }, { id: 110, value: 0 }, { id: 111, value: 0 },
-                                { id: 112, value: 0.0833 }, { id: 113, value: 0.0833 }, { id: 114, value: 0 }, { id: 115, value: 0 }
-                            ],
-                            arpSettings: {
-                                isArpRateSynced: false,
-                                currentArpOrder: "As Played",
-                                arp1: { isOn: false, isArpOn: false, isSweepMode: false, octaves: 0, feelValue: 0.31666666666666665, notes: [], transpose: 0 },
-                                arp2: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 }
-                            }
-                        },
-        'ROUND BASS': {
-                            tempoMode: "BPM",
-                            key: "F",
-                            scale: "Minor",
-                            customScale: [],
-                            allowDuplicateNotesMode: false,
-                            isLfoMode: false,
-                            lfoState: [
-                                { rate: 0, depth: 0, wave: 0, dest: 0, tempoSync: false, storedFreeValue: 0 },
-                                { rate: 0, depth: 0, wave: 0, dest: 0, tempoSync: false, storedFreeValue: 0 },
-                                { rate: 0, depth: 0, wave: 0, dest: 0, tempoSync: false, storedFreeValue: 0 },
-                                { rate: 0, depth: 0, wave: 0, dest: 0, tempoSync: false, storedFreeValue: 0 }
-                            ],
-                            knobSettings: [
-                                { id: 0, totalAngle: 929.12 },
-                                { id: 1, totalAngle: 1091.27 }
-                            ],
-                            fxSettings: [
-                                { id: 0, value: 0.1 }, { id: 1, value: 0 }, { id: 2, value: 0.8 }, { id: 3, value: 0.9333 },
-                                { id: 4, value: 0.2 }, { id: 5, value: 0 }, { id: 6, value: 0.2 }, { id: 7, value: 0.7111 },
-                                { id: 8, value: 0.01 }, { id: 9, value: 0.3611 }, { id: 10, value: 0.3611 }, { id: 11, value: 0.3 },
-                                { id: 12, value: 0.1 }, { id: 13, value: 0.2 }, { id: 14, value: 0 }, { id: 15, value: 0 },
-                                { id: 16, value: 0.4344 }, { id: 17, value: 0.4344 }, { id: 18, value: 0 }, { id: 19, value: 0 },
-                                { id: 20, value: 0.1555 }, { id: 21, value: 0.1611 }, { id: 22, value: 0 }, { id: 23, value: 0 },
-                                { id: 24, value: 0.5 }, { id: 25, value: 0.5 }, { id: 26, value: 0.5 }, { id: 27, value: 0.5 },
-                                { id: 28, value: 0.3444 }, { id: 29, value: 0.3666 }, { id: 100, value: 0 }, { id: 101, value: 0.0833 },
-                                { id: 102, value: 0 }, { id: 103, value: 0 }, { id: 104, value: 0 }, { id: 105, value: 0.0833 },
-                                { id: 106, value: 0 }, { id: 107, value: 0 }, { id: 108, value: 0 }, { id: 109, value: 0 },
-                                { id: 110, value: 0 }, { id: 111, value: 0 }, { id: 112, value: 0.0833 }, { id: 113, value: 0.0833 },
-                                { id: 114, value: 0 }, { id: 115, value: 0 }
-                            ],
-                            arpSettings: {
-                                isArpRateSynced: false,
-                                currentArpOrder: "Up",
-                                arp1: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 },
-                                arp2: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 }
-                            }
-                        },
-        'TIMPANI': {
-                            tempoMode: "BPM",
-                            key: "C",
-                            scale: "Chromatic",
-                            customScale: [],
-                            allowDuplicateNotesMode: false,
-                            isLfoMode: false,
-                            lfoState: [
-                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
-                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
-                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
-                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 }
-                            ],
-                            knobSettings: [
-                                { id: 0, totalAngle: 720 },
-                                { id: 1, totalAngle: 1080 }
-                            ],
-                            fxSettings: [
-                                { id: 0, value: 0 }, { id: 1, value: 0 }, { id: 2, value: 0.4 }, { id: 3, value: 0 },
-                                { id: 4, value: 0 }, { id: 5, value: 0 }, { id: 6, value: 0 }, { id: 7, value: 0.7 },
-                                { id: 8, value: 0.01 }, { id: 9, value: 0.15 }, { id: 10, value: 0 }, { id: 11, value: 0.4 },
-                                { id: 12, value: 0.3 }, { id: 13, value: 0.5 }, { id: 14, value: 0 }, { id: 15, value: 0 },
-                                { id: 16, value: 0.4344 }, { id: 17, value: 0.4344 }, { id: 18, value: 0 }, { id: 19, value: 0 },
-                                { id: 20, value: 0.3 }, { id: 21, value: 0.32 }, { id: 22, value: 0 }, { id: 23, value: 0 },
-                                { id: 24, value: 0.5 }, { id: 25, value: 0.5 }, { id: 26, value: 1 }, { id: 27, value: 1 },
-                                { id: 28, value: 0 }, { id: 29, value: 0 }, { id: 30, value: 0.65 }, { id: 31, value: 0.7 } // Sine for thump
-                            ],
-                            arpSettings: {
-                                isArpRateSynced: false,
-                                currentArpOrder: "As Played",
-                                arp1: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 },
-                                arp2: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 }
-                            }
-                        },
-    },
-    "PADS": {
-        'BASIC PAD': {
-                            tempoMode: "BPM",
-                            key: "C",
-                            scale: "Major",
-                            customScale: [],
-                            allowDuplicateNotesMode: false,
-                            isLfoMode: true,
-                            lfoState: [
-                                { rate: 0.35, depth: 0.1611, wave: 0, dest: 20, destChain: [20], tempoSync: false, storedFreeValue: 0.35 },
-                                { rate: 0.3222, depth: 0.1666, wave: 0, dest: 21, destChain: [21], tempoSync: false, storedFreeValue: 0.3222 },
-                                { rate: 0.25, depth: 0.4388, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0.25 },
-                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 }
-                            ],
-                            knobSettings: [
-                                { id: 0, totalAngle: 971.65 },
-                                { id: 1, totalAngle: 1619.27 }
-                            ],
-                            fxSettings: [
-                                { id: 0, value: 0.1 }, { id: 1, value: 0 }, { id: 2, value: 0.9 }, { id: 3, value: 0.2 },
-                                { id: 4, value: 0.6166 }, { id: 5, value: 0 }, { id: 6, value: 0.6777 }, { id: 7, value: 0.6 },
-                                { id: 8, value: 0.6 }, { id: 9, value: 0.5 }, { id: 10, value: 0.8 }, { id: 11, value: 0.7 },
-                                { id: 12, value: 0.7 }, { id: 13, value: 0.9 }, { id: 14, value: 0 }, { id: 15, value: 0 },
-                                { id: 16, value: 0.4344 }, { id: 17, value: 0.4344 }, { id: 18, value: 0 }, { id: 19, value: 0 },
-                                { id: 20, value: 0.6 }, { id: 21, value: 0.65 }, { id: 22, value: 0 }, { id: 23, value: 0 },
-                                { id: 24, value: 0.5 }, { id: 25, value: 0.5 }, { id: 26, value: 0.5 }, { id: 27, value: 0.5 },
-                                { id: 28, value: 0.1 }, { id: 29, value: 0.1 }, { id: 100, value: 0 }, { id: 101, value: 0.0833 },
-                                { id: 102, value: 0 }, { id: 103, value: 0.1666 }, { id: 104, value: 0.4388 }, { id: 105, value: 0.0833 },
-                                { id: 106, value: 0.1611 }, { id: 107, value: 0 }, { id: 108, value: 0.35 }, { id: 109, value: 0.3222 },
-                                { id: 110, value: 0.25 }, { id: 111, value: 0 }, { id: 112, value: 0.0833 }, { id: 113, value: 0.0833 },
-                                { id: 114, value: 0 }, { id: 115, value: 0 }
-                            ],
-                            arpSettings: {
-                                isArpRateSynced: false,
-                                currentArpOrder: "Up",
-                                arp1: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 },
-                                arp2: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 }
-                            }
-                        },
-        'SCARY PAD 2': {
-                            tempoMode: "BPM",
-                            key: "A#",
-                            scale: "Minor",
-                            customScale: [],
-                            allowDuplicateNotesMode: false,
-                            isLfoMode: true,
-                            lfoState: [
-                                { rate: 0.2577, depth: 0.25, wave: 0, dest: 20, destChain: [20], tempoSync: false, storedFreeValue: 0.2577 },
-                                { rate: 0.2388, depth: 0.2333, wave: 0, dest: 21, destChain: [21], tempoSync: false, storedFreeValue: 0.2388 },
-                                { rate: 0.2833, depth: 0.0833, wave: 0, dest: 5, destChain: [5], tempoSync: false, storedFreeValue: 0.2833 },
-                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 }
-                            ],
-                            knobSettings: [
-                                { id: 0, totalAngle: 2004.70 },
-                                { id: 1, totalAngle: 1720.81 }
-                            ],
-                            fxSettings: [
-                                { id: 0, value: 0 }, { id: 1, value: 0 }, { id: 2, value: 0.6 }, { id: 3, value: 0.6055 },
-                                { id: 4, value: 0.45 }, { id: 5, value: 0.4222 }, { id: 6, value: 0.8666 }, { id: 7, value: 0.7 },
-                                { id: 8, value: 0.6 }, { id: 9, value: 0.5 }, { id: 10, value: 0.9 }, { id: 11, value: 0.8 },
-                                { id: 12, value: 0.85 }, { id: 13, value: 0.9 }, { id: 14, value: 0.4 }, { id: 15, value: 0.6 },
-                                { id: 16, value: 0.4344 }, { id: 17, value: 0.4344 }, { id: 18, value: 0 }, { id: 19, value: 0 },
-                                { id: 20, value: 0.2444 }, { id: 21, value: 0.3222 }, { id: 22, value: 0 }, { id: 23, value: 0 },
-                                { id: 24, value: 0.5 }, { id: 25, value: 0.5 }, { id: 26, value: 0.5 }, { id: 27, value: 0.5 },
-                                { id: 28, value: 0.1 }, { id: 29, value: 0.1 }, { id: 100, value: 0 }, { id: 101, value: 0.0833 },
-                                { id: 102, value: 0 }, { id: 103, value: 0.2333 }, { id: 104, value: 0.0833 }, { id: 105, value: 0.0833 },
-                                { id: 106, value: 0.25 }, { id: 107, value: 0 }, { id: 108, value: 0.2577 }, { id: 109, value: 0.2388 },
-                                { id: 110, value: 0.2833 }, { id: 111, value: 0 }, { id: 112, value: 0.0833 }, { id: 113, value: 0.0833 },
-                                { id: 114, value: 0 }, { id: 115, value: 0 }
-                            ],
-                            arpSettings: {
-                                isArpRateSynced: false,
-                                currentArpOrder: "Up",
-                                arp1: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 },
-                                arp2: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 }
-                            }
-                        },
-        'STRINGS': {
-                            tempoMode: "BPM",
-                            key: "C",
-                            scale: "Phrygian",
-                            customScale: [],
-                            allowDuplicateNotesMode: false,
-                            isLfoMode: false,
-                            lfoState: [
-                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
-                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
-                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
-                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 }
-                            ],
-                            knobSettings: [
-                                { id: 0, totalAngle: 746.65 },
-                                { id: 1, totalAngle: 1558.71 }
-                            ],
-                            fxSettings: [
-                                { id: 0, value: 0 }, { id: 1, value: 0 }, { id: 2, value: 1 }, { id: 3, value: 0 },
-                                { id: 4, value: 0 }, { id: 5, value: 0 }, { id: 6, value: 0 }, { id: 7, value: 0.7 },
-                                { id: 8, value: 0.7 }, { id: 9, value: 0.14444444444444443 }, { id: 10, value: 0.37222222222222223 }, { id: 11, value: 0.5722222222222222 },
-                                { id: 12, value: 0.9 }, { id: 13, value: 0.9 }, { id: 14, value: 0.6 }, { id: 15, value: 0.7 },
-                                { id: 16, value: 0.4344284780347278 }, { id: 17, value: 0.4344284780347278 }, { id: 18, value: 0 }, { id: 19, value: 0 },
-                                { id: 20, value: 0.8055555555555556 }, { id: 21, value: 0.8166666666666667 }, { id: 22, value: 0 }, { id: 23, value: 0 },
-                                { id: 24, value: 0.5 }, { id: 25, value: 0.5 }, { id: 26, value: 0.5 }, { id: 27, value: 0.5 },
-                                { id: 28, value: 0 }, { id: 29, value: 0 }, { id: 100, value: 0 }, { id: 101, value: 0 },
-                                { id: 102, value: 0 }, { id: 103, value: 0 }, { id: 104, value: 0 }, { id: 105, value: 0 },
-                                { id: 106, value: 0 }, { id: 107, value: 0 }, { id: 108, value: 0 }, { id: 109, value: 0 },
-                                { id: 110, value: 0 }, { id: 111, value: 0 }, { id: 112, value: 0 }, { id: 113, value: 0 },
-                                { id: 114, value: 0 }, { id: 115, value: 0 }
-                            ],
-                            arpSettings: {
-                                isArpRateSynced: false,
-                                currentArpOrder: "As Played",
-                                arp1: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 },
-                                arp2: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 }
-                            }
-                        },
-        'EVOLVING PAD': {
-                            tempoMode: "BPM",
-                            key: "A",
-                            scale: "Minor",
-                            customScale: [],
-                            allowDuplicateNotesMode: false,
-                            isLfoMode: true,
-                            lfoState: [
-                                { rate: 0.15, depth: 0.4, wave: 0, dest: 20, destChain: [20, 21], tempoSync: false, storedFreeValue: 0.15 },
-                                { rate: 0.22, depth: 0.35, wave: 1, dest: 6, destChain: [6], tempoSync: false, storedFreeValue: 0.22 },
-                                { rate: 0.08, depth: 0.5, wave: 0, dest: 108, destChain: [108], tempoSync: false, storedFreeValue: 0.08 },
-                                { rate: 0.18, depth: 0.3, wave: 0, dest: 109, destChain: [109], tempoSync: false, storedFreeValue: 0.18 }
-                            ],
-                            knobSettings: [
-                                { id: 0, totalAngle: 1440 },
-                                { id: 1, totalAngle: 1800 }
-                            ],
-                            fxSettings: [
-                                { id: 0, value: 0 }, { id: 1, value: 0 }, { id: 2, value: 1 }, { id: 3, value: 0.4 },
-                                { id: 4, value: 0.25 }, { id: 5, value: 0 }, { id: 6, value: 0.5 }, { id: 7, value: 0.65 },
-                                { id: 8, value: 0.7 }, { id: 9, value: 0.15 }, { id: 10, value: 0.85 }, { id: 11, value: 0.8 },
-                                { id: 12, value: 0.75 }, { id: 13, value: 0.85 }, { id: 14, value: 0.3 }, { id: 15, value: 0.6 },
-                                { id: 16, value: 0.4344 }, { id: 17, value: 0.4344 }, { id: 18, value: 0 }, { id: 19, value: 0 },
-                                { id: 20, value: 0.65 }, { id: 21, value: 0.68 }, { id: 22, value: 0 }, { id: 23, value: 0 },
-                                { id: 24, value: 0.5 }, { id: 25, value: 0.5 }, { id: 26, value: 0.5 }, { id: 27, value: 0.5 },
-                                { id: 28, value: 0.08 }, { id: 29, value: 0.08 }, { id: 100, value: 0.3 }, { id: 101, value: 0.0833 },
-                                { id: 102, value: 0 }, { id: 103, value: 0.35 }, { id: 104, value: 0.5 }, { id: 105, value: 0.25 },
-                                { id: 106, value: 0.4 }, { id: 107, value: 0 }, { id: 108, value: 0.15 }, { id: 109, value: 0.22 },
-                                { id: 110, value: 0.08 }, { id: 111, value: 0.18 }, { id: 112, value: 0.0833 }, { id: 113, value: 0.0833 },
-                                { id: 114, value: 0 }, { id: 115, value: 0 }
-                            ],
-                            arpSettings: {
-                                isArpRateSynced: false,
-                                currentArpOrder: "As Played",
-                                arp1: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 },
-                                arp2: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 }
-                            }
-                        },
-        'STROLLER': {
-                            tempoMode: "BPM",
-                            key: "F#",
-                            scale: "Minor",
-                            customScale: [],
-                            allowDuplicateNotesMode: false,
-                            isLfoMode: false,
-                            lfoState: [
-                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
-                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
-                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
-                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 }
-                            ],
-                            knobSettings: [
-                                { id: 0, totalAngle: 1268.65 },
-                                { id: 1, totalAngle: 1756.71 }
-                            ],
-                            fxSettings: [
-                                { id: 0, value: 0 }, { id: 1, value: 0.0709 }, { id: 2, value: 0.8772 }, { id: 3, value: 0.5272 },
-                                { id: 4, value: 0.5923 }, { id: 5, value: 0.273 }, { id: 6, value: 0.5549 }, { id: 7, value: 0.7 },
-                                { id: 8, value: 0.3356 }, { id: 9, value: 0.7688 }, { id: 10, value: 0.1776 }, { id: 11, value: 0.2265 },
-                                { id: 12, value: 0.1725 }, { id: 13, value: 0.1865 }, { id: 14, value: 0.5942 }, { id: 15, value: 0.0173 },
-                                { id: 16, value: 0.4344 }, { id: 17, value: 0.4344 }, { id: 18, value: 0 }, { id: 19, value: 0 },
-                                { id: 20, value: 0.2184 }, { id: 21, value: 0.2179 }, { id: 22, value: 0 }, { id: 23, value: 0 },
-                                { id: 24, value: 0.5 }, { id: 25, value: 0.5 }, { id: 26, value: 0.5 }, { id: 27, value: 0.5 },
-                                { id: 28, value: 0.8459 }, { id: 29, value: 0.6228 }, { id: 100, value: 0 }, { id: 101, value: 0 },
-                                { id: 102, value: 0 }, { id: 103, value: 0 }, { id: 104, value: 0 }, { id: 105, value: 0 },
-                                { id: 106, value: 0 }, { id: 107, value: 0 }, { id: 108, value: 0 }, { id: 109, value: 0 },
-                                { id: 110, value: 0 }, { id: 111, value: 0 }, { id: 112, value: 0 }, { id: 113, value: 0 },
-                                { id: 114, value: 0 }, { id: 115, value: 0 }
-                            ],
-                            arpSettings: {
-                                isArpRateSynced: false,
-                                currentArpOrder: "As Played",
-                                arp1: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 },
-                                arp2: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 }
-                            }
-                        }
-    },
-    "LEADS": {
-        'MUTED HORN': {
-                            tempoMode: "BPM",
-                            key: "D",
-                            scale: "Dorian",
-                            customScale: [],
-                            allowDuplicateNotesMode: false,
-                            isLfoMode: false,
-                            lfoState: [
-                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
-                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
-                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0.4111 },
-                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 }
-                            ],
-                            knobSettings: [
-                                { id: 0, totalAngle: 996 },
-                                { id: 1, totalAngle: 1116 }
-                            ],
-                            fxSettings: [
-                                { id: 0, value: 0 }, { id: 1, value: 0.0463 }, { id: 2, value: 0.4666 }, { id: 3, value: 0.4112 },
-                                { id: 4, value: 0.334 }, { id: 5, value: 0.2648 }, { id: 6, value: 0.6959 }, { id: 7, value: 0.7 },
-                                { id: 8, value: 0.1312 }, { id: 9, value: 0.3343 }, { id: 10, value: 0 }, { id: 11, value: 0.2472 },
-                                { id: 12, value: 0.3025 }, { id: 13, value: 0.4756 }, { id: 14, value: 0 }, { id: 15, value: 0.123 },
-                                { id: 16, value: 0.41406705005923433 }, { id: 17, value: 0.41406705005923433 }, { id: 18, value: 0.3731 }, { id: 19, value: 0.0117 },
-                                { id: 20, value: 0.2573 }, { id: 21, value: 0.3258 }, { id: 22, value: 0.4201555555555555 }, { id: 23, value: 0.9596 },
-                                { id: 24, value: 0.5055 }, { id: 25, value: 0.5 }, { id: 26, value: 0.5 }, { id: 27, value: 0.5 },
-                                { id: 28, value: 0.8131 }, { id: 29, value: 0.8119333333333334 }, { id: 100, value: 0 }, { id: 101, value: 0 },
-                                { id: 102, value: 0 }, { id: 103, value: 0 }, { id: 104, value: 0.5055 }, { id: 105, value: 0 },
-                                { id: 106, value: 0 }, { id: 107, value: 0 }, { id: 108, value: 0 }, { id: 109, value: 0 },
-                                { id: 110, value: 0.4111 }, { id: 111, value: 0 }, { id: 112, value: 0 }, { id: 113, value: 0 },
-                                { id: 114, value: 0 }, { id: 115, value: 0 }
-                            ],
-                            arpSettings: {
-                                isArpRateSynced: false,
-                                currentArpOrder: "Up/Down",
-                                arp1: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 1, feelValue: 0.4201555555555555, notes: [], transpose: 0 },
-                                arp2: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0.9596, notes: [], transpose: 0 }
-                            }
-                        },
-        'KOTO': {
-            tempoMode: "BPM",
-            key: "C",
-            scale: "Custom",
-            customScale: [0,4,6,7,11],
-            allowDuplicateNotesMode: false,
-            isLfoMode: false,
-            lfoState: [
-                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
-                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
-                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
-                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 }
-            ],
-            knobSettings: [
-                { id: 0, totalAngle: 1080.44 },
-                { id: 1, totalAngle: 921.51 }
-            ],
-            fxSettings: [
-                { id: 0, value: 0.6944444444444444 }, { id: 1, value: 0.05 }, { id: 2, value: 1 }, { id: 3, value: 0 },
-                { id: 4, value: 0.05 }, { id: 5, value: 0 }, { id: 6, value: 0 }, { id: 7, value: 0.7 },
-                { id: 8, value: 0.01 }, { id: 9, value: 0.3 }, { id: 10, value: 0 }, { id: 11, value: 0.4 },
-                { id: 12, value: 0.2 }, { id: 13, value: 0.4 }, { id: 14, value: 0.5 }, { id: 15, value: 0.15 },
-                { id: 16, value: 0.4344284780347278 }, { id: 17, value: 0.4344284780347278 }, { id: 18, value: 0 }, { id: 19, value: 0 },
-                { id: 20, value: 0.45 }, { id: 21, value: 0.55 }, { id: 22, value: 0 }, { id: 23, value: 0 },
-                { id: 24, value: 0.5 }, { id: 25, value: 0.5 }, { id: 26, value: 0.6 }, { id: 27, value: 0.6 },
-                { id: 28, value: 0.75 }, { id: 29, value: 0.65 }, { id: 30, value: 0 }, { id: 31, value: 0 },
-                { id: 100, value: 0 }, { id: 101, value: 0.0833 }, { id: 102, value: 0 }, { id: 103, value: 0 },
-                { id: 104, value: 0 }, { id: 105, value: 0.0833 }, { id: 106, value: 0 }, { id: 107, value: 0 },
-                { id: 108, value: 0 }, { id: 109, value: 0 }, { id: 110, value: 0 }, { id: 111, value: 0 },
-                { id: 112, value: 0.0833 }, { id: 113, value: 0.0833 }, { id: 114, value: 0 }, { id: 115, value: 0 }
-            ],
-            arpSettings: {
-                isArpRateSynced: false,
-                currentArpOrder: "Up",
-                arp1: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 },
-                arp2: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 }
-            }
-        },
-        'HIGHLAND': {
-                            key: "F#",
-                            scale: "Minor Pentatonic",
-                            customScale: [],
-                            allowDuplicateNotesMode: false,
-                            isLfoMode: false,
-                            lfoState: [
-                                { rate: 0.5, depth: 0, wave: 0, dest: 0 },
-                                { rate: 0.5, depth: 0, wave: 0, dest: 0 },
-                                { rate: 0.5, depth: 0, wave: 0, dest: 0 },
-                                { rate: 0.5, depth: 0, wave: 0, dest: 0 }
-                            ],
-                            knobSettings: [
-                                { id: 0, totalAngle: 1225.79 },
-                                { id: 1, totalAngle: 1649.30 }
-                            ],
-                            fxSettings: [
-                                { id: 0, value: 0.1166 }, { id: 1, value: 0 }, { id: 2, value: 1 }, { id: 3, value: 0.1363 },
-                                { id: 4, value: 0.7277 }, { id: 5, value: 0 }, { id: 6, value: 0.3111 }, { id: 7, value: 0.6333 },
-                                { id: 8, value: 0.8989 }, { id: 9, value: 0.5444 }, { id: 10, value: 1 }, { id: 11, value: 1 },
-                                { id: 12, value: 1 }, { id: 13, value: 0.1082 }, { id: 14, value: 0.0136 }, { id: 15, value: 0.8568 },
-                                { id: 16, value: 0.4344 }, { id: 17, value: 0.4344 }, { id: 18, value: 0 }, { id: 19, value: 0 },
-                                { id: 20, value: 0.4722 }, { id: 21, value: 0.5333 }, { id: 22, value: 0 }, { id: 23, value: 0 },
-                                { id: 24, value: 0.5 }, { id: 25, value: 0.5 }, { id: 26, value: 0.6888 }, { id: 27, value: 0.6277 },
-                                { id: 28, value: 0.1611 }, { id: 29, value: 0.1777 }, { id: 100, value: 0.9100 }, { id: 101, value: 0.4327 },
-                                { id: 102, value: 0.2679 }, { id: 103, value: 0.9645 }, { id: 104, value: 0.1725 }, { id: 105, value: 0.6189 },
-                                { id: 106, value: 0.7398 }, { id: 107, value: 0.5588 }, { id: 108, value: 0.9567 }, { id: 109, value: 0.1089 },
-                                { id: 110, value: 0.2184 }, { id: 111, value: 0.8604 }, { id: 112, value: 0.6482 }, { id: 113, value: 0.5272 },
-                                { id: 114, value: 0.1371 }, { id: 115, value: 0.7317 }
-                            ],
-                            arpSettings: {
-                                isArpRateSynced: false,
-                                currentArpOrder: "As Played",
-                                arp1: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 },
-                                arp2: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 }
-                            }
-                    },
-        'SPACEY LEAD': {
-                            tempoMode: "BPM",
-                            key: "E",
-                            scale: "Minor",
-                            customScale: [],
-                            allowDuplicateNotesMode: false,
-                            isLfoMode: true,
-                            lfoState: [
-                                { rate: 0.2777, depth: 0.1666, wave: 0, dest: 20, destChain: [20], tempoSync: false, storedFreeValue: 0.2777 },
-                                { rate: 0.18, depth: 0.1833, wave: 1, dest: 21, destChain: [21], tempoSync: false, storedFreeValue: 0.18 },
-                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
-                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 }
-                            ],
-                            knobSettings: [
-                                { id: 0, totalAngle: 1272 },
-                                { id: 1, totalAngle: 1752 }
-                            ],
-                            fxSettings: [
-                                { id: 0, value: 0 }, { id: 1, value: 0 }, { id: 2, value: 1 }, { id: 3, value: 0.2611 },
-                                { id: 4, value: 0.6555 }, { id: 5, value: 0 }, { id: 6, value: 0.5 }, { id: 7, value: 0.6944 },
-                                { id: 8, value: 0.08 }, { id: 9, value: 0.2 }, { id: 10, value: 0.7 }, { id: 11, value: 0.5 },
-                                { id: 12, value: 0.4 }, { id: 13, value: 0.65 }, { id: 14, value: 0.7 }, { id: 15, value: 0.55 },
-                                { id: 16, value: 0.4344 }, { id: 17, value: 0.4344 }, { id: 18, value: 0 }, { id: 19, value: 0 },
-                                { id: 20, value: 0.7666 }, { id: 21, value: 0.62 }, { id: 22, value: 0 }, { id: 23, value: 0 },
-                                { id: 24, value: 0.5 }, { id: 25, value: 0.5 }, { id: 26, value: 0.5 }, { id: 27, value: 0.5 },
-                                { id: 28, value: 0.3 }, { id: 29, value: 0.3 }, { id: 100, value: 0 }, { id: 101, value: 0.0833 },
-                                { id: 102, value: 0 }, { id: 103, value: 0.1833 }, { id: 104, value: 0 }, { id: 105, value: 0.25 },
-                                { id: 106, value: 0.1666 }, { id: 107, value: 0 }, { id: 108, value: 0.2777 }, { id: 109, value: 0.18 },
-                                { id: 110, value: 0 }, { id: 111, value: 0 }, { id: 112, value: 0.0833 }, { id: 113, value: 0.0833 },
-                                { id: 114, value: 0 }, { id: 115, value: 0 }
-                            ],
-                            arpSettings: {
-                                isArpRateSynced: false,
-                                currentArpOrder: "As Played",
-                                arp1: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 },
-                                arp2: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 }
-                            }
-                        },
-        'CRUSH': {
-                            tempoMode: "BPM",
-                            key: "G",
-                            scale: "Major Pentatonic",
-                            customScale: [],
-                            allowDuplicateNotesMode: false,
-                            isLfoMode: false,
-                            lfoState: [
-                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
-                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
-                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
-                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 }
-                            ],
-                            knobSettings: [
-                                { id: 0, totalAngle: 888 },
-                                { id: 1, totalAngle: 1332 }
-                            ],
-                            fxSettings: [
-                                { id: 0, value: 0 }, { id: 1, value: 0.5944 }, { id: 2, value: 1 }, { id: 3, value: 0 },
-                                { id: 4, value: 0 }, { id: 5, value: 0 }, { id: 6, value: 0 }, { id: 7, value: 0.6 },
-                                { id: 8, value: 0 }, { id: 9, value: 0.8722 }, { id: 10, value: 0.0222 }, { id: 11, value: 0.5777 },
-                                { id: 12, value: 0 }, { id: 13, value: 0 }, { id: 14, value: 0.2 }, { id: 15, value: 0.2 },
-                                { id: 16, value: 0.4344 }, { id: 17, value: 0.4344 }, { id: 18, value: 0 }, { id: 19, value: 0 },
-                                { id: 20, value: 1 }, { id: 21, value: 1 }, { id: 22, value: 0 }, { id: 23, value: 0 },
-                                { id: 24, value: 0.5 }, { id: 25, value: 0.5 }, { id: 26, value: 0.5 }, { id: 27, value: 0.5 },
-                                { id: 28, value: 0 }, { id: 29, value: 0 }, { id: 100, value: 0 }, { id: 101, value: 0 },
-                                { id: 102, value: 0 }, { id: 103, value: 0 }, { id: 104, value: 0 }, { id: 105, value: 0 },
-                                { id: 106, value: 0 }, { id: 107, value: 0 }, { id: 108, value: 0 }, { id: 109, value: 0 },
-                                { id: 110, value: 0 }, { id: 111, value: 0 }, { id: 112, value: 0 }, { id: 113, value: 0 },
-                                { id: 114, value: 0 }, { id: 115, value: 0 }
-                            ],
-                            arpSettings: {
-                                isArpRateSynced: false,
-                                currentArpOrder: "Up",
-                                arp1: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 },
-                                arp2: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 }
-                            }
-                        }
-    },
     "KEYS": {
         'PLUCK': {
                             tempoMode: "BPM",
@@ -771,6 +276,568 @@ export const PRESETS = {
                 }
             }
         }
+    },
+    "BASS": {
+        '808': {
+                            tempoMode: "BPM",
+                            key: "F",
+                            scale: "Minor",
+                            customScale: [],
+                            allowDuplicateNotesMode: true,
+                            isLfoMode: false,
+                            lfoState: [
+                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
+                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
+                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
+                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 }
+                            ],
+                            knobSettings: [
+                                { id: 0, totalAngle: 744 },
+                                { id: 1, totalAngle: 960 }
+                            ],
+                            fxSettings: [
+                                { id: 0, value: 0.35 }, { id: 1, value: 0.2222222222222222 }, { id: 2, value: 0.2388888888888889 }, { id: 3, value: 1 },
+                                { id: 4, value: 0 }, { id: 5, value: 0 }, { id: 6, value: 0 }, { id: 7, value: 0.8 },
+                                { id: 8, value: 0 }, { id: 9, value: 0.18333333333333332 }, { id: 10, value: 0.26666666666666666 }, { id: 11, value: 0.5722222222222222 },
+                                { id: 12, value: 0 }, { id: 13, value: 0 }, { id: 14, value: 0 }, { id: 15, value: 0 },
+                                { id: 16, value: 0.4344284780347278 }, { id: 17, value: 0.4344284780347278 }, { id: 18, value: 0 }, { id: 19, value: 0 },
+                                { id: 20, value: 0.39437777777777777 }, { id: 21, value: 0.3611111111111111 }, { id: 22, value: 0.31666666666666665 }, { id: 23, value: 0 },
+                                { id: 24, value: 0.5 }, { id: 25, value: 0.5 }, { id: 26, value: 0.8333 }, { id: 27, value: 0.9388 },
+                                { id: 28, value: 0 }, { id: 29, value: 0 }, { id: 30, value: 0 }, { id: 31, value: 0.5944444444444444 },
+                                { id: 100, value: 0 }, { id: 101, value: 0.0833 }, { id: 102, value: 0 }, { id: 103, value: 0 },
+                                { id: 104, value: 0 }, { id: 105, value: 0.0833 }, { id: 106, value: 0 }, { id: 107, value: 0 },
+                                { id: 108, value: 0 }, { id: 109, value: 0 }, { id: 110, value: 0 }, { id: 111, value: 0 },
+                                { id: 112, value: 0.0833 }, { id: 113, value: 0.0833 }, { id: 114, value: 0 }, { id: 115, value: 0 }
+                            ],
+                            arpSettings: {
+                                isArpRateSynced: false,
+                                currentArpOrder: "As Played",
+                                arp1: { isOn: false, isArpOn: false, isSweepMode: false, octaves: 0, feelValue: 0.31666666666666665, notes: [], transpose: 0 },
+                                arp2: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 }
+                            }
+                        },
+        'ROUND BASS': {
+                            tempoMode: "BPM",
+                            key: "F",
+                            scale: "Minor",
+                            customScale: [],
+                            allowDuplicateNotesMode: false,
+                            isLfoMode: false,
+                            lfoState: [
+                                { rate: 0, depth: 0, wave: 0, dest: 0, tempoSync: false, storedFreeValue: 0 },
+                                { rate: 0, depth: 0, wave: 0, dest: 0, tempoSync: false, storedFreeValue: 0 },
+                                { rate: 0, depth: 0, wave: 0, dest: 0, tempoSync: false, storedFreeValue: 0 },
+                                { rate: 0, depth: 0, wave: 0, dest: 0, tempoSync: false, storedFreeValue: 0 }
+                            ],
+                            knobSettings: [
+                                { id: 0, totalAngle: 929.12 },
+                                { id: 1, totalAngle: 1091.27 }
+                            ],
+                            fxSettings: [
+                                { id: 0, value: 0.1 }, { id: 1, value: 0 }, { id: 2, value: 0.8 }, { id: 3, value: 0.9333 },
+                                { id: 4, value: 0.2 }, { id: 5, value: 0 }, { id: 6, value: 0.2 }, { id: 7, value: 0.7111 },
+                                { id: 8, value: 0.01 }, { id: 9, value: 0.3611 }, { id: 10, value: 0.3611 }, { id: 11, value: 0.3 },
+                                { id: 12, value: 0.1 }, { id: 13, value: 0.2 }, { id: 14, value: 0 }, { id: 15, value: 0 },
+                                { id: 16, value: 0.4344 }, { id: 17, value: 0.4344 }, { id: 18, value: 0 }, { id: 19, value: 0 },
+                                { id: 20, value: 0.1555 }, { id: 21, value: 0.1611 }, { id: 22, value: 0 }, { id: 23, value: 0 },
+                                { id: 24, value: 0.5 }, { id: 25, value: 0.5 }, { id: 26, value: 0.5 }, { id: 27, value: 0.5 },
+                                { id: 28, value: 0.3444 }, { id: 29, value: 0.3666 }, { id: 100, value: 0 }, { id: 101, value: 0.0833 },
+                                { id: 102, value: 0 }, { id: 103, value: 0 }, { id: 104, value: 0 }, { id: 105, value: 0.0833 },
+                                { id: 106, value: 0 }, { id: 107, value: 0 }, { id: 108, value: 0 }, { id: 109, value: 0 },
+                                { id: 110, value: 0 }, { id: 111, value: 0 }, { id: 112, value: 0.0833 }, { id: 113, value: 0.0833 },
+                                { id: 114, value: 0 }, { id: 115, value: 0 }
+                            ],
+                            arpSettings: {
+                                isArpRateSynced: false,
+                                currentArpOrder: "Up",
+                                arp1: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 },
+                                arp2: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 }
+                            }
+                        },
+        'TIMPANI': {
+                            tempoMode: "BPM",
+                            key: "C",
+                            scale: "Chromatic",
+                            customScale: [],
+                            allowDuplicateNotesMode: false,
+                            isLfoMode: false,
+                            lfoState: [
+                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
+                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
+                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
+                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 }
+                            ],
+                            knobSettings: [
+                                { id: 0, totalAngle: 720 },
+                                { id: 1, totalAngle: 1080 }
+                            ],
+                            fxSettings: [
+                                { id: 0, value: 0 }, { id: 1, value: 0 }, { id: 2, value: 0.4 }, { id: 3, value: 0 },
+                                { id: 4, value: 0 }, { id: 5, value: 0 }, { id: 6, value: 0 }, { id: 7, value: 0.7 },
+                                { id: 8, value: 0.01 }, { id: 9, value: 0.15 }, { id: 10, value: 0 }, { id: 11, value: 0.4 },
+                                { id: 12, value: 0.3 }, { id: 13, value: 0.5 }, { id: 14, value: 0 }, { id: 15, value: 0 },
+                                { id: 16, value: 0.4344 }, { id: 17, value: 0.4344 }, { id: 18, value: 0 }, { id: 19, value: 0 },
+                                { id: 20, value: 0.3 }, { id: 21, value: 0.32 }, { id: 22, value: 0 }, { id: 23, value: 0 },
+                                { id: 24, value: 0.5 }, { id: 25, value: 0.5 }, { id: 26, value: 1 }, { id: 27, value: 1 },
+                                { id: 28, value: 0 }, { id: 29, value: 0 }, { id: 30, value: 0.65 }, { id: 31, value: 0.7 } // Sine for thump
+                            ],
+                            arpSettings: {
+                                isArpRateSynced: false,
+                                currentArpOrder: "As Played",
+                                arp1: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 },
+                                arp2: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 }
+                            }
+                        },
+    },
+    "LEADS": {
+        'MUTED HORN': {
+                            tempoMode: "BPM",
+                            key: "D",
+                            scale: "Dorian",
+                            customScale: [],
+                            allowDuplicateNotesMode: false,
+                            isLfoMode: false,
+                            lfoState: [
+                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
+                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
+                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0.4111 },
+                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 }
+                            ],
+                            knobSettings: [
+                                { id: 0, totalAngle: 996 },
+                                { id: 1, totalAngle: 1116 }
+                            ],
+                            fxSettings: [
+                                { id: 0, value: 0 }, { id: 1, value: 0.0463 }, { id: 2, value: 0.4666 }, { id: 3, value: 0.4112 },
+                                { id: 4, value: 0.334 }, { id: 5, value: 0.2648 }, { id: 6, value: 0.6959 }, { id: 7, value: 0.7 },
+                                { id: 8, value: 0.1312 }, { id: 9, value: 0.3343 }, { id: 10, value: 0 }, { id: 11, value: 0.2472 },
+                                { id: 12, value: 0.3025 }, { id: 13, value: 0.4756 }, { id: 14, value: 0 }, { id: 15, value: 0.123 },
+                                { id: 16, value: 0.41406705005923433 }, { id: 17, value: 0.41406705005923433 }, { id: 18, value: 0.3731 }, { id: 19, value: 0.0117 },
+                                { id: 20, value: 0.2573 }, { id: 21, value: 0.3258 }, { id: 22, value: 0.4201555555555555 }, { id: 23, value: 0.9596 },
+                                { id: 24, value: 0.5055 }, { id: 25, value: 0.5 }, { id: 26, value: 0.5 }, { id: 27, value: 0.5 },
+                                { id: 28, value: 0.8131 }, { id: 29, value: 0.8119333333333334 }, { id: 100, value: 0 }, { id: 101, value: 0 },
+                                { id: 102, value: 0 }, { id: 103, value: 0 }, { id: 104, value: 0.5055 }, { id: 105, value: 0 },
+                                { id: 106, value: 0 }, { id: 107, value: 0 }, { id: 108, value: 0 }, { id: 109, value: 0 },
+                                { id: 110, value: 0.4111 }, { id: 111, value: 0 }, { id: 112, value: 0 }, { id: 113, value: 0 },
+                                { id: 114, value: 0 }, { id: 115, value: 0 }
+                            ],
+                            arpSettings: {
+                                isArpRateSynced: false,
+                                currentArpOrder: "Up/Down",
+                                arp1: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 1, feelValue: 0.4201555555555555, notes: [], transpose: 0 },
+                                arp2: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0.9596, notes: [], transpose: 0 }
+                            }
+                        },
+        'KOTO': {
+            tempoMode: "BPM",
+            key: "C",
+            scale: "Custom",
+            customScale: [0,4,6,7,11],
+            allowDuplicateNotesMode: false,
+            isLfoMode: false,
+            lfoState: [
+                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
+                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
+                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
+                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 }
+            ],
+            knobSettings: [
+                { id: 0, totalAngle: 1080.44 },
+                { id: 1, totalAngle: 921.51 }
+            ],
+            fxSettings: [
+                { id: 0, value: 0.6944444444444444 }, { id: 1, value: 0.05 }, { id: 2, value: 1 }, { id: 3, value: 0 },
+                { id: 4, value: 0.05 }, { id: 5, value: 0 }, { id: 6, value: 0 }, { id: 7, value: 0.7 },
+                { id: 8, value: 0.01 }, { id: 9, value: 0.3 }, { id: 10, value: 0 }, { id: 11, value: 0.4 },
+                { id: 12, value: 0.2 }, { id: 13, value: 0.4 }, { id: 14, value: 0.5 }, { id: 15, value: 0.15 },
+                { id: 16, value: 0.4344284780347278 }, { id: 17, value: 0.4344284780347278 }, { id: 18, value: 0 }, { id: 19, value: 0 },
+                { id: 20, value: 0.45 }, { id: 21, value: 0.55 }, { id: 22, value: 0 }, { id: 23, value: 0 },
+                { id: 24, value: 0.5 }, { id: 25, value: 0.5 }, { id: 26, value: 0.6 }, { id: 27, value: 0.6 },
+                { id: 28, value: 0.75 }, { id: 29, value: 0.65 }, { id: 30, value: 0 }, { id: 31, value: 0 },
+                { id: 100, value: 0 }, { id: 101, value: 0.0833 }, { id: 102, value: 0 }, { id: 103, value: 0 },
+                { id: 104, value: 0 }, { id: 105, value: 0.0833 }, { id: 106, value: 0 }, { id: 107, value: 0 },
+                { id: 108, value: 0 }, { id: 109, value: 0 }, { id: 110, value: 0 }, { id: 111, value: 0 },
+                { id: 112, value: 0.0833 }, { id: 113, value: 0.0833 }, { id: 114, value: 0 }, { id: 115, value: 0 }
+            ],
+            arpSettings: {
+                isArpRateSynced: false,
+                currentArpOrder: "Up",
+                arp1: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 },
+                arp2: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 }
+            }
+        },
+        'HIGHLAND': {
+                            key: "F#",
+                            scale: "Minor Pentatonic",
+                            customScale: [],
+                            allowDuplicateNotesMode: false,
+                            isLfoMode: false,
+                            lfoState: [
+                                { rate: 0.5, depth: 0, wave: 0, dest: 0 },
+                                { rate: 0.5, depth: 0, wave: 0, dest: 0 },
+                                { rate: 0.5, depth: 0, wave: 0, dest: 0 },
+                                { rate: 0.5, depth: 0, wave: 0, dest: 0 }
+                            ],
+                            knobSettings: [
+                                { id: 0, totalAngle: 1225.79 },
+                                { id: 1, totalAngle: 1649.30 }
+                            ],
+                            fxSettings: [
+                                { id: 0, value: 0.1166 }, { id: 1, value: 0 }, { id: 2, value: 1 }, { id: 3, value: 0.1363 },
+                                { id: 4, value: 0.7277 }, { id: 5, value: 0 }, { id: 6, value: 0.3111 }, { id: 7, value: 0.6333 },
+                                { id: 8, value: 0.8989 }, { id: 9, value: 0.5444 }, { id: 10, value: 1 }, { id: 11, value: 1 },
+                                { id: 12, value: 1 }, { id: 13, value: 0.1082 }, { id: 14, value: 0.0136 }, { id: 15, value: 0.8568 },
+                                { id: 16, value: 0.4344 }, { id: 17, value: 0.4344 }, { id: 18, value: 0 }, { id: 19, value: 0 },
+                                { id: 20, value: 0.4722 }, { id: 21, value: 0.5333 }, { id: 22, value: 0 }, { id: 23, value: 0 },
+                                { id: 24, value: 0.5 }, { id: 25, value: 0.5 }, { id: 26, value: 0.6888 }, { id: 27, value: 0.6277 },
+                                { id: 28, value: 0.1611 }, { id: 29, value: 0.1777 }, { id: 100, value: 0.9100 }, { id: 101, value: 0.4327 },
+                                { id: 102, value: 0.2679 }, { id: 103, value: 0.9645 }, { id: 104, value: 0.1725 }, { id: 105, value: 0.6189 },
+                                { id: 106, value: 0.7398 }, { id: 107, value: 0.5588 }, { id: 108, value: 0.9567 }, { id: 109, value: 0.1089 },
+                                { id: 110, value: 0.2184 }, { id: 111, value: 0.8604 }, { id: 112, value: 0.6482 }, { id: 113, value: 0.5272 },
+                                { id: 114, value: 0.1371 }, { id: 115, value: 0.7317 }
+                            ],
+                            arpSettings: {
+                                isArpRateSynced: false,
+                                currentArpOrder: "As Played",
+                                arp1: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 },
+                                arp2: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 }
+                            }
+                    },
+        'SPACEY LEAD': {
+                            tempoMode: "BPM",
+                            key: "E",
+                            scale: "Minor",
+                            customScale: [],
+                            allowDuplicateNotesMode: false,
+                            isLfoMode: true,
+                            lfoState: [
+                                { rate: 0.2777, depth: 0.1666, wave: 0, dest: 20, destChain: [20], tempoSync: false, storedFreeValue: 0.2777 },
+                                { rate: 0.18, depth: 0.1833, wave: 1, dest: 21, destChain: [21], tempoSync: false, storedFreeValue: 0.18 },
+                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
+                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 }
+                            ],
+                            knobSettings: [
+                                { id: 0, totalAngle: 1272 },
+                                { id: 1, totalAngle: 1752 }
+                            ],
+                            fxSettings: [
+                                { id: 0, value: 0 }, { id: 1, value: 0 }, { id: 2, value: 1 }, { id: 3, value: 0.2611 },
+                                { id: 4, value: 0.6555 }, { id: 5, value: 0 }, { id: 6, value: 0.5 }, { id: 7, value: 0.6944 },
+                                { id: 8, value: 0.08 }, { id: 9, value: 0.2 }, { id: 10, value: 0.7 }, { id: 11, value: 0.5 },
+                                { id: 12, value: 0.4 }, { id: 13, value: 0.65 }, { id: 14, value: 0.7 }, { id: 15, value: 0.55 },
+                                { id: 16, value: 0.4344 }, { id: 17, value: 0.4344 }, { id: 18, value: 0 }, { id: 19, value: 0 },
+                                { id: 20, value: 0.7666 }, { id: 21, value: 0.62 }, { id: 22, value: 0 }, { id: 23, value: 0 },
+                                { id: 24, value: 0.5 }, { id: 25, value: 0.5 }, { id: 26, value: 0.5 }, { id: 27, value: 0.5 },
+                                { id: 28, value: 0.3 }, { id: 29, value: 0.3 }, { id: 100, value: 0 }, { id: 101, value: 0.0833 },
+                                { id: 102, value: 0 }, { id: 103, value: 0.1833 }, { id: 104, value: 0 }, { id: 105, value: 0.25 },
+                                { id: 106, value: 0.1666 }, { id: 107, value: 0 }, { id: 108, value: 0.2777 }, { id: 109, value: 0.18 },
+                                { id: 110, value: 0 }, { id: 111, value: 0 }, { id: 112, value: 0.0833 }, { id: 113, value: 0.0833 },
+                                { id: 114, value: 0 }, { id: 115, value: 0 }
+                            ],
+                            arpSettings: {
+                                isArpRateSynced: false,
+                                currentArpOrder: "As Played",
+                                arp1: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 },
+                                arp2: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 }
+                            }
+                        },
+        'CRUSH': {
+                            tempoMode: "BPM",
+                            key: "G",
+                            scale: "Major Pentatonic",
+                            customScale: [],
+                            allowDuplicateNotesMode: false,
+                            isLfoMode: false,
+                            lfoState: [
+                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
+                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
+                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
+                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 }
+                            ],
+                            knobSettings: [
+                                { id: 0, totalAngle: 888 },
+                                { id: 1, totalAngle: 1332 }
+                            ],
+                            fxSettings: [
+                                { id: 0, value: 0 }, { id: 1, value: 0.5944 }, { id: 2, value: 1 }, { id: 3, value: 0 },
+                                { id: 4, value: 0 }, { id: 5, value: 0 }, { id: 6, value: 0 }, { id: 7, value: 0.6 },
+                                { id: 8, value: 0 }, { id: 9, value: 0.8722 }, { id: 10, value: 0.0222 }, { id: 11, value: 0.5777 },
+                                { id: 12, value: 0 }, { id: 13, value: 0 }, { id: 14, value: 0.2 }, { id: 15, value: 0.2 },
+                                { id: 16, value: 0.4344 }, { id: 17, value: 0.4344 }, { id: 18, value: 0 }, { id: 19, value: 0 },
+                                { id: 20, value: 1 }, { id: 21, value: 1 }, { id: 22, value: 0 }, { id: 23, value: 0 },
+                                { id: 24, value: 0.5 }, { id: 25, value: 0.5 }, { id: 26, value: 0.5 }, { id: 27, value: 0.5 },
+                                { id: 28, value: 0 }, { id: 29, value: 0 }, { id: 100, value: 0 }, { id: 101, value: 0 },
+                                { id: 102, value: 0 }, { id: 103, value: 0 }, { id: 104, value: 0 }, { id: 105, value: 0 },
+                                { id: 106, value: 0 }, { id: 107, value: 0 }, { id: 108, value: 0 }, { id: 109, value: 0 },
+                                { id: 110, value: 0 }, { id: 111, value: 0 }, { id: 112, value: 0 }, { id: 113, value: 0 },
+                                { id: 114, value: 0 }, { id: 115, value: 0 }
+                            ],
+                            arpSettings: {
+                                isArpRateSynced: false,
+                                currentArpOrder: "Up",
+                                arp1: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 },
+                                arp2: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 }
+                            }
+                        }
+    },
+    "PADS": {
+        'BASIC PAD': {
+                            tempoMode: "BPM",
+                            key: "C",
+                            scale: "Major",
+                            customScale: [],
+                            allowDuplicateNotesMode: false,
+                            isLfoMode: true,
+                            lfoState: [
+                                { rate: 0.35, depth: 0.1611, wave: 0, dest: 20, destChain: [20], tempoSync: false, storedFreeValue: 0.35 },
+                                { rate: 0.3222, depth: 0.1666, wave: 0, dest: 21, destChain: [21], tempoSync: false, storedFreeValue: 0.3222 },
+                                { rate: 0.25, depth: 0.4388, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0.25 },
+                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 }
+                            ],
+                            knobSettings: [
+                                { id: 0, totalAngle: 971.65 },
+                                { id: 1, totalAngle: 1619.27 }
+                            ],
+                            fxSettings: [
+                                { id: 0, value: 0.1 }, { id: 1, value: 0 }, { id: 2, value: 0.9 }, { id: 3, value: 0.2 },
+                                { id: 4, value: 0.6166 }, { id: 5, value: 0 }, { id: 6, value: 0.6777 }, { id: 7, value: 0.6 },
+                                { id: 8, value: 0.6 }, { id: 9, value: 0.5 }, { id: 10, value: 0.8 }, { id: 11, value: 0.7 },
+                                { id: 12, value: 0.7 }, { id: 13, value: 0.9 }, { id: 14, value: 0 }, { id: 15, value: 0 },
+                                { id: 16, value: 0.4344 }, { id: 17, value: 0.4344 }, { id: 18, value: 0 }, { id: 19, value: 0 },
+                                { id: 20, value: 0.6 }, { id: 21, value: 0.65 }, { id: 22, value: 0 }, { id: 23, value: 0 },
+                                { id: 24, value: 0.5 }, { id: 25, value: 0.5 }, { id: 26, value: 0.5 }, { id: 27, value: 0.5 },
+                                { id: 28, value: 0.1 }, { id: 29, value: 0.1 }, { id: 100, value: 0 }, { id: 101, value: 0.0833 },
+                                { id: 102, value: 0 }, { id: 103, value: 0.1666 }, { id: 104, value: 0.4388 }, { id: 105, value: 0.0833 },
+                                { id: 106, value: 0.1611 }, { id: 107, value: 0 }, { id: 108, value: 0.35 }, { id: 109, value: 0.3222 },
+                                { id: 110, value: 0.25 }, { id: 111, value: 0 }, { id: 112, value: 0.0833 }, { id: 113, value: 0.0833 },
+                                { id: 114, value: 0 }, { id: 115, value: 0 }
+                            ],
+                            arpSettings: {
+                                isArpRateSynced: false,
+                                currentArpOrder: "Up",
+                                arp1: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 },
+                                arp2: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 }
+                            }
+                        },
+        'SCARY PAD 2': {
+                            tempoMode: "BPM",
+                            key: "A#",
+                            scale: "Minor",
+                            customScale: [],
+                            allowDuplicateNotesMode: false,
+                            isLfoMode: true,
+                            lfoState: [
+                                { rate: 0.2577, depth: 0.25, wave: 0, dest: 20, destChain: [20], tempoSync: false, storedFreeValue: 0.2577 },
+                                { rate: 0.2388, depth: 0.2333, wave: 0, dest: 21, destChain: [21], tempoSync: false, storedFreeValue: 0.2388 },
+                                { rate: 0.2833, depth: 0.0833, wave: 0, dest: 5, destChain: [5], tempoSync: false, storedFreeValue: 0.2833 },
+                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 }
+                            ],
+                            knobSettings: [
+                                { id: 0, totalAngle: 2004.70 },
+                                { id: 1, totalAngle: 1720.81 }
+                            ],
+                            fxSettings: [
+                                { id: 0, value: 0 }, { id: 1, value: 0 }, { id: 2, value: 0.6 }, { id: 3, value: 0.6055 },
+                                { id: 4, value: 0.45 }, { id: 5, value: 0.4222 }, { id: 6, value: 0.8666 }, { id: 7, value: 0.7 },
+                                { id: 8, value: 0.6 }, { id: 9, value: 0.5 }, { id: 10, value: 0.9 }, { id: 11, value: 0.8 },
+                                { id: 12, value: 0.85 }, { id: 13, value: 0.9 }, { id: 14, value: 0.4 }, { id: 15, value: 0.6 },
+                                { id: 16, value: 0.4344 }, { id: 17, value: 0.4344 }, { id: 18, value: 0 }, { id: 19, value: 0 },
+                                { id: 20, value: 0.2444 }, { id: 21, value: 0.3222 }, { id: 22, value: 0 }, { id: 23, value: 0 },
+                                { id: 24, value: 0.5 }, { id: 25, value: 0.5 }, { id: 26, value: 0.5 }, { id: 27, value: 0.5 },
+                                { id: 28, value: 0.1 }, { id: 29, value: 0.1 }, { id: 100, value: 0 }, { id: 101, value: 0.0833 },
+                                { id: 102, value: 0 }, { id: 103, value: 0.2333 }, { id: 104, value: 0.0833 }, { id: 105, value: 0.0833 },
+                                { id: 106, value: 0.25 }, { id: 107, value: 0 }, { id: 108, value: 0.2577 }, { id: 109, value: 0.2388 },
+                                { id: 110, value: 0.2833 }, { id: 111, value: 0 }, { id: 112, value: 0.0833 }, { id: 113, value: 0.0833 },
+                                { id: 114, value: 0 }, { id: 115, value: 0 }
+                            ],
+                            arpSettings: {
+                                isArpRateSynced: false,
+                                currentArpOrder: "Up",
+                                arp1: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 },
+                                arp2: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 }
+                            }
+                        },
+        'STRINGS': {
+                            tempoMode: "BPM",
+                            key: "C",
+                            scale: "Phrygian",
+                            customScale: [],
+                            allowDuplicateNotesMode: false,
+                            isLfoMode: false,
+                            lfoState: [
+                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
+                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
+                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
+                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 }
+                            ],
+                            knobSettings: [
+                                { id: 0, totalAngle: 746.65 },
+                                { id: 1, totalAngle: 1558.71 }
+                            ],
+                            fxSettings: [
+                                { id: 0, value: 0 }, { id: 1, value: 0 }, { id: 2, value: 1 }, { id: 3, value: 0 },
+                                { id: 4, value: 0 }, { id: 5, value: 0 }, { id: 6, value: 0 }, { id: 7, value: 0.7 },
+                                { id: 8, value: 0.7 }, { id: 9, value: 0.14444444444444443 }, { id: 10, value: 0.37222222222222223 }, { id: 11, value: 0.5722222222222222 },
+                                { id: 12, value: 0.9 }, { id: 13, value: 0.9 }, { id: 14, value: 0.6 }, { id: 15, value: 0.7 },
+                                { id: 16, value: 0.4344284780347278 }, { id: 17, value: 0.4344284780347278 }, { id: 18, value: 0 }, { id: 19, value: 0 },
+                                { id: 20, value: 0.8055555555555556 }, { id: 21, value: 0.8166666666666667 }, { id: 22, value: 0 }, { id: 23, value: 0 },
+                                { id: 24, value: 0.5 }, { id: 25, value: 0.5 }, { id: 26, value: 0.5 }, { id: 27, value: 0.5 },
+                                { id: 28, value: 0 }, { id: 29, value: 0 }, { id: 100, value: 0 }, { id: 101, value: 0 },
+                                { id: 102, value: 0 }, { id: 103, value: 0 }, { id: 104, value: 0 }, { id: 105, value: 0 },
+                                { id: 106, value: 0 }, { id: 107, value: 0 }, { id: 108, value: 0 }, { id: 109, value: 0 },
+                                { id: 110, value: 0 }, { id: 111, value: 0 }, { id: 112, value: 0 }, { id: 113, value: 0 },
+                                { id: 114, value: 0 }, { id: 115, value: 0 }
+                            ],
+                            arpSettings: {
+                                isArpRateSynced: false,
+                                currentArpOrder: "As Played",
+                                arp1: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 },
+                                arp2: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 }
+                            }
+                        },
+        'EVOLVING PAD': {
+                            tempoMode: "BPM",
+                            key: "A",
+                            scale: "Minor",
+                            customScale: [],
+                            allowDuplicateNotesMode: false,
+                            isLfoMode: true,
+                            lfoState: [
+                                { rate: 0.15, depth: 0.4, wave: 0, dest: 20, destChain: [20, 21], tempoSync: false, storedFreeValue: 0.15 },
+                                { rate: 0.22, depth: 0.35, wave: 1, dest: 6, destChain: [6], tempoSync: false, storedFreeValue: 0.22 },
+                                { rate: 0.08, depth: 0.5, wave: 0, dest: 108, destChain: [108], tempoSync: false, storedFreeValue: 0.08 },
+                                { rate: 0.18, depth: 0.3, wave: 0, dest: 109, destChain: [109], tempoSync: false, storedFreeValue: 0.18 }
+                            ],
+                            knobSettings: [
+                                { id: 0, totalAngle: 1440 },
+                                { id: 1, totalAngle: 1800 }
+                            ],
+                            fxSettings: [
+                                { id: 0, value: 0 }, { id: 1, value: 0 }, { id: 2, value: 1 }, { id: 3, value: 0.4 },
+                                { id: 4, value: 0.25 }, { id: 5, value: 0 }, { id: 6, value: 0.5 }, { id: 7, value: 0.65 },
+                                { id: 8, value: 0.7 }, { id: 9, value: 0.15 }, { id: 10, value: 0.85 }, { id: 11, value: 0.8 },
+                                { id: 12, value: 0.75 }, { id: 13, value: 0.85 }, { id: 14, value: 0.3 }, { id: 15, value: 0.6 },
+                                { id: 16, value: 0.4344 }, { id: 17, value: 0.4344 }, { id: 18, value: 0 }, { id: 19, value: 0 },
+                                { id: 20, value: 0.65 }, { id: 21, value: 0.68 }, { id: 22, value: 0 }, { id: 23, value: 0 },
+                                { id: 24, value: 0.5 }, { id: 25, value: 0.5 }, { id: 26, value: 0.5 }, { id: 27, value: 0.5 },
+                                { id: 28, value: 0.08 }, { id: 29, value: 0.08 }, { id: 100, value: 0.3 }, { id: 101, value: 0.0833 },
+                                { id: 102, value: 0 }, { id: 103, value: 0.35 }, { id: 104, value: 0.5 }, { id: 105, value: 0.25 },
+                                { id: 106, value: 0.4 }, { id: 107, value: 0 }, { id: 108, value: 0.15 }, { id: 109, value: 0.22 },
+                                { id: 110, value: 0.08 }, { id: 111, value: 0.18 }, { id: 112, value: 0.0833 }, { id: 113, value: 0.0833 },
+                                { id: 114, value: 0 }, { id: 115, value: 0 }
+                            ],
+                            arpSettings: {
+                                isArpRateSynced: false,
+                                currentArpOrder: "As Played",
+                                arp1: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 },
+                                arp2: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 }
+                            }
+                        },
+        'STROLLER': {
+                            tempoMode: "BPM",
+                            key: "F#",
+                            scale: "Minor",
+                            customScale: [],
+                            allowDuplicateNotesMode: false,
+                            isLfoMode: false,
+                            lfoState: [
+                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
+                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
+                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
+                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 }
+                            ],
+                            knobSettings: [
+                                { id: 0, totalAngle: 1268.65 },
+                                { id: 1, totalAngle: 1756.71 }
+                            ],
+                            fxSettings: [
+                                { id: 0, value: 0 }, { id: 1, value: 0.0709 }, { id: 2, value: 0.8772 }, { id: 3, value: 0.5272 },
+                                { id: 4, value: 0.5923 }, { id: 5, value: 0.273 }, { id: 6, value: 0.5549 }, { id: 7, value: 0.7 },
+                                { id: 8, value: 0.3356 }, { id: 9, value: 0.7688 }, { id: 10, value: 0.1776 }, { id: 11, value: 0.2265 },
+                                { id: 12, value: 0.1725 }, { id: 13, value: 0.1865 }, { id: 14, value: 0.5942 }, { id: 15, value: 0.0173 },
+                                { id: 16, value: 0.4344 }, { id: 17, value: 0.4344 }, { id: 18, value: 0 }, { id: 19, value: 0 },
+                                { id: 20, value: 0.2184 }, { id: 21, value: 0.2179 }, { id: 22, value: 0 }, { id: 23, value: 0 },
+                                { id: 24, value: 0.5 }, { id: 25, value: 0.5 }, { id: 26, value: 0.5 }, { id: 27, value: 0.5 },
+                                { id: 28, value: 0.8459 }, { id: 29, value: 0.6228 }, { id: 100, value: 0 }, { id: 101, value: 0 },
+                                { id: 102, value: 0 }, { id: 103, value: 0 }, { id: 104, value: 0 }, { id: 105, value: 0 },
+                                { id: 106, value: 0 }, { id: 107, value: 0 }, { id: 108, value: 0 }, { id: 109, value: 0 },
+                                { id: 110, value: 0 }, { id: 111, value: 0 }, { id: 112, value: 0 }, { id: 113, value: 0 },
+                                { id: 114, value: 0 }, { id: 115, value: 0 }
+                            ],
+                            arpSettings: {
+                                isArpRateSynced: false,
+                                currentArpOrder: "As Played",
+                                arp1: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 },
+                                arp2: { isOn: false, isArpOn: false, isSweepMode: true, octaves: 0, feelValue: 0, notes: [], transpose: 0 }
+                            }
+                        }
+    },
+    "FX": {
+        'HMMM': {
+                            tempoMode: "MS",
+                            key: "G",
+                            scale: "Major Pentatonic",
+                            isLfoMode: true,
+                            knobSettings: [
+                                { "id": 0, "totalAngle": 2039.20 },
+                                { "id": 1, "totalAngle": 1536.06 }
+                            ],
+                            lfoState: [
+                                { "rate": 0.2166, "depth": 0.55, "wave": 3, "dest": 16, "tempoSync": false, "storedFreeValue": 0.2166 },
+                                { "rate": 0.3333, "depth": 0.1611, "wave": 0, "dest": 20, "tempoSync": false, "storedFreeValue": 0.3333 },
+                                { "rate": 0, "depth": 0, "wave": 0, "dest": -1, "tempoSync": false, "storedFreeValue": 0 },
+                                { "rate": 0, "depth": 0, "wave": 0, "dest": -1, "tempoSync": false, "storedFreeValue": 0 }
+                            ],
+                            fxSettings: [
+                                { "id": 0, "value": 0 },
+                                { "id": 1, "value": 0 },
+                                { "id": 2, "value": 1 },
+                                { "id": 3, "value": 0.4025 },
+                                { "id": 4, "value": 0.8105 },
+                                { "id": 5, "value": 0 },
+                                { "id": 6, "value": 0.7683 },
+                                { "id": 7, "value": 0.5611 },
+                                { "id": 8, "value": 0 },
+                                { "id": 9, "value": 0.0555 },
+                                { "id": 10, "value": 0 },
+                                { "id": 11, "value": 0 },
+                                { "id": 12, "value": 0.0722 },
+                                { "id": 13, "value": 0.5082 },
+                                { "id": 14, "value": 0.3362 },
+                                { "id": 15, "value": 0.1785 },
+                                { "id": 20, "value": 0.4 },
+                                { "id": 21, "value": 1 },
+                                { "id": 26, "value": 0.5 },
+                                { "id": 27, "value": 0.5 },
+                                { "id": 28, "value": 0.6888 },
+                                { "id": 29, "value": 0 }
+                            ],
+                            arpSettings: {
+                                isArpRateSynced: false,
+                                currentArpOrder: "As Played",
+                                arp1: {
+                                    isArpOn: true,
+                                    isOn: true,
+                                    isSweepMode: false,
+                                    notes: [ 86 ]
+                                },
+                                arp2: {
+                                    isArpOn: false,
+                                    isOn: false,
+                                    notes: []
+                                },
+                                fx: {
+                                    16: 0.9488,
+                                    17: 0.5871,
+                                    18: 0,
+                                    19: 0,
+                                    22: 0,
+                                    23: 0,
+                                    24: 0.5,
+                                    25: 0.5
+                                }
+                            }
+                        }
     },
     "ARPS": {
         'FURNACE': {
@@ -1284,73 +1351,6 @@ export const PRESETS = {
                                 }
                             }
                         },
-    },
-    "FX": {
-        'HMMM': {
-                            tempoMode: "MS",
-                            key: "G",
-                            scale: "Major Pentatonic",
-                            isLfoMode: true,
-                            knobSettings: [
-                                { "id": 0, "totalAngle": 2039.20 },
-                                { "id": 1, "totalAngle": 1536.06 }
-                            ],
-                            lfoState: [
-                                { "rate": 0.2166, "depth": 0.55, "wave": 3, "dest": 16, "tempoSync": false, "storedFreeValue": 0.2166 },
-                                { "rate": 0.3333, "depth": 0.1611, "wave": 0, "dest": 20, "tempoSync": false, "storedFreeValue": 0.3333 },
-                                { "rate": 0, "depth": 0, "wave": 0, "dest": -1, "tempoSync": false, "storedFreeValue": 0 },
-                                { "rate": 0, "depth": 0, "wave": 0, "dest": -1, "tempoSync": false, "storedFreeValue": 0 }
-                            ],
-                            fxSettings: [
-                                { "id": 0, "value": 0 },
-                                { "id": 1, "value": 0 },
-                                { "id": 2, "value": 1 },
-                                { "id": 3, "value": 0.4025 },
-                                { "id": 4, "value": 0.8105 },
-                                { "id": 5, "value": 0 },
-                                { "id": 6, "value": 0.7683 },
-                                { "id": 7, "value": 0.5611 },
-                                { "id": 8, "value": 0 },
-                                { "id": 9, "value": 0.0555 },
-                                { "id": 10, "value": 0 },
-                                { "id": 11, "value": 0 },
-                                { "id": 12, "value": 0.0722 },
-                                { "id": 13, "value": 0.5082 },
-                                { "id": 14, "value": 0.3362 },
-                                { "id": 15, "value": 0.1785 },
-                                { "id": 20, "value": 0.4 },
-                                { "id": 21, "value": 1 },
-                                { "id": 26, "value": 0.5 },
-                                { "id": 27, "value": 0.5 },
-                                { "id": 28, "value": 0.6888 },
-                                { "id": 29, "value": 0 }
-                            ],
-                            arpSettings: {
-                                isArpRateSynced: false,
-                                currentArpOrder: "As Played",
-                                arp1: {
-                                    isArpOn: true,
-                                    isOn: true,
-                                    isSweepMode: false,
-                                    notes: [ 86 ]
-                                },
-                                arp2: {
-                                    isArpOn: false,
-                                    isOn: false,
-                                    notes: []
-                                },
-                                fx: {
-                                    16: 0.9488,
-                                    17: 0.5871,
-                                    18: 0,
-                                    19: 0,
-                                    22: 0,
-                                    23: 0,
-                                    24: 0.5,
-                                    25: 0.5
-                                }
-                            }
-                        }
     },
          "RANDOM": {
         'RANDOM SOUND': { tempoMode: 'BPM' },
