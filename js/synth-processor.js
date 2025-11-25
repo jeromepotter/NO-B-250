@@ -359,30 +359,6 @@ for(let i=0;i<oL.length;i++){
     // "Discrete Circuit" Panning
     let s_L = (s1_f * 0.8 + s2_f * 0.6) * 0.7;
     let s_R = (s1_f * 0.6 + s2_f * 0.8) * 0.7;
-
-    const cW = currentParams[6];
-    if(cW > 0){ 
-        // --- JUNO-106 EMULATION (Mode I) ---
-        // Rate: ~0.5 Hz
-        this.chorusLfoPhase = (this.chorusLfoPhase + (2 * Math.PI * 0.513) / sr) % (2 * Math.PI);
-        const lfo = Math.asin(Math.sin(this.chorusLfoPhase)) * (2 / Math.PI);
-
-        // 3. Calculate Delay Times
-        const dL = (0.02 + lfo * 0.005) * sr; 
-        const dR = (0.02 - lfo * 0.005 * 0.95) * sr; 
-
-        // 4. Write to Buffer
-        this.chorusDelayBufferL[this.chorusWritePos] = s_L;
-        this.chorusDelayBufferR[this.chorusWritePos] = s_R;
-
-        // 5. Read & Mix (CROSSFADE REVERT)
-        const cSL = this.getInterpolatedSample(this.chorusDelayBufferL, dL, this.chorusWritePos);
-        const cSR = this.getInterpolatedSample(this.chorusDelayBufferR, dR, this.chorusWritePos);
-
-        s_L = (s_L * (1 - cW)) + (cSL * cW); 
-        s_R = (s_R * (1 - cW)) + (cSR * cW); 
-    } 
-    this.chorusWritePos = (this.chorusWritePos + 1) % this.chorusDelayBufferL.length;
     
     this.smoothedDist += (currentParams[1] - this.smoothedDist) * 0.0025;
     const dV=this.smoothedDist;
@@ -432,6 +408,29 @@ for(let i=0;i<oL.length;i++){
             this.tremoloPhase -= 2 * Math.PI;
         }
     }
+           const cW = currentParams[6];
+    if(cW > 0){ 
+        // --- JUNO-106 EMULATION (Mode I) ---
+        // Rate: ~0.5 Hz
+        this.chorusLfoPhase = (this.chorusLfoPhase + (2 * Math.PI * 0.513) / sr) % (2 * Math.PI);
+        const lfo = Math.asin(Math.sin(this.chorusLfoPhase)) * (2 / Math.PI);
+
+        // 3. Calculate Delay Times
+        const dL = (0.02 + lfo * 0.005) * sr; 
+        const dR = (0.02 - lfo * 0.005 * 0.95) * sr; 
+
+        // 4. Write to Buffer
+        this.chorusDelayBufferL[this.chorusWritePos] = s_L;
+        this.chorusDelayBufferR[this.chorusWritePos] = s_R;
+
+        // 5. Read & Mix (CROSSFADE REVERT)
+        const cSL = this.getInterpolatedSample(this.chorusDelayBufferL, dL, this.chorusWritePos);
+        const cSR = this.getInterpolatedSample(this.chorusDelayBufferR, dR, this.chorusWritePos);
+
+        s_L = (s_L * (1 - cW)) + (cSL * cW); 
+        s_R = (s_R * (1 - cW)) + (cSR * cW); 
+    } 
+    this.chorusWritePos = (this.chorusWritePos + 1) % this.chorusDelayBufferL.length;
     
     const dW = currentParams[14];
     const targetDT = 0.01 + currentParams[15] * 1.5;
@@ -461,9 +460,32 @@ for(let i=0;i<oL.length;i++){
     const cM=this.filterCoeffs; const yL=cM.b0*s_L+cM.b1*this.filter_x1_L+cM.b2*this.filter_x2_L-cM.a1*this.filter_y1_L-cM.a2*this.filter_y2_L; this.filter_x2_L=this.filter_x1_L;this.filter_x1_L=s_L;this.filter_y2_L=this.filter_y1_L;this.filter_y1_L=yL;
     const _yR=cM.b0*s_R+cM.b1*this.filter_x1_R+cM.b2*this.filter_x2_R-cM.a1*this.filter_y1_R-cM.a2*this.filter_y2_R; this.filter_x2_R=this.filter_x1_R;this.filter_x1_R=s_R;this.filter_y2_R=this.filter_y1_R;this.filter_y1_R=_yR;
     
-    const outL=yL*currentParams[7]; const outR=_yR*currentParams[7];
-    oL[i]=outL; oR[i]=outR;
-    if(this.isRecording){ this.recL[this.recIndex]=outL; this.recR[this.recIndex]=outR; this.recIndex++; if(this.recIndex>=this.recordBlockSize){ const il=new Float32Array(this.recIndex*2); for(let j=0,k=0;j<this.recIndex;j++){il[k++]=this.recL[j];il[k++]=this.recR[j];} this.port.postMessage({type:'audio',data:il},[il.buffer]); this.recIndex=0; }}
+   // 1. Apply Master Volume
+    let finalL = yL * currentParams[7];
+    let finalR = _yR * currentParams[7];
+
+    // 2. Master Soft Clipper (Safety & Color)
+    // Uses tanh to round off peaks > 1.0, preventing harsh digital clipping
+   finalL = Math.tanh(finalL * 1.2); 
+    finalR = Math.tanh(finalR * 1.2);
+
+    // 3. Write to Output
+    oL[i] = finalL; 
+    oR[i] = finalR;
+    if(this.isRecording){ 
+        this.recL[this.recIndex] = finalL; 
+        this.recR[this.recIndex] = finalR; 
+        this.recIndex++; 
+        if(this.recIndex >= this.recordBlockSize){ 
+            const il=new Float32Array(this.recIndex*2); 
+            for(let j=0,k=0;j<this.recIndex;j++){
+                il[k++]=this.recL[j];
+                il[k++]=this.recR[j];
+            } 
+            this.port.postMessage({type:'audio',data:il},[il.buffer]); 
+            this.recIndex=0; 
+        }
+    }
 }
 if(++this.sampleCounter>128){
     this.port.postMessage({type:'envUpdate',data:{v0:this.envValue1,v1:this.envValue2}});
@@ -473,6 +495,8 @@ return true;
 }
 }
 registerProcessor('synth-processor', SynthProcessor);
+
+
 
 
 
