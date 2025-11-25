@@ -3283,10 +3283,10 @@ function generateAndApplyRandomSound() {
            presetDisplayContainer = document.getElementById('preset-display-container');
            presetPrevButton = document.getElementById('preset-prev-button');
            presetNextButton = document.getElementById('preset-next-button');
-           buildPresetNavigationList();
-           updatePresetDisplay();
+          buildPresetNavigationList();
+          updatePresetDisplay();
 
-           loadPresetFromUrl();
+          const presetLoadedFromUrl = loadPresetFromUrl();
            
            // --- 3. TOUCH HELPER FUNCTION ---
            const addTouchListener = (element, callback) => {
@@ -4046,16 +4046,18 @@ function generateAndApplyRandomSound() {
            });
 
            updateGlobalArpVisibility();
-           const initialPresetCategory = 'KEYS';
-           const initialPresetName = 'DREAMY MALLET';
-           if (applyFactoryPreset(initialPresetCategory, initialPresetName, { skipPowerOn: true })) {
-               updatePresetDisplay(initialPresetName, 'factory', initialPresetCategory);
-           } else {
-               updatePresetDisplay();
-               knobState.forEach(k => updateStateFromTotalAngle(k.id));
-           }
-           updateRateButtonLockState();
-       }
+          const initialPresetCategory = 'KEYS';
+          const initialPresetName = 'DREAMY MALLET';
+          if (!presetLoadedFromUrl) {
+              if (applyFactoryPreset(initialPresetCategory, initialPresetName, { skipPowerOn: true })) {
+                  updatePresetDisplay(initialPresetName, 'factory', initialPresetCategory);
+              } else {
+                  updatePresetDisplay();
+                  knobState.forEach(k => updateStateFromTotalAngle(k.id));
+              }
+          }
+          updateRateButtonLockState();
+      }
        init();
 
 
