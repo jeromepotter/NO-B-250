@@ -1,6 +1,7 @@
        // --- App State ---
       let audioContext; let synthNode; let isPowerOn = false;
       let allowDuplicateNotesMode = false;
+      let shouldResumeHeldArps = false;
       let isLfoMode = false;
       let isLfoLockEnabled = false;
       let visualUpdatePending = false;
@@ -120,7 +121,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             };
         }
 
-        function blendHexColors(hexA, hexB, t) {
+       function blendHexColors(hexA, hexB, t) {
             const rgbA = hexToRgb(hexA);
             const rgbB = hexToRgb(hexB);
             if (!rgbA || !rgbB) return hexA;
@@ -129,6 +130,26 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const mix = (a, b) => Math.round(a + (b - a) * ratio);
             const toHex = (value) => value.toString(16).padStart(2, '0');
             return `#${toHex(mix(rgbA.r, rgbB.r))}${toHex(mix(rgbA.g, rgbB.g))}${toHex(mix(rgbA.b, rgbB.b))}`;
+        }
+
+        function resumeHeldArpsIfReady() {
+            const hasSavedArps = knobState?.some(state => state && state.isArpOn && state.arpNotes?.length);
+            if (!hasSavedArps) {
+                shouldResumeHeldArps = false;
+                return;
+            }
+
+            if (!isPowerOn || !synthNode) {
+                shouldResumeHeldArps = true;
+                return;
+            }
+
+            shouldResumeHeldArps = false;
+            knobState.forEach(k => {
+                if (k && k.isArpOn && k.arpNotes?.length > 0) {
+                    startArpeggiator(k.id);
+                }
+            });
         }
 
         function getLfoSegmentColor(baseColor, lfoIndex, segmentIndex) {
@@ -822,7 +843,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
        let currentArpOrder = "As Played";
       
        // --- DOM Elements ---
-      let synthContainer, powerSwitch, keySelector, scaleSelector, customScaleBuilder, savePresetButton, loadPresetInput, arpSyncSwitch;
+      let synthContainer, powerSwitch, keySelector, scaleSelector, customScaleBuilder, savePresetButton, loadPresetInput, arpSyncSwitch, shareButton;
+      let shareButtonResetTimeout = null;
       let presetNameDisplay, presetDisplayContainer, presetPrevButton, presetNextButton;
       let masterArpControls, arpOrderSelector, arpLockSwitch, lfoLockSwitch;
       let allArpControlGrids;
@@ -1129,7 +1151,7 @@ for (const event of events) {
            });
        }
       
-       function powerOn(){ if(isPowerOn) return; isPowerOn=true; powerSwitch.classList.add('on'); synthContainer.classList.remove('is-off'); setupAudio().then(()=>{ if(audioContext.state==='suspended') audioContext.resume(); }); }
+       function powerOn(){ if(isPowerOn) return; isPowerOn=true; powerSwitch.classList.add('on'); synthContainer.classList.remove('is-off'); setupAudio().then(()=>{ if(audioContext.state==='suspended') audioContext.resume(); resumeHeldArpsIfReady(); }); }
        function powerOff(){
            if(!isPowerOn)return;
            if (isRecordingAudio && synthNode) { synthNode.port.postMessage({ type: 'stopRecording', data: {} }); }
@@ -1138,6 +1160,7 @@ for (const event of events) {
            knobState.forEach(k=>{ stopNote(k.id, true); if (k.isArpOn) { k.isArpOn = false; k.dom.arpSwitch.classList.remove('on'); } k.isSweepMode = true; if (k.dom.arpModeSwitch) { k.dom.arpModeSwitch.classList.add('on'); } });
            isArpRateSynced = false; if(arpSyncSwitch) arpSyncSwitch.classList.remove('on');
            if (isLfoMode) { toggleLfoModeUI(false); }
+           shouldResumeHeldArps = false;
            updateGlobalArpVisibility(); powerSwitch.classList.remove('on'); synthContainer.classList.add('is-off');
            if(audioContext){audioContext.close().then(()=>{audioContext=null;synthNode=null;});}
        }
@@ -2260,8 +2283,11 @@ lfoState.forEach((lfo, lfoIndex) => {
           if (target instanceof HTMLElement) target.blur();
       }
 
-     function savePreset() {
-           const preset = {
+     const SHARE_QUERY_KEY = 'state';
+
+     function buildCurrentPresetPayload() {
+           return {
+               powerOn: isPowerOn,
                tempoMode: tempoMode,
                key: keySelector.value,
                scale: scaleSelector.value,
@@ -2279,8 +2305,132 @@ lfoState.forEach((lfo, lfoIndex) => {
                 })),
                knobSettings: knobState.map(k => ({ id: k.id, totalAngle: k.totalAngle })),
                fxSettings: Object.values(fxKnobData).map(k => ({ id: k.id, value: k.value })),
-               arpSettings: { isArpRateSynced: isArpRateSynced, currentArpOrder: currentArpOrder, arp1: { isOn: knobState[0].isArpHoldOn, isArpOn: knobState[0].isArpOn, isSweepMode: knobState[0].isSweepMode, octaves: knobState[0].arpOctaveRange, feelValue: knobState[0].feelKnobValue, notes: knobState[0].arpNotes, transpose: knobState[0].arpTranspose }, arp2: { isOn: knobState[1].isArpHoldOn, isArpOn: knobState[1].isArpOn, isSweepMode: knobState[1].isSweepMode, octaves: knobState[1].arpOctaveRange, feelValue: knobState[1].feelKnobValue, notes: knobState[1].arpNotes, transpose: knobState[1].arpTranspose } }
+               arpSettings: {
+                   isArpRateSynced: isArpRateSynced,
+                   currentArpOrder: currentArpOrder,
+                   arp1: {
+                       isOn: knobState[0].isArpHoldOn,
+                       isArpOn: knobState[0].isArpOn,
+                       isSweepMode: knobState[0].isSweepMode,
+                       octaves: knobState[0].arpOctaveRange,
+                       feelValue: knobState[0].feelKnobValue,
+                       notes: knobState[0].arpNotes,
+                       transpose: knobState[0].arpTranspose,
+                   },
+                   arp2: {
+                       isOn: knobState[1].isArpHoldOn,
+                       isArpOn: knobState[1].isArpOn,
+                       isSweepMode: knobState[1].isSweepMode,
+                       octaves: knobState[1].arpOctaveRange,
+                       feelValue: knobState[1].feelKnobValue,
+                       notes: knobState[1].arpNotes,
+                       transpose: knobState[1].arpTranspose,
+                   },
+               },
            };
+     }
+
+     function prunePresetPayload(value, parentKey = null, context = 'object') {
+           if (typeof value === 'number') {
+               if (value === 0 && parentKey !== 'id' && context === 'object') return undefined;
+               return value;
+           }
+
+           if (Array.isArray(value)) {
+               const cleaned = value
+                   .map(entry => prunePresetPayload(entry, null, 'array'))
+                   .filter(entry => {
+                       if (entry === undefined) return false;
+                       if (Array.isArray(entry)) return entry.length > 0;
+                       if (entry && typeof entry === 'object') return Object.keys(entry).length > 0;
+                       return true;
+                   });
+               return cleaned.length ? cleaned : undefined;
+           }
+
+           if (value && typeof value === 'object') {
+               const result = {};
+               Object.entries(value).forEach(([key, val]) => {
+                   const trimmed = prunePresetPayload(val, key, 'object');
+                   const isArrayLike = Array.isArray(trimmed);
+                   const isObjectLike = trimmed && typeof trimmed === 'object' && !Array.isArray(trimmed);
+                   if (trimmed === undefined) return;
+                   if (isArrayLike && trimmed.length === 0) return;
+                   if (isObjectLike && Object.keys(trimmed).length === 0) return;
+                   result[key] = trimmed;
+               });
+               return Object.keys(result).length ? result : undefined;
+           }
+
+           return value;
+     }
+
+     function buildTrimmedPresetPayload() {
+           const raw = buildCurrentPresetPayload();
+           return prunePresetPayload(raw) || {};
+     }
+
+     function buildShareUrl() {
+           const payload = { ...buildTrimmedPresetPayload(), powerOn: true };
+           const encoded = encodeURIComponent(btoa(JSON.stringify(payload)));
+           return `https://no-b-250.netlify.app/?${SHARE_QUERY_KEY}=${encoded}`;
+     }
+
+     async function copyShareUrlToClipboard() {
+           try {
+               const shareUrl = buildShareUrl();
+               if (navigator?.clipboard?.writeText) {
+                   await navigator.clipboard.writeText(shareUrl);
+               } else {
+                   const helper = document.createElement('textarea');
+                   helper.value = shareUrl;
+                   document.body.appendChild(helper);
+                   helper.select();
+                   document.execCommand('copy');
+                   document.body.removeChild(helper);
+               }
+               if (shareButton) {
+                   shareButton.textContent = 'URL COPIED';
+                   if (shareButtonResetTimeout) clearTimeout(shareButtonResetTimeout);
+                   shareButtonResetTimeout = setTimeout(() => {
+                       shareButton.textContent = 'SHARE';
+                       shareButtonResetTimeout = null;
+                   }, 1500);
+               }
+               console.log('Share URL copied to clipboard:', shareUrl);
+           } catch (err) {
+               console.error('Failed to copy share URL:', err);
+           }
+     }
+
+    function loadSharedPresetFromUrl() {
+          const params = new URLSearchParams(window.location.search);
+          let encoded = params.get(SHARE_QUERY_KEY);
+
+          if (!encoded && window.location.hash) {
+              const hash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
+              const normalizedHash = hash.startsWith('/') ? hash.slice(1) : hash;
+              const hashParams = new URLSearchParams(normalizedHash.startsWith('?') ? normalizedHash.slice(1) : normalizedHash);
+              encoded = hashParams.get(SHARE_QUERY_KEY);
+          }
+
+          if (!encoded) return { hasSharedParam: false, preset: null, shouldPowerOn: false };
+
+          try {
+              const decoded = decodeURIComponent(encoded);
+              const json = atob(decoded);
+              const parsed = JSON.parse(json);
+              if (parsed && typeof parsed === 'object') {
+                  return { hasSharedParam: true, preset: { ...parsed, powerOn: true }, shouldPowerOn: parsed.powerOn !== false };
+              }
+          } catch (err) {
+              console.error('Failed to load shared preset from URL:', err);
+          }
+          return { hasSharedParam: true, preset: null, shouldPowerOn: true };
+    }
+
+     function savePreset() {
+           const preset = buildCurrentPresetPayload();
            const color = FILE_NOUNS[Math.floor(Math.random() * FILE_NOUNS.length)];
            const date = new Date(); const fDate = `${String(date.getMonth() + 1).padStart(2, '0')}_${String(date.getDate()).padStart(2, '0')}_${date.getFullYear()}`;
            const fname = `N-OB-${fDate}_${color}.json`; const blob = new Blob([JSON.stringify(preset, null, 2)], { type: 'application/json' });
@@ -2829,11 +2979,7 @@ function applyPreset(p, isArpCategoryPreset = false, options = {}) {
 
            updateGlobalArpVisibility();
            knobState.forEach(k => { updateStateFromTotalAngle(k.id); });
-           knobState.forEach(k => {
-               if (isPowerOn && k.isArpOn && k.isArpHoldOn && k.arpNotes.length > 0) {
-                   startArpeggiator(k.id);
-               }
-           });
+           resumeHeldArpsIfReady();
        }
 
 function setFxValue(id, value, forceVisualUpdate = false) {
@@ -3243,6 +3389,7 @@ function generateAndApplyRandomSound() {
            customScaleBuilder = document.getElementById('custom-scale-builder');
            recordButton = document.getElementById('record-button');
            recordMidiButton = document.getElementById('record-midi-button');
+           shareButton = document.getElementById('share-button');
            loadPresetInput = document.getElementById('load-preset-input');
            presetNameDisplay = document.getElementById('preset-display');
            presetDisplayContainer = document.getElementById('preset-display-container');
@@ -3285,6 +3432,10 @@ function generateAndApplyRandomSound() {
 
            addTouchListener(closeModalButton, () => {
                modalOverlay.classList.add('opacity-0', 'pointer-events-none');
+           });
+
+           addTouchListener(shareButton, () => {
+               copyShareUrlToClipboard();
            });
 
            const handleOverlayClick = (e) => {
@@ -3992,13 +4143,28 @@ function generateAndApplyRandomSound() {
            });
 
            updateGlobalArpVisibility();
-           const initialPresetCategory = 'KEYS';
-           const initialPresetName = 'DREAMY MALLET';
-           if (applyFactoryPreset(initialPresetCategory, initialPresetName, { skipPowerOn: true })) {
-               updatePresetDisplay(initialPresetName, 'factory', initialPresetCategory);
-           } else {
-               updatePresetDisplay();
-               knobState.forEach(k => updateStateFromTotalAngle(k.id));
+          const { hasSharedParam, preset: sharedPreset, shouldPowerOn } = loadSharedPresetFromUrl();
+          let appliedSharedPreset = false;
+          if (hasSharedParam) {
+              if (shouldPowerOn && !isPowerOn) powerOn();
+
+              if (sharedPreset) {
+                  applyPreset(sharedPreset, false, { skipPowerOn: !shouldPowerOn });
+                  resumeHeldArpsIfReady();
+                  updatePresetDisplay('SHARED', 'user');
+                  appliedSharedPreset = true;
+              }
+          }
+
+           if (!appliedSharedPreset) {
+               const initialPresetCategory = 'KEYS';
+               const initialPresetName = 'DREAMY MALLET';
+               if (applyFactoryPreset(initialPresetCategory, initialPresetName, { skipPowerOn: true })) {
+                   updatePresetDisplay(initialPresetName, 'factory', initialPresetCategory);
+               } else {
+                   updatePresetDisplay();
+                   knobState.forEach(k => updateStateFromTotalAngle(k.id));
+               }
            }
            updateRateButtonLockState();
        }
