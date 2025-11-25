@@ -1,5 +1,5 @@
        // --- App State ---
-      let audioContext; let synthNode; let isPowerOn = false;
+      let audioContext; let synthNode; let isPowerOn = false; let audioSetupPromise = null;
       let allowDuplicateNotesMode = false;
       let isLfoMode = false;
       let isLfoLockEnabled = false;
@@ -827,7 +827,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
       let masterArpControls, arpOrderSelector, arpLockSwitch, lfoLockSwitch;
       let allArpControlGrids;
       let rateDisplayRows = [];
-      let modalOverlay, howToButton, closeModalButton;
+      let modalOverlay, howToButton, closeModalButton, shareButton;
 
       import { PRESETS } from './presets.js';
 
@@ -849,12 +849,496 @@ let liveLfoOutputs = [0, 0, 0, 0];
       
        // --- WAV helpers ---
        const FILE_NOUNS=["street","light","area","field","cloud","river","forest","stone","glass","paper","pixel","laser","echo","wave","dawn","dusk","night","sun","moon","star","comet","orbit","nova","aurora","ridge","valley","canyon","desert","oasis","island","harbor","shore","coast","dune","meadow","prairie","plain","hill","mountain","summit","cliff","cave","tunnel","bridge","path","trail","road","alley","lane","plaza","square","tower","temple","vault","cellar","attic","loft","studio","cabin","bunker","hangar","depot","station","port","dock","yard","market","arcade","gate","portal","arch","courtyard","garden","grove","orchard","hedge","lawn","terrace","balcony","gallery","museum","library","factory","engine","boiler","furnace","mill","forge","workshop","lab","module","circuit","socket","relay","switch","sensor","motor","servo","valve","gear","spring","bearing","magnet","coil","antenna","radar","beacon","signal","channel","grid","matrix","vector","scalar","apex","nadir","zenith","horizon","meridian","delta","gamma","omega","alpha","sigma","vertex","stripe","pattern","phase","pulse","current","voltage","charge","flux","plasma","neon","vapor","ember","ash","smoke","steam","mist","haze","fog","rain","thunder","spark","arc","glow","flare","beam","ray","shadow","mirror","crystal","prism","facet","tile","brick","steel","iron","copper","silver","gold","chrome","titanium","carbon","graphite","fiber","weave","fabric","canvas","ink","paint","charcoal","grain","ripple","foam","surf","tide","wharf","canopy","pillar","column","spire","span","truss","frame","panel","plate","fin","wing","keel","hull","chassis","bay","slot","rack","array","stack","cache","buffer","packet","cluster","node","router","bus","queue","gate","clock","cycle","kernel","shell","daemon","sprite","shader","fragment","sample","key","scale","octave","tempo","rhythm","chord","tone","drift","drone","hum","whirl","whisper","rattle","clatter","stride","fold","crease","hinge","joint","anchor","bracket"];
-       function generateRecordingFilename(extension = 'wav') {
+      function generateRecordingFilename(extension = 'wav') {
            const pick = () => FILE_NOUNS[Math.floor(Math.random() * FILE_NOUNS.length)];
            let a = pick(), b = pick(); for (let i = 0; i < 5 && a === b; i++) b = pick();
            const xxx = String(Math.floor(Math.random() * 1000)).padStart(3, '0');
            return `N-OB-${a}-${b}-${xxx}-.${extension}`;
        }
+
+      function buildPresetData() {
+           return {
+               tempoMode: tempoMode,
+               key: keySelector.value,
+               scale: scaleSelector.value,
+               customScale: scaleSelector.value === 'Custom' ? customScale : [],
+               allowDuplicateNotesMode: allowDuplicateNotesMode,
+               isLfoMode: isLfoMode,
+               lfoState: lfoState.map(lfo => ({
+                   rate: lfo.rate,
+                   depth: lfo.depth,
+                   wave: lfo.wave,
+                   dest: lfo.dest,
+                   destChain: getLfoDestChain(lfo),
+                   tempoSync: lfoTempoLinkState[lfo.id]?.enabled || false,
+                   storedFreeValue: lfoTempoLinkState[lfo.id]?.storedFreeValue ?? 0.5
+                })),
+               knobSettings: knobState.map(k => ({ id: k.id, totalAngle: k.totalAngle })),
+               fxSettings: Object.values(fxKnobData).map(k => ({ id: k.id, value: k.value })),
+               arpSettings: { isArpRateSynced: isArpRateSynced, currentArpOrder: currentArpOrder, arp1: { isOn: knobState[0].isArpHoldOn, isArpOn: knobState[0].isArpOn, isSweepMode: knobState[0].isSweepMode, octaves: knobState[0].arpOctaveRange, feelValue: knobState[0].feelKnobValue, notes: knobState[0].arpNotes, transpose: knobState[0].arpTranspose }, arp2: { isOn: knobState[1].isArpHoldOn, isArpOn: knobState[1].isArpOn, isSweepMode: knobState[1].isSweepMode, octaves: knobState[1].arpOctaveRange, feelValue: knobState[1].feelKnobValue, notes: knobState[1].arpNotes, transpose: knobState[1].arpTranspose } }
+           };
+      }
+
+      // --- Compact preset encoding helpers ---
+      // LZ-based encoder adapted from LZ-String (MIT License)
+      const lzBaseChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
+      function lzGetCharFromInt(a) { return lzBaseChars.charAt(a); }
+      function lzKeyStrUriSafe() { return 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$'; }
+      function lzGetBaseValue(alphabet, character) {
+           const baseReverseDic = {};
+           if (!baseReverseDic[alphabet]) {
+               baseReverseDic[alphabet] = {};
+               for (let i = 0; i < alphabet.length; i++) {
+                   baseReverseDic[alphabet][alphabet.charAt(i)] = i;
+               }
+           }
+           return baseReverseDic[alphabet][character];
+      }
+      const LZString = {
+           compressToEncodedURIComponent: function(input) {
+               if (input == null) return '';
+               return LZString._compress(input, 6, (a) => lzKeyStrUriSafe().charAt(a));
+           },
+           decompressFromEncodedURIComponent: function(input) {
+               if (input == null) return '';
+               input = input.replace(/\s/g, '+');
+               return LZString._decompress(input.length, 32, (index) => lzGetBaseValue(lzKeyStrUriSafe(), input.charAt(index)));
+           },
+           _compress: function(uncompressed, bitsPerChar, getCharFromInt) {
+               if (uncompressed == null) return '';
+               let i, value;
+               const context_dictionary = {};
+               const context_dictionaryToCreate = {};
+               let context_c = '';
+               let context_wc = '';
+               let context_w = '';
+               let context_enlargeIn = 2;
+               let context_dictSize = 3;
+               let context_numBits = 2;
+               const context_data = [];
+               let context_data_val = 0;
+               let context_data_position = 0;
+
+               for (let ii = 0; ii < uncompressed.length; ii += 1) {
+                   context_c = uncompressed.charAt(ii);
+                   if (!Object.prototype.hasOwnProperty.call(context_dictionary, context_c)) {
+                       context_dictionary[context_c] = context_dictSize++;
+                       context_dictionaryToCreate[context_c] = true;
+                   }
+                   context_wc = context_w + context_c;
+                   if (Object.prototype.hasOwnProperty.call(context_dictionary, context_wc)) {
+                       context_w = context_wc;
+                   } else {
+                       if (Object.prototype.hasOwnProperty.call(context_dictionaryToCreate, context_w)) {
+                           if (context_w.charCodeAt(0) < 256) {
+                               for (i = 0; i < context_numBits; i++) {
+                                   context_data_val = (context_data_val << 1);
+                                   if (context_data_position === bitsPerChar - 1) {
+                                       context_data_position = 0;
+                                       context_data.push(getCharFromInt(context_data_val));
+                                       context_data_val = 0;
+                                   } else {
+                                       context_data_position++;
+                                   }
+                               }
+                               value = context_w.charCodeAt(0);
+                               for (i = 0; i < 8; i++) {
+                                   context_data_val = (context_data_val << 1) | (value & 1);
+                                   if (context_data_position === bitsPerChar - 1) {
+                                       context_data_position = 0;
+                                       context_data.push(getCharFromInt(context_data_val));
+                                       context_data_val = 0;
+                                   } else {
+                                       context_data_position++;
+                                   }
+                                   value = value >> 1;
+                               }
+                           } else {
+                               value = 1;
+                               for (i = 0; i < context_numBits; i++) {
+                                   context_data_val = (context_data_val << 1) | value;
+                                   if (context_data_position === bitsPerChar - 1) {
+                                       context_data_position = 0;
+                                       context_data.push(getCharFromInt(context_data_val));
+                                       context_data_val = 0;
+                                   } else {
+                                       context_data_position++;
+                                   }
+                                   value = 0;
+                               }
+                               value = context_w.charCodeAt(0);
+                               for (i = 0; i < 16; i++) {
+                                   context_data_val = (context_data_val << 1) | (value & 1);
+                                   if (context_data_position === bitsPerChar - 1) {
+                                       context_data_position = 0;
+                                       context_data.push(getCharFromInt(context_data_val));
+                                       context_data_val = 0;
+                                   } else {
+                                       context_data_position++;
+                                   }
+                                   value = value >> 1;
+                               }
+                           }
+                           context_enlargeIn--;
+                           if (context_enlargeIn === 0) {
+                               context_enlargeIn = Math.pow(2, context_numBits);
+                               context_numBits++;
+                           }
+                           delete context_dictionaryToCreate[context_w];
+                       } else {
+                           value = context_dictionary[context_w];
+                           for (i = 0; i < context_numBits; i++) {
+                               context_data_val = (context_data_val << 1) | (value & 1);
+                               if (context_data_position === bitsPerChar - 1) {
+                                   context_data_position = 0;
+                                   context_data.push(getCharFromInt(context_data_val));
+                                   context_data_val = 0;
+                               } else {
+                                   context_data_position++;
+                               }
+                               value = value >> 1;
+                           }
+
+                       }
+                       context_enlargeIn--;
+                       if (context_enlargeIn === 0) {
+                           context_enlargeIn = Math.pow(2, context_numBits);
+                           context_numBits++;
+                       }
+                       context_dictionary[context_wc] = context_dictSize++;
+                       context_w = String(context_c);
+                   }
+               }
+
+               if (context_w !== '') {
+                   if (Object.prototype.hasOwnProperty.call(context_dictionaryToCreate, context_w)) {
+                       if (context_w.charCodeAt(0) < 256) {
+                           for (i = 0; i < context_numBits; i++) {
+                               context_data_val = (context_data_val << 1);
+                               if (context_data_position === bitsPerChar - 1) {
+                                   context_data_position = 0;
+                                   context_data.push(getCharFromInt(context_data_val));
+                                   context_data_val = 0;
+                               } else {
+                                   context_data_position++;
+                               }
+                           }
+                           value = context_w.charCodeAt(0);
+                           for (i = 0; i < 8; i++) {
+                               context_data_val = (context_data_val << 1) | (value & 1);
+                               if (context_data_position === bitsPerChar - 1) {
+                                   context_data_position = 0;
+                                   context_data.push(getCharFromInt(context_data_val));
+                                   context_data_val = 0;
+                               } else {
+                                   context_data_position++;
+                               }
+                               value = value >> 1;
+                           }
+                       } else {
+                           value = 1;
+                           for (i = 0; i < context_numBits; i++) {
+                               context_data_val = (context_data_val << 1) | value;
+                               if (context_data_position === bitsPerChar - 1) {
+                                   context_data_position = 0;
+                                   context_data.push(getCharFromInt(context_data_val));
+                                   context_data_val = 0;
+                               } else {
+                                   context_data_position++;
+                               }
+                               value = 0;
+                           }
+                           value = context_w.charCodeAt(0);
+                           for (i = 0; i < 16; i++) {
+                               context_data_val = (context_data_val << 1) | (value & 1);
+                               if (context_data_position === bitsPerChar - 1) {
+                                   context_data_position = 0;
+                                   context_data.push(getCharFromInt(context_data_val));
+                                   context_data_val = 0;
+                               } else {
+                                   context_data_position++;
+                               }
+                               value = value >> 1;
+                           }
+                       }
+                       context_enlargeIn--;
+                       if (context_enlargeIn === 0) {
+                           context_enlargeIn = Math.pow(2, context_numBits);
+                           context_numBits++;
+                       }
+                       delete context_dictionaryToCreate[context_w];
+                   } else {
+                       value = context_dictionary[context_w];
+                       for (i = 0; i < context_numBits; i++) {
+                           context_data_val = (context_data_val << 1) | (value & 1);
+                           if (context_data_position === bitsPerChar - 1) {
+                               context_data_position = 0;
+                               context_data.push(getCharFromInt(context_data_val));
+                               context_data_val = 0;
+                           } else {
+                               context_data_position++;
+                           }
+                           value = value >> 1;
+                       }
+
+                   }
+                   context_enlargeIn--;
+                   if (context_enlargeIn === 0) {
+                       context_enlargeIn = Math.pow(2, context_numBits);
+                       context_numBits++;
+                   }
+               }
+
+               value = 2;
+               for (i = 0; i < context_numBits; i++) {
+                   context_data_val = (context_data_val << 1) | (value & 1);
+                   if (context_data_position === bitsPerChar - 1) {
+                       context_data_position = 0;
+                       context_data.push(getCharFromInt(context_data_val));
+                       context_data_val = 0;
+                   } else {
+                       context_data_position++;
+                   }
+                   value = value >> 1;
+               }
+
+               while (true) {
+                   context_data_val = (context_data_val << 1);
+                   if (context_data_position === bitsPerChar - 1) {
+                       context_data.push(getCharFromInt(context_data_val));
+                       break;
+                   } else context_data_position++;
+               }
+               return context_data.join('');
+           },
+           _decompress: function(length, resetValue, getNextValue) {
+               const dictionary = [];
+               let next;
+               let enlargeIn = 4;
+               let dictSize = 4;
+               let numBits = 3;
+               let entry = '';
+               const result = [];
+               let i;
+               let w;
+               let bits, resb, maxpower, power;
+
+               const data = { value: getNextValue(0), position: resetValue, index: 1 };
+
+               for (i = 0; i < 3; i += 1) {
+                   dictionary[i] = i;
+               }
+
+               bits = 0;
+               maxpower = Math.pow(2, 2);
+               power = 1;
+               while (power !== maxpower) {
+                   resb = data.value & data.position;
+                   data.position >>= 1;
+                   if (data.position === 0) {
+                       data.position = resetValue;
+                       data.value = getNextValue(data.index++);
+                   }
+                   bits |= (resb > 0 ? 1 : 0) * power;
+                   power <<= 1;
+               }
+
+               switch (bits) {
+                   case 0:
+                       bits = 0; maxpower = Math.pow(2, 8); power = 1;
+                       while (power !== maxpower) {
+                           resb = data.value & data.position;
+                           data.position >>= 1;
+                           if (data.position === 0) {
+                               data.position = resetValue;
+                               data.value = getNextValue(data.index++);
+                           }
+                           bits |= (resb > 0 ? 1 : 0) * power;
+                           power <<= 1;
+                       }
+                       next = String.fromCharCode(bits);
+                       break;
+                   case 1:
+                       bits = 0; maxpower = Math.pow(2, 16); power = 1;
+                       while (power !== maxpower) {
+                           resb = data.value & data.position;
+                           data.position >>= 1;
+                           if (data.position === 0) {
+                               data.position = resetValue;
+                               data.value = getNextValue(data.index++);
+                           }
+                           bits |= (resb > 0 ? 1 : 0) * power;
+                           power <<= 1;
+                       }
+                       next = String.fromCharCode(bits);
+                       break;
+                   case 2:
+                       return '';
+                   default:
+                       return '';
+               }
+
+               dictionary[3] = next;
+               w = next;
+               result.push(next);
+
+               while (true) {
+                   if (data.index > length) {
+                       return '';
+                   }
+
+                   bits = 0;
+                   maxpower = Math.pow(2, numBits);
+                   power = 1;
+                   while (power !== maxpower) {
+                       resb = data.value & data.position;
+                       data.position >>= 1;
+                       if (data.position === 0) {
+                           data.position = resetValue;
+                           data.value = getNextValue(data.index++);
+                       }
+                       bits |= (resb > 0 ? 1 : 0) * power;
+                       power <<= 1;
+                   }
+
+                   switch (next = bits) {
+                       case 0:
+                           bits = 0; maxpower = Math.pow(2, 8); power = 1;
+                           while (power !== maxpower) {
+                               resb = data.value & data.position;
+                               data.position >>= 1;
+                               if (data.position === 0) {
+                                   data.position = resetValue;
+                                   data.value = getNextValue(data.index++);
+                               }
+                               bits |= (resb > 0 ? 1 : 0) * power;
+                               power <<= 1;
+                           }
+
+                           dictionary[dictSize++] = String.fromCharCode(bits);
+                           next = dictSize - 1;
+                           enlargeIn--;
+                           break;
+                       case 1:
+                           bits = 0; maxpower = Math.pow(2, 16); power = 1;
+                           while (power !== maxpower) {
+                               resb = data.value & data.position;
+                               data.position >>= 1;
+                               if (data.position === 0) {
+                                   data.position = resetValue;
+                                   data.value = getNextValue(data.index++);
+                               }
+                               bits |= (resb > 0 ? 1 : 0) * power;
+                               power <<= 1;
+                           }
+                           dictionary[dictSize++] = String.fromCharCode(bits);
+                           next = dictSize - 1;
+                           enlargeIn--;
+                           break;
+                       case 2:
+                           return result.join('');
+                       default:
+                           break;
+                   }
+
+                   if (enlargeIn === 0) {
+                       enlargeIn = Math.pow(2, numBits);
+                       numBits++;
+                   }
+
+                   if (dictionary[next]) {
+                       entry = dictionary[next];
+                   } else {
+                       if (next === dictSize) {
+                           entry = w + w.charAt(0);
+                       } else {
+                           return '';
+                       }
+                   }
+
+                   result.push(entry);
+
+                   dictionary[dictSize++] = w + entry.charAt(0);
+                   enlargeIn--;
+                   w = entry;
+
+                   if (enlargeIn === 0) {
+                       enlargeIn = Math.pow(2, numBits);
+                       numBits++;
+                   }
+               }
+           },
+      };
+
+      function encodePresetForUrl(presetObj) {
+           const json = JSON.stringify(presetObj);
+           return LZString.compressToEncodedURIComponent(json) || '';
+      }
+
+      function decodePresetFromUrl(encodedPreset) {
+           if (!encodedPreset) return null;
+           const decompressed = LZString.decompressFromEncodedURIComponent(encodedPreset);
+           if (decompressed) return JSON.parse(decompressed);
+
+           // Backward compatibility: fall back to legacy base64 URLs
+           const fromBase64Url = (base64Url) => base64Url
+               .replace(/-/g, '+')
+               .replace(/_/g, '/')
+               .padEnd(base64Url.length + ((4 - (base64Url.length % 4)) % 4), '=');
+
+           try {
+               const decoded = decodeURIComponent(escape(atob(fromBase64Url(encodedPreset))));
+               return JSON.parse(decoded);
+           } catch (err) {
+               console.error('Failed to decode preset from URL', err);
+               return null;
+           }
+      }
+
+      function generateShareableUrl() {
+           try {
+               const preset = buildPresetData();
+               const urlSafePreset = encodePresetForUrl(preset);
+               const url = new URL(window.location.href);
+               url.searchParams.set('preset', urlSafePreset);
+               return url.toString();
+           } catch (err) {
+               console.error('Failed to generate shareable URL', err);
+               return window.location.href;
+           }
+      }
+
+      async function loadPresetFromUrl() {
+           const params = new URLSearchParams(window.location.search);
+           const encodedPreset = params.get('preset');
+           const presetUrl = params.get('presetUrl');
+           let parsedPreset = null;
+
+           if (encodedPreset) {
+               try {
+                   parsedPreset = decodePresetFromUrl(encodedPreset);
+               } catch (err) {
+                   console.error('Failed to load preset from encoded URL data', err);
+               }
+           }
+
+           if (!parsedPreset && presetUrl) {
+               try {
+                   const response = await fetch(presetUrl);
+                   if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                   parsedPreset = await response.json();
+               } catch (err) {
+                   console.error('Failed to fetch preset from URL', err);
+               }
+           }
+
+           if (!parsedPreset) return false;
+
+           await powerOn();
+           applyPreset(parsedPreset, false, { skipPowerOn: true });
+           updatePresetDisplay('LINK', 'user');
+           return true;
+      }
        function float32ToPCM16(f) {
            const out = new Int16Array(f.length);
            for (let i = 0; i < f.length; i++) { let s = f[i]; if (s > 1) s = 1; else if (s < -1) s = -1; out[i] = s < 0 ? (s * 0x8000) : (s * 0x7FFF); }
@@ -1081,14 +1565,18 @@ for (const event of events) {
        // --- End MIDI Recording ---
       
        async function setupAudio() {
-           if (audioContext) return;
-           audioContext = new (window.AudioContext || window.webkitAudioContext)();
-           await audioContext.audioWorklet.addModule('./js/synth-processor.js');
-           synthNode = new AudioWorkletNode(audioContext,'synth-processor', { numberOfOutputs: 1, outputChannelCount: [2] });
-           synthNode.port.onmessage = ({ data }) => {
+           if (audioSetupPromise) return audioSetupPromise;
+
+           audioSetupPromise = (async () => {
+               if (audioContext) return;
+
+               audioContext = new (window.AudioContext || window.webkitAudioContext)();
+               await audioContext.audioWorklet.addModule('./js/synth-processor.js');
+               synthNode = new AudioWorkletNode(audioContext,'synth-processor', { numberOfOutputs: 1, outputChannelCount: [2] });
+               synthNode.port.onmessage = ({ data }) => {
     const { type, data: payload } = data || {};
     switch (type) {
-        case 'envUpdate': 
+        case 'envUpdate':
             if (typeof updateKnobVolumeIndicator === 'function') { 
                 updateKnobVolumeIndicator(0, payload.v0); 
                 updateKnobVolumeIndicator(1, payload.v1); 
@@ -1122,14 +1610,23 @@ for (const event of events) {
         }
     }
 };
-           synthNode.connect(audioContext.destination);
-           Object.values(fxKnobData).forEach(d => {
-               if (synthNode && ((d.id <= 29 && d.id !== 1) || d.id === 30 || d.id === 31)) { synthNode.port.postMessage({type:'setFx', data:{id:d.id, value:d.value}}); }
-               if (synthNode && d.id === 7) { synthNode.port.postMessage({type:'setFx', data:{id:d.id, value:d.value}}); }
-           });
+               synthNode.connect(audioContext.destination);
+               Object.values(fxKnobData).forEach(d => {
+                   if (synthNode && ((d.id <= 29 && d.id !== 1) || d.id === 30 || d.id === 31)) { synthNode.port.postMessage({type:'setFx', data:{id:d.id, value:d.value}}); }
+                   if (synthNode && d.id === 7) { synthNode.port.postMessage({type:'setFx', data:{id:d.id, value:d.value}}); }
+               });
+           })();
+
+           return audioSetupPromise;
        }
-      
-       function powerOn(){ if(isPowerOn) return; isPowerOn=true; powerSwitch.classList.add('on'); synthContainer.classList.remove('is-off'); setupAudio().then(()=>{ if(audioContext.state==='suspended') audioContext.resume(); }); }
+
+       function powerOn(){
+           if (isPowerOn) return audioSetupPromise || Promise.resolve();
+           isPowerOn=true; powerSwitch.classList.add('on'); synthContainer.classList.remove('is-off');
+           const setupPromise = setupAudio().then(()=>{ if(audioContext && (audioContext.state==='suspended' || audioContext.state==='interrupted')) return audioContext.resume(); });
+           audioSetupPromise = setupPromise;
+           return setupPromise;
+       }
        function powerOff(){
            if(!isPowerOn)return;
            if (isRecordingAudio && synthNode) { synthNode.port.postMessage({ type: 'stopRecording', data: {} }); }
@@ -1139,7 +1636,7 @@ for (const event of events) {
            isArpRateSynced = false; if(arpSyncSwitch) arpSyncSwitch.classList.remove('on');
            if (isLfoMode) { toggleLfoModeUI(false); }
            updateGlobalArpVisibility(); powerSwitch.classList.remove('on'); synthContainer.classList.add('is-off');
-           if(audioContext){audioContext.close().then(()=>{audioContext=null;synthNode=null;});}
+           if(audioContext){audioContext.close().then(()=>{audioContext=null;synthNode=null;audioSetupPromise=null;});}
        }
       
        function getNoteFrequency(m){return 440*Math.pow(2,(m-69)/12);}
@@ -2261,26 +2758,7 @@ lfoState.forEach((lfo, lfoIndex) => {
       }
 
      function savePreset() {
-           const preset = {
-               tempoMode: tempoMode,
-               key: keySelector.value,
-               scale: scaleSelector.value,
-               customScale: scaleSelector.value === 'Custom' ? customScale : [],
-               allowDuplicateNotesMode: allowDuplicateNotesMode,
-               isLfoMode: isLfoMode,
-               lfoState: lfoState.map(lfo => ({
-                   rate: lfo.rate,
-                   depth: lfo.depth,
-                   wave: lfo.wave,
-                   dest: lfo.dest,
-                   destChain: getLfoDestChain(lfo),
-                   tempoSync: lfoTempoLinkState[lfo.id]?.enabled || false,
-                   storedFreeValue: lfoTempoLinkState[lfo.id]?.storedFreeValue ?? 0.5
-                })),
-               knobSettings: knobState.map(k => ({ id: k.id, totalAngle: k.totalAngle })),
-               fxSettings: Object.values(fxKnobData).map(k => ({ id: k.id, value: k.value })),
-               arpSettings: { isArpRateSynced: isArpRateSynced, currentArpOrder: currentArpOrder, arp1: { isOn: knobState[0].isArpHoldOn, isArpOn: knobState[0].isArpOn, isSweepMode: knobState[0].isSweepMode, octaves: knobState[0].arpOctaveRange, feelValue: knobState[0].feelKnobValue, notes: knobState[0].arpNotes, transpose: knobState[0].arpTranspose }, arp2: { isOn: knobState[1].isArpHoldOn, isArpOn: knobState[1].isArpOn, isSweepMode: knobState[1].isSweepMode, octaves: knobState[1].arpOctaveRange, feelValue: knobState[1].feelKnobValue, notes: knobState[1].arpNotes, transpose: knobState[1].arpTranspose } }
-           };
+           const preset = buildPresetData();
            const color = FILE_NOUNS[Math.floor(Math.random() * FILE_NOUNS.length)];
            const date = new Date(); const fDate = `${String(date.getMonth() + 1).padStart(2, '0')}_${String(date.getDate()).padStart(2, '0')}_${date.getFullYear()}`;
            const fname = `N-OB-${fDate}_${color}.json`; const blob = new Blob([JSON.stringify(preset, null, 2)], { type: 'application/json' });
@@ -2801,6 +3279,9 @@ function applyPreset(p, isArpCategoryPreset = false, options = {}) {
                 knobState[0].arpNotes = (arp1.notes || []).map(n => typeof n === 'number' ? { midi: n, active: true } : n);
                updateSequenceDisplay(0);
                knobState[0].arpTranspose = arp1.transpose ?? 0;
+               if (knobState[0].isArpOn && !knobState[0].isArpHoldOn && knobState[0].arpNotes.length > 0) {
+                   knobState[0].isArpHoldOn = true;
+               }
                knobState[0].dom.arpSwitch?.classList.toggle('on', knobState[0].isArpOn);
                document.getElementById('arp-hold-switch-0')?.classList.toggle('on', knobState[0].isArpHoldOn);
 
@@ -2812,6 +3293,9 @@ function applyPreset(p, isArpCategoryPreset = false, options = {}) {
                 knobState[1].arpNotes = (arp2.notes || []).map(n => typeof n === 'number' ? { midi: n, active: true } : n);
                updateSequenceDisplay(1);
                knobState[1].arpTranspose = arp2.transpose ?? 0;
+               if (knobState[1].isArpOn && !knobState[1].isArpHoldOn && knobState[1].arpNotes.length > 0) {
+                   knobState[1].isArpHoldOn = true;
+               }
                knobState[1].dom.arpSwitch?.classList.toggle('on', knobState[1].isArpOn);
                document.getElementById('arp-hold-switch-1')?.classList.toggle('on', knobState[1].isArpHoldOn);
                
@@ -3220,7 +3704,7 @@ function generateAndApplyRandomSound() {
 }
 
 
-       function init(){
+       async function init(){
            synthContainer = document.getElementById('synth-container');
            rateDisplayRows = Array.from(document.querySelectorAll('.rate-display-row'));
            powerSwitch = document.getElementById('power-switch');
@@ -3240,6 +3724,7 @@ function generateAndApplyRandomSound() {
            modalOverlay = document.getElementById('how-to-modal-overlay');
            howToButton = document.getElementById('how-to-button-header');
            closeModalButton = document.getElementById('close-modal-button');
+           shareButton = document.getElementById('share-button');
            customScaleBuilder = document.getElementById('custom-scale-builder');
            recordButton = document.getElementById('record-button');
            recordMidiButton = document.getElementById('record-midi-button');
@@ -3248,8 +3733,10 @@ function generateAndApplyRandomSound() {
            presetDisplayContainer = document.getElementById('preset-display-container');
            presetPrevButton = document.getElementById('preset-prev-button');
            presetNextButton = document.getElementById('preset-next-button');
-           buildPresetNavigationList();
-           updatePresetDisplay();
+          buildPresetNavigationList();
+          updatePresetDisplay();
+
+          let presetLoadedFromUrl = false;
            
            // --- 3. TOUCH HELPER FUNCTION ---
            const addTouchListener = (element, callback) => {
@@ -3281,6 +3768,23 @@ function generateAndApplyRandomSound() {
            // --- 5. FIX: HEADER & MODAL BUTTONS ---
            addTouchListener(howToButton, () => {
                modalOverlay.classList.remove('opacity-0', 'pointer-events-none');
+           });
+
+           addTouchListener(shareButton, async () => {
+               if (!shareButton) return;
+               const originalLabel = shareButton.textContent;
+               try {
+                   const shareUrl = generateShareableUrl();
+                   await navigator.clipboard.writeText(shareUrl);
+                   shareButton.textContent = 'URL COPIED';
+               } catch (err) {
+                   console.error('Failed to copy share URL', err);
+                   shareButton.textContent = 'COPY FAILED';
+               }
+               setTimeout(() => {
+                   if (shareButton) shareButton.textContent = originalLabel;
+               }, 1200);
+               shareButton.blur();
            });
 
            addTouchListener(closeModalButton, () => {
@@ -3602,6 +4106,8 @@ function generateAndApplyRandomSound() {
                }
            });
            updateLfoTempoSwitchStates();
+
+          presetLoadedFromUrl = await loadPresetFromUrl();
             
             document.querySelectorAll('.fx-knob-container').forEach(knobEl => {
                 const id = knobEl.dataset.fxId;
@@ -3991,17 +4497,19 @@ function generateAndApplyRandomSound() {
                addTouchListener(button, () => handleArpRateButton(knobId, multiplier));
            });
 
-           updateGlobalArpVisibility();
-           const initialPresetCategory = 'KEYS';
-           const initialPresetName = 'DREAMY MALLET';
-           if (applyFactoryPreset(initialPresetCategory, initialPresetName, { skipPowerOn: true })) {
-               updatePresetDisplay(initialPresetName, 'factory', initialPresetCategory);
-           } else {
-               updatePresetDisplay();
-               knobState.forEach(k => updateStateFromTotalAngle(k.id));
-           }
-           updateRateButtonLockState();
-       }
+          updateGlobalArpVisibility();
+         const initialPresetCategory = 'KEYS';
+         const initialPresetName = 'DREAMY MALLET';
+          if (!presetLoadedFromUrl) {
+              if (applyFactoryPreset(initialPresetCategory, initialPresetName, { skipPowerOn: true })) {
+                  updatePresetDisplay(initialPresetName, 'factory', initialPresetCategory);
+              } else {
+                  updatePresetDisplay();
+                  knobState.forEach(k => updateStateFromTotalAngle(k.id));
+              }
+          }
+          updateRateButtonLockState();
+      }
        init();
 
 
