@@ -2850,6 +2850,9 @@ function applyPreset(p, isArpCategoryPreset = false, options = {}) {
                 knobState[0].arpNotes = (arp1.notes || []).map(n => typeof n === 'number' ? { midi: n, active: true } : n);
                updateSequenceDisplay(0);
                knobState[0].arpTranspose = arp1.transpose ?? 0;
+               if (knobState[0].isArpOn && !knobState[0].isArpHoldOn && knobState[0].arpNotes.length > 0) {
+                   knobState[0].isArpHoldOn = true;
+               }
                knobState[0].dom.arpSwitch?.classList.toggle('on', knobState[0].isArpOn);
                document.getElementById('arp-hold-switch-0')?.classList.toggle('on', knobState[0].isArpHoldOn);
 
@@ -2861,6 +2864,9 @@ function applyPreset(p, isArpCategoryPreset = false, options = {}) {
                 knobState[1].arpNotes = (arp2.notes || []).map(n => typeof n === 'number' ? { midi: n, active: true } : n);
                updateSequenceDisplay(1);
                knobState[1].arpTranspose = arp2.transpose ?? 0;
+               if (knobState[1].isArpOn && !knobState[1].isArpHoldOn && knobState[1].arpNotes.length > 0) {
+                   knobState[1].isArpHoldOn = true;
+               }
                knobState[1].dom.arpSwitch?.classList.toggle('on', knobState[1].isArpOn);
                document.getElementById('arp-hold-switch-1')?.classList.toggle('on', knobState[1].isArpHoldOn);
                
