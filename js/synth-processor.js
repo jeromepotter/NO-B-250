@@ -27,6 +27,7 @@ const LFO_DEST_NONE = -1;
                    // Filter state
                    this.filter_x1_L=0; this.filter_x2_L=0; this.filter_y1_L=0; this.filter_y2_L=0;
                    this.filter_x1_R=0; this.filter_x2_R=0; this.filter_y1_R=0; this.filter_y2_R=0;
+                   this.dcBlocker = { x1L: 0, y1L: 0, x1R: 0, y1R: 0 };
                    this.smoothedCutoff1 = 0.5;
                    this.smoothedCutoff2 = 0.5;
                    this.smoothedRes1 = 0.0;
@@ -521,6 +522,7 @@ return true;
 }
 }
 registerProcessor('synth-processor', SynthProcessor);
+
 
 
 
