@@ -2885,7 +2885,7 @@ lfoState.forEach((lfo, lfoIndex) => {
 
     applyModulatedArpUiPreviews(modulatedValues);
 
-    Object.entries(LFO_DEST_TO_MAIN_KNOB).forEach(([destId, knobId]) => {
+   Object.entries(LFO_DEST_TO_MAIN_KNOB).forEach(([destId, knobId]) => {
         const state = knobState[knobId];
         if (!state || !state.dom?.indicator) return;
 
@@ -2895,9 +2895,16 @@ lfoState.forEach((lfo, lfoIndex) => {
         const modulatedAngle = Math.max(0, Math.min(MAX_TOTAL_ANGLE, baseAngle + (lfoMod || 0) * MAX_TOTAL_ANGLE));
         const displayAngle = modulatedAngle % 360;
            
-      // --- COMMENTING OUT THE BELOW TWO LINES TO TEST MOBILE FUNCTIONALITY UPGRADE ---
-        // const knobRadius = state.dom.knob?.offsetHeight ? state.dom.knob.offsetHeight / 2 : 0;
-        // state.dom.indicator.style.transformOrigin = `center ${knobRadius > 0 ? knobRadius - 16 : 0}px`;
+        // --- FIX: Enforce correct pivot point in LFO loop (was commented out) ---
+        let knobRadius = state.dom.knob.offsetHeight / 2;
+        
+        // Use the same fallback logic as updateStateFromTotalAngle
+        if (knobRadius === 0) {
+            knobRadius = window.innerWidth >= 640 ? 96 : 80;
+        }
+        
+        // 12px matches the 'top-3' (0.75rem) CSS positioning
+        state.dom.indicator.style.transformOrigin = `center ${knobRadius - 12}px`;
         // ---------------------------------------------
        
         applyIndicatorTransform(state.dom.indicator, displayAngle);
@@ -4550,6 +4557,7 @@ function generateAndApplyRandomSound() {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
