@@ -1299,7 +1299,13 @@ let liveLfoOutputs = [0, 0, 0, 0];
            try {
                const preset = buildPresetData();
                const urlSafePreset = encodePresetForUrl(preset);
-               const url = new URL(window.location.href);
+               
+               // FIX: Use origin + pathname to build a clean base URL every time.
+               // This prevents issues where re-sharing might inherit malformed data 
+               // or accumulate debris from the current window.location.href
+               const baseUrl = window.location.origin + window.location.pathname;
+               const url = new URL(baseUrl);
+               
                url.searchParams.set('preset', urlSafePreset);
                return url.toString();
            } catch (err) {
@@ -4557,6 +4563,7 @@ function generateAndApplyRandomSound() {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
