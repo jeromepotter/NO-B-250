@@ -2404,12 +2404,15 @@ lfoState.forEach((lfo, lfoIndex) => {
      }
 
     function loadSharedPresetFromUrl() {
-          const params = new URLSearchParams(window.location.search);
+          const rawSearch = window.location.search || (window.location.hash?.startsWith('#') ? `?${window.location.hash.slice(1)}` : '');
+          const params = new URLSearchParams(rawSearch);
           const encoded = params.get(SHARE_QUERY_KEY);
-          if (!encoded) return { hasSharedParam: false, preset: null };
+          const hasSharedParam = encoded !== null || rawSearch.includes(`${SHARE_QUERY_KEY}=`);
+          if (!hasSharedParam) return { hasSharedParam: false, preset: null };
 
           try {
-              const decoded = decodeURIComponent(encoded);
+              const decoded = decodeURIComponent(encoded || '');
+              if (!decoded) return { hasSharedParam: true, preset: null };
               const json = atob(decoded);
               const parsed = JSON.parse(json);
               if (parsed && typeof parsed === 'object') {
