@@ -133,8 +133,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
         }
 
         function resumeHeldArpsIfReady() {
-            const hasHeldArps = knobState?.some(state => state && state.isArpOn && state.isArpHoldOn && state.arpNotes?.length);
-            if (!hasHeldArps) {
+            const hasSavedArps = knobState?.some(state => state && state.isArpOn && state.arpNotes?.length);
+            if (!hasSavedArps) {
                 shouldResumeHeldArps = false;
                 return;
             }
@@ -146,7 +146,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
             shouldResumeHeldArps = false;
             knobState.forEach(k => {
-                if (k && k.isArpOn && k.isArpHoldOn && k.arpNotes?.length > 0) {
+                if (k && k.isArpOn && k.arpNotes?.length > 0) {
                     startArpeggiator(k.id);
                 }
             });
@@ -4128,6 +4128,7 @@ function generateAndApplyRandomSound() {
            let appliedSharedPreset = false;
            if (sharedPreset) {
                const shouldPowerOn = sharedPreset.powerOn !== false;
+               if (shouldPowerOn && !isPowerOn) powerOn();
                applyPreset(sharedPreset, false, { skipPowerOn: !shouldPowerOn });
                updatePresetDisplay('SHARED', 'user');
                appliedSharedPreset = true;
