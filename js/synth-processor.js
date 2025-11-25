@@ -359,30 +359,6 @@ for(let i=0;i<oL.length;i++){
     // "Discrete Circuit" Panning
     let s_L = (s1_f * 0.8 + s2_f * 0.6) * 0.7;
     let s_R = (s1_f * 0.6 + s2_f * 0.8) * 0.7;
-
-    const cW = currentParams[6];
-    if(cW > 0){ 
-        // --- JUNO-106 EMULATION (Mode I) ---
-        // Rate: ~0.5 Hz
-        this.chorusLfoPhase = (this.chorusLfoPhase + (2 * Math.PI * 0.513) / sr) % (2 * Math.PI);
-        const lfo = Math.asin(Math.sin(this.chorusLfoPhase)) * (2 / Math.PI);
-
-        // 3. Calculate Delay Times
-        const dL = (0.02 + lfo * 0.005) * sr; 
-        const dR = (0.02 - lfo * 0.005 * 0.95) * sr; 
-
-        // 4. Write to Buffer
-        this.chorusDelayBufferL[this.chorusWritePos] = s_L;
-        this.chorusDelayBufferR[this.chorusWritePos] = s_R;
-
-        // 5. Read & Mix (CROSSFADE REVERT)
-        const cSL = this.getInterpolatedSample(this.chorusDelayBufferL, dL, this.chorusWritePos);
-        const cSR = this.getInterpolatedSample(this.chorusDelayBufferR, dR, this.chorusWritePos);
-
-        s_L = (s_L * (1 - cW)) + (cSL * cW); 
-        s_R = (s_R * (1 - cW)) + (cSR * cW); 
-    } 
-    this.chorusWritePos = (this.chorusWritePos + 1) % this.chorusDelayBufferL.length;
     
     this.smoothedDist += (currentParams[1] - this.smoothedDist) * 0.0025;
     const dV=this.smoothedDist;
@@ -432,6 +408,29 @@ for(let i=0;i<oL.length;i++){
             this.tremoloPhase -= 2 * Math.PI;
         }
     }
+           const cW = currentParams[6];
+    if(cW > 0){ 
+        // --- JUNO-106 EMULATION (Mode I) ---
+        // Rate: ~0.5 Hz
+        this.chorusLfoPhase = (this.chorusLfoPhase + (2 * Math.PI * 0.513) / sr) % (2 * Math.PI);
+        const lfo = Math.asin(Math.sin(this.chorusLfoPhase)) * (2 / Math.PI);
+
+        // 3. Calculate Delay Times
+        const dL = (0.02 + lfo * 0.005) * sr; 
+        const dR = (0.02 - lfo * 0.005 * 0.95) * sr; 
+
+        // 4. Write to Buffer
+        this.chorusDelayBufferL[this.chorusWritePos] = s_L;
+        this.chorusDelayBufferR[this.chorusWritePos] = s_R;
+
+        // 5. Read & Mix (CROSSFADE REVERT)
+        const cSL = this.getInterpolatedSample(this.chorusDelayBufferL, dL, this.chorusWritePos);
+        const cSR = this.getInterpolatedSample(this.chorusDelayBufferR, dR, this.chorusWritePos);
+
+        s_L = (s_L * (1 - cW)) + (cSL * cW); 
+        s_R = (s_R * (1 - cW)) + (cSR * cW); 
+    } 
+    this.chorusWritePos = (this.chorusWritePos + 1) % this.chorusDelayBufferL.length;
     
     const dW = currentParams[14];
     const targetDT = 0.01 + currentParams[15] * 1.5;
@@ -473,6 +472,7 @@ return true;
 }
 }
 registerProcessor('synth-processor', SynthProcessor);
+
 
 
 
