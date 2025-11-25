@@ -27,7 +27,6 @@ const LFO_DEST_NONE = -1;
                    // Filter state
                    this.filter_x1_L=0; this.filter_x2_L=0; this.filter_y1_L=0; this.filter_y2_L=0;
                    this.filter_x1_R=0; this.filter_x2_R=0; this.filter_y1_R=0; this.filter_y2_R=0;
-                   this.dcBlocker = { x1L: 0, y1L: 0, x1R: 0, y1R: 0 };
                    this.smoothedCutoff1 = 0.5;
                    this.smoothedCutoff2 = 0.5;
                    this.smoothedRes1 = 0.0;
@@ -392,7 +391,7 @@ for(let i=0;i<oL.length;i++){
         // 4. Adaptive Filter (Anti-Fizz)
         if (dV < 0.5) {
             const filterMix = (dV - 0.01) / (0.5 - 0.01);
-            const cutoff = 500 + Math.max(0, filterMix) * ((sr * 0.5) - 500);
+            const cutoff = 475 + Math.max(0, filterMix) * ((sr * 0.5) - 475);
             const omega = 2 * Math.PI * cutoff / sr;
             const alpha = omega / (omega + 1);
             this.distLpL += alpha * (distL - this.distLpL);
@@ -403,18 +402,6 @@ for(let i=0;i<oL.length;i++){
             this.distLpL = distL;
             this.distLpR = distR;
         }
-
-        // 5. DC Blocker (Crucial for safety)
-        const R = 0.995; 
-        const yL = distL - this.dcBlocker.x1L + R * this.dcBlocker.y1L;
-        this.dcBlocker.x1L = distL;
-        this.dcBlocker.y1L = yL;
-        distL = yL;
-
-        const yR = distR - this.dcBlocker.x1R + R * this.dcBlocker.y1R;
-        this.dcBlocker.x1R = distR;
-        this.dcBlocker.y1R = yR;
-        distR = yR;
 
     } else {
         // Distortion Off - Passthrough filter state
@@ -522,6 +509,7 @@ return true;
 }
 }
 registerProcessor('synth-processor', SynthProcessor);
+
 
 
 
