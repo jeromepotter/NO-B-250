@@ -3988,7 +3988,7 @@ function generateAndApplyRandomSound() {
            });
 
            updateGlobalArpVisibility();
-           const initialPresetCategory = 'PADS';
+           const initialPresetCategory = 'LEADS';
            const initialPresetName = 'MARIMBA';
            if (applyFactoryPreset(initialPresetCategory, initialPresetName)) {
                setActivePresetCategory(initialPresetCategory);
