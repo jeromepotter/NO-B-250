@@ -810,10 +810,10 @@ let liveLfoOutputs = [0, 0, 0, 0];
      const knobState = [
     { id: 0, isNoteOn: false, isHeld: false, totalAngle: Math.random()*MAX_TOTAL_ANGLE, lastDragAngle: 0, currentOctave: 3, dom: {}, touchId: null, baseColor: [0,0,0],
       isArpOn: false, isSweepMode: true, arpNotes: [], isArpHoldOn: false, arpRateBpm: DEFAULT_ARP_RATE_BPM, arpRateMs: DEFAULT_ARP_RATE_MS, arpOctaveRange: 0, feelKnobValue: 0.0, currentFeelPattern: EUCLIDEAN_PATTERNS[0], euclideanStepCounter: 0,
-      arpTranspose: 0, arpRunning: false, nextArpStepTime: 0, lastArpStepTime: 0, arpRafId: null, currentArpNoteIndex: 0, currentOctaveStep: 0, arpDirection: 1, arpUpDownState: 0, lastPlayedMidi: null, arpLastVisualIndex: -1, lastNoteOnTime: 0, lastVisualMidi: null },
+      arpTranspose: 0, arpRunning: false, nextArpStepTime: 0, lastArpStepTime: 0, arpRafId: null, currentArpNoteIndex: 0, currentOctaveStep: 0, arpDirection: 1, arpUpDownState: 0, lastPlayedMidi: null, arpLastVisualIndex: -1, arpLastRestIndex: -1, lastFeelPatternKey: EUCLIDEAN_PATTERNS[0].join(','), lastNoteOnTime: 0, lastVisualMidi: null },
     { id: 1, isNoteOn: false, isHeld: false, totalAngle: Math.random()*MAX_TOTAL_ANGLE, lastDragAngle: 0, currentOctave: 3, dom: {}, touchId: null, baseColor: [0,0,0],
       isArpOn: false, isSweepMode: true, arpNotes: [], isArpHoldOn: false, arpRateBpm: DEFAULT_ARP_RATE_BPM, arpRateMs: DEFAULT_ARP_RATE_MS, arpOctaveRange: 0, feelKnobValue: 0.0, currentFeelPattern: EUCLIDEAN_PATTERNS[0], euclideanStepCounter: 0,
-      arpTranspose: 0, arpRunning: false, nextArpStepTime: 0, lastArpStepTime: 0, arpRafId: null, currentArpNoteIndex: 0, currentOctaveStep: 0, arpDirection: 1, arpUpDownState: 0, lastPlayedMidi: null, arpLastVisualIndex: -1, lastNoteOnTime: 0, lastVisualMidi: null }
+      arpTranspose: 0, arpRunning: false, nextArpStepTime: 0, lastArpStepTime: 0, arpRafId: null, currentArpNoteIndex: 0, currentOctaveStep: 0, arpDirection: 1, arpUpDownState: 0, lastPlayedMidi: null, arpLastVisualIndex: -1, arpLastRestIndex: -1, lastFeelPatternKey: EUCLIDEAN_PATTERNS[0].join(','), lastNoteOnTime: 0, lastVisualMidi: null }
 ];
       
        // --- Global Arp State ---
@@ -1350,11 +1350,13 @@ function sendMidiMessage(message) {
                    const step = Math.min(3, Math.floor(d.value * 4)); state.arpOctaveRange = step; if (state.dom.octsDisplay) state.dom.octsDisplay.textContent = step;
                } else if (id === 22 || id === 23) {
                    const pIndex = Math.min(NUM_FEEL_PATTERNS - 1, Math.floor(d.value * NUM_FEEL_PATTERNS));
-                   state.feelKnobValue = d.value; 
-                   state.currentFeelPattern = EUCLIDEAN_PATTERNS[pIndex]; 
+                   state.feelKnobValue = d.value;
+                   state.currentFeelPattern = EUCLIDEAN_PATTERNS[pIndex];
                    state.euclideanStepCounter = 0;
-                   if (state.dom.feelDisplay) state.dom.feelDisplay.textContent = pIndex + 1;
-               } else if (id === 24 || id === 25) {
+                   state.lastFeelPatternKey = state.currentFeelPattern.join(',');
+                    if (state.dom.feelDisplay) state.dom.feelDisplay.textContent = pIndex + 1;
+                   refreshFeelRestState(knobId, state.currentFeelPattern);
+                } else if (id === 24 || id === 25) {
                   const trans = Math.floor((d.value * 24) - 12);
                   state.arpTranspose = trans;
                   if(state.dom.transposeDisplay) state.dom.transposeDisplay.textContent = trans;
@@ -1765,6 +1767,7 @@ function sendMidiMessage(message) {
            state.lastPlayedMidi = null;
            state.nextArpStepTime = 0;
            state.arpLastVisualIndex = -1;
+           state.arpLastRestIndex = -1;
            // --- End of Fix ---
 
            // Clear the visual indicators
@@ -1772,6 +1775,8 @@ function sendMidiMessage(message) {
            if (displayContainer) {
                const currentPlayhead = displayContainer.querySelector('.playhead');
                if (currentPlayhead) currentPlayhead.classList.remove('playhead');
+               const currentRest = displayContainer.querySelector('.resting');
+               if (currentRest) currentRest.classList.remove('resting');
            }
            if (state.dom.arpNoteDisplay) {
                state.dom.arpNoteDisplay.textContent = "--";
@@ -1826,6 +1831,7 @@ let modulatedRateMs = state.arpRateMs;
 let modulatedTranspose = state.arpTranspose;
 let modulatedOctaveRange = state.arpOctaveRange;
 let modulatedFeelPattern = state.currentFeelPattern;
+let feelPatternChanged = false;
 
 lfoState.forEach((lfo, lfoIndex) => {
     const destChain = getLfoDestChain(lfo);
@@ -1866,8 +1872,14 @@ lfoState.forEach((lfo, lfoIndex) => {
         const pIndex = Math.min(NUM_FEEL_PATTERNS - 1, Math.floor(finalValue * NUM_FEEL_PATTERNS));
         modulatedFeelPattern = EUCLIDEAN_PATTERNS[pIndex];
         if (state.dom.feelDisplay) state.dom.feelDisplay.textContent = pIndex + 1;
+        feelPatternChanged = true;
     }
 });
+           const feelPatternKey = modulatedFeelPattern.join(',');
+           if (state.lastFeelPatternKey !== feelPatternKey) {
+               feelPatternChanged = true;
+               state.lastFeelPatternKey = feelPatternKey;
+           }
            const isBpmMode = tempoMode === TEMPO_MODE_BPM;
            if (isBpmMode) {
                modulatedRateBpm = normalizeArpRateBpm(modulatedRateBpm);
@@ -1890,6 +1902,7 @@ lfoState.forEach((lfo, lfoIndex) => {
                }
 
                if (timestamp + MASTER_CLOCK_TOLERANCE_MS < state.nextArpStepTime) {
+                   if (feelPatternChanged) refreshFeelRestState(knobId, modulatedFeelPattern);
                    return;
                }
 
@@ -1899,16 +1912,20 @@ lfoState.forEach((lfo, lfoIndex) => {
                }
            } else {
                if (timestamp - state.lastArpStepTime < modulatedRateMs) {
+                   if (feelPatternChanged) refreshFeelRestState(knobId, modulatedFeelPattern);
                    return;
                }
                state.lastArpStepTime = timestamp;
            }
 
+               if (feelPatternChanged) refreshFeelRestState(knobId, modulatedFeelPattern);
+
                 let notesForSeq = state.arpNotes.map((noteObj, index) => ({ ...noteObj, originalIndex: index }));
                 let advance = true;
                 let noteIdx = state.currentArpNoteIndex;
 
-                const activeNotesForSorting = notesForSeq.filter(n => n.active);
+               const activeNotesForSorting = notesForSeq.filter(n => n.active);
+               const currentFeelStep = modulatedFeelPattern.length ? (state.euclideanStepCounter % modulatedFeelPattern.length) : 0;
     
                switch (currentArpOrder) {
                    case "Up": 
@@ -1941,8 +1958,10 @@ lfoState.forEach((lfo, lfoIndex) => {
                noteIdx = Math.max(0, Math.min(notesForSeq.length - 1, noteIdx));
                
                const baseNoteObject = notesForSeq[noteIdx];
-               
-               const shouldPlay = modulatedFeelPattern[state.euclideanStepCounter % modulatedFeelPattern.length] === 1 && baseNoteObject && baseNoteObject.active;
+
+               const mappedActiveIndex = activeNotesForSorting.length ? currentFeelStep % activeNotesForSorting.length : -1;
+               const mappedActiveNote = mappedActiveIndex > -1 ? activeNotesForSorting[mappedActiveIndex] : null;
+               const shouldPlay = modulatedFeelPattern[currentFeelStep] === 1 && baseNoteObject && baseNoteObject.active;
 
                if (state.isNoteOn) {
                    synthNode.port.postMessage({ type: 'noteOff', data: { voice: knobId } });
@@ -1955,19 +1974,9 @@ lfoState.forEach((lfo, lfoIndex) => {
                const baseMidi = baseNoteObject ? baseNoteObject.midi : null;
                const visualIndex = baseNoteObject ? baseNoteObject.originalIndex : -1;
     
-               const displayContainer = document.getElementById(`arp-sequence-display-${knobId}`);
-              if (displayContainer) { 
-                   const blocks = displayContainer.querySelectorAll('.sequence-note-block');
-                   if (state.arpLastVisualIndex > -1 && blocks[state.arpLastVisualIndex]) {
-                       blocks[state.arpLastVisualIndex].classList.remove('playhead');
-                   }
-                   if (visualIndex > -1 && blocks[visualIndex]) {
-                       blocks[visualIndex].classList.add('playhead');
-                       state.arpLastVisualIndex = visualIndex;
-                   } else {
-                       state.arpLastVisualIndex = -1;
-                   }
-               }
+              const mappedVisualIndex = mappedActiveNote ? mappedActiveNote.originalIndex : visualIndex;
+              const targetVisualIndex = (shouldPlay && visualIndex > -1) ? visualIndex : mappedVisualIndex;
+              setSequencePlayheadState(knobId, targetVisualIndex, shouldPlay);
     
               const fullScaleMidi = getFullScaleMidi();
                let baseNoteIndexInScale = fullScaleMidi.indexOf(baseMidi);
@@ -2037,12 +2046,56 @@ lfoState.forEach((lfo, lfoIndex) => {
            names.forEach(name => { const opt = document.createElement('option'); opt.value = name; opt.textContent = name.toUpperCase(); scaleSelector.appendChild(opt); });
        }
       
+     function setSequencePlayheadState(knobId, visualIndex, shouldPlay) {
+         const state = knobState[knobId];
+         const displayContainer = document.getElementById(`arp-sequence-display-${knobId}`);
+         if (!state || !displayContainer) return;
+
+         const blocks = displayContainer.querySelectorAll('.sequence-note-block');
+         if (state.arpLastVisualIndex > -1 && blocks[state.arpLastVisualIndex]) {
+             blocks[state.arpLastVisualIndex].classList.remove('playhead');
+         }
+         if (state.arpLastRestIndex > -1 && blocks[state.arpLastRestIndex]) {
+             blocks[state.arpLastRestIndex].classList.remove('resting');
+         }
+
+         if (visualIndex > -1 && blocks[visualIndex]) {
+             blocks[visualIndex].classList.toggle('playhead', shouldPlay);
+             blocks[visualIndex].classList.toggle('resting', !shouldPlay);
+         }
+
+         state.arpLastVisualIndex = shouldPlay ? visualIndex : -1;
+         state.arpLastRestIndex = shouldPlay ? -1 : visualIndex;
+     }
+
+     function refreshFeelRestState(knobId, feelPatternOverride) {
+         const state = knobState[knobId];
+         const displayContainer = document.getElementById(`arp-sequence-display-${knobId}`);
+         if (!state || !displayContainer) return;
+
+         const activeNotesWithIndex = state.arpNotes
+             .map((noteObj, index) => ({ ...noteObj, originalIndex: index }))
+             .filter(noteObj => noteObj.active);
+
+         const feelPattern = feelPatternOverride || state.currentFeelPattern || EUCLIDEAN_PATTERNS[0];
+         const feelStep = feelPattern.length ? (state.euclideanStepCounter % feelPattern.length) : 0;
+         const mappedIndex = activeNotesWithIndex.length ? feelStep % activeNotesWithIndex.length : -1;
+         const mappedNote = mappedIndex > -1 ? activeNotesWithIndex[mappedIndex] : null;
+         const mappedVisualIndex = mappedNote ? mappedNote.originalIndex : -1;
+         const shouldPlay = feelPattern[feelStep] === 1 && !!mappedNote;
+
+         setSequencePlayheadState(knobId, mappedVisualIndex, shouldPlay);
+     }
+
      function updateSequenceDisplay(knobId) {
          const state = knobState[knobId];
          const displayContainer = document.getElementById(`arp-sequence-display-${knobId}`);
          if (!displayContainer) return;
-         displayContainer.innerHTML = ''; 
-         
+         displayContainer.innerHTML = '';
+
+         state.arpLastVisualIndex = -1;
+         state.arpLastRestIndex = -1;
+
          const fullScaleMidi = getFullScaleMidi();
 
          state.arpNotes.forEach((noteObj, index) => {
