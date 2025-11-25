@@ -620,9 +620,8 @@
           <span>SEND CLOCK</span>
         </label>
       </div>
- 
-    </div>
-    <div id="how-to-modal-overlay" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none">
+      
+  </div> <div id="how-to-modal-overlay" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none">
       <div class="how-to-guide w-full max-w-xs sm:max-w-sm md:max-w-lg rounded-lg p-4">
         <a class='retro-button block w-full text-center mt-4' href='https://no-b-250.netlify.app/manual' target='_blank'>CLICK FOR FULL MANUAL</a>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2 text-sm mb-4">
@@ -679,10 +678,20 @@
         <button id="close-modal-button" class="retro-button w-full mt-4">CLOSE</button>
       </div>
     </div>
+
+    <div id="share-warning-modal-overlay" class="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none transition-opacity duration-300">
+      <div class="how-to-guide w-full max-w-sm rounded-lg p-6 text-center border-2 border-red-500">
+        <h2 class="text-xl font-bold text-red-500 mb-4 tracking-widest">WARNING</h2>
+        <p class="mb-6 text-sm leading-relaxed">You are about to load a shared preset. The volume or sound may be loud.<br><br>Please turn down your volume/headphones before proceeding. If you are on a Mobile device, please disable Silent Mode.</p>
+        <button id="confirm-share-load-button" class="retro-button w-full border-red-500 text-red-500 hover:text-red-400 hover:border-red-400">I UNDERSTAND, LOAD SOUND</button>
+      </div>
+    </div>
+
     <script type="module" src="js/main.js"></script>
     <div class="h-24"></div>
   </body>
-</html>              
+</html>
+
 
 
 

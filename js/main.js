@@ -1308,7 +1308,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
            }
       }
 
-      async function loadPresetFromUrl() {
+     async function loadPresetFromUrl() {
            const params = new URLSearchParams(window.location.search);
            const encodedPreset = params.get('preset');
            const presetUrl = params.get('presetUrl');
@@ -1334,6 +1334,34 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
            if (!parsedPreset) return false;
 
+           // --- NEW: Intercept with Warning Modal ---
+           const warningModal = document.getElementById('share-warning-modal-overlay');
+           const confirmBtn = document.getElementById('confirm-share-load-button');
+
+           if (warningModal && confirmBtn) {
+               // Show the warning
+               warningModal.classList.remove('opacity-0', 'pointer-events-none');
+
+               // Wait for user confirmation
+               return new Promise((resolve) => {
+                   confirmBtn.onclick = async () => {
+                       // Hide modal
+                       warningModal.classList.add('opacity-0', 'pointer-events-none');
+                       
+                       // Initialize Audio Context on user gesture
+                       await powerOn();
+                       
+                       // Apply the preset
+                       applyPreset(parsedPreset, false, { skipPowerOn: true });
+                       updatePresetDisplay('LINK', 'user');
+                       
+                       // Resolve true so init() knows we handled a preset
+                       resolve(true);
+                   };
+               });
+           }
+
+           // Fallback if modal is missing
            await powerOn();
            applyPreset(parsedPreset, false, { skipPowerOn: true });
            updatePresetDisplay('LINK', 'user');
@@ -4511,6 +4539,7 @@ function generateAndApplyRandomSound() {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
