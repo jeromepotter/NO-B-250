@@ -3995,7 +3995,6 @@ function generateAndApplyRandomSound() {
            const initialPresetCategory = 'KEYS';
            const initialPresetName = 'DREAMY MALLET';
            if (applyFactoryPreset(initialPresetCategory, initialPresetName, { skipPowerOn: true })) {
-               setActivePresetCategory(initialPresetCategory);
                updatePresetDisplay(initialPresetName, 'factory', initialPresetCategory);
            } else {
                updatePresetDisplay();
