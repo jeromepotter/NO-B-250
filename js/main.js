@@ -1746,16 +1746,31 @@ function sendMidiMessage(message) {
            const finalRgb = getArpNoteColor(midiNote);
            state.dom.knob.style.backgroundColor = `rgb(${finalRgb.r}, ${finalRgb.g}, ${finalRgb.b})`;
        }
-       function updateStateFromTotalAngle(knobId) {
+      function updateStateFromTotalAngle(knobId) {
            const state = knobState[knobId]; if (!state) return;
            state.totalAngle = Math.max(0, Math.min(MAX_TOTAL_ANGLE, state.totalAngle));
            state.currentOctave = Math.floor(state.totalAngle / 360);
            if (!state.dom || !state.dom.knob || !state.dom.indicator) return;
+           
            const displayAngle = state.totalAngle % 360;
            state.baseColor = getKnobColor(displayAngle);
-           const knobRadius = state.dom.knob.offsetHeight / 2;
-           state.dom.indicator.style.transformOrigin = `center ${knobRadius > 0 ? knobRadius - 16 : 0}px`;
+           
+           // --- FIX: Fallback radius calculation for initial load (Shared URL fix) ---
+           let knobRadius = state.dom.knob.offsetHeight / 2;
+           
+           // If the DOM isn't fully painted yet (offsetHeight is 0), the rotation pivot will be wrong.
+           // We manually enforce the correct radius based on the Tailwind classes:
+           // w-40 (160px width) -> radius 80
+           // w-48 (192px width) -> radius 96
+           if (knobRadius === 0) {
+               knobRadius = window.innerWidth >= 640 ? 96 : 80;
+           }
+           
+           // 12px matches the 'top-3' (0.75rem) CSS positioning of the indicator
+           state.dom.indicator.style.transformOrigin = `center ${knobRadius - 12}px`;
+           
            applyIndicatorTransform(state.dom.indicator, displayAngle);
+           
            const baseMidi = getMidiNote(knobId);
            let displayMidi = baseMidi;
            if (state.isArpOn) {
@@ -1791,30 +1806,26 @@ function sendMidiMessage(message) {
                   }
                }
           } else if (state.isHeld && synthNode && isPowerOn) {
-    const baseMidi = getMidiNote(knobId);
-    
-    // --- FIX: Re-trigger envelope on pitch change during drag ---
-    if (!state.isArpOn && state.lastPlayedMidi !== baseMidi) {
-        // 1. Kill the old note (internal synth envelope)
-        synthNode.port.postMessage({ type: 'noteOff', data: { voice: knobId } });
-        
-        // 2. Start the new note (internal synth envelope)
-        const freq = getNoteFrequency(baseMidi);
-        synthNode.port.postMessage({ type: 'noteOn', data: { voice: knobId, freq: freq } });
-        
-        // 3. MIDI handling (this was already there)
-        if (state.lastPlayedMidi !== null) {
-            sendMidiMessage([0x80 + knobId, state.lastPlayedMidi, 0]);
-            captureMidiEvent(knobId, 'noteOff', state.lastPlayedMidi, 0);
+            const baseMidi = getMidiNote(knobId);
+            
+            // --- Re-trigger envelope logic ---
+            if (!state.isArpOn && state.lastPlayedMidi !== baseMidi) {
+                synthNode.port.postMessage({ type: 'noteOff', data: { voice: knobId } });
+                const freq = getNoteFrequency(baseMidi);
+                synthNode.port.postMessage({ type: 'noteOn', data: { voice: knobId, freq: freq } });
+                
+                if (state.lastPlayedMidi !== null) {
+                    sendMidiMessage([0x80 + knobId, state.lastPlayedMidi, 0]);
+                    captureMidiEvent(knobId, 'noteOff', state.lastPlayedMidi, 0);
+                }
+                sendMidiMessage([0x90 + knobId, baseMidi, 100]);
+                captureMidiEvent(knobId, 'noteOn', baseMidi, 100);
+                
+                state.lastPlayedMidi = baseMidi;
+            }
+            
+            updateKnobColor(knobId);
         }
-        sendMidiMessage([0x90 + knobId, baseMidi, 100]);
-        captureMidiEvent(knobId, 'noteOn', baseMidi, 100);
-        
-        state.lastPlayedMidi = baseMidi;
-    }
-    
-    updateKnobColor(knobId);
-}
      }
       
        const updateFxKnob = (id, deltaY) => {
@@ -2874,7 +2885,7 @@ lfoState.forEach((lfo, lfoIndex) => {
 
     applyModulatedArpUiPreviews(modulatedValues);
 
-    Object.entries(LFO_DEST_TO_MAIN_KNOB).forEach(([destId, knobId]) => {
+   Object.entries(LFO_DEST_TO_MAIN_KNOB).forEach(([destId, knobId]) => {
         const state = knobState[knobId];
         if (!state || !state.dom?.indicator) return;
 
@@ -2884,9 +2895,16 @@ lfoState.forEach((lfo, lfoIndex) => {
         const modulatedAngle = Math.max(0, Math.min(MAX_TOTAL_ANGLE, baseAngle + (lfoMod || 0) * MAX_TOTAL_ANGLE));
         const displayAngle = modulatedAngle % 360;
            
-      // --- COMMENTING OUT THE BELOW TWO LINES TO TEST MOBILE FUNCTIONALITY UPGRADE ---
-        // const knobRadius = state.dom.knob?.offsetHeight ? state.dom.knob.offsetHeight / 2 : 0;
-        // state.dom.indicator.style.transformOrigin = `center ${knobRadius > 0 ? knobRadius - 16 : 0}px`;
+        // --- FIX: Enforce correct pivot point in LFO loop (was commented out) ---
+        let knobRadius = state.dom.knob.offsetHeight / 2;
+        
+        // Use the same fallback logic as updateStateFromTotalAngle
+        if (knobRadius === 0) {
+            knobRadius = window.innerWidth >= 640 ? 96 : 80;
+        }
+        
+        // 12px matches the 'top-3' (0.75rem) CSS positioning
+        state.dom.indicator.style.transformOrigin = `center ${knobRadius - 12}px`;
         // ---------------------------------------------
        
         applyIndicatorTransform(state.dom.indicator, displayAngle);
@@ -4539,6 +4557,8 @@ function generateAndApplyRandomSound() {
           updateRateButtonLockState();
       }
        init();
+
+
 
 
 
