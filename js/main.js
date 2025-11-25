@@ -3988,7 +3988,11 @@ function generateAndApplyRandomSound() {
            });
 
            updateGlobalArpVisibility();
-           randomizeSettings();
+           const initialPresetCategory = 'PADS';
+           const initialPresetName = 'MARIMBA';
+           if (applyFactoryPreset(initialPresetCategory, initialPresetName)) {
+               updatePresetDisplay(initialPresetName, 'factory', initialPresetCategory);
+           }
            updateRateButtonLockState();
        }
        init();
