@@ -2403,21 +2403,23 @@ lfoState.forEach((lfo, lfoIndex) => {
            }
      }
 
-     function loadSharedPresetFromUrl() {
-           const params = new URLSearchParams(window.location.search);
-           const encoded = params.get(SHARE_QUERY_KEY);
-           if (!encoded) return null;
+    function loadSharedPresetFromUrl() {
+          const params = new URLSearchParams(window.location.search);
+          const encoded = params.get(SHARE_QUERY_KEY);
+          if (!encoded) return { hasSharedParam: false, preset: null };
 
-           try {
-               const decoded = decodeURIComponent(encoded);
-               const json = atob(decoded);
-               const parsed = JSON.parse(json);
-               if (parsed && typeof parsed === 'object') return { ...parsed, powerOn: true };
-           } catch (err) {
-               console.error('Failed to load shared preset from URL:', err);
-           }
-           return null;
-     }
+          try {
+              const decoded = decodeURIComponent(encoded);
+              const json = atob(decoded);
+              const parsed = JSON.parse(json);
+              if (parsed && typeof parsed === 'object') {
+                  return { hasSharedParam: true, preset: { ...parsed, powerOn: true } };
+              }
+          } catch (err) {
+              console.error('Failed to load shared preset from URL:', err);
+          }
+          return { hasSharedParam: true, preset: null };
+    }
 
      function savePreset() {
            const preset = buildCurrentPresetPayload();
@@ -4133,15 +4135,19 @@ function generateAndApplyRandomSound() {
            });
 
            updateGlobalArpVisibility();
-           const sharedPreset = loadSharedPresetFromUrl();
-           let appliedSharedPreset = false;
-           if (sharedPreset) {
-               const shouldPowerOn = sharedPreset.powerOn !== false;
-               if (shouldPowerOn && !isPowerOn) powerOn();
-               applyPreset(sharedPreset, false, { skipPowerOn: !shouldPowerOn });
-               updatePresetDisplay('SHARED', 'user');
-               appliedSharedPreset = true;
-           }
+          const { hasSharedParam, preset: sharedPreset } = loadSharedPresetFromUrl();
+          let appliedSharedPreset = false;
+          if (hasSharedParam) {
+              const shouldPowerOn = sharedPreset?.powerOn !== false;
+              if (shouldPowerOn && !isPowerOn) powerOn();
+
+              if (sharedPreset) {
+                  applyPreset(sharedPreset, false, { skipPowerOn: !shouldPowerOn });
+                  resumeHeldArpsIfReady();
+                  updatePresetDisplay('SHARED', 'user');
+                  appliedSharedPreset = true;
+              }
+          }
 
            if (!appliedSharedPreset) {
                const initialPresetCategory = 'KEYS';
