@@ -2241,19 +2241,22 @@ lfoState.forEach((lfo, lfoIndex) => {
            }
        }
 
-       function handlePresetNavigation(direction) {
-           if (!presetNavigationList.length || !Number.isFinite(direction) || direction === 0) return;
-           const dir = direction > 0 ? 1 : -1;
+      function handlePresetNavigation(direction, triggerEvent) {
+          if (!presetNavigationList.length || !Number.isFinite(direction) || direction === 0) return;
+          const dir = direction > 0 ? 1 : -1;
 
-           let nextIndex = currentPresetNavIndex;
-           if (nextIndex === null) {
-               nextIndex = dir > 0 ? 0 : presetNavigationList.length - 1;
-           } else {
-               nextIndex = (nextIndex + dir + presetNavigationList.length) % presetNavigationList.length;
-           }
+          let nextIndex = currentPresetNavIndex;
+          if (nextIndex === null) {
+              nextIndex = dir > 0 ? 0 : presetNavigationList.length - 1;
+          } else {
+              nextIndex = (nextIndex + dir + presetNavigationList.length) % presetNavigationList.length;
+          }
 
-           applyPresetFromNavigation(nextIndex);
-       }
+          applyPresetFromNavigation(nextIndex);
+
+          const target = triggerEvent?.currentTarget || triggerEvent?.target;
+          if (target instanceof HTMLElement) target.blur();
+      }
 
      function savePreset() {
            const preset = {
@@ -3255,8 +3258,8 @@ function generateAndApplyRandomSound() {
                element.addEventListener('click', handler);
            };
 
-           addTouchListener(presetPrevButton, () => handlePresetNavigation(-1));
-           addTouchListener(presetNextButton, () => handlePresetNavigation(1));
+          addTouchListener(presetPrevButton, (event) => handlePresetNavigation(-1, event));
+          addTouchListener(presetNextButton, (event) => handlePresetNavigation(1, event));
            addTouchListener(presetNameDisplay, (event) => handlePresetToggle(event));
            presetNameDisplay?.addEventListener('keydown', (event) => {
                if (event.key === 'Enter' || event.key === ' ') {
