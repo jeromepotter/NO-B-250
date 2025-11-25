@@ -2143,7 +2143,7 @@ lfoState.forEach((lfo, lfoIndex) => {
            if (!displayText) {
                presetNameDisplay.textContent = 'PRESET';
                presetNameDisplay.title = '';
-               if (presetDisplayContainer) presetDisplayContainer.style.display = 'none';
+               if (presetDisplayContainer) presetDisplayContainer.style.display = 'flex';
                syncPresetNavigationState(null, null, sourceType);
                return;
            }
@@ -2241,19 +2241,22 @@ lfoState.forEach((lfo, lfoIndex) => {
            }
        }
 
-       function handlePresetNavigation(direction) {
-           if (!presetNavigationList.length || !Number.isFinite(direction) || direction === 0) return;
-           const dir = direction > 0 ? 1 : -1;
+      function handlePresetNavigation(direction, triggerEvent) {
+          if (!presetNavigationList.length || !Number.isFinite(direction) || direction === 0) return;
+          const dir = direction > 0 ? 1 : -1;
 
-           let nextIndex = currentPresetNavIndex;
-           if (nextIndex === null) {
-               nextIndex = dir > 0 ? 0 : presetNavigationList.length - 1;
-           } else {
-               nextIndex = (nextIndex + dir + presetNavigationList.length) % presetNavigationList.length;
-           }
+          let nextIndex = currentPresetNavIndex;
+          if (nextIndex === null) {
+              nextIndex = dir > 0 ? 0 : presetNavigationList.length - 1;
+          } else {
+              nextIndex = (nextIndex + dir + presetNavigationList.length) % presetNavigationList.length;
+          }
 
-           applyPresetFromNavigation(nextIndex);
-       }
+          applyPresetFromNavigation(nextIndex);
+
+          const target = triggerEvent?.currentTarget || triggerEvent?.target;
+          if (target instanceof HTMLElement) target.blur();
+      }
 
      function savePreset() {
            const preset = {
@@ -3255,8 +3258,8 @@ function generateAndApplyRandomSound() {
                element.addEventListener('click', handler);
            };
 
-           addTouchListener(presetPrevButton, () => handlePresetNavigation(-1));
-           addTouchListener(presetNextButton, () => handlePresetNavigation(1));
+          addTouchListener(presetPrevButton, (event) => handlePresetNavigation(-1, event));
+          addTouchListener(presetNextButton, (event) => handlePresetNavigation(1, event));
            addTouchListener(presetNameDisplay, (event) => handlePresetToggle(event));
            presetNameDisplay?.addEventListener('keydown', (event) => {
                if (event.key === 'Enter' || event.key === ' ') {
@@ -3370,6 +3373,7 @@ function generateAndApplyRandomSound() {
 
            // --- 9. PRESET MENU LOGIC ---
            const presetsToggleButton = document.getElementById('presets-toggle-button');
+           const presetMenuAnchor = presetsToggleButton || presetDisplayContainer;
            const presetsSubmenuContainer = document.getElementById('presets-submenu-container');
            const submenuSaveButton = document.getElementById('submenu-save-button');
            const submenuLoadButton = document.getElementById('submenu-load-button');
@@ -3382,14 +3386,14 @@ function generateAndApplyRandomSound() {
            let removePresetsSubmenuDismissListener = null;
 
            const positionPresetsSubmenu = () => {
-                if (!presetsSubmenuContainer || !presetsToggleButton || !synthContainer) return;
+                if (!presetsSubmenuContainer || !presetMenuAnchor || !synthContainer) return;
                 if (presetsSubmenuContainer.style.display !== 'flex') return;
 
-                const buttonRect = presetsToggleButton.getBoundingClientRect();
+                const anchorRect = presetMenuAnchor.getBoundingClientRect();
                 const containerRect = synthContainer.getBoundingClientRect();
 
-                const left = Math.max(0, buttonRect.left - containerRect.left);
-                const top = buttonRect.bottom - containerRect.top + 8;
+                const left = Math.max(0, anchorRect.left - containerRect.left);
+                const top = anchorRect.top - containerRect.top;
 
                 presetsSubmenuContainer.style.left = `${left}px`;
                 presetsSubmenuContainer.style.top = `${top}px`;
@@ -3497,7 +3501,7 @@ function generateAndApplyRandomSound() {
                const willShow = !isVisible;
 
                presetsSubmenuContainer.style.display = willShow ? 'flex' : 'none';
-               presetsToggleButton.classList.toggle('active', willShow);
+               presetsToggleButton?.classList.toggle('active', willShow);
 
                if (willShow) {
                     positionPresetsSubmenu();
@@ -3506,7 +3510,7 @@ function generateAndApplyRandomSound() {
                         if (!isMenuVisible) return;
                         if (event.target.closest('#presets-submenu-container') || event.target.closest('#preset-list-selector') || event.target.closest('#presets-toggle-button') || event.target.closest('#preset-display-container')) return;
                         presetsSubmenuContainer.style.display = 'none';
-                        presetsToggleButton.classList.remove('active');
+                        presetsToggleButton?.classList.remove('active');
                         closePresetDropdown();
                         cleanupPresetsSubmenuDismissListener();
                     };
@@ -3528,7 +3532,7 @@ function generateAndApplyRandomSound() {
                 savePreset();
                 closePresetDropdown();
                 presetsSubmenuContainer.style.display = 'none';
-                presetsToggleButton.classList.remove('active');
+                presetsToggleButton?.classList.remove('active');
                 cleanupPresetsSubmenuDismissListener();
            });
 
@@ -3536,9 +3540,9 @@ function generateAndApplyRandomSound() {
                 loadPresetInput.click();
                 closePresetDropdown();
                 presetsSubmenuContainer.style.display = 'none';
-                presetsToggleButton.classList.remove('active');
+                presetsToggleButton?.classList.remove('active');
                 cleanupPresetsSubmenuDismissListener();
-            });
+           });
 
            const midiConnectButton = document.getElementById('midi-connect-button');
            midiConnectButton?.addEventListener('click', () => {
@@ -3937,7 +3941,7 @@ function generateAndApplyRandomSound() {
                 closePresetDropdown();
                 presetListSelector.blur();
                 presetsSubmenuContainer.style.display = 'none';
-                presetsToggleButton.classList.remove('active');
+                presetsToggleButton?.classList.remove('active');
             });
 
            presetListSelector?.addEventListener('keydown', (e) => {

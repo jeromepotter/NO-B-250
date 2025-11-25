@@ -250,11 +250,15 @@ body { font-family: 'Poppins', sans-serif; background-color: #665; touch-action:
         color: #ffffff;
       }
       body.easter-egg-mode .retro-button:hover {
-        color: #1B9BBF; 
+        color: #1B9BBF;
       }
       body.easter-egg-mode .retro-button.active {
-        color: #1B9BBF; 
+        color: #1B9BBF;
         text-decoration-color: #1B9BBF;
+      }
+      body.easter-egg-mode .preset-nav-button,
+      body.easter-egg-mode .preset-nav-button:hover {
+        color: #000000;
       }
       /* --- LFO MODE STYLES --- */
       #lfo-patch-bay {
