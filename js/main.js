@@ -2184,13 +2184,15 @@ lfoState.forEach((lfo, lfoIndex) => {
            updatePresetNavButtonsState();
        }
 
-       function applyFactoryPreset(category, presetName) {
+       function applyFactoryPreset(category, presetName, options = {}) {
            if (!category || !presetName) return false;
            const categoryPresets = PRESETS[category];
            if (!categoryPresets || !categoryPresets[presetName]) return false;
 
+           const { skipPowerOn = false } = options;
+
            const presetData = JSON.parse(JSON.stringify(categoryPresets[presetName]));
-           if (!isPowerOn) powerOn();
+           if (!isPowerOn && !skipPowerOn) powerOn();
 
            const fullPreset = {
                tempoMode: presetData.tempoMode ?? TEMPO_MODE_BPM,
@@ -3990,7 +3992,7 @@ function generateAndApplyRandomSound() {
            updateGlobalArpVisibility();
            const initialPresetCategory = 'LEADS';
            const initialPresetName = 'MARIMBA';
-           if (applyFactoryPreset(initialPresetCategory, initialPresetName)) {
+           if (applyFactoryPreset(initialPresetCategory, initialPresetName, { skipPowerOn: true })) {
                setActivePresetCategory(initialPresetCategory);
                updatePresetDisplay(initialPresetName, 'factory', initialPresetCategory);
            } else {
