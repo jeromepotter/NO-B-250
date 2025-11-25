@@ -1,5 +1,5 @@
        // --- App State ---
-      let audioContext; let synthNode; let isPowerOn = false;
+      let audioContext; let synthNode; let isPowerOn = false; let audioSetupPromise = null;
       let allowDuplicateNotesMode = false;
       let isLfoMode = false;
       let isLfoLockEnabled = false;
@@ -919,7 +919,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
            if (!parsedPreset) return false;
 
-           applyPreset(parsedPreset, false, { skipPowerOn: false });
+           await powerOn();
+           applyPreset(parsedPreset, false, { skipPowerOn: true });
            updatePresetDisplay('LINK', 'user');
            return true;
       }
@@ -1149,14 +1150,18 @@ for (const event of events) {
        // --- End MIDI Recording ---
       
        async function setupAudio() {
-           if (audioContext) return;
-           audioContext = new (window.AudioContext || window.webkitAudioContext)();
-           await audioContext.audioWorklet.addModule('./js/synth-processor.js');
-           synthNode = new AudioWorkletNode(audioContext,'synth-processor', { numberOfOutputs: 1, outputChannelCount: [2] });
-           synthNode.port.onmessage = ({ data }) => {
+           if (audioSetupPromise) return audioSetupPromise;
+
+           audioSetupPromise = (async () => {
+               if (audioContext) return;
+
+               audioContext = new (window.AudioContext || window.webkitAudioContext)();
+               await audioContext.audioWorklet.addModule('./js/synth-processor.js');
+               synthNode = new AudioWorkletNode(audioContext,'synth-processor', { numberOfOutputs: 1, outputChannelCount: [2] });
+               synthNode.port.onmessage = ({ data }) => {
     const { type, data: payload } = data || {};
     switch (type) {
-        case 'envUpdate': 
+        case 'envUpdate':
             if (typeof updateKnobVolumeIndicator === 'function') { 
                 updateKnobVolumeIndicator(0, payload.v0); 
                 updateKnobVolumeIndicator(1, payload.v1); 
@@ -1190,14 +1195,23 @@ for (const event of events) {
         }
     }
 };
-           synthNode.connect(audioContext.destination);
-           Object.values(fxKnobData).forEach(d => {
-               if (synthNode && ((d.id <= 29 && d.id !== 1) || d.id === 30 || d.id === 31)) { synthNode.port.postMessage({type:'setFx', data:{id:d.id, value:d.value}}); }
-               if (synthNode && d.id === 7) { synthNode.port.postMessage({type:'setFx', data:{id:d.id, value:d.value}}); }
-           });
+               synthNode.connect(audioContext.destination);
+               Object.values(fxKnobData).forEach(d => {
+                   if (synthNode && ((d.id <= 29 && d.id !== 1) || d.id === 30 || d.id === 31)) { synthNode.port.postMessage({type:'setFx', data:{id:d.id, value:d.value}}); }
+                   if (synthNode && d.id === 7) { synthNode.port.postMessage({type:'setFx', data:{id:d.id, value:d.value}}); }
+               });
+           })();
+
+           return audioSetupPromise;
        }
-      
-       function powerOn(){ if(isPowerOn) return; isPowerOn=true; powerSwitch.classList.add('on'); synthContainer.classList.remove('is-off'); setupAudio().then(()=>{ if(audioContext.state==='suspended') audioContext.resume(); }); }
+
+       function powerOn(){
+           if (isPowerOn) return audioSetupPromise || Promise.resolve();
+           isPowerOn=true; powerSwitch.classList.add('on'); synthContainer.classList.remove('is-off');
+           const setupPromise = setupAudio().then(()=>{ if(audioContext && (audioContext.state==='suspended' || audioContext.state==='interrupted')) return audioContext.resume(); });
+           audioSetupPromise = setupPromise;
+           return setupPromise;
+       }
        function powerOff(){
            if(!isPowerOn)return;
            if (isRecordingAudio && synthNode) { synthNode.port.postMessage({ type: 'stopRecording', data: {} }); }
@@ -1207,7 +1221,7 @@ for (const event of events) {
            isArpRateSynced = false; if(arpSyncSwitch) arpSyncSwitch.classList.remove('on');
            if (isLfoMode) { toggleLfoModeUI(false); }
            updateGlobalArpVisibility(); powerSwitch.classList.remove('on'); synthContainer.classList.add('is-off');
-           if(audioContext){audioContext.close().then(()=>{audioContext=null;synthNode=null;});}
+           if(audioContext){audioContext.close().then(()=>{audioContext=null;synthNode=null;audioSetupPromise=null;});}
        }
       
        function getNoteFrequency(m){return 440*Math.pow(2,(m-69)/12);}
