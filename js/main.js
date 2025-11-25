@@ -879,12 +879,25 @@ let liveLfoOutputs = [0, 0, 0, 0];
            };
       }
 
+      function toBase64Url(base64) {
+           return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      }
+
+      function fromBase64Url(base64Url) {
+           const padded = base64Url
+               .replace(/-/g, '+')
+               .replace(/_/g, '/')
+               .padEnd(base64Url.length + ((4 - (base64Url.length % 4)) % 4), '=');
+           return padded;
+      }
+
       function generateShareableUrl() {
            try {
                const preset = buildPresetData();
                const serialized = btoa(unescape(encodeURIComponent(JSON.stringify(preset))));
+               const urlSafePreset = toBase64Url(serialized);
                const url = new URL(window.location.href);
-               url.searchParams.set('preset', serialized);
+               url.searchParams.set('preset', urlSafePreset);
                return url.toString();
            } catch (err) {
                console.error('Failed to generate shareable URL', err);
@@ -900,7 +913,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
            if (encodedPreset) {
                try {
-                   const decoded = decodeURIComponent(escape(atob(encodedPreset)));
+                   const decoded = decodeURIComponent(escape(atob(fromBase64Url(encodedPreset))));
                    parsedPreset = JSON.parse(decoded);
                } catch (err) {
                    console.error('Failed to load preset from encoded URL data', err);
