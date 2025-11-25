@@ -3301,7 +3301,7 @@ function generateAndApplyRandomSound() {
           buildPresetNavigationList();
           updatePresetDisplay();
 
-          const presetLoadedFromUrl = await loadPresetFromUrl();
+          let presetLoadedFromUrl = false;
            
            // --- 3. TOUCH HELPER FUNCTION ---
            const addTouchListener = (element, callback) => {
@@ -3671,6 +3671,8 @@ function generateAndApplyRandomSound() {
                }
            });
            updateLfoTempoSwitchStates();
+
+          presetLoadedFromUrl = await loadPresetFromUrl();
             
             document.querySelectorAll('.fx-knob-container').forEach(knobEl => {
                 const id = knobEl.dataset.fxId;
@@ -4060,9 +4062,9 @@ function generateAndApplyRandomSound() {
                addTouchListener(button, () => handleArpRateButton(knobId, multiplier));
            });
 
-           updateGlobalArpVisibility();
-          const initialPresetCategory = 'KEYS';
-          const initialPresetName = 'DREAMY MALLET';
+          updateGlobalArpVisibility();
+         const initialPresetCategory = 'KEYS';
+         const initialPresetName = 'DREAMY MALLET';
           if (!presetLoadedFromUrl) {
               if (applyFactoryPreset(initialPresetCategory, initialPresetName, { skipPowerOn: true })) {
                   updatePresetDisplay(initialPresetName, 'factory', initialPresetCategory);
