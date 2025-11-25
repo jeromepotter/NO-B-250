@@ -844,6 +844,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
       
        // --- DOM Elements ---
       let synthContainer, powerSwitch, keySelector, scaleSelector, customScaleBuilder, savePresetButton, loadPresetInput, arpSyncSwitch, shareButton;
+      let shareButtonResetTimeout = null;
       let presetNameDisplay, presetDisplayContainer, presetPrevButton, presetNextButton;
       let masterArpControls, arpOrderSelector, arpLockSwitch, lfoLockSwitch;
       let allArpControlGrids;
@@ -2370,7 +2371,7 @@ lfoState.forEach((lfo, lfoIndex) => {
      }
 
      function buildShareUrl() {
-           const payload = buildTrimmedPresetPayload();
+           const payload = { ...buildTrimmedPresetPayload(), powerOn: true };
            const encoded = encodeURIComponent(btoa(JSON.stringify(payload)));
            return `https://no-b-250.netlify.app/?${SHARE_QUERY_KEY}=${encoded}`;
      }
@@ -2388,6 +2389,14 @@ lfoState.forEach((lfo, lfoIndex) => {
                    document.execCommand('copy');
                    document.body.removeChild(helper);
                }
+               if (shareButton) {
+                   shareButton.textContent = 'URL COPIED';
+                   if (shareButtonResetTimeout) clearTimeout(shareButtonResetTimeout);
+                   shareButtonResetTimeout = setTimeout(() => {
+                       shareButton.textContent = 'SHARE';
+                       shareButtonResetTimeout = null;
+                   }, 1500);
+               }
                console.log('Share URL copied to clipboard:', shareUrl);
            } catch (err) {
                console.error('Failed to copy share URL:', err);
@@ -2403,7 +2412,7 @@ lfoState.forEach((lfo, lfoIndex) => {
                const decoded = decodeURIComponent(encoded);
                const json = atob(decoded);
                const parsed = JSON.parse(json);
-               if (parsed && typeof parsed === 'object') return parsed;
+               if (parsed && typeof parsed === 'object') return { ...parsed, powerOn: true };
            } catch (err) {
                console.error('Failed to load shared preset from URL:', err);
            }
