@@ -24,6 +24,8 @@ const LFO_DEST_NONE = -1;
                    this.distLpL = 0; this.distLpR = 0;
                    this.smoothedDist = 0;
                    this.distWet = 0;
+                   //Distortion state
+                   this.dcBlocker = { x1L: 0, y1L: 0, x1R: 0, y1R: 0 };
                    // Filter state
                    this.filter_x1_L=0; this.filter_x2_L=0; this.filter_y1_L=0; this.filter_y2_L=0;
                    this.filter_x1_R=0; this.filter_x2_R=0; this.filter_y1_R=0; this.filter_y2_R=0;
@@ -397,9 +399,10 @@ for(let i=0;i<oL.length;i++){
         const dr=1+distDrive*19;
         const k=2*dr/(1+dr);
         distL=(1+k)*distL/(1+k*Math.abs(distL)); distR=(1+k)*distR/(1+k*Math.abs(distR));
-        const nS=Math.max(2,Math.floor(Math.pow(1-distDrive,2.5)*64));
-        const sS=2.0/nS;
-        distL=sS*Math.floor(distL/sS+0.5); distR=sS*Math.floor(distR/sS+0.5);
+        // Lines removed to stop bit-crushing/aliasing
+       // const nS=Math.max(2,Math.floor(Math.pow(1-distDrive,2.5)*64));
+      // const sS=2.0/nS;
+     // distL=sS*Math.floor(distL/sS+0.5); distR=sS*Math.floor(distR/sS+0.5);
         const gC=1/(1+dV*1.5); distL*=gC; distR*=gC;
         if (dV < 0.5) {
             const filterMix = (dV - 0.01) / (0.5 - 0.01);
@@ -410,6 +413,19 @@ for(let i=0;i<oL.length;i++){
             this.distLpR += alpha * (distR - this.distLpR);
             distL = this.distLpL;
             distR = this.distLpR;
+            const R = 0.995; // Coefficient for ~10Hz cutoff at 44.1kHz
+        // Left Channel
+        const yL = distL - this.dcBlocker.x1L + R * this.dcBlocker.y1L;
+        this.dcBlocker.x1L = distL;
+        this.dcBlocker.y1L = yL;
+        distL = yL;
+
+        // Right Channel
+        const yR = distR - this.dcBlocker.x1R + R * this.dcBlocker.y1R;
+        this.dcBlocker.x1R = distR;
+        this.dcBlocker.y1R = yR;
+        distR = yR;
+        // --- DC BLOCKER END --
         } else {
             this.distLpL = distL;
             this.distLpR = distR;
@@ -473,6 +489,7 @@ return true;
 }
 }
 registerProcessor('synth-processor', SynthProcessor);
+
 
 
 
