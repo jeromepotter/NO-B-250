@@ -443,27 +443,9 @@ body.lfo-mode #lfo-lock-container {
 /* In css/style.css */
 
 .sequence-note-block.playhead-skipped {
-  /* UPDATED: Removed the white inner ring */
-  /* Now it is just a solid Red border */
-  box-shadow: inset 0 0 0 3px #ff0000; 
-
-  /* Keep the stripes and tint */
-  background-image: 
-    repeating-linear-gradient(
-      135deg,
-      transparent,
-      transparent 5px,
-      rgba(255, 0, 0, 0.9) 5px,
-      rgba(255, 0, 0, 0.9) 10px
-    ),
-    linear-gradient(
-      rgba(0, 0, 0, 0.6),
-      rgba(0, 0, 0, 0.6)
-    );
-
-  transform: scale(1.05);
-  z-index: 10;
-  opacity: 1;
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.6);
+  opacity: 0.2;
   transition: none !important;
 }
       .mobile-spin-button {
