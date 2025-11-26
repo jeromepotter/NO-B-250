@@ -1558,6 +1558,8 @@ export const PRESETS = {
     },
          "RANDOM": {
         'RANDOM SOUND': { tempoMode: 'BPM' },
-        'RANDOM ARP': { tempoMode: 'BPM' }
+        'RANDOM ARP': { tempoMode: 'BPM' },
+        'COMPLEX RANDOM SOUND': { tempoMode: 'BPM' },
+        'COMPLEX RANDOM ARP': { tempoMode: 'BPM' }
       }
 };

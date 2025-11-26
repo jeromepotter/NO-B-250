@@ -866,6 +866,81 @@ let liveLfoOutputs = [0, 0, 0, 0];
            const xxx = String(Math.floor(Math.random() * 1000)).padStart(3, '0');
            return `N-OB-${a}-${b}-${xxx}-.${extension}`;
        }
+const SAFE_AUDIO_TARGETS = [
+    20, 21, // Filters
+    4,      // Detune
+    6,      // Chorus
+    1, 5,   // Distortion & AM
+    12, 14, // Reverb & Delay Mix
+    24, 25, // Arp Transpose
+    22, 23, // Arp Feel
+    18, 19  // Arp Octaves
+];
+
+const LFO_PARAM_TARGETS = [
+    108, 106, // LFO 0 Rate, Depth
+    109, 103, // LFO 1 Rate, Depth
+    110, 104, // LFO 2 Rate, Depth
+    111, 100  // LFO 3 Rate, Depth
+];
+
+// 2. The Smart LFO Generator
+function generateComplexRandomLfoState() {
+    const numActiveLfos = 2 + Math.floor(Math.random() * 2); // 2 or 3 LFOs
+    
+    return Array.from({ length: 4 }, (_, currentLfoIndex) => {
+        if (currentLfoIndex >= numActiveLfos) {
+            return { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false };
+        }
+
+        // Step A: Choose Primary Destination
+        let primaryDest;
+        const roll = Math.random();
+        
+        // 25% Chance for Cross-Modulation (preventing self-mod)
+        if (roll < 0.25) {
+            const validLfoTargets = LFO_PARAM_TARGETS.filter(id => {
+                const targetOwnerIndex = LFO_KNOB_MAP[id]?.lfo;
+                return targetOwnerIndex !== currentLfoIndex;
+            });
+            primaryDest = validLfoTargets[Math.floor(Math.random() * validLfoTargets.length)];
+        } else {
+            primaryDest = SAFE_AUDIO_TARGETS[Math.floor(Math.random() * SAFE_AUDIO_TARGETS.length)];
+        }
+
+        // Step B: Smart Depth
+        let depth = Math.random();
+        if (primaryDest === 4) depth *= 0.3; // Tame Detune
+        if (LFO_PARAM_TARGETS.includes(primaryDest)) depth = 0.3 + (Math.random() * 0.5); // Boost LFO Mod
+
+        // Step C: Chaining (30% Chance)
+        const destChain = [primaryDest];
+        if (Math.random() < 0.3 && !LFO_PARAM_TARGETS.includes(primaryDest)) {
+            let secondary = SAFE_AUDIO_TARGETS[Math.floor(Math.random() * SAFE_AUDIO_TARGETS.length)];
+            if (secondary !== primaryDest) destChain.push(secondary);
+        }
+
+        // Step D: Rate (60% Sync)
+        const useSync = Math.random() > 0.4;
+        let rate;
+        if (useSync) {
+            const syncValues = [0.5, 0.6, 0.75, 0.85]; // 1/4, 1/8T, 1/8, 1/16
+            rate = syncValues[Math.floor(Math.random() * syncValues.length)];
+        } else {
+            rate = Math.random() * 0.4; // Slow free-running
+        }
+
+        return {
+            rate: parseFloat(rate.toFixed(4)),
+            depth: parseFloat(depth.toFixed(4)),
+            wave: Math.floor(Math.random() * 6),
+            dest: primaryDest,
+            destChain: destChain,
+            tempoSync: useSync,
+            storedFreeValue: Math.random()
+        };
+    });
+}
 
       function buildPresetData() {
            const metadata = currentPresetMetadata || {
@@ -3556,30 +3631,35 @@ function resetAllFxToDefaults({ skipArpKnobs = false, skipLfoKnobs = false } = {
            });
        }
 
-function generateAndApplyRandomPreset() {
+function generateAndApplyRandomPreset(complexity = 'SIMPLE') {
     if (!isPowerOn) powerOn();
-    updatePresetDisplay('RANDOM ARP', 'random');
+    
+    // 1. Update Display Title
+    const title = complexity === 'COMPLEX' ? 'COMPLEX RANDOM ARP' : 'RANDOM ARP';
+    updatePresetDisplay(title, 'random');
 
-    // 1. --- Foundation: Pick a random Key and Scale ---
+    // 2. --- Foundation: Pick a random Key and Scale ---
     const randomKey = NOTES[Math.floor(Math.random() * NOTES.length)];
     const availableScales = Object.keys(SCALES).filter(s => s !== 'Blues' && s !== 'Custom');
     const randomScaleName = availableScales[Math.floor(Math.random() * availableScales.length)];
     const scaleIntervals = SCALES[randomScaleName];
 
-    // 2. --- Generate a pool of musically valid MIDI notes ---
+    // 3. --- Generate a pool of musically valid MIDI notes ---
     const rootNoteIndex = NOTES.indexOf(randomKey);
     const validNotes = [];
-    for (let oct = 3; oct < 7; oct++) { // Generate notes across 4 octaves
+    for (let oct = 3; oct < 7; oct++) {
         for (const interval of scaleIntervals) {
             validNotes.push(rootNoteIndex + (oct * 12) + interval);
         }
     }
 
-    // 3. --- Arpeggiator Brain ---
-    const useTwoArps = Math.random() < 0.5; // 50% chance for a second arp
+    // 4. --- Arpeggiator Brain (UPDATED) ---
+    // If Complex: ALWAYS use 2 Arps.
+    // If Simple: 50% chance of 2 Arps.
+    const useTwoArps = complexity === 'COMPLEX' || Math.random() < 0.5;
     
     const arp1Notes = [];
-    const numNotes1 = Math.floor(Math.random() * 3) + 3; // Pick 3 to 5 notes
+    const numNotes1 = Math.floor(Math.random() * 3) + 3;
     for (let i = 0; i < numNotes1; i++) {
         arp1Notes.push({ midi: validNotes[Math.floor(Math.random() * validNotes.length)], active: true });
     }
@@ -3587,7 +3667,7 @@ function generateAndApplyRandomPreset() {
     let arp2Config = { isArpOn: false, notes: [] };
     if (useTwoArps) {
         const arp2Notes = [];
-        const numNotes2 = Math.floor(Math.random() * 3) + 2; // Pick 2 to 4 notes
+        const numNotes2 = Math.floor(Math.random() * 3) + 2;
         for (let i = 0; i < numNotes2; i++) {
             arp2Notes.push({ midi: validNotes[Math.floor(Math.random() * validNotes.length)], active: true });
         }
@@ -3598,7 +3678,7 @@ function generateAndApplyRandomPreset() {
         };
     }
 
-    // 4. --- Sound Character (FX and Envelope) ---
+    // 5. --- Sound Character (FX and Envelope) ---
     const fxSettings = [
         { id: 8, value: Math.random() * 0.4 }, { id: 9, value: Math.random() }, { id: 10, value: Math.random() }, { id: 11, value: 0.1 + Math.random() * 0.7 },
         { id: 0, value: Math.random() < 0.2 ? Math.random() * 0.4 : 0 }, { id: 1, value: Math.random() * Math.random() }, { id: 2, value: 0.5 + Math.random() * 0.5 },
@@ -3608,11 +3688,21 @@ function generateAndApplyRandomPreset() {
         { id: 30, value: getRandomWaveValue() }, { id: 31, value: getRandomWaveValue() }
     ];
 
-    // 5. --- Final Assembly ---
+    // 6. --- LFO Logic ---
+    let lfoState = [];
+    if (complexity === 'COMPLEX') {
+        lfoState = generateComplexRandomLfoState();
+    } else {
+        lfoState = Array(4).fill({ rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false });
+    }
+
+    // 7. --- Final Assembly ---
     const randomPreset = {
         key: randomKey,
         scale: randomScaleName,
-        fxSettings: fxSettings, // Start with the global FX
+        isLfoMode: complexity === 'COMPLEX',
+        fxSettings: fxSettings,
+        lfoState: lfoState,
         arpSettings: {
             isArpRateSynced: Math.random() < 0.5,
             currentArpOrder: ["Up", "Down", "Up/Down", "Random"][Math.floor(Math.random() * 4)],
@@ -3625,14 +3715,12 @@ function generateAndApplyRandomPreset() {
         }
     };
 
-    // --- MERGE THE ARP FX VALUES INTO THE MAIN FX SETTINGS ---
     if (randomPreset.arpSettings && randomPreset.arpSettings.fx) {
         for (const [fxId, value] of Object.entries(randomPreset.arpSettings.fx)) {
             randomPreset.fxSettings.push({ id: parseInt(fxId), value: value });
         }
     }
     
-    // 6. --- Apply the new preset! ---
     applyPreset(randomPreset);
 }
 function snapArpNotesToScale() {
@@ -3676,34 +3764,47 @@ function snapArpNotesToScale() {
                updateSequenceDisplay(state.id);
            });
        }
-function generateAndApplyRandomSound() {
-            if (!isPowerOn) powerOn();
-            updatePresetDisplay('RANDOM SOUND', 'random');
-            const randomKey = NOTES[Math.floor(Math.random() * NOTES.length)];
-            const availableScales = Object.keys(SCALES).filter(s => s !== 'Blues' && s !== 'Custom');
-            const randomScaleName = availableScales[Math.floor(Math.random() * availableScales.length)];
-            
-            const fxSettings = [
-                { id: 8, value: Math.random() * 0.4 }, { id: 9, value: Math.random() }, { id: 10, value: Math.random() }, { id: 11, value: 0.1 + Math.random() * 0.7 },
-                { id: 0, value: Math.random() < 0.2 ? Math.random() * 0.4 : 0 }, { id: 1, value: Math.random() * Math.random() }, { id: 2, value: 0.5 + Math.random() * 0.5 },
-                { id: 3, value: Math.random() }, { id: 4, value: Math.random() * 0.6 }, { id: 5, value: Math.random() < 0.3 ? Math.random() : 0 }, { id: 6, value: Math.random() * 0.8 },
-                { id: 12, value: Math.random() * 0.8 }, { id: 13, value: Math.random() }, { id: 14, value: Math.random() * 0.7 }, { id: 15, value: Math.random() },
-                { id: 20, value: Math.random() * 0.5 + 0.5 }, { id: 21, value: Math.random() * 0.5 + 0.5 }, { id: 28, value: Math.random() }, { id: 29, value: Math.random() },
-                { id: 30, value: getRandomWaveValue() }, { id: 31, value: getRandomWaveValue() }
-            ];
+function generateAndApplyRandomSound(complexity = 'SIMPLE') {
+    if (!isPowerOn) powerOn();
+    
+    const title = complexity === 'COMPLEX' ? 'COMPLEX RANDOM SOUND' : 'RANDOM SOUND';
+    updatePresetDisplay(title, 'random');
 
-            const randomPreset = {
-                key: randomKey,
-                scale: randomScaleName,
-                fxSettings: fxSettings,
-                arpSettings: { // Explicitly turn arps off
-                    arp1: { isArpOn: false, isOn: false },
-                    arp2: { isArpOn: false, isOn: false }
-                }
-            };
-            
-            applyPreset(randomPreset);
-       }
+    const randomKey = NOTES[Math.floor(Math.random() * NOTES.length)];
+    const availableScales = Object.keys(SCALES).filter(s => s !== 'Blues' && s !== 'Custom');
+    const randomScaleName = availableScales[Math.floor(Math.random() * availableScales.length)];
+    
+    const fxSettings = [
+        { id: 8, value: Math.random() * 0.4 }, { id: 9, value: Math.random() }, { id: 10, value: Math.random() }, { id: 11, value: 0.1 + Math.random() * 0.7 },
+        { id: 0, value: Math.random() < 0.2 ? Math.random() * 0.4 : 0 }, { id: 1, value: Math.random() * Math.random() }, { id: 2, value: 0.5 + Math.random() * 0.5 },
+        { id: 3, value: Math.random() }, { id: 4, value: Math.random() * 0.6 }, { id: 5, value: Math.random() < 0.3 ? Math.random() : 0 }, { id: 6, value: Math.random() * 0.8 },
+        { id: 12, value: Math.random() * 0.8 }, { id: 13, value: Math.random() }, { id: 14, value: Math.random() * 0.7 }, { id: 15, value: Math.random() },
+        { id: 20, value: Math.random() * 0.5 + 0.5 }, { id: 21, value: Math.random() * 0.5 + 0.5 }, { id: 28, value: Math.random() }, { id: 29, value: Math.random() },
+        { id: 30, value: getRandomWaveValue() }, { id: 31, value: getRandomWaveValue() }
+    ];
+
+    let lfoState = [];
+    if (complexity === 'COMPLEX') {
+        lfoState = generateComplexRandomLfoState();
+    } else {
+        lfoState = Array(4).fill({ rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false });
+    }
+
+    const randomPreset = {
+        key: randomKey,
+        scale: randomScaleName,
+        // *** THE FIX IS HERE TOO ***
+        isLfoMode: complexity === 'COMPLEX',
+        fxSettings: fxSettings,
+        lfoState: lfoState,
+        arpSettings: { 
+            arp1: { isArpOn: false, isOn: false },
+            arp2: { isArpOn: false, isOn: false }
+        }
+    };
+    
+    applyPreset(randomPreset);
+}
       
         function stopLfoPatching() {
             if (activePatchingLfo === null) return;
@@ -4605,18 +4706,24 @@ function generateAndApplyRandomSound() {
 
                 if (!presetName) return;
 
-                if (presetName === "RANDOM ARP") {
-                    updatePresetDisplay('RANDOM ARP', 'random');
-                    generateAndApplyRandomPreset();
-                } else if (presetName === "RANDOM SOUND") {
-                    updatePresetDisplay('RANDOM SOUND', 'random');
-                    generateAndApplyRandomSound();
-                } else {
-                    const groupName = selectedOption.dataset.group || activePresetCategory;
-                    if (!applyFactoryPreset(groupName, presetName)) return;
-
-                    updatePresetDisplay(presetName, 'factory', groupName);
-                }
+             if (presetName === "RANDOM ARP") {
+               generateAndApplyRandomPreset('SIMPLE');
+           } 
+           else if (presetName === "COMPLEX RANDOM ARP") {
+               generateAndApplyRandomPreset('COMPLEX');
+           }
+           else if (presetName === "RANDOM SOUND") {
+               generateAndApplyRandomSound('SIMPLE');
+           } 
+           else if (presetName === "COMPLEX RANDOM SOUND") {
+               generateAndApplyRandomSound('COMPLEX');
+           }
+           else {
+               // Existing factory preset logic
+               const groupName = selectedOption.dataset.group || activePresetCategory;
+               if (!applyFactoryPreset(groupName, presetName)) return;
+               updatePresetDisplay(presetName, 'factory', groupName);
+           }
 
                 closePresetDropdown();
                 presetListSelector.blur();
@@ -4681,6 +4788,9 @@ function generateAndApplyRandomSound() {
           updateRateButtonLockState();
       }
        init();
+
+
+
 
 
 
