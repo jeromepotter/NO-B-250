@@ -2424,12 +2424,13 @@ function sendMidiMessage(message) {
         const modulatedAngle = Math.max(0, Math.min(MAX_TOTAL_ANGLE, state.totalAngle + (mainKnobModulation * MAX_TOTAL_ANGLE)));
         const modMidi = getMidiNoteFromAngle(knobId, modulatedAngle);
         
-        // Update the arpNotes array directly (bypasses the need for visual updates)
+        // Update the arpNotes array directly while keeping the visual colors in sync
         const noteChanged = state.arpNotes.length !== 1 || state.arpNotes[0].midi !== modMidi || !state.arpNotes[0].active;
         if (noteChanged) {
             state.arpNotes = [{ midi: modMidi, active: true }];
             state.currentArpNoteIndex = 0;
             state.arpUpDownState = 0;
+            updateSequenceDisplay(knobId, { updateColorsOnly: true });
         }
     }
     
