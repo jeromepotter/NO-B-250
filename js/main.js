@@ -2571,11 +2571,25 @@ lfoState.forEach((lfo, lfoIndex) => {
                const displayContainer = document.getElementById(`arp-sequence-display-${knobId}`);
               if (displayContainer) { 
                    const blocks = displayContainer.querySelectorAll('.sequence-note-block');
+                   
+                   // 1. CLEANUP: Remove BOTH classes from the previous note
                    if (state.arpLastVisualIndex > -1 && blocks[state.arpLastVisualIndex]) {
-                       blocks[state.arpLastVisualIndex].classList.remove('playhead');
+                       blocks[state.arpLastVisualIndex].classList.remove('playhead', 'playhead-skipped');
                    }
+
+                   // 2. APPLY: Check FEEL pattern and add the correct class
                    if (visualIndex > -1 && blocks[visualIndex]) {
-                       blocks[visualIndex].classList.add('playhead');
+                       // Check if the Euclidean rhythm says "Skip" (0) for this specific step
+                       const isFeelSkipped = modulatedFeelPattern[state.euclideanStepCounter % modulatedFeelPattern.length] === 0;
+                       
+                       // If the note is active (user wants it) BUT the Feel knob says "Skip" -> Ghost Playhead
+                       if (baseNoteObject.active && isFeelSkipped) {
+                           blocks[visualIndex].classList.add('playhead-skipped');
+                       } else {
+                           // Otherwise use the standard White Playhead
+                           blocks[visualIndex].classList.add('playhead');
+                       }
+                       
                        state.arpLastVisualIndex = visualIndex;
                    } else {
                        state.arpLastVisualIndex = -1;
@@ -4632,6 +4646,7 @@ function generateAndApplyRandomSound() {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
