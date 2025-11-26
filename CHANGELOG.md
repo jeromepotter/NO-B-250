@@ -1,5 +1,8 @@
 # Changelog
-
+### Future Plans
+- "Split" Presets, taking advantage of dual voices with independent waveforms
+- "complex" random arp and sound
+  
 ## [11.25] - 2025-11-25
 ### Added
 - **Share Feature:** Added a SHARE button to the main header. This generates a compressed, unique URL containing the full synthesizer state (Knobs, FX, Arps, LFOs, Tempo Mode), allowing users to share patches instantly.
