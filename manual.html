@@ -9,7 +9,7 @@
             line-height: 1.6; 
             max-width: 800px; 
             margin: 2rem auto; 
-            padding: 0 1rem;a
+            padding: 0 1rem;
             background-color: #f0f0f0;
             color: #333;
         }
@@ -76,12 +76,26 @@
 
     <p>The NO-B 250 is a web-based synthesizer designed for hands-on, immediate music creation. This guide will walk you through everything from making your first sound to understanding its most advanced features.</p>
 
+    <h3>Understanding the Architecture: Duophonic Design</h3>
+    <p>The NO-B 250 is a <strong>duophonic synthesizer</strong>, meaning it can play two notes simultaneously - one voice per oscillator. This makes it different from:</p>
+    <ul>
+        <li><strong>Monophonic synths:</strong> Which can only play one note at a time</li>
+        <li><strong>Polyphonic synths:</strong> Which can play many notes at once (chords, complex harmonies)</li>
+    </ul>
+    <p>What makes the NO-B 250's duophonic architecture unique is how the two voices interact:</p>
+    <ul>
+        <li><strong>Independent:</strong> Each voice has its own filter, resonance, volume, and can run its own independent arpeggiator with unique sequences</li>
+        <li><strong>Shared:</strong> Both voices share the same global effects (Chorus, Distortion, Delay, Reverb) and the same ADSR envelope, giving the instrument a cohesive sonic character</li>
+    </ul>
+    <p>This design allows you to create rich textures with interweaving melodies, polyrhythmic patterns, and harmonized sequences while maintaining the focused, intentional sound design of a performance instrument.</p>
+
     <h2 id="index">Index</h2>
     <ul>
         <li><a href="#getting-started">1. Getting Started: Making Sound</a></li>
-        <li><a href="#system-controls">2. System Controls (Presets & Recording)</a>
+        <li><a href="#system-controls">2. System Controls (Presets, Sharing & Recording)</a>
             <ul>
-                <li><a href="#presets">Presets</a></li>
+                <li><a href="#presets">Presets & Navigation</a></li>
+                <li><a href="#share">Share Feature</a></li>
                 <li><a href="#record-audio">Record Audio</a></li>
                 <li><a href="#record-midi">Record MIDI</a></li>
             </ul>
@@ -97,6 +111,7 @@
                 <li><a href="#how-to-play">How to Play the Knobs</a></li>
                 <li><a href="#silent-selection">Silent Note Selection</a></li>
                 <li><a href="#osc-controls">Oscillator Controls</a></li>
+                <li><a href="#waveforms">Oscillator Waveforms</a></li>
             </ul>
         </li>
         <li><a href="#arpeggiator">5. The Arpeggiator (ARP)</a>
@@ -106,21 +121,27 @@
                 <li><a href="#visual-editor">The Visual Sequence Editor</a></li>
                 <li><a href="#global-arp">Global ARP Controls</a></li>
                 <li><a href="#euclidean-rhythms">Understanding FEEL (Euclidean Rhythms)</a></li>
+                <li><a href="#arp-lock">ARP Lock</a></li>
             </ul>
         </li>
         <li><a href="#global-effects">6. Global Effects (The Small Knobs)</a></li>
-<li><a href="#lfos">7. The LFOs (Low-Frequency Oscillators)</a>
-    <ul>
-        <li><a href="#lfo-basics">LFO Basics & Visual Patching</a></li>
-        <li><a href="#lfo-waveforms">Understanding LFO Waveforms</a></li>
-        <li><a href="#lfo-sync">LFO Sync: Musical Time Division</a></li> <!-- NEW -->
-         <li><a href="#lfo-to-lfo">Advanced: LFOs Controlling LFOs</a></li>
-        <li><a href="#lfo-to-arp">Modulating the Arpeggiator</a></li>
-        <li><a href="#lfo-to-osc">Modulating the Main Oscillators</a></li>
-        <li><a href="#generative-sequences">Creating Generative Sequences</a></li>
-    </ul>
-</li>
-        <li><a href="#midi-output">8. Connecting to External MIDI</a></li>
+        <li><a href="#lfos">7. The LFOs (Low-Frequency Oscillators)</a>
+            <ul>
+                <li><a href="#lfo-lock">LFO Lock</a></li>
+                <li><a href="#lfo-basics">LFO Basics & Visual Patching</a></li>
+                <li><a href="#lfo-waveforms">Understanding LFO Waveforms</a></li>
+                <li><a href="#lfo-sync">LFO Sync: Musical Time Division</a></li>
+                <li><a href="#lfo-to-lfo">Advanced: LFOs Controlling LFOs</a></li>
+                <li><a href="#lfo-to-arp">Modulating the Arpeggiator</a></li>
+                <li><a href="#lfo-to-osc">Modulating the Main Oscillators</a></li>
+                <li><a href="#generative-sequences">Creating Generative Sequences</a></li>
+            </ul>
+        </li>
+        <li><a href="#midi-output">8. Connecting to External MIDI</a>
+            <ul>
+                <li><a href="#midi-clock-out">MIDI Clock Out</a></li>
+            </ul>
+        </li>
         <li><a href="#secrets">9. Duplicate Note Mode</a></li>
         <li><a href="#keyboard-shortcuts">10. Keyboard Shortcuts</a></li>
     </ul>
@@ -134,23 +155,64 @@
     </ol>
 
     <div class="pro-tip">
-        <strong>Note:</strong> To spark inspiration, the NO-B 250 initializes with a semi-random configuration every time you refresh the page. It randomizes the Scale, Key, and various Effects while keeping the core Volume and Envelope settings safe, ensuring you always start with a usable but unique sound.
+        <strong>Note:</strong> The NO-B 250 initializes with the <strong>Hero Preset</strong> called <strong>DREAMY MALLET</strong> (found in the KEYS category) - a carefully designed starting patch that showcases the instrument's capabilities. This preset features musical settings across the Scale, Key, and various Effects while keeping core Volume and Envelope settings dialed in, ensuring you always start with an inspiring and usable sound.
     </div>
 
     <p class="back-to-index"><a href="#index">↑ Back to Index</a></p>
 
-    <h2 id="system-controls">2. System Controls (Presets & Recording)</h2>
+    <h2 id="system-controls">2. System Controls (Presets, Sharing & Recording)</h2>
     
-    <h3 id="presets">PRESETS</h3>
-    <p>Next to the <strong>HOW TO</strong> button is the <strong>PRESETS</strong> button. Clicking it reveals a blue <strong>SAVE</strong> button, a green <strong>LOAD</strong> button, and a row of category buttons for <strong>BASS</strong>, <strong>PADS</strong>, <strong>LEADS</strong>, <strong>ARPS</strong>, <strong>RANDOM</strong>, and <strong>FX</strong>.</p>
+    <h3 id="presets">PRESETS & NAVIGATION</h3>
+    <p>The preset system is now streamlined for instant access. The preset window is perpetually displayed, showing your current patch and providing quick navigation controls.</p>
+    
+    <h4>Preset Categories</h4>
+    <p>The synthesizer includes category buttons for <strong>KEYS</strong>, <strong>BASS</strong>, <strong>PADS</strong>, <strong>LEADS</strong>, <strong>ARPS</strong>, <strong>RANDOM</strong>, and <strong>FX</strong>. Tap a category to see its presets in the drop-down menu.</p>
+    
+    <h4>Quick Navigation</h4>
+    <p>Use the <strong>← →</strong> arrow buttons next to the preset display to quickly browse through presets in the current category. This allows you to audition sounds rapidly without opening dropdown menus.</p>
+    
+    <div class="pro-tip">
+        <strong>Navigation Scope:</strong> The arrow buttons navigate through the musical preset categories only: <strong>KEYS</strong>, <strong>BASS</strong>, <strong>LEADS</strong>, <strong>PADS</strong>, and <strong>ARPS</strong>. The <strong>RANDOM</strong>, <strong>FX</strong>, and <strong>INIT</strong> categories are excluded from quick navigation since they serve specialized purposes. This design makes it easy to browse through performance-ready sounds while preserving quick access to the INIT patch for building sounds from scratch. For a powerful auditioning workflow, see the <a href="#arp-lock">FURNACE Technique</a> in the ARP Lock section.
+    </div>
+    
+    <h4>Saving & Loading</h4>
     <ul>
-        <li><strong>SAVE:</strong> This saves the synthesizer's current state to a <strong>.json</strong> file. Your browser will prompt you to download this file, which will be automatically given a unique name containing the current date for easy sorting.</li>
-        <li><strong>CATEGORIES:</strong> Tap a category to see its presets in the drop-down below. <strong>RANDOM</strong> contains the initialization patch plus <strong>RANDOM ARP</strong> and <strong>RANDOM SOUND</strong>, while <strong>FX</strong> is reserved for future factory FX patches.</li>
-        <li><strong>LOAD:</strong> This allows you to load a <code>.json</code> preset file that you previously saved. If the loaded preset has an arpeggiator with its <strong>HOLD</strong> switch enabled, it will begin playing immediately.</li>
+        <li><strong>SAVE:</strong> Saves the synthesizer's current state to a <strong>.json</strong> file. Your browser will prompt you to download this file, which will be automatically named with the prefix "N-OB" and the current date for easy organization.</li>
+        <li><strong>LOAD:</strong> Allows you to load a <code>.json</code> preset file that you previously saved. If the loaded preset has an arpeggiator with its <strong>HOLD</strong> switch enabled, it will begin playing immediately.</li>
     </ul>
 
+    <h4>Special Presets</h4>
+    <ul>
+        <li><strong>INIT Patch:</strong> A clean slate preset with neutral settings (chromatic scale, minimal effects, basic envelope), perfect for building sounds from scratch. This is your blank canvas for sound design.</li>
+        <li><strong>RANDOM ARP:</strong> Generates a musically intelligent random arpeggio following compositional rules to prevent sonic chaos.</li>
+        <li><strong>RANDOM SOUND:</strong> Creates a randomized sound with varied effects and parameters while keeping essential controls musical.</li>
+    </ul>
+
+    <h3 id="share">SHARE FEATURE</h3>
+    <p>The SHARE button allows you to instantly share your patches with others via a compressed URL. This powerful feature encodes the complete state of the synthesizer into a unique link.</p>
+    
+    <h4>What Gets Shared</h4>
+    <p>When you click SHARE, the following elements are encoded into the URL:</p>
+    <ul>
+        <li>All knob positions (Oscillators, FX, ARPs, LFOs)</li>
+        <li>Scale and Key settings</li>
+        <li>Arpeggiator sequences and settings</li>
+        <li>LFO patch cables and configurations</li>
+        <li>Tempo mode (BPM vs MS)</li>
+        <li>All switch states (ARP, HOLD, SYNC, etc.)</li>
+    </ul>
+
+    <h4>How to Use</h4>
+    <ol>
+        <li>Create your patch - dial in sounds, build sequences, patch LFOs</li>
+        <li>Click the <strong>SHARE</strong> button in the main header</li>
+        <li>A compressed URL will be generated and copied to your clipboard</li>
+        <li>Share this URL with others via text, email, or social media</li>
+        <li>When someone opens the link, the NO-B 250 will load with your exact patch</li>
+    </ol>
+
     <div class="pro-tip">
-        <strong>A Note on the Randomizer:</strong> The <strong>RANDOM ARP</strong> is a useful tool for instant inspiration, as the ARP is not truly random, but follows a number of musical rules to prevent sonic chaos. If you're feeling stuck or just want to explore a new sonic territory, generating a random patch can give you a unique and unexpected starting point to tweak and make your own.
+        <strong>Collaboration Tip:</strong> Share your most interesting patches in online communities, music forums, or with collaborators. The URL is much more convenient than downloading and sending JSON files, and it ensures anyone can instantly hear your creation in their browser.
     </div>
 
     <h3 id="record-audio">RECORD AUDIO</h3>
@@ -210,10 +272,11 @@
     <h3 id="how-to-play">How to Play the Knobs</h3>
     <ul>
         <li>
-            <strong>On a Computer:</strong> Click and hold a knob, then drag your mouse to spin it and change the note. You can also use the <strong><code>SPACE</code></strong> bar for the left knob and the <strong><code>B</code></strong> key for the right knob. While the note is sounding, use the spin keys to rapidly change the pitch:
+            <strong>On a Computer:</strong> Click and hold a knob, then drag your mouse to spin it and change the note. You can also use the <strong><code>SPACE</code></strong> bar for the left knob and the <strong><code>B</code></strong> key for the right knob. While the note is sounding, you can change the pitch using:
             <ul>
-                <li><strong>Left Knob Spin Keys:</strong> Use <code>←</code>/<code>→</code> for fast spinning and <code>↑</code>/<code>↓</code> for slow spinning.</li>
-                <li><strong>Right Knob Spin Keys:</strong> Use <code>,</code>/<code>.</code> for fast spinning and <code>;</code>/<code>'</code> for slow spinning.</li>
+                <li><strong>Left Knob Spin Keys:</strong> <code>←</code>/<code>→</code> for fast spinning and <code>↑</code>/<code>↓</code> for slow spinning</li>
+                <li><strong>Right Knob Spin Keys:</strong> <code>,</code>/<code>.</code> for fast spinning and <code>;</code>/<code>'</code> for slow spinning</li>
+                <li><strong>Arrow Buttons:</strong> Click the small <strong><code>&lt;</code></strong> and <strong><code>&gt;</code></strong> buttons below each knob</li>
             </ul>
         </li>
         <li>
@@ -224,27 +287,44 @@
     <h3 id="silent-selection">Silent Note Selection (Spinning Without Playing)</h3>
     <p>Sometimes you want to change the note of a knob <em>before</em> you play it. This allows you to cue up your next note silently. This is the <em>essential</em> technique for <a href="#building-sequences">building complex arpeggios</a> with wide intervallic leaps.</p>
     <ul>
-        <li><strong>On a Computer:</strong> Use the keyboard's arrow keys (<code>←</code> <code>→</code> for fast spinning, <code>↑</code> <code>↓</code> for slow) to change the note without making a sound.</li>
-        <li><strong>On a Mobile Device:</strong> Use the small <strong><code>&lt;</code></strong> and <strong><code>&gt;</code></strong> buttons located directly beneath each main knob to spin it silently.</li>
+        <li><strong>On a Computer:</strong> You have multiple options for silent spinning:
+            <ul>
+                <li>Use the keyboard's arrow keys (<code>←</code> <code>→</code> for fast spinning, <code>↑</code> <code>↓</code> for slow spinning on Knob 1)</li>
+                <li>Use the dedicated spin keys (<code>,</code> <code>.</code> for fast, <code>;</code> <code>'</code> for slow on Knob 2)</li>
+                <li>Click the small <strong><code>&lt;</code></strong> and <strong><code>&gt;</code></strong> arrow buttons located directly beneath each main knob</li>
+            </ul>
+        </li>
+        <li><strong>On a Mobile Device:</strong> Tap the small <strong><code>&lt;</code></strong> and <strong><code>&gt;</code></strong> buttons located directly beneath each main knob to spin it silently.</li>
     </ul>
     <p>As you spin the knob silently, watch the note display (e.g., 'G3') underneath. It will update in real-time, showing you exactly which note is ready to be played next.</p>
 
     <h4>Why This is Important</h4>
     <p>Besides pre-selecting a starting note, this technique is essential for building creative arpeggios. When creating a sequence with the <strong>HOLD</strong> and <strong>SWEEP MODE</strong> functions active (see <a href="#arp-core-controls">Core ARP Controls</a>), this is the primary way to add notes that are not directly next to each other in the scale, allowing for wide melodic leaps in your patterns.</p>
 
- 
-
-    <h3 id="osc-controls">Controls</h3>
+    <h3 id="osc-controls">Oscillator Controls</h3>
     <ul>
         <li><strong>FILTER:</strong> This is like a tone knob. At its lowest setting, it cuts out high frequencies, making the sound darker and more muffled. At its highest setting, it allows all frequencies through, making the sound brighter.</li>
         <li><strong>RES (Resonance):</strong> This knob boosts the frequencies right at the <strong>FILTER</strong>'s cutoff point, creating a "whistling" or "peaking" sound.</li>
         <li><strong>VOLUME:</strong> Controls the individual volume level for that oscillator.</li>
     </ul>
 
+    <h3 id="waveforms">Oscillator Waveforms</h3>
+    <p>Each oscillator can produce four different waveforms, giving you a wide palette of timbres to work with. The waveform buttons are located above each oscillator knob:</p>
+    <ul>
+        <li><strong>SAW:</strong> The brightest waveform with the fullest harmonic content. Sounds bold and brassy - the foundation of classic analog synth sounds. Perfect for cutting leads, fat bass, and lush pads.</li>
+        <li><strong>SQUARE:</strong> Rich in odd harmonics, creating a hollow, clarinet-like timbre. Excellent for punchy bass, aggressive leads, and classic chip-tune sounds.</li>
+        <li><strong>SINE:</strong> A pure, smooth tone with no harmonics - perfect for sub-bass, mellow pads, or flute-like sounds. The gentlest waveform.</li>
+        <li><strong>TRIANGLE:</strong> Slightly brighter than sine with gentle odd harmonics - creates a hollow, woody character. Great for retro basslines and softer lead sounds.</li>
+    </ul>
+
+    <div class="pro-tip">
+        <strong>Layering Tip:</strong> Try using different waveforms on each oscillator for rich, complex timbres. For example, use a SAW wave on Oscillator 1 for brightness and a SINE wave on Oscillator 2 played an octave lower for warmth. You can also turn up OSC3 MIX to add sub-bass weight to both oscillators simultaneously, creating massive, full-bodied sounds.
+    </div>
+
     <p class="back-to-index"><a href="#index">↑ Back to Index</a></p>
 
     <h2 id="arpeggiator">5. The Arpeggiator (ARP)</h2>
-    <p>The Arpeggiator (ARP) takes notes and plays them one by one in a sequence, creating a rhythmic, melodic pattern. Each <a href="#oscillators">oscillator</a> has its own independent arpeggiator.</p>
+    <p>The NO-B 250's arpeggiator system is far more than a simple auto-chord player - it's a powerful hybrid of step sequencer and performance arpeggiator. Each of the two <a href="#oscillators">oscillators</a> has its own independent arpeggiator, allowing you to create complex polyrhythmic patterns, layer interlocking melodies, or craft intricate sequences with precise control over every note. You can build custom melodic sequences with wide intervallic leaps, apply Euclidean rhythmic patterns, modulate sequences in real-time with LFOs, and visually edit your patterns with an interactive note grid. This dual-arpeggiator architecture transforms the synthesizer into a complete composition tool.</p>
     
     <h3 id="arp-core-controls">Core ARP Controls</h3>
     <ul>
@@ -267,7 +347,7 @@
     <h4>The Two-Step Workflow</h4>
     <ol>
         <li><strong>Quick Tap to Add:</strong> Briefly press and release the <strong>SPACE</strong> or <strong>B</strong> key (or tap and release a knob on mobile). This adds the current note to the sequence without sustaining it.</li>
-        <li><strong>Scroll Silently:</strong> Use the arrow keys (desktop) or <strong>&lt; &gt;</strong> buttons (mobile) to move to your next desired note without making a sound.</li>
+        <li><strong>Scroll Silently:</strong> Use the arrow keys, dedicated spin keys, or <strong>&lt; &gt;</strong> buttons (available on both desktop and mobile) to move to your next desired note without making a sound.</li>
         <li><strong>Repeat:</strong> Tap again to add that note, then scroll to the next position.</li>
     </ol>
 
@@ -290,7 +370,7 @@
     <p>The arpeggiator is now playing your custom four-note pattern. You can continue adding notes, delete unwanted ones by double-clicking the colored blocks, or mute notes by single-clicking them (see <a href="#visual-editor">The Visual Sequence Editor</a>).</p>
 
     <p><strong>On Mobile:</strong></p>
-    <p>The process is identical, but you'll tap the large knob briefly instead of pressing <strong>SPACE</strong> or <strong>B</strong>, and use the <strong>&lt; &gt;</strong> buttons to scroll silently between notes.</p>
+    <p>The process is identical, but you'll tap the large knob briefly instead of pressing <strong>SPACE</strong> or <strong>B</strong>, and use the <strong>&lt; &gt;</strong> buttons to scroll silently between notes. (Note: The <strong>&lt; &gt;</strong> buttons are also available on desktop, providing an alternative to keyboard shortcuts.)</p>
 
     <h3 id="visual-editor">The Visual Sequence Editor</h3>
     <p>When an arpeggio is active, a row of colored blocks appears and will remain when the <strong>HOLD</strong> switch is active, providing a clear visual representation of your sequence. This display is interactive and allows for powerful real-time editing.</p>
@@ -303,83 +383,87 @@
     <h3 id="global-arp">Global ARP Controls</h3>
     <p>This section affects both arpeggiators when they are active.</p>
     <ul>
-        <li><strong>RATE SYNC:</strong> When ON, the RATE knobs of both arpeggiators are linked together. This is only available when both ARPs are on. When you enable RATE SYNC while both arpeggiators are running, Arp 2's tempo will immediately snap to match Arp 1's current rate. From that point forward, adjusting either ARP's RATE knob will move both in lockstep, keeping them perfectly synchronized.</li>
+        <li><strong>RATE SYNC:</strong> When ON, the RATE knobs of both arpeggiators are linked together, keeping them perfectly synchronized. RATE SYNC automatically enables when you turn on the second arpeggiator - if Arp 1 is running at 166 BPM and you enable Arp 2, it will immediately match that tempo and RATE SYNC will turn on. From that point forward, adjusting either ARP's RATE knob will move both in lockstep. You can disable RATE SYNC if you want to create polyrhythmic patterns with independent tempos.</li>
         <li><strong>ORDER:</strong> Changes the playback order of notes (Up, Down, Up/Down, Random, or AS PLAYED).
             <ul>
                 <li><strong>AS PLAYED - The Sequencer Mode:</strong> This is where the arpeggiator becomes a true step sequencer. Instead of reorganizing your notes by pitch, AS PLAYED respects the exact order in which you added them. This unlocks the ability to create dramatic melodic leaps and intentional note patterns. For example, using <a href="#silent-selection">silent scrolling</a>, you could build a sequence like <strong>C6 → C2 → G5 → C2 → E3</strong> - wide intervallic jumps that would be impossible with the other playback modes. The arpeggiator becomes less of an automatic chord player and more of a compositional tool, allowing you to craft precise, dynamic melodies with complete control over the note order.</li>
             </ul>
         </li>
     </ul> 
-<h3 id="tempo-system">Advanced: The Tempo System (BPM vs MS Mode)</h3>
-<p>The NO-B 250 features a sophisticated dual-mode tempo system that fundamentally changes how the arpeggiators behave. Understanding these modes unlocks new possibilities for both tight, musical synchronization and experimental, fluid timing.</p>
 
-<h4>The Two Tempo Modes</h4>
-<p>The synthesizer operates in one of two modes at any given time:</p>
-<ul>
-    <li><strong>BPM Mode (Beats Per Minute):</strong> The default. Arpeggiators are locked to a musical grid, measured in traditional tempo units (5-300 BPM). This mode uses a centralized <em>master clock</em> that ensures perfect synchronization between arpeggios.</li>
-    <li><strong>MS Mode (Milliseconds):</strong> A more experimental mode where tempo is measured in raw time intervals (10-2000ms). Each arpeggiator runs independently on its own timer, making it ideal for polyrhythmic exploration and subtle tempo drift effects.</li>
-</ul>
+    <h3 id="tempo-system">Advanced: The Tempo System (BPM vs MS Mode)</h3>
+    <p>The NO-B 250 features a sophisticated dual-mode tempo system that fundamentally changes how the arpeggiators behave. Understanding these modes unlocks new possibilities for both tight, musical synchronization and experimental, fluid timing.</p>
 
-<h4>Switching Between Modes</h4>
-<p>To toggle between BPM and MS mode, <strong>double-click (or double-tap on mobile) either RATE knob</strong> while an arpeggiator is active. The tempo display will immediately switch formats:</p>
-<ul>
-    <li><strong>BPM Mode Display:</strong> Shows as <code>120 BPM</code></li>
-    <li><strong>MS Mode Display:</strong> Shows as <code>125 MS</code></li>
-</ul>
+    <h4>The Two Tempo Modes</h4>
+    <p>The synthesizer operates in one of two modes at any given time:</p>
+    <ul>
+        <li><strong>BPM Mode (Beats Per Minute):</strong> The default. Arpeggiators are locked to a musical grid, measured in traditional tempo units (5-300 BPM). Perfect for creating rhythmically tight, synchronized patterns.</li>
+        <li><strong>MS Mode (Milliseconds):</strong> A more experimental mode where tempo is measured in raw time intervals (10-2000ms). Ideal for polyrhythmic exploration, granular-speed textures, and subtle tempo drift effects.</li>
+    </ul>
 
-<div class="pro-tip">
-    <strong>Performance Tip:</strong> The mode switch is global - changing the mode for one arpeggiator changes it for both. However, each arp maintains its own tempo value, so switching modes won't cause a sudden speed change.
-</div>
+    <h4>Switching Between Modes</h4>
+    <p>To toggle between BPM and MS mode, <strong>double-click (or double-tap on mobile) either RATE knob</strong> while an arpeggiator is active. The tempo display will immediately switch formats:</p>
+    <ul>
+        <li><strong>BPM Mode Display:</strong> Shows as <code>120 BPM</code></li>
+        <li><strong>MS Mode Display:</strong> Shows as <code>125 MS</code></li>
+    </ul>
 
-<h4>How BPM Mode Works: The Master Clock</h4>
-<p>When in BPM mode, the synthesizer activates an internal <strong>master clock</strong> - a high-precision timing system that polls every 2 milliseconds to check if it's time to play the next note.</p>
+    <div class="pro-tip">
+        <strong>Performance Tip:</strong> The mode switch is global - changing the mode for one arpeggiator changes it for both. However, each arp maintains its own tempo value, so switching modes won't cause a sudden speed change.
+    </div>
 
-<p>The master clock provides several key benefits:</p>
-<ul>
-    <li><strong>Perfect Quantization:</strong> When you start an arpeggio or enable <strong>RATE SYNC</strong>, notes are automatically quantized to the next 16th note of the global grid. This prevents arpeggios from starting "off the beat."</li>
-    <li><strong>Drift Resistance:</strong> If your browser tab loses focus or CPU resources, the master clock self-corrects by skipping ahead rather than accumulating timing errors. Your sequence stays locked to the grid.</li>
-    <li><strong>Musical Tempo Changes:</strong> When you adjust the RATE knob in BPM mode, the synthesizer preserves the arpeggio's rhythmic <em>phase</em> - where it is in the current beat cycle. This allows you to speed up or slow down without losing the groove.</li>
-</ul>
+    <h4>How BPM Mode Works: The Master Clock</h4>
+    <p>Both tempo modes use the same internal <strong>master clock</strong> - a high-precision timing system that polls every 2 milliseconds. The difference is how that clock is used.</p>
 
-<h4>How MS Mode Works: Independent Timers</h4>
-<p>In MS mode, each arpeggiator runs on its own <code>setInterval</code> timer, completely independent of the other. There is no master clock - each sequence marches to its own drummer.</p>
+    <p>In BPM mode, the clock provides several key benefits:</p>
+    <ul>
+        <li><strong>Perfect Quantization:</strong> The arpeggiator checks each tick against a <strong>global quantization grid</strong>, ensuring notes snap to the musical timing. When you start an arpeggio or enable <strong>RATE SYNC</strong>, notes are automatically quantized to the next 16th note, preventing arpeggios from starting "off the beat."</li>
+        <li><strong>Drift Resistance:</strong> If your browser tab loses focus or CPU resources, the master clock self-corrects by skipping ahead rather than accumulating timing errors. Your sequence stays locked to the grid.</li>
+        <li><strong>Musical Tempo Changes:</strong> When you adjust the RATE knob in BPM mode, the synthesizer preserves the arpeggio's rhythmic <em>phase</em> - where it is in the current beat cycle. This allows you to speed up or slow down without losing the groove.</li>
+    </ul>
 
-<p>This mode is ideal for:</p>
-<ul>
-    <li><strong>Polyrhythmic Exploration:</strong> Set Arp 1 to 333ms and Arp 2 to 500ms to create interlocking, non-grid-based patterns that phase in and out of sync.</li>
-    <li><strong>Generative Drift:</strong> Because the timers run independently, slight imperfections in browser timing will cause the arpeggios to naturally drift apart over long durations, creating organic, evolving textures.</li>
-    <li><strong>Precise Millisecond Control:</strong> For sound design work, you may want an arpeggio to repeat at exactly 127ms or 873ms - intervals that don't map cleanly to musical tempos.</li>
-</ul>
+    <div class="pro-tip">
+        <strong>Timing Your Second Arp:</strong> Quantization snaps notes to the <em>next available</em> 16th-note slot on the grid (1-e-&-a-2-e-&-a...), not necessarily to the downbeat. If Arp 1 is playing on the "1" and you trigger Arp 2 slightly late, it will snap to the "e" slot and stay offset. For perfect downbeat alignment between two arps, trigger the second arp <em>slightly early</em> - the quantization will catch it and snap it to the next "1". This gives you tight, phase-locked patterns. If you want intentional rhythmic offset, trigger on the upbeats.
+    </div>
 
-<div class="pro-tip">
-    <strong>Technical Note:</strong> MS mode uses a non-linear curve for the RATE knob. At lower values (slower tempos), small knob movements result in large time changes for precise control. At higher values (faster tempos), the curve compresses to allow extreme speeds up to 2000ms (2 full seconds per note).
-</div>
+    <h4>How MS Mode Works: Independent Timing</h4>
+    <p>MS mode uses the same 2ms master clock polling, but with completely different logic. Instead of checking against a global grid, each arpeggiator asks: "Has enough time passed since <em>my</em> last note?" This creates independent timing for each sequence.</p>
 
-<h4>RATE SYNC Behavior Across Modes</h4>
-<p>The <strong>RATE SYNC</strong> switch behaves differently depending on the active tempo mode:</p>
-<ul>
-    <li><strong>In BPM Mode:</strong> Both arpeggios lock to the master clock at the same tempo. They are perfectly synchronized and will always stay in phase, even if you modulate the rate with an <a href="#lfo-to-arp">LFO</a>.</li>
-    <li><strong>In MS Mode:</strong> Both arpeggios set their timers to the same millisecond interval, but because they run independently, they may drift slightly over time due to browser timing jitter. This creates a "humanized" feel.</li>
-</ul>
+    <p>This mode is ideal for:</p>
+    <ul>
+        <li><strong>Polyrhythmic Exploration:</strong> Set Arp 1 to 333ms and Arp 2 to 500ms to create interlocking, non-grid-based patterns that phase in and out of sync.</li>
+        <li><strong>Generative Drift:</strong> Because each arpeggiator tracks its own timing independently, slight imperfections in browser timing will cause the arpeggios to naturally drift apart over long durations, creating organic, evolving textures.</li>
+        <li><strong>Precise Millisecond Control:</strong> For sound design work, you may want an arpeggio to repeat at exactly 127ms or 873ms - intervals that don't map cleanly to musical tempos.</li>
+    </ul>
 
-<h4>Tempo Mode and MIDI Export</h4>
-<p>When you <a href="#record-midi">record MIDI</a>, the export process analyzes which tempo mode you were using:</p>
-<ul>
-    <li><strong>If in BPM Mode:</strong> The MIDI file's tempo is set to match the arpeggiator's BPM, ensuring your sequence aligns perfectly to the DAW's grid.</li>
-    <li><strong>If in MS Mode:</strong> The synthesizer calculates the <em>equivalent</em> BPM from the millisecond interval and exports that. For example, 500ms per 16th note translates to 120 BPM.</li>
-</ul>
+    <div class="pro-tip">
+        <strong>Technical Note:</strong> MS mode uses a non-linear curve for the RATE knob, allowing control from extremely fast to extremely slow. The range spans from 10ms (blazingly fast, granular-like textures) to 2000ms (very slow, 2 full seconds per note). At lower knob values (slower tempos), small movements result in large time changes for precise control. At higher knob values (faster tempos), the curve compresses to reach those extreme 10ms speeds.
+    </div>
 
-<h4>Phase Preservation During Tempo Changes</h4>
-<p>One of the most sophisticated features of the tempo system is <strong>phase preservation</strong>. When you adjust the RATE knob while an arpeggio is playing:</p>
-<ul>
-    <li><strong>BPM Mode:</strong> The synthesizer calculates how much time remains until the next note in the <em>old</em> tempo, then scales that remaining time proportionally to the <em>new</em> tempo. If you were 75% of the way to the next note at 100 BPM, you'll still be 75% of the way to the next note at 200 BPM.</li>
-    <li><strong>MS Mode:</strong> Uses the same proportional scaling, but based on elapsed milliseconds rather than musical beats.</li>
-</ul>
+    <h4>RATE SYNC Behavior Across Modes</h4>
+    <p>The <strong>RATE SYNC</strong> switch behaves differently depending on the active tempo mode:</p>
+    <ul>
+        <li><strong>In BPM Mode:</strong> Both arpeggios lock to the master clock at the same tempo. They are perfectly synchronized and will always stay in phase, even if you modulate the rate with an <a href="#lfo-to-arp">LFO</a>.</li>
+        <li><strong>In MS Mode:</strong> Both arpeggios set their target intervals to the same millisecond value, but because each tracks its own timing independently (rather than using a shared grid), they may drift slightly over time due to the nuances of checking local time deltas. This creates a "humanized" feel.</li>
+    </ul>
 
-<p>This ensures that tempo changes feel <em>musical</em> rather than jarring - the rhythm morphs smoothly rather than suddenly jumping to a new position.</p>
+    <h4>Tempo Mode and MIDI Export</h4>
+    <p>When you <a href="#record-midi">record MIDI</a>, the export process analyzes which tempo mode you were using:</p>
+    <ul>
+        <li><strong>If in BPM Mode:</strong> The MIDI file's tempo is set to match the arpeggiator's BPM, ensuring your sequence aligns perfectly to the DAW's grid.</li>
+        <li><strong>If in MS Mode:</strong> The synthesizer calculates the <em>equivalent</em> BPM from the millisecond interval and exports that. For example, 500ms per 16th note translates to 120 BPM.</li>
+    </ul>
 
+    <h4>Phase Preservation During Tempo Changes</h4>
+    <p>One of the most sophisticated features of the tempo system is <strong>phase preservation</strong>. When you adjust the RATE knob while an arpeggio is playing:</p>
+    <ul>
+        <li><strong>BPM Mode:</strong> The synthesizer calculates how much time remains until the next note in the <em>old</em> tempo, then scales that remaining time proportionally to the <em>new</em> tempo. If you were 75% of the way to the next note at 100 BPM, you'll still be 75% of the way to the next note at 200 BPM.</li>
+        <li><strong>MS Mode:</strong> Uses the same proportional scaling, but based on elapsed milliseconds rather than musical beats.</li>
+    </ul>
 
-<p class="back-to-index"><a href="#index">↑ Back to Index</a></p>
+    <p>This ensures that tempo changes feel <em>musical</em> rather than jarring - the rhythm morphs smoothly rather than suddenly jumping to a new position.</p>
+
+    <p class="back-to-index"><a href="#index">↑ Back to Index</a></p>
 
     <h3 id="euclidean-rhythms">The "FEEL" Knob: Euclidean Rhythms Explained</h3>
     <p>The FEEL knob uses Euclidean rhythms to create patterns. Think of it as spacing a certain number of "beats" as evenly as possible over 16 steps. However, when your arp sequence is a different length than the 16-step pattern (for example, you have a 7-note melody), the rhythmic pattern will shift on each repetition, creating interesting and unexpected polyrhythms that evolve over time. An "X" represents a note being played, and a "-" represents a silent step.</p>
@@ -397,72 +481,137 @@
 
     <p class="back-to-index"><a href="#index">↑ Back to Index</a></p>
 
-    <h2 id="global-effects">6. Global Effects (The Small Knobs)</h2>
-<p>These knobs affect the overall sound coming from both <a href="#oscillators">oscillators</a>. They are arranged in a 4x4 grid below the main oscillator sections.</p>
-
-<h3>Row 1: Envelope (ADSR)</h3>
-<p>The envelope shapes the volume of each note over time. These four controls work together to create the characteristic "shape" of a sound:</p>
-
-<ul>
-    <li><strong>ATTACK:</strong> How long it takes for the sound to reach full volume after you press a note (0.001s to 2s). Low values create punchy, percussive sounds like drums or plucked strings. High values create slow swells like a violin or pad.</li>
-    <li><strong>DECAY:</strong> After reaching full volume, how long it takes to drop to the sustain level (0.001s to 2s). Short decay creates plucky sounds; long decay creates evolving textures.</li>
-    <li><strong>SUSTAIN:</strong> The volume level the note holds at while you continue to hold it (0% to 100%). At 0%, notes behave like a piano - they fade away even if held. At 100%, notes stay at full volume.</li>
-    <li><strong>RELEASE:</strong> After you release a note, how long it takes to fade to silence (0.001s to 1.25s). Short release stops notes abruptly; long release creates smooth, overlapping transitions between notes.</li>
-</ul>
-
-<div class="pro-tip">
-    <strong>Quick Start Presets:</strong> For a <strong>pluck</strong>, try: Attack: 0%, Decay: 30%, Sustain: 0%, Release: 20%. For a <strong>pad</strong>, try: Attack: 60%, Decay: 40%, Sustain: 80%, Release: 70%.
-</div>
-
-<h3>Row 2: Timbre & Tuning</h3>
-<p>These controls shape the character and richness of the sound:</p>
-
-<ul>
-    <li><strong>CHORUS:</strong> Widens and thickens the sound by creating subtle pitch and timing variations, simulating multiple voices playing at once. This emulates the classic Juno-106 chorus circuit. At low settings, it adds subtle depth. At high settings, it creates a lush, swirling stereo image.</li>
-    <li><strong>OSC3 MIX:</strong> Blends in a third oscillator tuned an octave below the main oscillators, adding weight and bass to your sound. This is particularly useful for creating sub-bass in electronic music or adding body to lead sounds.</li>
-    <li><strong>DETUNE:</strong> Slightly shifts the pitch of each oscillator's internal voices, creating a richer, more analog-sounding texture. At low settings, it adds subtle warmth; at high settings, it creates wide sounds. </li>
-    <li><strong>GLIDE:</strong> Causes notes to slide smoothly from one pitch to the next instead of jumping instantly. Creates portamento effects. Low values give subtle pitch bends; high values create dramatic, swooping transitions.</li>
-</ul>
-
-<h3>Row 3: Effects (Part 1)</h3>
-<ul>
-    <li><strong>DISTORTION:</strong> Adds harmonic saturation and overdrive, ranging from subtle analog warmth to aggressive distortion. Also includes bit-crushing at higher settings for digital, lo-fi textures.</li>
-    <li><strong>AM (Amplitude Modulation):</strong> Modulates the volume at varying speeds. At low settings (0-30%), creates classic <strong>tremolo</strong> - a gentle pulsing of the volume. As you increase the knob past 30%, the modulation rate enters audio frequencies (up to 500 Hz), producing <strong>ring modulation</strong> - a metallic, bell-like timbre with inharmonic overtones. This is a powerful tool for creating everything from subtle movement to aggressive, robotic textures.</li>
-    <li><strong>DELAY:</strong> A rhythmic echo effect with stereo ping-pong behavior. This knob controls the wet/dry mix - how much delayed signal is blended with the original sound.</li>
-    <li><strong>DLY TIME:</strong> Sets the delay time from 10ms (slapback echo) to 1.5 seconds (long atmospheric echoes). The left and right channels use slightly different delay times (50% ratio) for a natural stereo effect. The delayed signal feeds back into itself at 60% for multiple repeats.</li>
-</ul>
-
-<h3>Row 4: Effects (Part 2) & Global Controls</h3>
-<ul>
+    <h3 id="arp-lock">ARP LOCK (Advanced Workflow Feature)</h3>
+    <p>ARP Lock is a powerful workflow feature that preserves your arpeggio sequences when loading new presets. This allows you to write a melodic pattern once and then audition different sounds without losing your sequence.</p>
     
-<li><strong>REVERB:</strong> Simulates acoustic spaces, from small rooms to large halls. Uses a Freeverb-style stereo algorithm with four comb filters per channel (eight total) and two allpass filters per channel for realistic spatial imaging. Add subtle amounts for natural space, or turn it up for ambient, atmospheric textures.</li>
-    <li><strong>RVB TIME:</strong> Controls how long the reverb tail lasts before fading to silence. Low values create tight, room-like spaces. High values create expansive, cathedral-like ambience. This knob adjusts the feedback in the reverb's comb filters (0.75 to 0.98).</li>
-    <li><strong>MASTER FILTER:</strong> A global low-pass filter that affects the entire mix after all other processing. Use it to darken the overall sound or create dramatic filter sweeps. At its lowest setting, it cuts everything above 40 Hz (extreme darkness). At its highest setting, it allows frequencies up to 22 kHz through (full brightness).</li>
-    <li><strong>MASTER VOLUME:</strong> The final output level control. Use this to balance the synthesizer with other instruments or prevent clipping. The internal signal path has headroom for hot signals, but this control ensures your final output is at an appropriate level.</li>
-</ul>
+    <h4>How It Works</h4>
+    <p>When ARP Lock is enabled (the switch is in the ON position), loading a preset will:</p>
+    <ul>
+        <li>Preserve your current arpeggio sequences on both oscillators</li>
+        <li>Keep all ARP settings (RATE, TRANSPOSE, OCTS, FEEL, MODE, HOLD)</li>
+        <li>Load only the sound design elements of the preset (oscillator settings, effects, envelopes)</li>
+    </ul>
 
-<div class="pro-tip">
-    <strong>Signal Flow:</strong> The audio is processed in the following order: Oscillators → Glide → Detune → OSC3 Mix → Envelopes (ADSR) → Saturation (no parameter) → Individual Filters/Resonance → Individual Volumes → Stereo Panning (subtle no parameter) → Chorus → Distortion → AM → Delay → Reverb → Master Filter → Master Volume. Understanding this signal chain helps you predict how effects will interact with each other.
-</div>
+    <div class="pro-tip">
+        <strong>Creative Workflow:</strong> Build a complex 16-step sequence using <a href="#building-sequences">HOLD and SWEEP mode</a>, then enable ARP Lock and browse through the BASS, LEADS, or PADS categories. Your sequence will play with each new sound, letting you quickly find the perfect timbre for your pattern.
+    </div>
 
+    <h4>Overriding ARP Lock</h4>
+    <p>When you load a preset from the <strong>ARPS</strong> category, it will override ARP Lock and load the preset's arpeggio settings. This ensures that arp-specific presets can still demonstrate their intended patterns.</p>
 
+    <div class="pro-tip">
+        <strong>Power Workflow - The FURNACE Technique:</strong> Here's a killer way to explore the synthesizer's sonic range: Load the <strong>FURNACE</strong> preset from the ARPS category, enable both <strong>ARP Lock</strong> and <strong>LFO Lock</strong>, then use the arrow buttons to cycle through the KEYS, BASS, LEADS, and PADS categories. You'll hear FURNACE's complex sequence and modulation pattern played with completely different timbres - it's like having a premade "test sequence" that reveals each preset's character instantly.
+    </div>
+
+    <p class="back-to-index"><a href="#index">↑ Back to Index</a></p>
+
+    <h2 id="global-effects">6. Global Effects (The Small Knobs)</h2>
+    <p>These knobs affect the overall sound coming from both <a href="#oscillators">oscillators</a>. They are arranged in a 4x4 grid below the main oscillator sections.</p>
+
+    <h3>Row 1: Envelope (ADSR)</h3>
+    <p>The envelope shapes the volume of each note over time. These four controls work together to create the characteristic "shape" of a sound:</p>
+
+    <ul>
+        <li><strong>ATTACK:</strong> How long it takes for the sound to reach full volume after you press a note (0.001s to 2s). Low values create punchy, percussive sounds like drums or plucked strings. High values create slow swells like a violin or pad.</li>
+        <li><strong>DECAY:</strong> After reaching full volume, how long it takes to drop to the sustain level (0.001s to 2s). Short decay creates plucky sounds; long decay creates evolving textures.</li>
+        <li><strong>SUSTAIN:</strong> The volume level the note holds at while you continue to hold it (0% to 100%). At 0%, notes behave like a piano - they fade away even if held. At 100%, notes stay at full volume.</li>
+        <li><strong>RELEASE:</strong> After you release a note, how long it takes to fade to silence (0.001s to 1.25s). Short release stops notes abruptly; long release creates smooth, overlapping transitions between notes.</li>
+    </ul>
+
+    <div class="pro-tip">
+        <strong>Quick Start Presets:</strong> For a <strong>pluck</strong>, try: Attack: 0%, Decay: 30%, Sustain: 0%, Release: 20%. For a <strong>pad</strong>, try: Attack: 60%, Decay: 40%, Sustain: 80%, Release: 70%.
+    </div>
+
+    <h3>Row 2: Timbre & Tuning</h3>
+    <p>These controls shape the character and richness of the sound:</p>
+
+    <ul>
+        <li><strong>CHORUS:</strong> Widens and thickens the sound by creating subtle pitch and timing variations, simulating multiple voices playing at once. This emulates the classic Juno-106 chorus circuit. At low settings, it adds subtle depth. At high settings, it creates a lush, swirling stereo image.</li>
+        <li><strong>OSC3 MIX:</strong> Blends in a third oscillator tuned an octave below the main oscillators, adding weight and bass to your sound. This is particularly useful for creating sub-bass in electronic music or adding body to lead sounds.</li>
+        <li><strong>DETUNE:</strong> Slightly shifts the pitch of each oscillator's internal voices, creating a richer, more analog-sounding texture. At low settings, it adds subtle warmth; at high settings, it creates wide sounds.</li>
+        <li><strong>GLIDE:</strong> Causes notes to slide smoothly from one pitch to the next instead of jumping instantly. Creates portamento effects. Low values give subtle pitch bends; high values create dramatic, swooping transitions.</li>
+    </ul>
+
+    <h3>Row 3: Effects (Part 1)</h3>
+    <ul>
+        <li><strong>DISTORTION:</strong> Adds harmonic saturation and overdrive. For the first half of the knob's range (0-50%), a low-pass filter is applied to tame the high frequencies, creating warm, analog-style overdrive. As you turn the knob past the midpoint, the filter opens up and bit-crushing is introduced, adding aggressive digital distortion and lo-fi textures.</li>
+        <li><strong>AM (Amplitude Modulation):</strong> Modulates the volume at varying speeds. At low settings (0-30%), creates classic <strong>tremolo</strong> - a gentle pulsing of the volume. As you increase the knob past 30%, the modulation rate enters audio frequencies (up to 500 Hz), producing <strong>ring modulation</strong> - a metallic, bell-like timbre with inharmonic overtones. This is a powerful tool for creating everything from subtle movement to aggressive, robotic textures.</li>
+        <li><strong>DELAY:</strong> A rhythmic echo effect with stereo ping-pong behavior. This knob controls the wet/dry mix - how much delayed signal is blended with the original sound.</li>
+        <li><strong>DLY TIME:</strong> Sets the delay time from 10ms (slapback echo) to 1.5 seconds (long atmospheric echoes). The left and right channels use slightly different delay times (50% ratio) for a natural stereo effect. The delayed signal feeds back into itself at 60% for multiple repeats.</li>
+    </ul>
+
+    <h3>Row 4: Effects (Part 2) & Global Controls</h3>
+    <ul>
+        <li><strong>REVERB:</strong> Simulates acoustic spaces, from small rooms to large halls. Uses a Freeverb-style stereo algorithm with four comb filters per channel (eight total) and two allpass filters per channel for realistic spatial imaging. Add subtle amounts for natural space, or turn it up for ambient, atmospheric textures.</li>
+        <li><strong>RVB TIME:</strong> Controls how long the reverb tail lasts before fading to silence. Low values create tight, room-like spaces. High values create expansive, cathedral-like ambience. This knob adjusts the feedback in the reverb's comb filters (0.75 to 0.98).</li>
+        <li><strong>MASTER FILTER:</strong> A global low-pass filter that affects the entire mix after all other processing. Use it to darken the overall sound or create dramatic filter sweeps. At its lowest setting, it cuts everything above 40 Hz (extreme darkness). At its highest setting, it allows frequencies up to 22 kHz through (full brightness).</li>
+        <li><strong>MASTER VOLUME:</strong> The final output level control. Use this to balance the synthesizer with other instruments or prevent clipping. The internal signal path has headroom for hot signals, but this control ensures your final output is at an appropriate level.</li>
+    </ul>
+
+    <div class="pro-tip">
+        <strong>Signal Flow:</strong> The audio is processed in the following order: Oscillators → Glide → Detune → OSC3 Mix → Envelopes (ADSR) → Saturation (soft clipper) → Individual Filters/Resonance → Individual Volumes → Stereo Panning → Chorus → Distortion → AM → Delay → Reverb → Master Filter → Master Volume. Understanding this signal chain helps you predict how effects will interact with each other.
+    </div>
 
     <p class="back-to-index"><a href="#index">↑ Back to Index</a></p>
 
     <h2 id="lfos">7. The LFOs (Low-Frequency Oscillators)</h2>
-    <p>The LFOs are the secret to adding movement and life to your sounds. An LFO is an unheard, slow-moving oscillator used to automatically turn other knobs for you, creating effects like filter sweeps, vibrato, and rhythmic pulses. The NO-B 250 has four independent LFOs.</p>
+    <p>The LFOs are the secret to adding movement and life to your sounds. An LFO is an unheard, slow-moving oscillator used to automatically turn other knobs for you, creating effects like filter sweeps, vibrato, and rhythmic pulses. The NO-B 250 has four independent LFOs, each capable of modulating multiple parameters simultaneously through LFO chaining.</p>
 
     <h3>Entering LFO Mode</h3>
     <p>To access the LFO controls, click the small switch located just below the <a href="#global-effects">Global FX controls</a>. The interface background will change color, and a new grid of LFO knobs will appear. This is the LFO patching view. The LFO controls are arranged in columns. Click the switch again to exit.</p>
 
+    <h3 id="lfo-lock">LFO LOCK</h3>
+    <p>LFO Lock preserves your modulation routings when loading new presets. This is essential for maintaining complex modulation setups while exploring different sounds.</p>
+    
+    <h4>How It Works</h4>
+    <p>When LFO Lock is enabled, loading a preset will:</p>
+    <ul>
+        <li>Preserve all LFO patch cable connections (which parameters each LFO is controlling)</li>
+        <li>Keep all LFO settings (RATE, DEPTH, WAVE, SYNC state)</li>
+        <li>Load the sound design elements of the preset while maintaining your modulation architecture</li>
+    </ul>
+
+    <h4>Use Cases</h4>
+    <ul>
+        <li><strong>Modulation Templates:</strong> Create a complex multi-LFO setup using chaining. For example: LFO 1 → OSC 1 Filter + OSC 2 Filter (chained for synchronized sweeps), LFO 2 → Delay + Reverb (chained for unified spatial movement), LFO 3 → LFO 1's Rate (meta-modulation), LFO 4 → Transpose. Enable LFO Lock and browse presets - your entire modulation architecture stays intact.</li>
+        <li><strong>Live Performance:</strong> Set up rhythmic filter sweeps and tremolo effects, lock them, then switch between bass and lead sounds without rebuilding your modulation each time.</li>
+        <li><strong>Sound Design:</strong> When designing <a href="#generative-sequences">generative sequences</a>, lock your LFO-to-Oscillator routings and experiment with different timbres without disrupting the melodic movement.</li>
+    </ul>
+
+    <div class="pro-tip">
+        <strong>Lock Interaction:</strong> ARP Lock and LFO Lock work independently and can both be enabled simultaneously. When loading a preset from the <strong>ARPS</strong> category, it will override <em>both</em> locks to ensure the arp preset demonstrates its intended behavior with the correct modulation.
+    </div>
+
     <h3 id="lfo-basics">LFO Controls & Visual Patching</h3>
-    <p>Each LFO has a <strong>RATE</strong>, <strong>DEPTH</strong>, <strong>WAVE</strong> (shape), and <strong>DEST</strong> (destination) knob. To connect an LFO to a parameter:</p>
+    <p>Each LFO has a <strong>RATE</strong>, <strong>DEPTH</strong>, <strong>WAVE</strong> (shape), and <strong>DEST</strong> (destination) knob. The NO-B 250 supports <strong>LFO chaining</strong>, which transforms a simple single-destination LFO into an expansive modulation source that can control multiple parameters simultaneously. This allows you to create complex, cohesive movement across your entire patch with minimal setup - one LFO becomes a unifying rhythmic or evolutionary force that ties together filters, effects, and oscillators.</p>
+    
+    <h4>Patching an LFO</h4>
     <ol>
         <li><strong>Enter LFO Mode.</strong></li>
         <li><strong>Click the LFO DEST knob</strong> you want to use (e.g., LFO 1 DEST). It will start blinking.</li>
-        <li><strong>Click on any other knob</strong> on the synthesizer. This knob becomes the destination, and a colored "patch cable" will appear, visually connecting the LFO to its target. The display above the DEST knob will show what you are controlling.</li>
+        <li><strong>Click on any knob</strong> on the synthesizer. A colored "patch cable" will appear, connecting the LFO to that parameter. The blinking stops and the display above the DEST knob shows what you're controlling.</li>
     </ol>
-    <p><strong>To Unpatch:</strong> Simply double click/tap the LFO DEST knob again to disconnect the cable.</p>
+    
+    <h4>Chaining (Adding Multiple Destinations)</h4>
+    <p>To make one LFO control multiple parameters, you have two options:</p>
+    <ul>
+        <li><strong>Option A:</strong> Click the same LFO's DEST knob again (it will start blinking), then click another parameter to add it to the chain.</li>
+        <li><strong>Option B:</strong> Click any parameter that's already patched to that LFO (the colored cable destination). This reopens the patching mode, allowing you to click additional parameters.</li>
+    </ul>
+    <p>Repeat either method to keep adding destinations. Multiple colored patch cables will appear, all originating from the same LFO.</p>
+    
+    <h4>Advanced: Multiple LFOs → One Parameter</h4>
+    <p>You can also route <strong>multiple LFOs to the same parameter</strong>, creating unique composite waveforms. For example, send a slow SINE wave from LFO 1 and a fast TRIANGLE wave from LFO 2 to the same FILTER knob. The filter will now move with a complex, evolving pattern that neither LFO could create alone - the fast triangle rides on top of the slow sine, producing organic, unpredictable modulation that sounds less "robotic" than a single LFO.</p>
+    
+    <h4>Unpatching</h4>
+    <ul>
+        <li><strong>Remove one parameter:</strong> Double-click/tap any parameter in the chain to remove just that connection.</li>
+        <li><strong>Remove all connections:</strong> Double-click/tap the LFO DEST knob to disconnect all cables from that LFO.</li>
+    </ul>
+
+    <div class="pro-tip">
+        <strong>Creative Chaining Examples:</strong> Chain LFO 1 to both OSC 1 FILTER and OSC 2 FILTER for synchronized filter sweeps across both voices. Chain an LFO to REVERB, DELAY, and CHORUS so all spatial effects evolve together, creating unified movement. For extreme modulation, chain an LFO to FILTER, RES, and DETUNE simultaneously - the sound will morph through drastically different timbres as all three parameters dance together in sync.
+    </div>
 
     <h3 id="lfo-waveforms">Understanding LFO Waveforms</h3>
     <p>The <strong>WAVE</strong> knob selects one of six different LFO shapes, each creating a different modulation character:</p>
@@ -474,60 +623,58 @@
         <li><strong>SAW DN (Saw Down):</strong> A sudden jump followed by a steady fall - the opposite of SAW UP.</li>
         <li><strong>RANDOM (Sample & Hold):</strong> Jumps to unpredictable values - creates chaotic, generative modulation.</li>
     </ul>
-<h3 id="lfo-sync">LFO Sync: Musical Time Division</h3>
-<p>A useful feature of the LFO system is the ability to sync an LFO's rate to the tempo of your arpeggiators. This transforms the LFO from running at raw Hz frequencies into musical subdivisions that stay perfectly in sync with your sequences.</p>
 
-<h4>How to Enable Sync</h4>
-<p>Below each LFO DEST knob, you'll find a small switch labeled <strong>SYNC</strong>. This switch is initially disabled (greyed out) and will only become active when certain conditions are met:</p>
+    <h3 id="lfo-sync">LFO Sync: Musical Time Division</h3>
+    <p>A useful feature of the LFO system is the ability to sync an LFO's rate to the tempo of your arpeggiators. This transforms the LFO from running at raw Hz frequencies into musical subdivisions that stay perfectly in sync with your sequences.</p>
 
-<ul>
-    <li><strong>Requirement:</strong> At least one arpeggiator must be active and running.</li>
-    <li><strong>Synced Mode:</strong> If both arpeggiators are running with <strong>RATE SYNC</strong> enabled, the LFOs will lock to their shared tempo.</li>
-    <li><strong>Single Arp Mode:</strong> If only one arpeggiator is running, the LFOs will lock to that arpeggiator's tempo.</li>
-</ul>
+    <h4>How to Enable Sync</h4>
+    <p>Below each LFO DEST knob, you'll find a small switch labeled <strong>SYNC</strong>. This switch is initially disabled (greyed out) and will only become active when certain conditions are met:</p>
 
-<p>Once the conditions are met, the SYNC switches will light up and become clickable. Click the switch for any LFO you want to sync to the musical grid.</p>
+    <ul>
+        <li><strong>Requirement:</strong> At least one arpeggiator must be active and running.</li>
+        <li><strong>Synced Mode:</strong> If both arpeggiators are running with <strong>RATE SYNC</strong> enabled, the LFOs will lock to their shared tempo.</li>
+        <li><strong>Single Arp Mode:</strong> If only one arpeggiator is running, the LFOs will lock to that arpeggiator's tempo.</li>
+    </ul>
 
-<div class="pro-tip">
-    <strong>Important:</strong> The SYNC switches will automatically disable and turn off if you stop all arpeggiators or disable RATE SYNC when both arps are running. This is because there's no longer a master tempo reference for the LFOs to lock to.
-</div>
+    <p>Once the conditions are met, the SYNC switches will light up and become clickable. Click the switch for any LFO you want to sync to the musical grid.</p>
 
+    <div class="pro-tip">
+        <strong>Important:</strong> The SYNC switches will automatically disable and turn off if you stop all arpeggiators or disable RATE SYNC when both arps are running. This is because there's no longer a master tempo reference for the LFOs to lock to.
+    </div>
 
+    <h4>Practical Applications</h4>
 
-<h4>Practical Applications</h4>
+    <p><strong>Synchronized Filter Sweeps:</strong> Enable <strong>SYNC</strong> and set an LFO Rate to <code>1/4</code> and patch it to the <strong>FILTER</strong> knob. The filter will open and close once every two beats, creating a pulsing effect that's perfectly locked to your arpeggio.</p>
 
-<p><strong>Synchronized Filter Sweeps:</strong> Enable <strong>SYNC</strong> and set an LFO Rate to <code>1/4</code> and patch it to the <strong>FILTER</strong> knob. The filter will open and close once every two beats, creating a pulsing effect that's perfectly locked to your arpeggio.</p>
+    <p><strong>Rhythmic AM:</strong> Patch an LFO with a <strong>SQUARE</strong> wave to <strong>AM</strong>, set the rate to <code>1/4</code>, and you'll get rhythmic gating that stays in perfect sync with your sequence.</p>
 
-<p><strong>Rhythmic AM:</strong> Patch an LFO with a <strong>SQUARE</strong> wave to <strong>AM</strong>, set the rate to <code>1/4</code>, and you'll get rhythmic gating that stays in perfect sync with your sequence.</p>
+    <p><strong>Generative Melodies in Time:</strong> Patch an LFO to a <strong>main oscillator knob</strong> in <a href="#generative-sequences">NOTE REPEAT mode</a> with SYNC enabled. Set it to <code>1/8</code> with a <strong>RANDOM</strong> wave. The melody will change on every 4th note, but stay locked to the musical grid, creating generative patterns that feel rhythmically coherent rather than chaotic.</p>
 
-<p><strong>Generative Melodies in Time:</strong> Patch an LFO to a <strong>main oscillator knob</strong> in <a href="#generative-sequences">NOTE REPEAT mode</a> with SYNC enabled. Set it to <code>1/8</code> with a <strong>RANDOM</strong> wave. The melody will change on every 4th note, but stay locked to the musical grid, creating generative patterns that feel rhythmically coherent rather than chaotic.</p>
+    <p><strong>Polyrhythmic Modulation:</strong> Enable SYNC on two different LFOs and set them to different subdivisions (e.g., LFO 1 at <code>1</code> and LFO 2 at <code>1/2</code>). Patch them to different parameters like <strong>DELAY</strong> and <strong>REVERB</strong>. The two effects will modulate at different musical rates, creating complex, interlocking rhythmic textures.</p>
 
-<p><strong>Polyrhythmic Modulation:</strong> Enable SYNC on two different LFOs and set them to different subdivisions (e.g., LFO 1 at <code>1</code> and LFO 2 at <code>1/2</code>. Patch them to different parameters like <strong>DELAY</strong> and <strong>REVERB</strong>. The two effects will modulate at different musical rates, creating complex, interlocking rhythmic textures.</p>
+    <h4>Switching Between Free and Synced Mode</h4>
+    <p>When you enable SYNC, the synthesizer stores your previous free-running Hz value. When you disable SYNC, the LFO returns to that stored rate, allowing you to toggle between locked and free modulation without losing your settings.</p>
 
-<h4>Switching Between Free and Synced Mode</h4>
-<p>When you enable SYNC, the synthesizer stores your previous free-running Hz value. When you disable SYNC, the LFO returns to that stored rate, allowing you to toggle between locked and free modulation without losing your settings.</p>
+    <div class="pro-tip">
+        <strong>Creative Experiment:</strong> Try this workflow:
+        <ol>
+            <li>Start an arpeggio in <strong>BPM mode</strong> at 120 BPM</li>
+            <li>Enter <a href="#lfo-basics">LFO mode</a> and patch LFO 1 to the arpeggiator's <strong>FILTER</strong> knob</li>
+            <li>Enable SYNC for LFO 1 and set the rate to <code>1</code> (quarter notes)</li>
+            <li>Patch LFO 2 to the arpeggiator's <strong>TRANSPOSE</strong> knob</li>
+            <li>Enable SYNC for LFO 2 and set the rate to <code>2</code> (half notes)</li>
+        </ol>
+        You now have a filter that pulses on every beat while the melody shifts up and down every two beats - creating a complex, evolving pattern that's still musically coherent because everything is locked to the tempo grid.
+    </div>
 
-<div class="pro-tip">
-    <strong>Creative Experiment:</strong> Try this workflow:
-    <ol>
-        <li>Start an arpeggio in <strong>BPM mode</strong> at 120 BPM</li>
-        <li>Enter <a href="#lfo-basics">LFO mode</a> and patch LFO 1 to the arpeggiator's <strong>FILTER</strong> knob</li>
-        <li>Enable SYNC for LFO 1 and set the rate to <code>1</code> (quarter notes)</li>
-        <li>Patch LFO 2 to the arpeggiator's <strong>TRANSPOSE</strong> knob</li>
-        <li>Enable SYNC for LFO 2 and set the rate to <code>2</code> (half notes)</li>
-    </ol>
-    You now have a filter that pulses on every beat while the melody shifts up and down every two beats - creating a complex, evolving pattern that's still musically coherent because everything is locked to the tempo grid.
-</div>
+    <h4>Sync and BPM vs MS Mode</h4>
+    <p>SYNC works in both <a href="#tempo-system">BPM and MS modes</a>, but the behavior is slightly different:</p>
+    <ul>
+        <li><strong>In BPM Mode:</strong> The LFO rate calculations are based on the master clock's tempo, ensuring sample-accurate synchronization across all synced LFOs and arpeggios.</li>
+        <li><strong>In MS Mode:</strong> The LFO rate is calculated from the millisecond interval of the active arpeggiator. Because MS mode uses independent timers, there may be very slight drift over long periods, which can actually create interesting "humanized" modulation.</li>
+    </ul>
 
-<h4>Sync and BPM vs MS Mode</h4>
-<p>SYNC works in both <a href="#tempo-system">BPM and MS modes</a>, but the behavior is slightly different:</p>
-<ul>
-    <li><strong>In BPM Mode:</strong> The LFO rate calculations are based on the master clock's tempo, ensuring sample-accurate synchronization across all synced LFOs and arpeggios.</li>
-    <li><strong>In MS Mode:</strong> The LFO rate is calculated from the millisecond interval of the active arpeggiator. Because MS mode uses independent timers, there may be very slight drift over long periods, which can actually create interesting "humanized" modulation.</li>
-</ul>
-
-<p class="back-to-index"><a href="#index">↑ Back to Index</a></p>
-
+    <p class="back-to-index"><a href="#index">↑ Back to Index</a></p>
 
     <h3 id="lfo-to-lfo">Advanced Modulation: LFOs Controlling LFOs</h3>
     <p>For advanced sound design, the NO-B 250 allows you to use one LFO to modulate the parameters of another. For example, you can patch LFO 2 to control the RATE of LFO 1. This would cause the speed of LFO 1's effect to ramp up and down over time, creating complex, evolving textures that are classic in modular synthesis. To do this, simply enter LFO mode, click the DEST knob for your source LFO (e.g., LFO 2 DEST), and then click one of the parameter knobs of another LFO (e.g., RATE 1).</p>
@@ -550,7 +697,8 @@
     </ul>
 
     <h4>Combining with the Arpeggiator</h4>
-    <p>The true magic happens when you combine LFO-to-Oscillator modulation with the arpeggiator. This is where the synthesizer becomes a powerful generative music machine.
+    <p>The true magic happens when you combine LFO-to-Oscillator modulation with the arpeggiator. This is where the synthesizer becomes a powerful generative music machine.</p>
+
     <h3 id="generative-sequences">Creating Generative Sequences</h3>
     <p>By combining an LFO patched to a main oscillator with the arpeggiator in <strong>NOTE REPEAT</strong> mode and <strong>HOLD</strong> enabled, you can create self-playing, evolving sequences that never repeat the same way twice.</p>
 
@@ -598,8 +746,31 @@
     <h3>How It Works</h3>
     <ul>
         <li><strong>MIDI Output Options:</strong> If you have a physical MIDI interface connected to your computer, it should appear in the list. On a Mac, you can also use the built-in <strong>IAC Driver</strong> to create a virtual MIDI bus for sending MIDI between applications without any extra hardware. For detailed instructions on setting this up, Ableton provides an excellent guide along with instructions for Windows: <a href="https://help.ableton.com/hc/en-us/articles/209774225-Setting-up-a-virtual-MIDI-bus" target="_blank">Setting up a virtual MIDI bus</a>.</li>
-        <li><strong>Important Note on MIDI Sync:</strong> The NO-B 250 sends MIDI note data (Note On/Note Off messages) but does <strong>not</strong> send a MIDI clock signal. This means you can play and record your performance into a DAW, but you cannot use the synthesizer's internal arpeggiator to automatically sync the tempo of other hardware or software. </li>
     </ul>
+
+    <h3 id="midi-clock-out">MIDI Clock Out</h3>
+    <p>The NO-B 250 now includes an optional <strong>MIDI Clock Out</strong> feature, allowing you to sync external MIDI hardware and software to the synthesizer's tempo.</p>
+
+    <h4>How MIDI Clock Works</h4>
+    <p>When MIDI Clock Out is enabled:</p>
+    <ul>
+        <li>The synthesizer sends standard MIDI clock messages (24 pulses per quarter note) at the current tempo</li>
+        <li>External devices can sync their sequencers, arpeggiators, and effects to the NO-B 250's master clock</li>
+        <li>Works in both <a href="#tempo-system">BPM and MS modes</a> - the synthesizer calculates the appropriate clock rate</li>
+    </ul>
+
+    <h4>Enabling MIDI Clock</h4>
+    <p>To enable MIDI Clock Out:</p>
+    <ol>
+        <li>Click the <strong>CONNECT MIDI</strong> button and select your MIDI output device</li>
+        <li>Enable the <strong>MIDI Clock Out</strong> option (if available in your interface)</li>
+        <li>Start an arpeggiator - the clock will sync to the arpeggiator's tempo</li>
+        <li>Your external gear will now follow the NO-B 250's tempo</li>
+    </ol>
+
+    <div class="pro-tip">
+        <strong>Important Note:</strong> MIDI Clock is sent when at least one arpeggiator is active. If both arpeggiators are running with <strong>RATE SYNC</strong> enabled, they share the same clock. If the arpeggiators are unsynced, the clock will follow whichever arpeggiator was started first.
+    </div>
 
     <p class="back-to-index"><a href="#index">↑ Back to Index</a></p>
 
@@ -697,5 +868,3 @@
 
 </body>
 </html>
-
-
