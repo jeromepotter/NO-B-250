@@ -368,6 +368,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
                     state.nextArpStepTime = now;
                 } else {
                     state.nextArpStepTime = quantizeToNextSixteenth(now, interval * 4);
+                }
             } else {
                 const now = getNowMs();
                 const interval = state.arpRateMs ?? DEFAULT_ARP_RATE_MS;
@@ -4674,6 +4675,7 @@ function generateAndApplyRandomSound() {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
