@@ -1970,12 +1970,18 @@ function sendMidiMessage(message) {
                const state = knobState[knobId]; if (!state) return;
                if (id === 18 || id === 19) {
                    const step = Math.min(3, Math.floor(d.value * 4)); state.arpOctaveRange = step; if (state.dom.octsDisplay) state.dom.octsDisplay.textContent = step;
-               } else if (id === 22 || id === 23) {
+              } else if (id === 22 || id === 23) {
                    const pIndex = Math.min(NUM_FEEL_PATTERNS - 1, Math.floor(d.value * NUM_FEEL_PATTERNS));
                    state.feelKnobValue = d.value; 
-                   state.currentFeelPattern = EUCLIDEAN_PATTERNS[pIndex]; 
-                   state.euclideanStepCounter = 0;
+                   
+                   // 1. The "Smart Reset" Logic
+                   if (state.currentFeelPattern !== EUCLIDEAN_PATTERNS[pIndex]) {
+                       state.currentFeelPattern = EUCLIDEAN_PATTERNS[pIndex]; 
+                       state.euclideanStepCounter = 0; 
+                   }
+                   
                    if (state.dom.feelDisplay) state.dom.feelDisplay.textContent = pIndex + 1;
+
                } else if (id === 24 || id === 25) {
                   const trans = Math.floor((d.value * 24) - 12);
                   state.arpTranspose = trans;
@@ -4675,6 +4681,7 @@ function generateAndApplyRandomSound() {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
