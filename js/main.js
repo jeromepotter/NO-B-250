@@ -3902,7 +3902,6 @@ function generateAndApplyRandomSound() {
                const shareUrl = generateShareableUrl();
                const shareData = {
                    title: 'NO-B 250 Patch',
-                   text: 'Check out this sound I created on NO-B 250.',
                    url: shareUrl
                };
 
@@ -4633,6 +4632,7 @@ function generateAndApplyRandomSound() {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
