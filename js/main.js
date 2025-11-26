@@ -829,6 +829,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
       let rateDisplayRows = [];
       let modalOverlay, howToButton, closeModalButton, shareButton;
 
+      let currentPresetMetadata = null;
+
       import { PRESETS } from './presets.js';
 
 
@@ -857,6 +859,12 @@ let liveLfoOutputs = [0, 0, 0, 0];
        }
 
       function buildPresetData() {
+           const metadata = currentPresetMetadata || {
+               name: (presetNameDisplay?.textContent || '').trim(),
+               sourceType: 'factory',
+               category: null,
+           };
+
            return {
                tempoMode: tempoMode,
                key: keySelector.value,
@@ -875,7 +883,12 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 })),
                knobSettings: knobState.map(k => ({ id: k.id, totalAngle: k.totalAngle })),
                fxSettings: Object.values(fxKnobData).map(k => ({ id: k.id, value: k.value })),
-               arpSettings: { isArpRateSynced: isArpRateSynced, currentArpOrder: currentArpOrder, arp1: { isOn: knobState[0].isArpHoldOn, isArpOn: knobState[0].isArpOn, isSweepMode: knobState[0].isSweepMode, octaves: knobState[0].arpOctaveRange, feelValue: knobState[0].feelKnobValue, notes: knobState[0].arpNotes, transpose: knobState[0].arpTranspose }, arp2: { isOn: knobState[1].isArpHoldOn, isArpOn: knobState[1].isArpOn, isSweepMode: knobState[1].isSweepMode, octaves: knobState[1].arpOctaveRange, feelValue: knobState[1].feelKnobValue, notes: knobState[1].arpNotes, transpose: knobState[1].arpTranspose } }
+               arpSettings: { isArpRateSynced: isArpRateSynced, currentArpOrder: currentArpOrder, arp1: { isOn: knobState[0].isArpHoldOn, isArpOn: knobState[0].isArpOn, isSweepMode: knobState[0].isSweepMode, octaves: knobState[0].arpOctaveRange, feelValue: knobState[0].feelKnobValue, notes: knobState[0].arpNotes, transpose: knobState[0].arpTranspose }, arp2: { isOn: knobState[1].isArpHoldOn, isArpOn: knobState[1].isArpOn, isSweepMode: knobState[1].isSweepMode, octaves: knobState[1].arpOctaveRange, feelValue: knobState[1].feelKnobValue, notes: knobState[1].arpNotes, transpose: knobState[1].arpTranspose } },
+               metadata: {
+                   name: (metadata.name || '').trim(),
+                   sourceType: metadata.sourceType || 'factory',
+                   category: metadata.category ?? null,
+               },
            };
       }
 
@@ -1298,15 +1311,28 @@ let liveLfoOutputs = [0, 0, 0, 0];
       function generateShareableUrl() {
            try {
                const preset = buildPresetData();
-               const urlSafePreset = encodePresetForUrl(preset);
-               
+               const metadata = preset.metadata || {};
+
+               // Remove metadata from the compressed payload to keep the URL shorter for SMS/MMS.
+               // Messaging apps can split very long URLs into multiple messages, which breaks link previews.
+               const { metadata: _omit, ...presetWithoutMeta } = preset;
+               const urlSafePreset = encodePresetForUrl(presetWithoutMeta);
+
                // FIX: Use origin + pathname to build a clean base URL every time.
-               // This prevents issues where re-sharing might inherit malformed data 
+               // This prevents issues where re-sharing might inherit malformed data
                // or accumulate debris from the current window.location.href
                const baseUrl = window.location.origin + window.location.pathname;
                const url = new URL(baseUrl);
-               
+
                url.searchParams.set('preset', urlSafePreset);
+               const displayName = (metadata.name || '').trim();
+               if (displayName) url.searchParams.set('name', displayName);
+               const sourceType = (metadata.sourceType || '').trim();
+               if (sourceType) url.searchParams.set('source', sourceType);
+               if (metadata.category !== undefined && metadata.category !== null) {
+                   url.searchParams.set('cat', String(metadata.category));
+               }
+
                return url.toString();
            } catch (err) {
                console.error('Failed to generate shareable URL', err);
@@ -1340,6 +1366,22 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
            if (!parsedPreset) return false;
 
+           const presetMetadata = parsedPreset.metadata || {};
+           const fallbackDisplayName = params.get('name');
+           const fallbackSourceType = params.get('source');
+           const fallbackCategory = params.has('cat') ? params.get('cat') : null;
+
+           const presetDisplayName = (fallbackDisplayName || presetMetadata.name || '').trim() || 'LINK';
+           const presetSourceType = (fallbackSourceType || presetMetadata.sourceType || '').trim() || 'user';
+           const presetCategory = fallbackCategory !== null ? fallbackCategory : (presetMetadata.category ?? null);
+
+           // Re-attach metadata so subsequent shares preserve the display name without bloating the URL.
+           parsedPreset.metadata = {
+               name: presetDisplayName,
+               sourceType: presetSourceType,
+               category: presetCategory,
+           };
+
            // --- NEW: Intercept with Warning Modal ---
            const warningModal = document.getElementById('share-warning-modal-overlay');
            const confirmBtn = document.getElementById('confirm-share-load-button');
@@ -1356,11 +1398,11 @@ let liveLfoOutputs = [0, 0, 0, 0];
                        
                        // Initialize Audio Context on user gesture
                        await powerOn();
-                       
+
                        // Apply the preset
                        applyPreset(parsedPreset, false, { skipPowerOn: true });
-                       updatePresetDisplay('LINK', 'user');
-                       
+                       updatePresetDisplay(presetDisplayName, presetSourceType, presetCategory);
+
                        // Resolve true so init() knows we handled a preset
                        resolve(true);
                    };
@@ -1370,7 +1412,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
            // Fallback if modal is missing
            await powerOn();
            applyPreset(parsedPreset, false, { skipPowerOn: true });
-           updatePresetDisplay('LINK', 'user');
+           updatePresetDisplay(presetDisplayName, presetSourceType, presetCategory);
            return true;
       }
        function float32ToPCM16(f) {
@@ -2685,6 +2727,7 @@ lfoState.forEach((lfo, lfoIndex) => {
            if (!displayText) {
                presetNameDisplay.textContent = 'PRESET';
                presetNameDisplay.title = '';
+               currentPresetMetadata = null;
                if (presetDisplayContainer) presetDisplayContainer.style.display = 'flex';
                syncPresetNavigationState(null, null, sourceType);
                return;
@@ -2692,6 +2735,7 @@ lfoState.forEach((lfo, lfoIndex) => {
 
            presetNameDisplay.textContent = displayText;
            presetNameDisplay.title = displayText;
+           currentPresetMetadata = { name: displayText, sourceType, category };
            if (presetDisplayContainer) presetDisplayContainer.style.display = 'flex';
            syncPresetNavigationState(category, name, sourceType);
        }
