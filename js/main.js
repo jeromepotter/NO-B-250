@@ -359,8 +359,15 @@ let liveLfoOutputs = [0, 0, 0, 0];
             if (!state || !state.arpRunning) return;
             if (tempoMode === TEMPO_MODE_BPM) {
                 const interval = bpmToSixteenthMs(state.arpRateBpm);
-                // MODIFIED: Multiply interval by 4 to Snap to Quarter Notes (1/4), but Play 16th Notes (1/16)
-                state.nextArpStepTime = quantizeToNextSixteenth(getNowMs(), interval * 4);
+                const now = getNowMs();
+
+                // FIX: If this is the FIRST arp (clock is null), start IMMEDIATELY.
+                // If an arp is already playing, THEN snap to the next Quarter Note (interval * 4).
+                if (masterClockStartTime === null) {
+                    masterClockStartTime = now;
+                    state.nextArpStepTime = now;
+                } else {
+                    state.nextArpStepTime = quantizeToNextSixteenth(now, interval * 4);
             } else {
                 const now = getNowMs();
                 const interval = state.arpRateMs ?? DEFAULT_ARP_RATE_MS;
@@ -4667,6 +4674,7 @@ function generateAndApplyRandomSound() {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
