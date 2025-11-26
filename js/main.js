@@ -3877,63 +3877,36 @@ function generateAndApplyRandomSound() {
                    url: shareUrl
                };
 
-               try {
-                   // Try native sharing first (Works on Mobile Safari/Chrome)
-                   if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+               // Simple check to prioritize native sharing ONLY on mobile devices
+               const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+               // 1. Try Native Share (Mobile Only)
+               if (isMobile && navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+                   try {
                        await navigator.share(shareData);
-                   } else {
-                       // Fallback to clipboard for Desktop
-                       await navigator.clipboard.writeText(shareUrl);
-                       shareButton.textContent = 'URL COPIED';
-                       setTimeout(() => {
-                           if (shareButton) shareButton.textContent = originalLabel;
-                       }, 1200);
-                   }
-               } catch (err) {
-                   // If user cancels share or it fails, fall back to clipboard or log
-                   if (err.name !== 'AbortError') {
-                       console.error('Share failed', err);
-                       try {
-                           await navigator.clipboard.writeText(shareUrl);
-                           shareButton.textContent = 'URL COPIED';
-                           setTimeout(() => {
-                               if (shareButton) shareButton.textContent = originalLabel;
-                           }, 1200);
-                       } catch (clipboardErr) {
-                           shareButton.textContent = 'COPY FAILED';
+                   } catch (err) {
+                       // Ignore 'AbortError' (user cancelled the share sheet)
+                       if (err.name !== 'AbortError') {
+                           console.error('Share failed', err);
                        }
                    }
+               } 
+               // 2. Desktop Fallback (Copy to Clipboard)
+               else {
+                   try {
+                       await navigator.clipboard.writeText(shareUrl);
+                       shareButton.textContent = 'URL COPIED';
+                   } catch (err) {
+                       console.error('Clipboard failed', err);
+                       shareButton.textContent = 'COPY FAILED';
+                   }
+                   
+                   // Reset button text after delay
+                   setTimeout(() => {
+                       if (shareButton) shareButton.textContent = originalLabel;
+                   }, 1200);
                }
                shareButton.blur();
-           });
-
-           addTouchListener(closeModalButton, () => {
-               modalOverlay.classList.add('opacity-0', 'pointer-events-none');
-           });
-
-           const handleOverlayClick = (e) => {
-               if (e.target === modalOverlay) {
-                   if (e.cancelable && e.type === 'touchend') e.preventDefault();
-                   closeModalButton.click();
-               }
-           };
-           modalOverlay?.addEventListener('touchend', handleOverlayClick);
-           modalOverlay?.addEventListener('click', handleOverlayClick);
-
-           // --- 6. FIX: RECORDING BUTTONS ---
-           addTouchListener(recordButton, async () => {
-               if (!isPowerOn) powerOn();
-               if (!audioContext || !synthNode) await setupAudio();
-               if (!isRecordingAudio) { 
-                   pcmChunks = []; 
-                   totalPcmBytes = 0; 
-                   isRecordingAudio = true; 
-                   startRecordingUI(); 
-                   synthNode.port.postMessage({ type: 'startRecording', data: { blockSize: 8192 } }); 
-               } else { 
-                   synthNode.port.postMessage({ type: 'stopRecording', data: {} }); 
-               }
-               recordButton.blur(); 
            });
 
            addTouchListener(recordMidiButton, () => {
@@ -4631,6 +4604,7 @@ function generateAndApplyRandomSound() {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
