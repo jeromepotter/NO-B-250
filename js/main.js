@@ -3866,20 +3866,44 @@ function generateAndApplyRandomSound() {
                modalOverlay.classList.remove('opacity-0', 'pointer-events-none');
            });
 
-           addTouchListener(shareButton, async () => {
+          addTouchListener(shareButton, async () => {
                if (!shareButton) return;
                const originalLabel = shareButton.textContent;
+               
+               const shareUrl = generateShareableUrl();
+               const shareData = {
+                   title: 'NO-B 250 Patch',
+                   text: 'Check out this sound I created on NO-B 250.',
+                   url: shareUrl
+               };
+
                try {
-                   const shareUrl = generateShareableUrl();
-                   await navigator.clipboard.writeText(shareUrl);
-                   shareButton.textContent = 'URL COPIED';
+                   // Try native sharing first (Works on Mobile Safari/Chrome)
+                   if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+                       await navigator.share(shareData);
+                   } else {
+                       // Fallback to clipboard for Desktop
+                       await navigator.clipboard.writeText(shareUrl);
+                       shareButton.textContent = 'URL COPIED';
+                       setTimeout(() => {
+                           if (shareButton) shareButton.textContent = originalLabel;
+                       }, 1200);
+                   }
                } catch (err) {
-                   console.error('Failed to copy share URL', err);
-                   shareButton.textContent = 'COPY FAILED';
+                   // If user cancels share or it fails, fall back to clipboard or log
+                   if (err.name !== 'AbortError') {
+                       console.error('Share failed', err);
+                       try {
+                           await navigator.clipboard.writeText(shareUrl);
+                           shareButton.textContent = 'URL COPIED';
+                           setTimeout(() => {
+                               if (shareButton) shareButton.textContent = originalLabel;
+                           }, 1200);
+                       } catch (clipboardErr) {
+                           shareButton.textContent = 'COPY FAILED';
+                       }
+                   }
                }
-               setTimeout(() => {
-                   if (shareButton) shareButton.textContent = originalLabel;
-               }, 1200);
                shareButton.blur();
            });
 
@@ -4607,6 +4631,7 @@ function generateAndApplyRandomSound() {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
