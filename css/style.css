@@ -430,21 +430,18 @@ body.lfo-mode #lfo-lock-container {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  flex-wrap: wrap;
+  gap: 4px;
+  flex-wrap: nowrap;
   width: 100%;
-  max-width: 240px;
+  max-width: 220px;
   margin: 4px auto 2px;
-  padding: 6px 8px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: 9999px;
+  padding: 0;
   box-sizing: border-box;
 }
 
 .feel-pattern-step {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 9999px;
   border: 1px solid rgba(255, 255, 255, 0.85);
   background: transparent;

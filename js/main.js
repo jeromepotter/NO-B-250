@@ -2817,6 +2817,13 @@ lfoState.forEach((lfo, lfoIndex) => {
           const container = state?.dom?.feelPatternPreview || document.getElementById(`feel-pattern-preview-${knobId}`);
           if (!state || !container) return;
 
+          if (!state.isArpOn) {
+              container.innerHTML = '';
+              container.classList.add('hidden');
+              container.setAttribute('aria-hidden', 'true');
+              return;
+          }
+
           const feelValue = typeof state.feelKnobValue === 'number' ? state.feelKnobValue : 0;
           const pIndex = Math.min(NUM_FEEL_PATTERNS - 1, Math.floor(feelValue * NUM_FEEL_PATTERNS));
 
@@ -4607,6 +4614,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                    }
 
                    updateGlobalArpVisibility();
+                   updateFeelPatternPreview(s.id);
                    if (!s.isArpOn) { stopArpeggiator(s.id); if(s.isHeld) { s.isNoteOn = true; const freq = calculateNote(s.id, false); if(synthNode) synthNode.port.postMessage({type:'noteOn',data:{voice:s.id,freq:freq}}); } s.arpNotes = []; updateSequenceDisplay(s.id);if(s.dom.arpNoteDisplay)s.dom.arpNoteDisplay.textContent="--"; }
                    else { if(s.isHeld) { if (s.isNoteOn) { if(synthNode) synthNode.port.postMessage({type:'noteOff', data:{voice:s.id}}); s.isNoteOn = false; } playNote(s.id); } }
                    updateStateFromTotalAngle(s.id);
