@@ -359,8 +359,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
             if (!state || !state.arpRunning) return;
             if (tempoMode === TEMPO_MODE_BPM) {
                 const interval = bpmToSixteenthMs(state.arpRateBpm);
-                // MODIFIED: Multiply interval by 4 to Snap to Quarter Notes (1/4), but Play 16th Notes (1/16)
-                state.nextArpStepTime = quantizeToNextSixteenth(getNowMs(), interval * 4);
+                // MODIFIED: Multiply interval by 4 to Snap to Quarter Notes (1/4), or 2 for Eigth notes but Play 16th Notes (1/16)
+                state.nextArpStepTime = quantizeToNextSixteenth(getNowMs(), interval * 2);
             } else {
                 const now = getNowMs();
                 const interval = state.arpRateMs ?? DEFAULT_ARP_RATE_MS;
@@ -4667,6 +4667,7 @@ function generateAndApplyRandomSound() {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
