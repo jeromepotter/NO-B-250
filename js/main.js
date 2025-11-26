@@ -1311,15 +1311,28 @@ let liveLfoOutputs = [0, 0, 0, 0];
       function generateShareableUrl() {
            try {
                const preset = buildPresetData();
-               const urlSafePreset = encodePresetForUrl(preset);
-               
+               const metadata = preset.metadata || {};
+
+               // Remove metadata from the compressed payload to keep the URL shorter for SMS/MMS.
+               // Messaging apps can split very long URLs into multiple messages, which breaks link previews.
+               const { metadata: _omit, ...presetWithoutMeta } = preset;
+               const urlSafePreset = encodePresetForUrl(presetWithoutMeta);
+
                // FIX: Use origin + pathname to build a clean base URL every time.
-               // This prevents issues where re-sharing might inherit malformed data 
+               // This prevents issues where re-sharing might inherit malformed data
                // or accumulate debris from the current window.location.href
                const baseUrl = window.location.origin + window.location.pathname;
                const url = new URL(baseUrl);
-               
+
                url.searchParams.set('preset', urlSafePreset);
+               const displayName = (metadata.name || '').trim();
+               if (displayName) url.searchParams.set('name', displayName);
+               const sourceType = (metadata.sourceType || '').trim();
+               if (sourceType) url.searchParams.set('source', sourceType);
+               if (metadata.category !== undefined && metadata.category !== null) {
+                   url.searchParams.set('cat', String(metadata.category));
+               }
+
                return url.toString();
            } catch (err) {
                console.error('Failed to generate shareable URL', err);
@@ -1354,9 +1367,20 @@ let liveLfoOutputs = [0, 0, 0, 0];
            if (!parsedPreset) return false;
 
            const presetMetadata = parsedPreset.metadata || {};
-           const presetDisplayName = (presetMetadata.name || '').trim() || 'LINK';
-           const presetSourceType = presetMetadata.sourceType || 'user';
-           const presetCategory = presetMetadata.category ?? null;
+           const fallbackDisplayName = params.get('name');
+           const fallbackSourceType = params.get('source');
+           const fallbackCategory = params.has('cat') ? params.get('cat') : null;
+
+           const presetDisplayName = (fallbackDisplayName || presetMetadata.name || '').trim() || 'LINK';
+           const presetSourceType = (fallbackSourceType || presetMetadata.sourceType || '').trim() || 'user';
+           const presetCategory = fallbackCategory !== null ? fallbackCategory : (presetMetadata.category ?? null);
+
+           // Re-attach metadata so subsequent shares preserve the display name without bloating the URL.
+           parsedPreset.metadata = {
+               name: presetDisplayName,
+               sourceType: presetSourceType,
+               category: presetCategory,
+           };
 
            // --- NEW: Intercept with Warning Modal ---
            const warningModal = document.getElementById('share-warning-modal-overlay');
