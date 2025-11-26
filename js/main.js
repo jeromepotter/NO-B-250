@@ -2844,10 +2844,14 @@ lfoState.forEach((lfo, lfoIndex) => {
           const pattern = EUCLIDEAN_PATTERNS[pIndex] || [];
           container.innerHTML = '';
 
-          const basePreviewColor = getArpNoteColor(getMidiNote(knobId));
-          const firstActiveNote = (state.arpNotes || []).find(n => n.active) || state.arpNotes[0];
-          const previewColor = firstActiveNote ? getDisplayNoteColor(firstActiveNote, state, getFullScaleMidi()) : basePreviewColor;
-          container.style.setProperty('--feel-preview-color', `rgb(${previewColor.r}, ${previewColor.g}, ${previewColor.b})`);
+          const noteDisplayEl = state.dom?.noteDisplay || document.getElementById(`note-display-${knobId + 1}`);
+          const computedColor = noteDisplayEl ? window.getComputedStyle(noteDisplayEl).color : '';
+          if (computedColor) {
+              container.style.setProperty('--feel-preview-color', computedColor);
+          } else {
+              const fallbackColor = getArpNoteColor(getMidiNote(knobId));
+              container.style.setProperty('--feel-preview-color', `rgb(${fallbackColor.r}, ${fallbackColor.g}, ${fallbackColor.b})`);
+          }
 
           pattern.forEach((step, idx) => {
               const dot = document.createElement('span');
@@ -3269,6 +3273,7 @@ lfoState.forEach((lfo, lfoIndex) => {
       function toggleEasterEggMode() {
         allowDuplicateNotesMode = !allowDuplicateNotesMode;
         document.body.classList.toggle('easter-egg-mode', allowDuplicateNotesMode);
+        knobState.forEach(k => updateFeelPatternPreview(k.id));
       }
  function toggleLfoModeUI(forceState, isPresetLoad = false) {
     const wasInPatchingMode = activePatchingLfo !== null;
@@ -3409,6 +3414,7 @@ function applyPreset(p, isArpCategoryPreset = false, options = {}) {
                allowDuplicateNotesMode = p.allowDuplicateNotesMode;
            }
            document.body.classList.toggle('easter-egg-mode', allowDuplicateNotesMode);
+           knobState.forEach(k => updateFeelPatternPreview(k.id));
 
            if (!arpLockActive && p.scale === 'Custom') {
                customScale = p.customScale || [];
