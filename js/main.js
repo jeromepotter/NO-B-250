@@ -3905,9 +3905,29 @@ function generateAndApplyRandomSound() {
            });
 
            // --- 5. FIX: HEADER & MODAL BUTTONS ---
-           addTouchListener(howToButton, () => {
-               modalOverlay.classList.remove('opacity-0', 'pointer-events-none');
-           });
+          const closeHowToModal = () => {
+               modalOverlay?.classList.add('opacity-0', 'pointer-events-none');
+          };
+
+          addTouchListener(howToButton, () => {
+               const isHidden = modalOverlay.classList.contains('pointer-events-none');
+               if (isHidden) {
+                    modalOverlay.classList.remove('opacity-0', 'pointer-events-none');
+               } else {
+                    closeHowToModal();
+               }
+          });
+
+          addTouchListener(closeModalButton, (event) => {
+               event.stopPropagation();
+               closeHowToModal();
+          });
+
+          addTouchListener(modalOverlay, (event) => {
+               if (event.target === modalOverlay) {
+                    closeHowToModal();
+               }
+          });
 
           addTouchListener(shareButton, async () => {
                if (!shareButton) return;
