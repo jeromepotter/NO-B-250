@@ -397,7 +397,6 @@ body.lfo-mode #lfo-lock-container {
   width: calc(25% - 6px);
   height: 40px;
   border-radius: 4px; /* 4px looks better at this size */
-  border: 1px solid rgba(255, 255, 255, 0.3);
   margin: 3px;
   cursor: pointer;
   opacity: 0.7;
