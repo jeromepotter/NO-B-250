@@ -3634,30 +3634,29 @@ function resetAllFxToDefaults({ skipArpKnobs = false, skipLfoKnobs = false } = {
 function generateAndApplyRandomPreset(complexity = 'SIMPLE') {
     if (!isPowerOn) powerOn();
     
-    // 1. Update Display Title based on mode
+    // 1. Update Display
     const title = complexity === 'COMPLEX' ? 'COMPLEX RANDOM ARP' : 'RANDOM ARP';
     updatePresetDisplay(title, 'random');
 
-    // 2. --- Foundation: Pick a random Key and Scale ---
+    // 2. Key & Scale
     const randomKey = NOTES[Math.floor(Math.random() * NOTES.length)];
     const availableScales = Object.keys(SCALES).filter(s => s !== 'Blues' && s !== 'Custom');
     const randomScaleName = availableScales[Math.floor(Math.random() * availableScales.length)];
     const scaleIntervals = SCALES[randomScaleName];
 
-    // 3. --- Generate a pool of musically valid MIDI notes ---
+    // 3. Notes
     const rootNoteIndex = NOTES.indexOf(randomKey);
     const validNotes = [];
-    for (let oct = 3; oct < 7; oct++) { // Generate notes across 4 octaves
+    for (let oct = 3; oct < 7; oct++) {
         for (const interval of scaleIntervals) {
             validNotes.push(rootNoteIndex + (oct * 12) + interval);
         }
     }
 
-    // 4. --- Arpeggiator Brain ---
-    const useTwoArps = Math.random() < 0.5; // 50% chance for a second arp
-    
+    // 4. Arp Config
+    const useTwoArps = Math.random() < 0.5;
     const arp1Notes = [];
-    const numNotes1 = Math.floor(Math.random() * 3) + 3; // Pick 3 to 5 notes
+    const numNotes1 = Math.floor(Math.random() * 3) + 3;
     for (let i = 0; i < numNotes1; i++) {
         arp1Notes.push({ midi: validNotes[Math.floor(Math.random() * validNotes.length)], active: true });
     }
@@ -3665,7 +3664,7 @@ function generateAndApplyRandomPreset(complexity = 'SIMPLE') {
     let arp2Config = { isArpOn: false, notes: [] };
     if (useTwoArps) {
         const arp2Notes = [];
-        const numNotes2 = Math.floor(Math.random() * 3) + 2; // Pick 2 to 4 notes
+        const numNotes2 = Math.floor(Math.random() * 3) + 2;
         for (let i = 0; i < numNotes2; i++) {
             arp2Notes.push({ midi: validNotes[Math.floor(Math.random() * validNotes.length)], active: true });
         }
@@ -3676,7 +3675,7 @@ function generateAndApplyRandomPreset(complexity = 'SIMPLE') {
         };
     }
 
-    // 5. --- Sound Character (FX and Envelope) ---
+    // 5. FX Settings
     const fxSettings = [
         { id: 8, value: Math.random() * 0.4 }, { id: 9, value: Math.random() }, { id: 10, value: Math.random() }, { id: 11, value: 0.1 + Math.random() * 0.7 },
         { id: 0, value: Math.random() < 0.2 ? Math.random() * 0.4 : 0 }, { id: 1, value: Math.random() * Math.random() }, { id: 2, value: 0.5 + Math.random() * 0.5 },
@@ -3686,21 +3685,22 @@ function generateAndApplyRandomPreset(complexity = 'SIMPLE') {
         { id: 30, value: getRandomWaveValue() }, { id: 31, value: getRandomWaveValue() }
     ];
 
-    // 6. --- LFO Logic (The New Part) ---
+    // 6. LFO Logic
     let lfoState = [];
     if (complexity === 'COMPLEX') {
         lfoState = generateComplexRandomLfoState();
     } else {
-        // Simple mode: Reset LFOs to OFF
         lfoState = Array(4).fill({ rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false });
     }
 
-    // 7. --- Final Assembly ---
+    // 7. Final Assembly
     const randomPreset = {
         key: randomKey,
         scale: randomScaleName,
+        // *** THE FIX: Tell the synth to turn LFO Mode ON ***
+        isLfoMode: complexity === 'COMPLEX', 
         fxSettings: fxSettings,
-        lfoState: lfoState, // Apply the LFOs here
+        lfoState: lfoState,
         arpSettings: {
             isArpRateSynced: Math.random() < 0.5,
             currentArpOrder: ["Up", "Down", "Up/Down", "Random"][Math.floor(Math.random() * 4)],
@@ -3713,14 +3713,12 @@ function generateAndApplyRandomPreset(complexity = 'SIMPLE') {
         }
     };
 
-    // --- Merge ARP FX into Main FX ---
     if (randomPreset.arpSettings && randomPreset.arpSettings.fx) {
         for (const [fxId, value] of Object.entries(randomPreset.arpSettings.fx)) {
             randomPreset.fxSettings.push({ id: parseInt(fxId), value: value });
         }
     }
     
-    // 8. --- Apply ---
     applyPreset(randomPreset);
 }
 function snapArpNotesToScale() {
@@ -3766,6 +3764,7 @@ function snapArpNotesToScale() {
        }
 function generateAndApplyRandomSound(complexity = 'SIMPLE') {
     if (!isPowerOn) powerOn();
+    
     const title = complexity === 'COMPLEX' ? 'COMPLEX RANDOM SOUND' : 'RANDOM SOUND';
     updatePresetDisplay(title, 'random');
 
@@ -3773,7 +3772,6 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
     const availableScales = Object.keys(SCALES).filter(s => s !== 'Blues' && s !== 'Custom');
     const randomScaleName = availableScales[Math.floor(Math.random() * availableScales.length)];
     
-    // Standard FX Generation
     const fxSettings = [
         { id: 8, value: Math.random() * 0.4 }, { id: 9, value: Math.random() }, { id: 10, value: Math.random() }, { id: 11, value: 0.1 + Math.random() * 0.7 },
         { id: 0, value: Math.random() < 0.2 ? Math.random() * 0.4 : 0 }, { id: 1, value: Math.random() * Math.random() }, { id: 2, value: 0.5 + Math.random() * 0.5 },
@@ -3783,7 +3781,6 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
         { id: 30, value: getRandomWaveValue() }, { id: 31, value: getRandomWaveValue() }
     ];
 
-    // LFO Logic
     let lfoState = [];
     if (complexity === 'COMPLEX') {
         lfoState = generateComplexRandomLfoState();
@@ -3794,6 +3791,8 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
     const randomPreset = {
         key: randomKey,
         scale: randomScaleName,
+        // *** THE FIX IS HERE TOO ***
+        isLfoMode: complexity === 'COMPLEX',
         fxSettings: fxSettings,
         lfoState: lfoState,
         arpSettings: { 
@@ -3801,6 +3800,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
             arp2: { isArpOn: false, isOn: false }
         }
     };
+    
     applyPreset(randomPreset);
 }
       
@@ -4786,6 +4786,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
