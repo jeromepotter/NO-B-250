@@ -443,8 +443,11 @@ body.lfo-mode #lfo-lock-container {
 /* In css/style.css */
 
 .sequence-note-block.playhead-skipped {
-  background: rgba(255, 255, 255, 0.2);
+  background: transparent !important;
+  background-image: none !important;
   border-color: rgba(255, 255, 255, 0.6);
+  border-width: 2px;
+  border-style: solid;
   opacity: 0.2;
   transition: none !important;
 }
