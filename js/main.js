@@ -810,10 +810,10 @@ let liveLfoOutputs = [0, 0, 0, 0];
      const knobState = [
     { id: 0, isNoteOn: false, isHeld: false, totalAngle: Math.random()*MAX_TOTAL_ANGLE, lastDragAngle: 0, currentOctave: 3, dom: {}, touchId: null, baseColor: [0,0,0],
       isArpOn: false, isSweepMode: true, arpNotes: [], isArpHoldOn: false, arpRateBpm: DEFAULT_ARP_RATE_BPM, arpRateMs: DEFAULT_ARP_RATE_MS, arpOctaveRange: 0, feelKnobValue: 0.0, currentFeelPattern: EUCLIDEAN_PATTERNS[0], euclideanStepCounter: 0,
-      arpTranspose: 0, arpRunning: false, nextArpStepTime: 0, lastArpStepTime: 0, arpRafId: null, currentArpNoteIndex: 0, currentOctaveStep: 0, arpDirection: 1, arpUpDownState: 0, lastPlayedMidi: null, arpLastVisualIndex: -1, lastNoteOnTime: 0, lastVisualMidi: null },
+      arpTranspose: 0, lastRenderedTranspose: 0, arpRunning: false, nextArpStepTime: 0, lastArpStepTime: 0, arpRafId: null, currentArpNoteIndex: 0, currentOctaveStep: 0, arpDirection: 1, arpUpDownState: 0, lastPlayedMidi: null, arpLastVisualIndex: -1, lastNoteOnTime: 0, lastVisualMidi: null },
     { id: 1, isNoteOn: false, isHeld: false, totalAngle: Math.random()*MAX_TOTAL_ANGLE, lastDragAngle: 0, currentOctave: 3, dom: {}, touchId: null, baseColor: [0,0,0],
       isArpOn: false, isSweepMode: true, arpNotes: [], isArpHoldOn: false, arpRateBpm: DEFAULT_ARP_RATE_BPM, arpRateMs: DEFAULT_ARP_RATE_MS, arpOctaveRange: 0, feelKnobValue: 0.0, currentFeelPattern: EUCLIDEAN_PATTERNS[0], euclideanStepCounter: 0,
-      arpTranspose: 0, arpRunning: false, nextArpStepTime: 0, lastArpStepTime: 0, arpRafId: null, currentArpNoteIndex: 0, currentOctaveStep: 0, arpDirection: 1, arpUpDownState: 0, lastPlayedMidi: null, arpLastVisualIndex: -1, lastNoteOnTime: 0, lastVisualMidi: null }
+      arpTranspose: 0, lastRenderedTranspose: 0, arpRunning: false, nextArpStepTime: 0, lastArpStepTime: 0, arpRafId: null, currentArpNoteIndex: 0, currentOctaveStep: 0, arpDirection: 1, arpUpDownState: 0, lastPlayedMidi: null, arpLastVisualIndex: -1, lastNoteOnTime: 0, lastVisualMidi: null }
 ];
       
        // --- Global Arp State ---
@@ -2439,6 +2439,8 @@ let modulatedRateMs = state.arpRateMs;
 let modulatedTranspose = state.arpTranspose;
 let modulatedOctaveRange = state.arpOctaveRange;
 let modulatedFeelPattern = state.currentFeelPattern;
+const previousModulatedTranspose = state.lastRenderedTranspose ?? state.arpTranspose;
+let transposeWasModulated = false;
 
 lfoState.forEach((lfo, lfoIndex) => {
     const destChain = getLfoDestChain(lfo);
@@ -2466,6 +2468,7 @@ lfoState.forEach((lfo, lfoIndex) => {
         const finalValue = Math.max(0, Math.min(1, baseValue + lfoModValue));
         modulatedTranspose = Math.floor((finalValue * 24) - 12);
         if (state.dom.transposeDisplay) state.dom.transposeDisplay.textContent = modulatedTranspose;
+        transposeWasModulated = true;
     }
     if (destIsArpOcts) {
         const baseValue = fxKnobData[18 + knobId]?.value ?? 0;
@@ -2481,6 +2484,10 @@ lfoState.forEach((lfo, lfoIndex) => {
         if (state.dom.feelDisplay) state.dom.feelDisplay.textContent = pIndex + 1;
     }
 });
+
+if (transposeWasModulated && modulatedTranspose !== previousModulatedTranspose) {
+    updateSequenceDisplay(knobId, { transposeOverride: modulatedTranspose, skipIfSameTranspose: true });
+}
            const isBpmMode = tempoMode === TEMPO_MODE_BPM;
            if (isBpmMode) {
                modulatedRateBpm = normalizeArpRateBpm(modulatedRateBpm);
@@ -2664,12 +2671,20 @@ lfoState.forEach((lfo, lfoIndex) => {
            names.forEach(name => { const opt = document.createElement('option'); opt.value = name; opt.textContent = name.toUpperCase(); scaleSelector.appendChild(opt); });
        }
       
-     function updateSequenceDisplay(knobId) {
+     function updateSequenceDisplay(knobId, options = {}) {
+         const { transposeOverride = null, skipIfSameTranspose = false } = options;
          const state = knobState[knobId];
          const displayContainer = document.getElementById(`arp-sequence-display-${knobId}`);
-         if (!displayContainer) return;
-         displayContainer.innerHTML = ''; 
-         
+         if (!state || !displayContainer) return;
+         const effectiveTranspose = Number.isFinite(transposeOverride) ? transposeOverride : state.arpTranspose;
+
+         if (skipIfSameTranspose && state.lastRenderedTranspose === effectiveTranspose) {
+             return;
+         }
+         state.lastRenderedTranspose = effectiveTranspose;
+
+         displayContainer.innerHTML = '';
+
          const fullScaleMidi = getFullScaleMidi();
 
          state.arpNotes.forEach((noteObj, index) => {
@@ -2680,14 +2695,14 @@ lfoState.forEach((lfo, lfoIndex) => {
             let baseNoteIndexInScale = fullScaleMidi.indexOf(noteObj.midi);
             let transposedMidi = noteObj.midi; // Default to original note if not in scale
             if (baseNoteIndexInScale !== -1) {
-                const transposedNoteIndex = baseNoteIndexInScale + state.arpTranspose;
+                const transposedNoteIndex = baseNoteIndexInScale + effectiveTranspose;
                 transposedMidi = fullScaleMidi[Math.max(0, Math.min(fullScaleMidi.length - 1, transposedNoteIndex))];
             }
-            
+
             const { r, g, b } = getArpNoteColor(transposedMidi);
             noteBlock.style.backgroundColor = `rgb(${r},${g},${b})`;
             noteBlock.classList.toggle('muted', !noteObj.active);
-            
+
             let lastTap = 0;
             noteBlock.addEventListener('touchend', (e) => {
                 e.preventDefault();
