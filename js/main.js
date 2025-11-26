@@ -865,6 +865,13 @@ let liveLfoOutputs = [0, 0, 0, 0];
                category: null,
            };
 
+           // 1. Create a helper to round numbers to 4 decimal places
+           const trim = (num) => {
+               if (typeof num !== 'number') return num;
+               // Round to 4 decimals to save massive amounts of URL space
+               return parseFloat(num.toFixed(4));
+           };
+
            return {
                tempoMode: tempoMode,
                key: keySelector.value,
@@ -872,18 +879,40 @@ let liveLfoOutputs = [0, 0, 0, 0];
                customScale: scaleSelector.value === 'Custom' ? customScale : [],
                allowDuplicateNotesMode: allowDuplicateNotesMode,
                isLfoMode: isLfoMode,
+               // 2. Apply 'trim' to all float values below
                lfoState: lfoState.map(lfo => ({
-                   rate: lfo.rate,
-                   depth: lfo.depth,
+                   rate: trim(lfo.rate),
+                   depth: trim(lfo.depth),
                    wave: lfo.wave,
                    dest: lfo.dest,
                    destChain: getLfoDestChain(lfo),
                    tempoSync: lfoTempoLinkState[lfo.id]?.enabled || false,
-                   storedFreeValue: lfoTempoLinkState[lfo.id]?.storedFreeValue ?? 0.5
+                   storedFreeValue: trim(lfoTempoLinkState[lfo.id]?.storedFreeValue ?? 0.5)
                 })),
-               knobSettings: knobState.map(k => ({ id: k.id, totalAngle: k.totalAngle })),
-               fxSettings: Object.values(fxKnobData).map(k => ({ id: k.id, value: k.value })),
-               arpSettings: { isArpRateSynced: isArpRateSynced, currentArpOrder: currentArpOrder, arp1: { isOn: knobState[0].isArpHoldOn, isArpOn: knobState[0].isArpOn, isSweepMode: knobState[0].isSweepMode, octaves: knobState[0].arpOctaveRange, feelValue: knobState[0].feelKnobValue, notes: knobState[0].arpNotes, transpose: knobState[0].arpTranspose }, arp2: { isOn: knobState[1].isArpHoldOn, isArpOn: knobState[1].isArpOn, isSweepMode: knobState[1].isSweepMode, octaves: knobState[1].arpOctaveRange, feelValue: knobState[1].feelKnobValue, notes: knobState[1].arpNotes, transpose: knobState[1].arpTranspose } },
+               knobSettings: knobState.map(k => ({ id: k.id, totalAngle: trim(k.totalAngle) })),
+               fxSettings: Object.values(fxKnobData).map(k => ({ id: k.id, value: trim(k.value) })),
+               arpSettings: { 
+                   isArpRateSynced: isArpRateSynced, 
+                   currentArpOrder: currentArpOrder, 
+                   arp1: { 
+                       isOn: knobState[0].isArpHoldOn, 
+                       isArpOn: knobState[0].isArpOn, 
+                       isSweepMode: knobState[0].isSweepMode, 
+                       octaves: knobState[0].arpOctaveRange, 
+                       feelValue: trim(knobState[0].feelKnobValue), 
+                       notes: knobState[0].arpNotes, 
+                       transpose: knobState[0].arpTranspose 
+                   }, 
+                   arp2: { 
+                       isOn: knobState[1].isArpHoldOn, 
+                       isArpOn: knobState[1].isArpOn, 
+                       isSweepMode: knobState[1].isSweepMode, 
+                       octaves: knobState[1].arpOctaveRange, 
+                       feelValue: trim(knobState[1].feelKnobValue), 
+                       notes: knobState[1].arpNotes, 
+                       transpose: knobState[1].arpTranspose 
+                   } 
+               },
                metadata: {
                    name: (metadata.name || '').trim(),
                    sourceType: metadata.sourceType || 'factory',
@@ -4604,6 +4633,7 @@ function generateAndApplyRandomSound() {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
