@@ -445,35 +445,28 @@ body.lfo-mode #lfo-lock-container {
 /* In css/style.css */
 
 .sequence-note-block.playhead-skipped {
-  /* UPGRADE 1: Thicker Double Border for more "pop" */
-  box-shadow: 
-    inset 0 0 0 3px #ff0000, /* Brighter, thicker Red */
-    inset 0 0 0 5px #ffffff; /* Thicker White separator */
+  /* UPDATED: Removed the white inner ring */
+  /* Now it is just a solid Red border */
+  box-shadow: inset 0 0 0 3px #ff0000; 
 
-  /* UPGRADE 2: The "Dark Tint" Stack */
-  /* CSS renders background images top-to-bottom. */
+  /* Keep the stripes and tint */
   background-image: 
-    /* Layer 1 (Top): Bright Red Hazard Stripes */
     repeating-linear-gradient(
       135deg,
       transparent,
       transparent 5px,
-      rgba(255, 0, 0, 0.8) 5px, /* More opaque, brighter red */
-      rgba(255, 0, 0, 0.8) 10px
+      rgba(255, 0, 0, 0.9) 5px,
+      rgba(255, 0, 0, 0.9) 10px
     ),
-    /* Layer 2 (Bottom): Dark Tint */
-    /* This puts a 50% black filter over the note color, making it look "OFF" */
     linear-gradient(
-      rgba(0, 0, 0, 0.5), 
-      rgba(0, 0, 0, 0.5)
+      rgba(0, 0, 0, 0.6),
+      rgba(0, 0, 0, 0.6)
     );
 
-  /* Lift it up slightly */
   transform: scale(1.05);
   z-index: 10;
-  
-  /* Force visibility */
   opacity: 1;
+  transition: none !important;
 }
       .mobile-spin-button {
         display: inline-flex;
@@ -517,6 +510,7 @@ body.lfo-mode #lfo-lock-container {
   }
   
 }
+
 
 
 
