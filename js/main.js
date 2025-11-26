@@ -2051,11 +2051,12 @@ function sendMidiMessage(message) {
                    
                    // 1. The "Smart Reset" Logic
                    if (state.currentFeelPattern !== EUCLIDEAN_PATTERNS[pIndex]) {
-                       state.currentFeelPattern = EUCLIDEAN_PATTERNS[pIndex]; 
-                       state.euclideanStepCounter = 0; 
+                       state.currentFeelPattern = EUCLIDEAN_PATTERNS[pIndex];
+                       state.euclideanStepCounter = 0;
                    }
-                   
+
                    if (state.dom.feelDisplay) state.dom.feelDisplay.textContent = pIndex + 1;
+                   updateFeelPatternPreview(knobId);
 
                } else if (id === 24 || id === 25) {
                   const trans = Math.floor((d.value * 24) - 12);
@@ -2758,7 +2759,7 @@ lfoState.forEach((lfo, lfoIndex) => {
          const state = knobState[knobId];
          const displayContainer = document.getElementById(`arp-sequence-display-${knobId}`);
          if (!displayContainer) return;
-         displayContainer.innerHTML = ''; 
+         displayContainer.innerHTML = '';
          
          const fullScaleMidi = getFullScaleMidi();
 
@@ -2809,6 +2810,37 @@ lfoState.forEach((lfo, lfoIndex) => {
             });
             displayContainer.appendChild(noteBlock);
          });
+      }
+
+      function updateFeelPatternPreview(knobId) {
+          const state = knobState[knobId];
+          const container = state?.dom?.feelPatternPreview || document.getElementById(`feel-pattern-preview-${knobId}`);
+          if (!state || !container) return;
+
+          const feelValue = typeof state.feelKnobValue === 'number' ? state.feelKnobValue : 0;
+          const pIndex = Math.min(NUM_FEEL_PATTERNS - 1, Math.floor(feelValue * NUM_FEEL_PATTERNS));
+
+          if (pIndex === 0) {
+              container.innerHTML = '';
+              container.classList.add('hidden');
+              container.setAttribute('aria-hidden', 'true');
+              return;
+          }
+
+          const pattern = EUCLIDEAN_PATTERNS[pIndex] || [];
+          container.innerHTML = '';
+          pattern.forEach((step, idx) => {
+              const dot = document.createElement('span');
+              dot.className = 'feel-pattern-step';
+              if (step === 1) {
+                  dot.classList.add('on');
+              }
+              dot.setAttribute('aria-label', `Pattern step ${idx + 1}: ${step === 1 ? 'note' : 'rest'}`);
+              container.appendChild(dot);
+          });
+
+          container.classList.remove('hidden');
+          container.setAttribute('aria-hidden', 'false');
       }
       
        function getRandomWaveValue() {
@@ -3590,6 +3622,7 @@ function setFxValue(id, value, forceVisualUpdate = false) {
                     state.feelKnobValue = d.value;
                     state.currentFeelPattern = EUCLIDEAN_PATTERNS[pIndex];
                     if (state.dom.feelDisplay) state.dom.feelDisplay.textContent = pIndex + 1;
+                    updateFeelPatternPreview(knobId);
                 } else if (id === 24 || id === 25) {
                     state.arpTranspose = Math.floor((d.value * 24) - 12);
                     if (state.dom.transposeDisplay) state.dom.transposeDisplay.textContent = state.arpTranspose;
@@ -4530,6 +4563,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                s.dom.arpSwitch = document.getElementById(`arp-switch-${id}`); s.dom.arpControlsContainer = s.dom.arpSwitch?.parentElement?.nextElementSibling;
                s.dom.arpModeSwitch = document.getElementById(`arp-mode-switch-${id}`); s.dom.octsDisplay = document.getElementById(`octs-display-${id}`);
                s.dom.feelDisplay = document.getElementById(`feel-display-${id}`); s.dom.arpNoteDisplay = document.getElementById(`arp-note-display-${id}`);
+               s.dom.feelPatternPreview = document.getElementById(`feel-pattern-preview-${id}`);
                s.dom.transposeDisplay = document.getElementById(`transpose-display-${id}`);
                s.dom.rateDisplay = document.getElementById(`rate-display-${id}`);
       
@@ -4589,7 +4623,9 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                    } 
                });
            });
-      
+
+           knobState.forEach(k => updateFeelPatternPreview(k.id));
+
            document.addEventListener('mousemove',updateKnobPosition); document.addEventListener('mouseup',handleInteractionEnd);
            document.addEventListener('touchmove',updateKnobPosition,{passive:false}); document.addEventListener('touchend',handleInteractionEnd);
            document.addEventListener('touchcancel', handleInteractionEnd); document.addEventListener('keydown',handleKeyDown); document.addEventListener('keyup',handleKeyUp);

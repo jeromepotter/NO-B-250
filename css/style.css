@@ -418,13 +418,44 @@ body.lfo-mode #lfo-lock-container {
       .sequence-display-container {
         display: flex;
         justify-content: center;
-        width: 100%; 
+        width: 100%;
         max-width: 240px;
         margin-left: auto;
         margin-right: auto;
         padding: 4px 0;
-        box-sizing: content-box; 
+        box-sizing: content-box;
       }
+
+.feel-pattern-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  width: 100%;
+  max-width: 240px;
+  margin: 4px auto 2px;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 9999px;
+  box-sizing: border-box;
+}
+
+.feel-pattern-step {
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  background: transparent;
+  opacity: 0.6;
+}
+
+.feel-pattern-step.on {
+  background: #ffffff;
+  border-color: #ffffff;
+  opacity: 1;
+}
      .sequence-note-block.muted {
      opacity: 0.4;
      transform: scale(0.8);
