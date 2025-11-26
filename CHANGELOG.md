@@ -2,6 +2,13 @@
 ### Future Plans
 - "Split" Presets, taking advantage of dual voices with independent waveforms
 - "complex" random arp and sound
+
+## [11.26] - 2025-11-26
+###Changed
+- Quantization for BPM mode
+
+### Added
+- FEELS rest Indicator
   
 ## [11.25] - 2025-11-25
 ### Added
