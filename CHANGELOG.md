@@ -1,6 +1,11 @@
 # Changelog
 
+## [11.25] - 2025-11-25
+### Added
+- **Share Feature:** Added a SHARE button to the main header. This generates a compressed, unique URL containing the full synthesizer state (Knobs, FX, Arps, LFOs, Tempo Mode), allowing users to share patches instantly.
 
+
+  
 ## [11.24] - 2025-11-24
 ### Added
 - New Presets incuding new "Hero Preset" and new INIT Patch
