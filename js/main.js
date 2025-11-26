@@ -2486,7 +2486,7 @@ lfoState.forEach((lfo, lfoIndex) => {
 });
 
 if (transposeWasModulated && modulatedTranspose !== previousModulatedTranspose) {
-    updateSequenceDisplay(knobId, { transposeOverride: modulatedTranspose, skipIfSameTranspose: true });
+    updateSequenceDisplay(knobId, { transposeOverride: modulatedTranspose, skipIfSameTranspose: true, updateColorsOnly: true });
 }
            const isBpmMode = tempoMode === TEMPO_MODE_BPM;
            if (isBpmMode) {
@@ -2671,23 +2671,44 @@ if (transposeWasModulated && modulatedTranspose !== previousModulatedTranspose) 
            names.forEach(name => { const opt = document.createElement('option'); opt.value = name; opt.textContent = name.toUpperCase(); scaleSelector.appendChild(opt); });
        }
       
-     function updateSequenceDisplay(knobId, options = {}) {
-         const { transposeOverride = null, skipIfSameTranspose = false } = options;
-         const state = knobState[knobId];
-         const displayContainer = document.getElementById(`arp-sequence-display-${knobId}`);
-         if (!state || !displayContainer) return;
-         const effectiveTranspose = Number.isFinite(transposeOverride) ? transposeOverride : state.arpTranspose;
+    function updateSequenceDisplay(knobId, options = {}) {
+        const { transposeOverride = null, skipIfSameTranspose = false, updateColorsOnly = false } = options;
+        const state = knobState[knobId];
+        const displayContainer = document.getElementById(`arp-sequence-display-${knobId}`);
+        if (!state || !displayContainer) return;
+        const effectiveTranspose = Number.isFinite(transposeOverride) ? transposeOverride : state.arpTranspose;
 
-         if (skipIfSameTranspose && state.lastRenderedTranspose === effectiveTranspose) {
-             return;
-         }
-         state.lastRenderedTranspose = effectiveTranspose;
+        if (skipIfSameTranspose && state.lastRenderedTranspose === effectiveTranspose) {
+            return;
+        }
+        state.lastRenderedTranspose = effectiveTranspose;
 
-         displayContainer.innerHTML = '';
+        const fullScaleMidi = getFullScaleMidi();
 
-         const fullScaleMidi = getFullScaleMidi();
+        const canReuseBlocks = updateColorsOnly && displayContainer.children.length === state.arpNotes.length;
 
-         state.arpNotes.forEach((noteObj, index) => {
+        if (canReuseBlocks) {
+            state.arpNotes.forEach((noteObj, index) => {
+                const noteBlock = displayContainer.children[index];
+                if (!noteBlock) return;
+
+                let baseNoteIndexInScale = fullScaleMidi.indexOf(noteObj.midi);
+                let transposedMidi = noteObj.midi; // Default to original note if not in scale
+                if (baseNoteIndexInScale !== -1) {
+                    const transposedNoteIndex = baseNoteIndexInScale + effectiveTranspose;
+                    transposedMidi = fullScaleMidi[Math.max(0, Math.min(fullScaleMidi.length - 1, transposedNoteIndex))];
+                }
+
+                const { r, g, b } = getArpNoteColor(transposedMidi);
+                noteBlock.style.backgroundColor = `rgb(${r},${g},${b})`;
+                noteBlock.classList.toggle('muted', !noteObj.active);
+            });
+            return;
+        }
+
+        displayContainer.innerHTML = '';
+
+        state.arpNotes.forEach((noteObj, index) => {
             const noteBlock = document.createElement('span');
             noteBlock.className = 'sequence-note-block';
             noteBlock.style.cursor = 'pointer';
@@ -2733,8 +2754,8 @@ if (transposeWasModulated && modulatedTranspose !== previousModulatedTranspose) 
                 }
             });
             displayContainer.appendChild(noteBlock);
-         });
-      }
+        });
+    }
       
        function getRandomWaveValue() {
            const waveCount = VOICE_WAVEFORMS.length || 1;
