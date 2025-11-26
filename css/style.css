@@ -436,20 +436,21 @@ body.lfo-mode #lfo-lock-container {
   margin: 2px auto 1px;
   padding: 0;
   box-sizing: border-box;
+  --feel-preview-color: rgba(255, 255, 255, 0.85);
 }
 
 .feel-pattern-step {
   width: 6px;
   height: 6px;
   border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.85);
+  border: 1px solid var(--feel-preview-color);
   background: transparent;
   opacity: 0.6;
 }
 
 .feel-pattern-step.on {
-  background: #ffffff;
-  border-color: #ffffff;
+  background: var(--feel-preview-color);
+  border-color: var(--feel-preview-color);
   opacity: 1;
 }
      .sequence-note-block.muted {

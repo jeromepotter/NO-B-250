@@ -2755,12 +2755,26 @@ lfoState.forEach((lfo, lfoIndex) => {
            names.forEach(name => { const opt = document.createElement('option'); opt.value = name; opt.textContent = name.toUpperCase(); scaleSelector.appendChild(opt); });
        }
       
-     function updateSequenceDisplay(knobId) {
+      function getDisplayNoteColor(noteObj, state, fullScaleMidi) {
+          if (!noteObj || !state) return { r: 255, g: 255, b: 255 };
+          const scale = fullScaleMidi || getFullScaleMidi();
+          const baseIndex = scale.indexOf(noteObj.midi);
+          let transposedMidi = noteObj.midi;
+
+          if (baseIndex !== -1) {
+              const transposedIndex = baseIndex + state.arpTranspose;
+              transposedMidi = scale[Math.max(0, Math.min(scale.length - 1, transposedIndex))];
+          }
+
+          return getArpNoteColor(transposedMidi);
+      }
+
+      function updateSequenceDisplay(knobId) {
          const state = knobState[knobId];
          const displayContainer = document.getElementById(`arp-sequence-display-${knobId}`);
          if (!displayContainer) return;
          displayContainer.innerHTML = '';
-         
+
          const fullScaleMidi = getFullScaleMidi();
 
          state.arpNotes.forEach((noteObj, index) => {
@@ -2768,14 +2782,7 @@ lfoState.forEach((lfo, lfoIndex) => {
             noteBlock.className = 'sequence-note-block';
             noteBlock.style.cursor = 'pointer';
 
-            let baseNoteIndexInScale = fullScaleMidi.indexOf(noteObj.midi);
-            let transposedMidi = noteObj.midi; // Default to original note if not in scale
-            if (baseNoteIndexInScale !== -1) {
-                const transposedNoteIndex = baseNoteIndexInScale + state.arpTranspose;
-                transposedMidi = fullScaleMidi[Math.max(0, Math.min(fullScaleMidi.length - 1, transposedNoteIndex))];
-            }
-            
-            const { r, g, b } = getArpNoteColor(transposedMidi);
+            const { r, g, b } = getDisplayNoteColor(noteObj, state, fullScaleMidi);
             noteBlock.style.backgroundColor = `rgb(${r},${g},${b})`;
             noteBlock.classList.toggle('muted', !noteObj.active);
             
@@ -2836,6 +2843,12 @@ lfoState.forEach((lfo, lfoIndex) => {
 
           const pattern = EUCLIDEAN_PATTERNS[pIndex] || [];
           container.innerHTML = '';
+
+          const basePreviewColor = getArpNoteColor(getMidiNote(knobId));
+          const firstActiveNote = (state.arpNotes || []).find(n => n.active) || state.arpNotes[0];
+          const previewColor = firstActiveNote ? getDisplayNoteColor(firstActiveNote, state, getFullScaleMidi()) : basePreviewColor;
+          container.style.setProperty('--feel-preview-color', `rgb(${previewColor.r}, ${previewColor.g}, ${previewColor.b})`);
+
           pattern.forEach((step, idx) => {
               const dot = document.createElement('span');
               dot.className = 'feel-pattern-step';
