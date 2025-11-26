@@ -3923,7 +3923,7 @@ function generateAndApplyRandomSound() {
                closeHowToModal();
           });
 
-          addTouchListener(modalOverlay, (event) => {
+        modalOverlay.addEventListener('click', (event) => {
                if (event.target === modalOverlay) {
                     closeHowToModal();
                }
@@ -4666,6 +4666,7 @@ function generateAndApplyRandomSound() {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
