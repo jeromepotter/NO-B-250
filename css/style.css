@@ -466,11 +466,13 @@ body.lfo-mode #lfo-lock-container {
   --feel-preview-color: rgba(255, 255, 255, 0.85);
 }
 
-feel-pattern-step {
-  /* 8px is the "Goldilocks" size for mobile: clearly visible but fits safely */
+.feel-pattern-step {
   width: 8px;
   height: 8px;
-  border-radius: 9999px;
+  
+  /* CHANGE: 2px makes them "soft squares" (squircles). Set to 0px for sharp squares. */
+  border-radius: 0px; 
+  
   border: 1px solid var(--feel-preview-color);
   background: transparent;
   opacity: 0.6;
@@ -561,6 +563,7 @@ feel-pattern-step {
     height: 10px;
   }
 }
+
 
 
 
