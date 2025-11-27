@@ -1422,7 +1422,10 @@ function generateComplexRandomLfoState(includeArpTargets = true) {
 
       function decodePresetFromUrl(encodedPreset) {
            if (!encodedPreset) return null;
-           const decompressed = LZString.decompressFromEncodedURIComponent(encodedPreset);
+           // Messaging apps sometimes wrap long URLs and insert whitespace/newlines into query params.
+           // Strip them out so the compressed payload survives copy/paste before decoding.
+           const sanitizedPreset = String(encodedPreset).trim().replace(/\s+/g, '');
+           const decompressed = LZString.decompressFromEncodedURIComponent(sanitizedPreset);
            if (decompressed) return JSON.parse(decompressed);
 
            // Backward compatibility: fall back to legacy base64 URLs
@@ -1432,7 +1435,10 @@ function generateComplexRandomLfoState(includeArpTargets = true) {
                .padEnd(base64Url.length + ((4 - (base64Url.length % 4)) % 4), '=');
 
            try {
-               const decoded = decodeURIComponent(escape(atob(fromBase64Url(encodedPreset))));
+               if (sanitizedPreset !== encodedPreset) {
+                   console.debug('decodePresetFromUrl: attempting legacy base64 decode after whitespace stripping');
+               }
+               const decoded = decodeURIComponent(escape(atob(fromBase64Url(sanitizedPreset))));
                return JSON.parse(decoded);
            } catch (err) {
                console.error('Failed to decode preset from URL', err);
