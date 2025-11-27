@@ -19,10 +19,11 @@
   --color-egg-blue: oklch(0.642 0.12 223.1);
   --color-egg-indigo: oklch(0.424 0.16 265.6);
   --color-soft-stone: oklch(0.886 0.018 113.9);
+  --color-egg-sand: oklch(0.786 0.064 74.6);
 }
 
 body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); touch-action: manipulation; color: var(--color-text); overflow-y: auto; -webkit-user-select: none; -ms-user-select: none; user-select: none; }
-      .text-yellow-300 { color: var(--color-accent-yellow) !important; }
+      .text-yellow-300 { color: var(--color-accent-yellow); }
       .knob-border { border: 2px solid var(--color-surface); box-shadow: 0 0 0 2px var(--color-surface); }
       .main-knob { cursor: grab; aspect-ratio: 1 / 1; transition: background-color 0.05s linear; width: 100%; }
       #knob-indicator-1, #knob-indicator-2 {
@@ -234,8 +235,8 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
       .main-knob.knob-active {
       box-shadow: 0 0 0 2px var(--color-surface), inset 0 0 0 2px var(--color-text); background-color: var(--color-text);
       mix-blend-mode: difference;}
-      body.easter-egg-mode { 
-      background-color: var(--color-soft-stone);
+      body.easter-egg-mode {
+      background-color: var(--color-egg-sand);
       color: var(--color-text-dark, #000000);
       }
 .main-knob.lfo-target {
@@ -268,7 +269,7 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
       body.easter-egg-mode #note-display-1,
       body.easter-egg-mode #note-display-2,
       body.easter-egg-mode .arp-note-indicator {
-      color: var(--color-egg-indigo);
+      color: var(--color-egg-blue) !important;
       }
       body.easter-egg-mode .how-to-guide {
         color: var(--color-text);
@@ -316,7 +317,7 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
    body.easter-egg-mode.lfo-mode #note-display-1,
 body.easter-egg-mode.lfo-mode #note-display-2,
    body.easter-egg-mode.lfo-mode .arp-note-indicator {
-  color: var(--color-egg-orange);
+  color: var(--color-egg-orange) !important;
 }
 
 #lfo-lock-container {
