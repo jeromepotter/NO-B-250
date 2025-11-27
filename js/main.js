@@ -975,16 +975,26 @@ function generateComplexRandomLfoState(includeArpTargets = true) {
                customScale: scaleSelector.value === 'Custom' ? customScale : [],
                allowDuplicateNotesMode: allowDuplicateNotesMode,
                isLfoMode: isLfoMode,
-               // 2. Apply 'trim' to all float values below
-               lfoState: lfoState.map(lfo => ({
-                   rate: trim(lfo.rate),
-                   depth: trim(lfo.depth),
-                   wave: lfo.wave,
-                   dest: lfo.dest,
-                   destChain: getLfoDestChain(lfo),
-                   tempoSync: lfoTempoLinkState[lfo.id]?.enabled || false,
-                   storedFreeValue: trim(lfoTempoLinkState[lfo.id]?.storedFreeValue ?? 0.5)
-                })),
+             lfoState: lfoState.map(lfo => {
+            const obj = {};
+            // Only save values if they differ from defaults
+            if (lfo.rate > 0) obj.rate = trim(lfo.rate);
+            if (lfo.depth > 0) obj.depth = trim(lfo.depth);
+            if (lfo.wave !== 0) obj.wave = lfo.wave; // Assumes 0 is default
+            if (lfo.dest !== -1) obj.dest = lfo.dest; // Assumes -1 is default
+            
+            // Only save chain if it has more than just the primary dest
+            const chain = getLfoDestChain(lfo);
+            if (chain.length > 1) obj.destChain = chain;
+
+            if (lfoTempoLinkState[lfo.id]?.enabled) obj.tempoSync = true;
+            
+            const freeVal = trim(lfoTempoLinkState[lfo.id]?.storedFreeValue ?? 0.5);
+            if (freeVal !== 0.5) obj.storedFreeValue = freeVal;
+
+            return obj;
+             }),
+
                knobSettings: knobState.map(k => ({ id: k.id, totalAngle: trim(k.totalAngle) })),
               // FILTERED FX SETTINGS: 
                // Only save if value > 0 OR if it's a special knob where 0 is meaningful (non-default).
@@ -1416,29 +1426,56 @@ function generateComplexRandomLfoState(includeArpTargets = true) {
       };
 
       function encodePresetForUrl(presetObj) {
-           const json = JSON.stringify(presetObj);
-           return LZString.compressToEncodedURIComponent(json) || '';
-      }
+    try {
+        const json = JSON.stringify(presetObj);
+        const base64 = LZString.compressToBase64(json) || '';
 
-      function decodePresetFromUrl(encodedPreset) {
-           if (!encodedPreset) return null;
-           const decompressed = LZString.decompressFromEncodedURIComponent(encodedPreset);
-           if (decompressed) return JSON.parse(decompressed);
+        // CUSTOM SAFE ENCODING:
+        // 1. Replace '+' with '~' (instead of '-') to prevent iMessage line breaks.
+        // 2. Replace '/' with '_' (standard URL safe).
+        // 3. Remove padding '='.
+        return base64
+            .replace(/\+/g, '~') 
+            .replace(/\//g, '_')
+            .replace(/=+$/g, ''); 
+    } catch (err) {
+        console.error('Failed to encode preset', err);
+        return '';
+    }
+}
 
-           // Backward compatibility: fall back to legacy base64 URLs
-           const fromBase64Url = (base64Url) => base64Url
-               .replace(/-/g, '+')
-               .replace(/_/g, '/')
-               .padEnd(base64Url.length + ((4 - (base64Url.length % 4)) % 4), '=');
+function decodePresetFromUrl(encodedPreset) {
+    if (!encodedPreset) return null;
 
-           try {
-               const decoded = decodeURIComponent(escape(atob(fromBase64Url(encodedPreset))));
-               return JSON.parse(decoded);
-           } catch (err) {
-               console.error('Failed to decode preset from URL', err);
-               return null;
-           }
-      }
+    // Helper to restore standard Base64 from our safe formats
+    const restoreBase64 = (str) => {
+        // robustness: handle both '~' (new safe char) and '-' (standard/legacy) as '+'
+        const safeStr = str.replace(/[~-]/g, '+').replace(/_/g, '/');
+        const padLen = (4 - (safeStr.length % 4)) % 4;
+        return safeStr + '='.repeat(padLen);
+    };
+
+    // 1. Try Base64 (New Dash-Free & Standard Base64URL)
+    try {
+        const decompressed = LZString.decompressFromBase64(restoreBase64(encodedPreset));
+        if (decompressed) {
+            const parsed = JSON.parse(decompressed);
+            if (parsed) return parsed;
+        }
+    } catch (e) {
+        // Fall through to legacy
+    }
+
+    // 2. Fallback: Legacy LZString EncodedURIComponent (The format breaking currently)
+    try {
+        const decompressed = LZString.decompressFromEncodedURIComponent(encodedPreset);
+        if (decompressed) return JSON.parse(decompressed);
+    } catch (e) {
+        // Fall through
+    }
+
+    return null;
+}
 
       function generateShareableUrl() {
            try {
@@ -4888,6 +4925,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
