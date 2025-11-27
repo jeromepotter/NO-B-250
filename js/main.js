@@ -1424,7 +1424,9 @@ function generateComplexRandomLfoState(includeArpTargets = true) {
            if (!encodedPreset) return null;
            // Messaging apps sometimes wrap long URLs and insert whitespace/newlines into query params.
            // Strip them out so the compressed payload survives copy/paste before decoding.
-           const sanitizedPreset = String(encodedPreset).trim().replace(/\s+/g, '');
+           const normalizedPreset = String(encodedPreset).trim().replace(/[\u200B-\u200D\uFEFF]/g, '');
+           const restoredPlusPreset = normalizedPreset.replace(/ /g, '+');
+           const sanitizedPreset = restoredPlusPreset.replace(/\s+/g, '');
            const fromBase64Url = (base64Url) => base64Url
                .replace(/-/g, '+')
                .replace(/_/g, '/')
