@@ -498,10 +498,13 @@ body.lfo-mode #lfo-lock-container {
         box-shadow: 0 0 500px 14px rgba(255, 255, 255, 0.8), 0 0 0 2px var(--color-surface);
         }
       }
+@keyframes note-retrigger {
+  0% { opacity: 0.6; transform: scale(0.95); } /* Subtle dip to make it visible */
+  100% { opacity: 1; transform: scale(1); }
+}
     .sequence-note-block.playhead {
   opacity: 1 !important;
-  
-  
+animation: note-retrigger 0.08s ease-out;
   box-shadow: 
     0 0 10px var(--color-accent-yellow); /* Outer glow */
     
@@ -587,6 +590,7 @@ body.lfo-mode #lfo-lock-container {
   box-shadow: 0 0 5px rgba(255, 255, 255, 0.9);
   z-index: 10;
 }
+
 
 
 
