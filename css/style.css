@@ -498,10 +498,20 @@ body.lfo-mode #lfo-lock-container {
         box-shadow: 0 0 500px 14px rgba(255, 255, 255, 0.8), 0 0 0 2px var(--color-surface);
         }
       }
-     .sequence-note-block.playhead {
-        opacity: 1;
-      }
-/* In css/style.css */
+    .sequence-note-block.playhead {
+  opacity: 1 !important;
+  
+  
+  box-shadow: 
+    inset 0 0 0 2px #ffffff, /* Inner white border */
+    0 0 10px var(--color-accent-yellow); /* Outer glow */
+    
+  /* 4. Brighten the color itself */
+  filter: brightness(1.2);
+  
+  /* Ensure it sits on top */
+  z-index: 5;
+}
 
 .sequence-note-block.playhead-skipped {
   background: transparent !important;
@@ -578,6 +588,7 @@ body.lfo-mode #lfo-lock-container {
   box-shadow: 0 0 5px rgba(255, 255, 255, 0.9);
   z-index: 10;
 }
+
 
 
 
