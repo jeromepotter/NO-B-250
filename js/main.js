@@ -986,7 +986,14 @@ function generateComplexRandomLfoState(includeArpTargets = true) {
                    storedFreeValue: trim(lfoTempoLinkState[lfo.id]?.storedFreeValue ?? 0.5)
                 })),
                knobSettings: knobState.map(k => ({ id: k.id, totalAngle: trim(k.totalAngle) })),
-               fxSettings: Object.values(fxKnobData).map(k => ({ id: k.id, value: trim(k.value) })),
+              // FILTERED FX SETTINGS: 
+               // Only save if value > 0 OR if it's a special knob where 0 is meaningful (non-default).
+               // IDs to keep even at 0: 
+               // 2 (Master Filter), 7 (Master Vol), 10 (Sustain), 
+               // 16/17 (Rates), 20/21 (Osc Filters), 24/25 (Transpose), 26/27 (Osc Vol)
+               fxSettings: Object.values(fxKnobData)
+                   .map(k => ({ id: k.id, value: trim(k.value) }))
+                   .filter(s => s.value > 0 || [2, 7, 10, 16, 17, 20, 21, 24, 25, 26, 27].includes(s.id)),
                arpSettings: { 
                    isArpRateSynced: isArpRateSynced, 
                    currentArpOrder: currentArpOrder, 
@@ -4872,6 +4879,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
