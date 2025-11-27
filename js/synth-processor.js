@@ -346,13 +346,15 @@ const LFO_DEST_NONE = -1;
                                else if(id===10){ this.sustainLevel=value; } else if(id===11){ this.releaseTime=0.001+Math.pow(value,2)*1.25; this.releaseRate=Math.exp(-1/(this.releaseTime*sampleRate)); }
                                // Reverb Params Mapping
                                else if(id===13){ 
-                                   // Map 0-1 knob to useful RT60 ranges
-                                   // lowRt60: 0.5s to 3.5s
-                                   // midRt60: 0.4s to 2.9s
-                                   this.zita.params.lowRt60 = 0.5 + value * 3.0;
-                                   this.zita.params.midRt60 = 0.4 + value * 2.5;
-                                   this.zita.params.hfDamp = 3000 + value * 5000;
-                               }
+                                // Map 0-1 knob to LARGER RT60 ranges
+                                // lowRt60: 0.5s -> 5.5s (Huge bass decay)
+                                 // midRt60: 0.4s -> 4.5s (Long atmospheric tail)
+                                   this.zita.params.lowRt60 = 0.5 + value * 5.0;
+                                   this.zita.params.midRt60 = 0.4 + value * 4.1;
+    
+                                  // Open up the filter as the room gets bigger (same as before)
+                                    this.zita.params.hfDamp = 3000 + value * 5000;
+                                      }
                                else if (id===20 || id===28){ this.updateFilterCoefficients(this.filterOsc1Coeffs, this.params[20], this.params[28]); } 
                                else if(id===21 || id===29){ this.updateFilterCoefficients(this.filterOsc2Coeffs, this.params[21], this.params[29]); }
                                break;
@@ -821,3 +823,4 @@ return true;
 }
 }
 registerProcessor('synth-processor', SynthProcessor);
+
