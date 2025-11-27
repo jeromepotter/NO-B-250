@@ -2918,6 +2918,7 @@ lfoState.forEach((lfo, lfoIndex) => {
               container.innerHTML = '';
               container.classList.add('hidden');
               container.setAttribute('aria-hidden', 'true');
+              state.lastRenderedFeelPattern = null; // Reset cache
               return;
           }
 
@@ -2925,8 +2926,8 @@ lfoState.forEach((lfo, lfoIndex) => {
           const pIndex = Math.min(NUM_FEEL_PATTERNS - 1, Math.floor(feelValue * NUM_FEEL_PATTERNS));
 
           const pattern = EUCLIDEAN_PATTERNS[pIndex] || [];
-          container.innerHTML = '';
-
+          
+          // 1. Always update the color variable so it reacts to note changes
           const noteDisplayEl = state.dom?.noteDisplay || document.getElementById(`note-display-${knobId + 1}`);
           const computedColor = noteDisplayEl ? window.getComputedStyle(noteDisplayEl).color : '';
           if (computedColor) {
@@ -2936,6 +2937,16 @@ lfoState.forEach((lfo, lfoIndex) => {
               container.style.setProperty('--feel-preview-color', `rgb(${fallbackColor.r}, ${fallbackColor.g}, ${fallbackColor.b})`);
           }
 
+          // 2. OPTIMIZATION: Only rebuild the DOM if the pattern structure changed.
+          // This prevents wiping the 'playhead' class that updateArpeggiator adds.
+          if (state.lastRenderedFeelPattern === pattern) {
+              return;
+          }
+          state.lastRenderedFeelPattern = pattern;
+
+          container.innerHTML = '';
+
+          // ... existing dot generation code ...
           pattern.forEach((step, idx) => {
               const dot = document.createElement('span');
               dot.className = 'feel-pattern-step';
@@ -4943,6 +4954,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
