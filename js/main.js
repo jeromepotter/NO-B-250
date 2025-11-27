@@ -2685,19 +2685,15 @@ lfoState.forEach((lfo, lfoIndex) => {
                        // Check if the Euclidean rhythm says "Skip" (0) for this specific step
                        const isFeelSkipped = modulatedFeelPattern[state.euclideanStepCounter % modulatedFeelPattern.length] === 0;
                        
-                       // If the note is active (user wants it) BUT the Feel knob says "Skip" -> Ghost Playhead
-                       if (baseNoteObject.active && isFeelSkipped) {
-                           blocks[visualIndex].classList.add('playhead-skipped');
-                       } else {
-                           // Otherwise use the standard White Playhead
+                       // ONLY show the playhead if the note is actually playing (not skipped)
+                       if (!isFeelSkipped) {
                            blocks[visualIndex].classList.add('playhead');
+                           state.arpLastVisualIndex = visualIndex;
+                       } else {
+                           // If skipped, do nothing (no ghost notes)
+                           state.arpLastVisualIndex = -1; 
                        }
-                       
-                       state.arpLastVisualIndex = visualIndex;
-                   } else {
-                       state.arpLastVisualIndex = -1;
                    }
-               }
     
               const fullScaleMidi = getFullScaleMidi();
                let baseNoteIndexInScale = fullScaleMidi.indexOf(baseMidi);
@@ -2858,13 +2854,6 @@ lfoState.forEach((lfo, lfoIndex) => {
 
           const feelValue = typeof state.feelKnobValue === 'number' ? state.feelKnobValue : 0;
           const pIndex = Math.min(NUM_FEEL_PATTERNS - 1, Math.floor(feelValue * NUM_FEEL_PATTERNS));
-
-          if (pIndex === 0) {
-              container.innerHTML = '';
-              container.classList.add('hidden');
-              container.setAttribute('aria-hidden', 'true');
-              return;
-          }
 
           const pattern = EUCLIDEAN_PATTERNS[pIndex] || [];
           container.innerHTML = '';
@@ -4876,6 +4865,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
