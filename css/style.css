@@ -458,16 +458,18 @@ body.lfo-mode #lfo-lock-container {
   gap: 2px;
   flex-wrap: nowrap;
   width: auto;
-  max-width: 160px;
+  /* 8px dots need about 158px. 165px gives a tiny safety buffer. */
+  max-width: 165px; 
   margin: 2px auto 1px;
   padding: 0;
   box-sizing: border-box;
   --feel-preview-color: rgba(255, 255, 255, 0.85);
 }
 
-.feel-pattern-step {
-  width: 6px;
-  height: 6px;
+feel-pattern-step {
+  /* 8px is the "Goldilocks" size for mobile: clearly visible but fits safely */
+  width: 8px;
+  height: 8px;
   border-radius: 9999px;
   border: 1px solid var(--feel-preview-color);
   background: transparent;
@@ -547,6 +549,19 @@ body.lfo-mode #lfo-lock-container {
   }
   
 }
+@media (min-width: 768px) {
+  .feel-pattern-preview {
+    /* More room on desktop, let them expand */
+    max-width: 220px;
+  }
+
+  .feel-pattern-step {
+    /* Big, clear 10px dots for mouse users */
+    width: 10px;
+    height: 10px;
+  }
+}
+
 
 
 
