@@ -22,7 +22,7 @@
   --color-soft-stone: oklch(0.886 0.018 113.9);
   --color-egg-sand: oklch(0.786 0.064 74.6);
   /* New darker tan for pop */
-  --color-dark-tan: oklch(0.42 0.06 74.6);
+  --color-dark-tan: oklch(0.5412 0.06 74.6);
 }
 
 body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); touch-action: manipulation; color: var(--color-text); overflow-y: auto; -webkit-user-select: none; -ms-user-select: none; user-select: none; }
@@ -316,6 +316,7 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
       }
       body.easter-egg-mode.lfo-mode {
   background-color: var(--color-dark-tan);
+  color: var(--color-text-dark, #000000);
     }
    body.easter-egg-mode.lfo-mode #note-display-1,
 body.easter-egg-mode.lfo-mode #note-display-2,
@@ -332,14 +333,14 @@ body.lfo-mode #lfo-lock-container {
 }
 
         body.easter-egg-mode.lfo-mode .retro-select {
-  color: white;
-  border-color: white;
+  color: var(--color-text-dark, #000000);
+  border-color: var(--color-text-dark, #000000);
   background-color: var(--color-dark-tan); /* Match the background */
 }
 
 	body.easter-egg-mode.lfo-mode .retro-select option {
   background-color: var(--color-dark-tan);
-  color: white;
+  color: var(--color-text-dark, #000000);
 }
       #lfo-grid-container {
         display: none;
