@@ -177,7 +177,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
        const KNOB_KEY_SPEED = 6; const MAX_TOTAL_ANGLE = 360*8;
        const MIN_FX_ANGLE = -135, MAX_FX_ANGLE = 135;
        const COLOR_BLUE = [30, 58, 138], COLOR_YELLOW = [250, 204, 21], COLOR_GREEN = [132, 204, 22], COLOR_RED = [220, 38, 38];
-       const ARP_NOTE_BASE_HSL = [{h:6,s:.76,l:0.32},{h:24,s:.72,l:0.42},{h:15,s:.576,l:0.536},{h:33,s:.59,l:0.49},{h:360,s:.364,l:0.6},{h:54,s:0.58,l:0.284},{h:156,s:.38,l:0.6},{h:202,s:.852,l:0.29},{h:223,s:.852,l:0.479},{h:280,s:.203,l:0.48},{h:208,s:0.2,l:0.3},{h:275.4,s:0.1,l:0.25}];
+       const ARP_NOTE_BASE_HSL = [{h:6,s:.76,l:0.32},{h:24,s:.72,l:0.42},{h:15,s:.576,l:0.536},{h:33,s:.59,l:0.49},{h:360,s:.364,l:0.6},{h:54,s:0.58,l:0.284},{h:156,s:.38,l:0.6},{h:202,s:.852,l:0.29},{h:223,s:.852,l:0.479},{h:280,s:.203,l:0.48},{h:208,s:0.6,l:0.65},{h:275.4,s:0.6,l:0.65}];       
        const ARP_OCTAVE_LIGHTNESS_FACTOR = 0.04;
        const EUCLIDEAN_PATTERNS = [[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0],[1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0],[1,0,0,1,0,0,1,0,1,0,0,1,0,0,1,0],[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,0],[1,0,1,0,1,0,1,1,0,1,0,1,0,1,0,0],[1,0,1,1,0,1,0,1,1,0,1,0,1,1,0,1],[1,1,0,1,1,0,1,1,0,1,1,0,1,1,0,1],[1,1,1,0,1,1,1,1,0,1,1,1,1,0,1,1]];
        const NUM_FEEL_PATTERNS = EUCLIDEAN_PATTERNS.length;
@@ -4872,6 +4872,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
