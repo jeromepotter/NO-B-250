@@ -2694,6 +2694,7 @@ lfoState.forEach((lfo, lfoIndex) => {
                            state.arpLastVisualIndex = -1; 
                        }
                    }
+              }
     
               const fullScaleMidi = getFullScaleMidi();
                let baseNoteIndexInScale = fullScaleMidi.indexOf(baseMidi);
@@ -4865,6 +4866,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
