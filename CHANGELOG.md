@@ -1,14 +1,23 @@
 # Changelog
 ### Future Plans
 - "Split" Presets, taking advantage of dual voices with independent waveforms
-- "complex" random arp and sound
+## [11.27] - 2025-11-27
+### Added
+-Zita Reverb by Gregory Bowler ( https://github.com/gregoryhbowler/reverb1 )
+
+###
+- Changed Background Colors for LFO mode same as their respective modes
+
 
 ## [11.26] - 2025-11-26
-###Changed
+### Changed
 - Quantization for BPM mode
+- 4 notes per row on editable note sequencer
 
 ### Added
-- FEELS rest Indicator
+- FEELS pattern display with a playhead
+- Complex Random Arp and Sound
+
   
 ## [11.25] - 2025-11-25
 ### Added
