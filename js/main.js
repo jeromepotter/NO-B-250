@@ -33,8 +33,8 @@
         const MAIN_LFO_DEST_IDS = { 0: 300, 1: 301 };
         const LFO_DEST_TO_MAIN_KNOB = { 300: 0, 301: 1 };
         const LFO_DEST_NONE = -1;
-        const LFO_CABLE_COLORS = ['#FF9900', '#42A5F5', '#EC407A', '#9CCC65'];
-        const LFO_CABLE_TARGET_COLORS = ['#FF1A00', '#FFFFFF', '#8E24AA', '#8B5A2B'];
+        const LFO_CABLE_COLORS = ['#fa9c2d', '#35a5fb', '#d85b7e', '#98ce57'];
+        const LFO_CABLE_TARGET_COLORS = ['#ae332c', '#ffffff', '#843b9a', '#a44a00'];
         const lfoState = [
     { id: 0, rate: 0.5, depth: 0, wave: 0, dest: LFO_DEST_NONE, destChain: [], phase: 0, lastRandom: 0, output: 0 },
     { id: 1, rate: 0.5, depth: 0, wave: 0, dest: LFO_DEST_NONE, destChain: [], phase: 0, lastRandom: 0, output: 0 },
@@ -4545,7 +4545,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                 if (headerTapCount >= 1) { 
                     toggleEasterEggMode();
                     mainHeader.style.transition = 'color 0.1s';
-                    mainHeader.style.color = '#facc15';
+                    mainHeader.style.color = 'var(--color-accent-yellow)';
                     setTimeout(() => { mainHeader.style.color = ''; }, 200);
                     headerTapCount = 0;
                 } else {
