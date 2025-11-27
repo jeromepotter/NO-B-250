@@ -16,7 +16,7 @@
   --color-egg-green: oklch(0.427 0.09 143.7);
   --color-egg-cyan: oklch(0.633 0.09 195.3);
   --color-egg-red: oklch(0.639 0.09 20);
-  --color-egg-blue: oklch(0.642 0.12 223.1);
+  --color-egg-blue: oklch(0.35 0.12 223.1);
   --color-egg-indigo: oklch(0.424 0.16 265.6);
   --color-egg-rust: oklch(0.598 0.11 52.2);
   --color-soft-stone: oklch(0.886 0.018 113.9);
@@ -547,6 +547,7 @@ body.lfo-mode #lfo-lock-container {
   }
   
 }
+
 
 
 
