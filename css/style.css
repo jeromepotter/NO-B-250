@@ -470,17 +470,20 @@ body.lfo-mode #lfo-lock-container {
   width: 8px;
   height: 8px;
   
-  /* CHANGE: 2px makes them "soft squares" (squircles). Set to 0px for sharp squares. */
+  /* Soft square corners */
   border-radius: 0px; 
   
-  border: 1px solid var(--feel-preview-color);
+  /* CHANGE: Set border to 'none' so empty steps are invisible */
+  border: none; 
+  
   background: transparent;
-  opacity: 0.6;
+  
+  /* This keeps them aligned even without borders */
+  display: inline-block; 
 }
 
 .feel-pattern-step.on {
   background: var(--feel-preview-color);
-  border-color: var(--feel-preview-color);
   opacity: 1;
 }
      .sequence-note-block.muted {
@@ -563,6 +566,19 @@ body.lfo-mode #lfo-lock-container {
     height: 10px;
   }
 }
+
+.feel-pattern-step.playhead {
+  /* Force visibility and make it bright white */
+  background-color: #ffffff !important;
+  border: 1px solid #ffffff !important;
+  opacity: 1 !important;
+  
+  /* Make it pop out slightly */
+  transform: scale(1.15);
+  box-shadow: 0 0 5px rgba(255, 255, 255, 0.9);
+  z-index: 10;
+}
+
 
 
 
