@@ -1415,61 +1415,22 @@ function generateComplexRandomLfoState(includeArpTargets = true) {
            },
       };
 
-      let lastGeneratedShareUrl = null;
-
       function encodePresetForUrl(presetObj) {
            const json = JSON.stringify(presetObj);
-           const base64 = LZString.compressToBase64(json) || '';
-
-           // Convert to URL-safe base64 ("base64url") to avoid iMessage/SMS line breaks.
-           // Using percent-encoding produced noticeably longer links that some
-           // messaging clients split across multiple messages.
-           if (base64) {
-               return base64
-                   .replace(/\+/g, '-')
-                   .replace(/\//g, '_')
-                   .replace(/=+$/g, '');
-           }
-
-           // Fallback for rare cases where compression returns an empty string.
-           // Keep the legacy percent-safe encoding so we still produce a usable URL
-           // instead of returning nothing.
-           const uriEncoded = LZString.compressToEncodedURIComponent(json) || '';
-           if (uriEncoded) return uriEncoded;
-
-           // Ultimate fallback: raw URI encoding of the JSON payload. This keeps the
-           // link usable instead of silently producing the base site URL.
-           const rawJson = encodeURIComponent(json);
-           if (rawJson) return rawJson;
-
-           throw new Error('Preset encoding failed');
+           return LZString.compressToEncodedURIComponent(json) || '';
       }
 
       function decodePresetFromUrl(encodedPreset) {
            if (!encodedPreset) return null;
-           // Primary: try URL-safe base64 (preferred for shorter links)
-           const toBase64 = (base64Url) => {
-               const restored = base64Url
-                   .replace(/-/g, '+')
-                   .replace(/_/g, '/');
+           const decompressed = LZString.decompressFromEncodedURIComponent(encodedPreset);
+           if (decompressed) return JSON.parse(decompressed);
 
-               const padLength = (4 - (restored.length % 4)) % 4;
-               return restored + '='.repeat(padLength);
-           };
-
+           // Backward compatibility: fall back to legacy base64 URLs
            const fromBase64Url = (base64Url) => base64Url
                .replace(/-/g, '+')
                .replace(/_/g, '/')
                .padEnd(base64Url.length + ((4 - (base64Url.length % 4)) % 4), '=');
 
-           const decompressedBase64 = LZString.decompressFromBase64(toBase64(encodedPreset));
-           if (decompressedBase64) return JSON.parse(decompressedBase64);
-
-           // Secondary: legacy percent-encoded payloads (pre-base64url)
-           const decompressed = LZString.decompressFromEncodedURIComponent(encodedPreset);
-           if (decompressed) return JSON.parse(decompressed);
-
-           // Backward compatibility: fall back to legacy base64 URLs
            try {
                const decoded = decodeURIComponent(escape(atob(fromBase64Url(encodedPreset))));
                return JSON.parse(decoded);
@@ -1488,7 +1449,6 @@ function generateComplexRandomLfoState(includeArpTargets = true) {
                // Messaging apps can split very long URLs into multiple messages, which breaks link previews.
                const { metadata: _omit, ...presetWithoutMeta } = preset;
                const urlSafePreset = encodePresetForUrl(presetWithoutMeta);
-               if (!urlSafePreset) throw new Error('No encoded preset data produced');
 
                // FIX: Use origin + pathname to build a clean base URL every time.
                // This prevents issues where re-sharing might inherit malformed data
@@ -1505,13 +1465,10 @@ function generateComplexRandomLfoState(includeArpTargets = true) {
                    url.searchParams.set('cat', String(metadata.category));
                }
 
-               const shareUrl = url.toString();
-               lastGeneratedShareUrl = shareUrl;
-               return shareUrl;
+               return url.toString();
            } catch (err) {
                console.error('Failed to generate shareable URL', err);
-               if (lastGeneratedShareUrl) return lastGeneratedShareUrl;
-               throw err;
+               return window.location.href;
            }
       }
 
@@ -1556,11 +1513,6 @@ function generateComplexRandomLfoState(includeArpTargets = true) {
                sourceType: presetSourceType,
                category: presetCategory,
            };
-
-           // Store the incoming URL so we always have a valid share link to fall back to.
-           if (window.location.search.includes('preset=')) {
-               lastGeneratedShareUrl = window.location.href;
-           }
 
            // --- NEW: Intercept with Warning Modal ---
            const warningModal = document.getElementById('share-warning-modal-overlay');
@@ -4191,34 +4143,10 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           addTouchListener(shareButton, async () => {
                if (!shareButton) return;
                const originalLabel = shareButton.textContent;
-
-               let shareUrl;
-               try {
-                   shareUrl = generateShareableUrl();
-               } catch (err) {
-                   console.error('Unable to build share URL', err);
-                   shareButton.textContent = 'COPY FAILED';
-                   setTimeout(() => {
-                       if (shareButton) shareButton.textContent = originalLabel;
-                   }, 1200);
-                   return;
-               }
-               const attemptClipboardCopy = async () => {
-                   try {
-                       await navigator.clipboard.writeText(shareUrl);
-                       shareButton.textContent = 'URL COPIED';
-                   } catch (err) {
-                       console.error('Clipboard failed', err);
-                       shareButton.textContent = 'COPY FAILED';
-                   }
-
-                   setTimeout(() => {
-                       if (shareButton) shareButton.textContent = originalLabel;
-                   }, 1200);
-               };
+               
+               const shareUrl = generateShareableUrl();
                const shareData = {
                    title: 'NO-B 250 Patch',
-                   text: shareUrl,
                    url: shareUrl
                };
 
@@ -4229,19 +4157,27 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                if (isMobile && navigator.share && navigator.canShare && navigator.canShare(shareData)) {
                    try {
                        await navigator.share(shareData);
-                       // Also copy the link so users can paste it even if the share sheet fails to include the URL.
-                       await attemptClipboardCopy();
                    } catch (err) {
                        // Ignore 'AbortError' (user cancelled the share sheet)
                        if (err.name !== 'AbortError') {
                            console.error('Share failed', err);
                        }
-                       await attemptClipboardCopy();
                    }
-               }
+               } 
                // 2. Desktop Fallback (Copy to Clipboard)
                else {
-                   await attemptClipboardCopy();
+                   try {
+                       await navigator.clipboard.writeText(shareUrl);
+                       shareButton.textContent = 'URL COPIED';
+                   } catch (err) {
+                       console.error('Clipboard failed', err);
+                       shareButton.textContent = 'COPY FAILED';
+                   }
+                   
+                   // Reset button text after delay
+                   setTimeout(() => {
+                       if (shareButton) shareButton.textContent = originalLabel;
+                   }, 1200);
                }
                shareButton.blur();
            });
@@ -4951,7 +4887,6 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
-
 
 
 
