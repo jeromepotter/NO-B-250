@@ -3277,10 +3277,19 @@ lfoState.forEach((lfo, lfoIndex) => {
                 const feelFxId = 22 + idx;
                 const feelBase = fxKnobData[feelFxId]?.value ?? 0;
                 const feelValue = clamp(feelBase + (modulatedValues[feelFxId] || 0), 0, 1);
+                const pIndex = Math.min(NUM_FEEL_PATTERNS - 1, Math.floor(feelValue * NUM_FEEL_PATTERNS));
+                const newPattern = EUCLIDEAN_PATTERNS[pIndex];
+
+                state.feelKnobValue = feelValue;
+                if (state.currentFeelPattern !== newPattern) {
+                    state.currentFeelPattern = newPattern;
+                    state.euclideanStepCounter = 0;
+                }
+
                 if (state.dom.feelDisplay) {
-                    const pIndex = Math.min(NUM_FEEL_PATTERNS - 1, Math.floor(feelValue * NUM_FEEL_PATTERNS));
                     state.dom.feelDisplay.textContent = pIndex + 1;
                 }
+                updateFeelPatternPreview(idx);
             });
         }
 
