@@ -3450,8 +3450,6 @@ function applyPreset(p, isArpCategoryPreset = false, options = {}) {
                allowDuplicateNotesMode = p.allowDuplicateNotesMode;
            }
            document.body.classList.toggle('easter-egg-mode', allowDuplicateNotesMode);
-           knobState.forEach(k => updateFeelPatternPreview(k.id));
-
            if (!arpLockActive && p.scale === 'Custom') {
                customScale = p.customScale || [];
                document.querySelectorAll('#custom-scale-builder .key').forEach(k => { const n = parseInt(k.dataset.note); k.classList.toggle('selected', customScale.includes(n)); });
@@ -3621,11 +3619,14 @@ function applyPreset(p, isArpCategoryPreset = false, options = {}) {
                }
                knobState[1].dom.arpSwitch?.classList.toggle('on', knobState[1].isArpOn);
                document.getElementById('arp-hold-switch-1')?.classList.toggle('on', knobState[1].isArpHoldOn);
-               
+
                if (isArpRateSynced && knobState[0].isArpOn && knobState[1].isArpOn) {
                     const arp1RateValue = fxKnobData[16].value;
                     setFxValue(17, arp1RateValue);
                }
+
+               updateFeelPatternPreview(0);
+               updateFeelPatternPreview(1);
            }
 
            if (presetTempoSyncTargets.length > 0) {
