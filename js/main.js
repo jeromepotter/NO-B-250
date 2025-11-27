@@ -2739,6 +2739,19 @@ lfoState.forEach((lfo, lfoIndex) => {
                } else {
                    if (state.dom.arpNoteDisplay) state.dom.arpNoteDisplay.textContent = "--";
                }
+                if (state.dom.feelPatternPreview) {
+                   const patternLen = modulatedFeelPattern.length;
+                   const currentStepIdx = state.euclideanStepCounter % patternLen;
+                   const dots = state.dom.feelPatternPreview.children;
+                   
+                   for (let i = 0; i < dots.length; i++) {
+                        if (i === currentStepIdx) {
+                            dots[i].classList.add('playhead');
+                        } else {
+                            dots[i].classList.remove('playhead');
+                        }
+                   }
+               }
     
                state.euclideanStepCounter++;
                const totalOctSteps = (modulatedOctaveRange > 0) ? (modulatedOctaveRange * 2) : 1;
@@ -4863,6 +4876,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
