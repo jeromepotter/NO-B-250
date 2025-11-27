@@ -866,12 +866,16 @@ let liveLfoOutputs = [0, 0, 0, 0];
            const xxx = String(Math.floor(Math.random() * 1000)).padStart(3, '0');
            return `N-OB-${a}-${b}-${xxx}-.${extension}`;
        }
-const SAFE_AUDIO_TARGETS = [
+const SAFE_UNIVERSAL_TARGETS = [
     20, 21, // Filters
     4,      // Detune
     6,      // Chorus
     1, 5,   // Distortion & AM
-    12, 14, // Reverb & Delay Mix
+    12, 14  // Reverb & Delay Mix
+];
+
+// 2. Arp-Only Targets (Hidden in Sound Mode)
+const SAFE_ARP_TARGETS = [
     24, 25, // Arp Transpose
     22, 23, // Arp Feel
     18, 19  // Arp Octaves
@@ -885,9 +889,15 @@ const LFO_PARAM_TARGETS = [
 ];
 
 // 2. The Smart LFO Generator
-function generateComplexRandomLfoState() {
-    const numActiveLfos = 2 + Math.floor(Math.random() * 2); // 2 or 3 LFOs
+function generateComplexRandomLfoState(includeArpTargets = true) {
+    const numActiveLfos = 2 + Math.floor(Math.random() * 2); 
     
+    // Build the pool of valid audio targets based on the mode
+    let validAudioTargets = [...SAFE_UNIVERSAL_TARGETS];
+    if (includeArpTargets) {
+        validAudioTargets = validAudioTargets.concat(SAFE_ARP_TARGETS);
+    }
+
     return Array.from({ length: 4 }, (_, currentLfoIndex) => {
         if (currentLfoIndex >= numActiveLfos) {
             return { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false };
@@ -897,7 +907,7 @@ function generateComplexRandomLfoState() {
         let primaryDest;
         const roll = Math.random();
         
-        // 25% Chance for Cross-Modulation (preventing self-mod)
+        // 25% Chance for Cross-Modulation
         if (roll < 0.25) {
             const validLfoTargets = LFO_PARAM_TARGETS.filter(id => {
                 const targetOwnerIndex = LFO_KNOB_MAP[id]?.lfo;
@@ -905,29 +915,31 @@ function generateComplexRandomLfoState() {
             });
             primaryDest = validLfoTargets[Math.floor(Math.random() * validLfoTargets.length)];
         } else {
-            primaryDest = SAFE_AUDIO_TARGETS[Math.floor(Math.random() * SAFE_AUDIO_TARGETS.length)];
+            // Pick from our filtered list
+            primaryDest = validAudioTargets[Math.floor(Math.random() * validAudioTargets.length)];
         }
 
         // Step B: Smart Depth
         let depth = Math.random();
         if (primaryDest === 4) depth *= 0.3; // Tame Detune
-        if (LFO_PARAM_TARGETS.includes(primaryDest)) depth = 0.3 + (Math.random() * 0.5); // Boost LFO Mod
+        if (LFO_PARAM_TARGETS.includes(primaryDest)) depth = 0.3 + (Math.random() * 0.5);
+        if (SAFE_ARP_TARGETS.includes(primaryDest)) depth = 0.3 + (Math.random() * 0.7); // Arp knobs need high depth
 
         // Step C: Chaining (30% Chance)
         const destChain = [primaryDest];
         if (Math.random() < 0.3 && !LFO_PARAM_TARGETS.includes(primaryDest)) {
-            let secondary = SAFE_AUDIO_TARGETS[Math.floor(Math.random() * SAFE_AUDIO_TARGETS.length)];
+            let secondary = validAudioTargets[Math.floor(Math.random() * validAudioTargets.length)];
             if (secondary !== primaryDest) destChain.push(secondary);
         }
 
-        // Step D: Rate (60% Sync)
+        // Step D: Rate
         const useSync = Math.random() > 0.4;
         let rate;
         if (useSync) {
-            const syncValues = [0.5, 0.6, 0.75, 0.85]; // 1/4, 1/8T, 1/8, 1/16
+            const syncValues = [0.5, 0.6, 0.75, 0.85]; 
             rate = syncValues[Math.floor(Math.random() * syncValues.length)];
         } else {
-            rate = Math.random() * 0.4; // Slow free-running
+            rate = Math.random() * 0.4; 
         }
 
         return {
@@ -3750,7 +3762,7 @@ function generateAndApplyRandomPreset(complexity = 'SIMPLE') {
     // 6. --- LFO Logic ---
     let lfoState = [];
     if (complexity === 'COMPLEX') {
-        lfoState = generateComplexRandomLfoState();
+        lfoState = generateComplexRandomLfoState(true);
     } else {
         lfoState = Array(4).fill({ rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false });
     }
@@ -3844,7 +3856,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
 
     let lfoState = [];
     if (complexity === 'COMPLEX') {
-        lfoState = generateComplexRandomLfoState();
+        lfoState = generateComplexRandomLfoState(false);
     } else {
         lfoState = Array(4).fill({ rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false });
     }
@@ -4851,6 +4863,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
