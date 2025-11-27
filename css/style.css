@@ -422,7 +422,7 @@ body.lfo-mode #lfo-lock-container {
   display: inline-block;
   width: calc(25% - 6px);
   height: 40px;
-  border-radius: 4px; /* 4px looks better at this size */
+  border-radius: 0px; /* 4px looks better at this size */
   margin: 3px;
   cursor: pointer;
   opacity: 0.7;
@@ -458,7 +458,8 @@ body.lfo-mode #lfo-lock-container {
   gap: 2px;
   flex-wrap: nowrap;
   width: auto;
-  max-width: 160px;
+  /* 8px dots need about 158px. 165px gives a tiny safety buffer. */
+  max-width: 165px; 
   margin: 2px auto 1px;
   padding: 0;
   box-sizing: border-box;
@@ -466,17 +467,23 @@ body.lfo-mode #lfo-lock-container {
 }
 
 .feel-pattern-step {
-  width: 6px;
-  height: 6px;
-  border-radius: 9999px;
-  border: 1px solid var(--feel-preview-color);
+  width: 8px;
+  height: 8px;
+  
+  /* Soft square corners */
+  border-radius: 0px; 
+  
+  /* CHANGE: Set border to 'none' so empty steps are invisible */
+  border: none; 
+  
   background: transparent;
-  opacity: 0.6;
+  
+  /* This keeps them aligned even without borders */
+  display: inline-block; 
 }
 
 .feel-pattern-step.on {
   background: var(--feel-preview-color);
-  border-color: var(--feel-preview-color);
   opacity: 1;
 }
      .sequence-note-block.muted {
@@ -491,10 +498,22 @@ body.lfo-mode #lfo-lock-container {
         box-shadow: 0 0 500px 14px rgba(255, 255, 255, 0.8), 0 0 0 2px var(--color-surface);
         }
       }
-     .sequence-note-block.playhead {
-        opacity: 1;
-      }
-/* In css/style.css */
+@keyframes note-retrigger {
+  0% { opacity: 0.6; transform: scale(0.95); } /* Subtle dip to make it visible */
+  100% { opacity: 1; transform: scale(1); }
+}
+    .sequence-note-block.playhead {
+  opacity: 1 !important;
+animation: note-retrigger 0.08s ease-out;
+  box-shadow: 
+    0 0 10px var(--color-accent-yellow); /* Outer glow */
+    
+  /* 4. Brighten the color itself */
+  filter: brightness(1.2);
+  
+  /* Ensure it sits on top */
+  z-index: 5;
+}
 
 .sequence-note-block.playhead-skipped {
   background: transparent !important;
@@ -547,6 +566,36 @@ body.lfo-mode #lfo-lock-container {
   }
   
 }
+@media (min-width: 768px) {
+  .feel-pattern-preview {
+    /* More room on desktop, let them expand */
+    max-width: 220px;
+  }
+
+  .feel-pattern-step {
+    /* Big, clear 10px dots for mouse users */
+    width: 10px;
+    height: 10px;
+  }
+}
+
+.feel-pattern-step.playhead {
+  /* Force visibility and make it bright white */
+  background-color: #ffffff !important;
+  border: 1px solid #ffffff !important;
+  opacity: 1 !important;
+  
+  /* Make it pop out slightly */
+  transform: scale(1.15);
+  box-shadow: 0 0 5px rgba(255, 255, 255, 0.9);
+  z-index: 10;
+}
+
+
+
+
+
+
 
 
 

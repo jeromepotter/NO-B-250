@@ -2668,34 +2668,37 @@ lfoState.forEach((lfo, lfoIndex) => {
                    if (!shouldPlay) updateKnobColor(knobId);
                }
     
-               const baseMidi = baseNoteObject ? baseNoteObject.midi : null;
+              const baseMidi = baseNoteObject ? baseNoteObject.midi : null;
                const visualIndex = baseNoteObject ? baseNoteObject.originalIndex : -1;
     
                const displayContainer = document.getElementById(`arp-sequence-display-${knobId}`);
-              if (displayContainer) { 
+               if (displayContainer) { 
                    const blocks = displayContainer.querySelectorAll('.sequence-note-block');
                    
-                   // 1. CLEANUP: Remove BOTH classes from the previous note
+                   // 1. CLEANUP: Remove 'playhead' class from the previous note
                    if (state.arpLastVisualIndex > -1 && blocks[state.arpLastVisualIndex]) {
-                       blocks[state.arpLastVisualIndex].classList.remove('playhead', 'playhead-skipped');
+                       blocks[state.arpLastVisualIndex].classList.remove('playhead');
                    }
 
-                   // 2. APPLY: Check FEEL pattern and add the correct class
+                   // 2. APPLY: Check FEEL pattern and User Active state
                    if (visualIndex > -1 && blocks[visualIndex]) {
-                       // Check if the Euclidean rhythm says "Skip" (0) for this specific step
                        const isFeelSkipped = modulatedFeelPattern[state.euclideanStepCounter % modulatedFeelPattern.length] === 0;
-                       
-                       // If the note is active (user wants it) BUT the Feel knob says "Skip" -> Ghost Playhead
-                       if (baseNoteObject.active && isFeelSkipped) {
-                           blocks[visualIndex].classList.add('playhead-skipped');
+                       const isNoteActive = baseNoteObject.active; // Check if user muted it
+
+                       // Only blink if the Rhythm says YES AND the User says YES
+                       if (!isFeelSkipped && isNoteActive) {
+                           const block = blocks[visualIndex];
+
+                           // --- THE JAVASCRIPT TRICK (Restart Animation) ---
+                           block.classList.remove('playhead');
+                           void block.offsetWidth; // Trigger Reflow
+                           block.classList.add('playhead');
+                           // ------------------------------------------------
+
+                           state.arpLastVisualIndex = visualIndex;
                        } else {
-                           // Otherwise use the standard White Playhead
-                           blocks[visualIndex].classList.add('playhead');
+                           state.arpLastVisualIndex = -1; 
                        }
-                       
-                       state.arpLastVisualIndex = visualIndex;
-                   } else {
-                       state.arpLastVisualIndex = -1;
                    }
                }
     
@@ -2738,6 +2741,19 @@ lfoState.forEach((lfo, lfoIndex) => {
                    }
                } else {
                    if (state.dom.arpNoteDisplay) state.dom.arpNoteDisplay.textContent = "--";
+               }
+                if (state.dom.feelPatternPreview) {
+                   const patternLen = modulatedFeelPattern.length;
+                   const currentStepIdx = state.euclideanStepCounter % patternLen;
+                   const dots = state.dom.feelPatternPreview.children;
+                   
+                   for (let i = 0; i < dots.length; i++) {
+                        if (i === currentStepIdx) {
+                            dots[i].classList.add('playhead');
+                        } else {
+                            dots[i].classList.remove('playhead');
+                        }
+                   }
                }
     
                state.euclideanStepCounter++;
@@ -2845,13 +2861,6 @@ lfoState.forEach((lfo, lfoIndex) => {
 
           const feelValue = typeof state.feelKnobValue === 'number' ? state.feelKnobValue : 0;
           const pIndex = Math.min(NUM_FEEL_PATTERNS - 1, Math.floor(feelValue * NUM_FEEL_PATTERNS));
-
-          if (pIndex === 0) {
-              container.innerHTML = '';
-              container.classList.add('hidden');
-              container.setAttribute('aria-hidden', 'true');
-              return;
-          }
 
           const pattern = EUCLIDEAN_PATTERNS[pIndex] || [];
           container.innerHTML = '';
@@ -4863,6 +4872,10 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
+
+
+
 
 
 
