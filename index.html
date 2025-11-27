@@ -1,603 +1,698 @@
-:root {
-  --color-bg: oklch(0.505 0.026 107.3);
-  --color-surface: oklch(0.257 0.09 281.3);
-  --color-text: oklch(0.98 0 0);
-  --color-text-dark: #000000;
-  --color-muted: oklch(0.373 0.031 259.7);
-  --color-accent-yellow: oklch(0.861 0.16 91.9);
-  --color-accent-green: oklch(0.627 0.16 149.2);
-  --color-accent-red: oklch(0.505 0.16 27.5);
-  --color-accent-teal: oklch(0.773 0.16 163.2);
-  --color-accent-blue: oklch(0.714 0.16 254.6);
-  --color-accent-indigo: oklch(0.511 0.16 277);
-  --color-accent-orange: oklch(0.705 0.16 47.6);
-  --color-egg-orange: oklch(0.751 0.16 58.3);
-  --color-egg-brown: oklch(0.484 0.06 38.3);
-  --color-egg-green: oklch(0.427 0.09 143.7);
-  --color-egg-cyan: oklch(0.633 0.09 195.3);
-  --color-egg-red: oklch(0.639 0.09 20);
-  --color-egg-blue: oklch(0.35 0.12 223.1);
-  --color-egg-indigo: oklch(0.424 0.16 265.6);
-  --color-egg-rust: oklch(0.598 0.11 52.2);
-  --color-soft-stone: oklch(0.886 0.018 113.9);
-  --color-egg-sand: oklch(0.786 0.064 74.6);
-  /* Darker tan for Duplicate Note Mode background */
-  --color-dark-tan: oklch(0.5412 0.06 74.6);
-  /* Midnight Blue for text accents in Duplicate Note Mode */
-  --color-midnight-blue: #191970;
-}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-CJR2FXHF8V"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      
+      gtag('config', 'G-CJR2FXHF8V');
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NO-B 250</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="icon" href="img/favicon.ico" type="image/x-icon">
+    <link rel="apple-touch-icon" sizes="180x180" href="img/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="img/favicon-16x16.png">
+    <link rel="manifest" href="site.webmanifest">
+    <meta property="og:title" content="NO-B 250" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="img/meta.png" />
+    <meta property="og:description" content="A browser-based dual-oscillator synthesizer with vintage-inspired sound." />    
+    <meta property="og:site_name" content="NO-B 250" />
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="NO-B 250 Synthesizer">
+    <meta name="twitter:description" content="A browser-based dual-oscillator synthesizer with vintage-inspired sound.">   
+    <meta name="twitter:image" content="img/meta.png">
+    <link rel="stylesheet" href="css/style.css">
+  </head>
+  <body class="min-h-screen p-2 antialiased">
+    <div id="synth-container" class="relative w-full max-w-xl mx-auto space-y-1 sm:space-y-2 p-2 rounded-lg is-off">
+      <svg id="lfo-patch-bay">
+        <g id="lfo-cable-group-0" class="lfo-cable-group" data-base-color="#fa9c2d"></g>
+        <g id="lfo-cable-group-1" class="lfo-cable-group" data-base-color="#35a5fb"></g>
+        <g id="lfo-cable-group-2" class="lfo-cable-group" data-base-color="#d85b7e"></g>
+        <g id="lfo-cable-group-3" class="lfo-cable-group" data-base-color="#98ce57"></g>
+      </svg>
+      <div class="flex justify-start items-center p-2 power-container">
+        <div class="flex flex-col items-center">
+          <div id="power-switch" class="power-switch small">
+            <div class="power-switch-handle"></div>
+          </div>
+          <label class="font-bold tracking-wider text-xs sm:text-sm mt-2">ON/OFF</label>
+        </div>
+      </div>
+ 
+      <div class="main-header text-center">
+        <h1 class="text-3xl sm:text-4xl font-bold cursor-pointer tracking-widest">NO-B 250</h1>
+        <div id="main-header-buttons" class="flex justify-center items-center space-x-4 mt-2">
+            <div id="how-to-button-header-container">
+                <button id="how-to-button-header" class="retro-button text-xs sm:text-sm font-bold px-2">HOW TO</button>
+            </div>
+            <button id="share-button" class="retro-button text-xs sm:text-sm font-bold px-2">SHARE</button>
+            <button id="record-button" class="retro-button text-xs sm:text-sm font-bold px-2">RECORD AUDIO</button>
+            <button id="record-midi-button" class="retro-button text-xs sm:text-sm font-bold px-2">RECORD MIDI</button>
+            <input type="file" id="load-preset-input" class="hidden" accept=".json">
+        </div>
+      </div>
 
-body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); touch-action: manipulation; color: var(--color-text); overflow-y: auto; -webkit-user-select: none; -ms-user-select: none; user-select: none; }
-      .text-yellow-300 { color: var(--color-accent-yellow); }
-      .knob-border { border: 2px solid var(--color-surface); box-shadow: 0 0 0 2px var(--color-surface); }
-      .main-knob { cursor: grab; aspect-ratio: 1 / 1; transition: background-color 0.05s linear; width: 100%; }
-      #knob-indicator-1, #knob-indicator-2 {
-      background-color: var(--color-text);
-      mix-blend-mode: difference;
-      }
-      .osc-sub-knob > .osc-sub-indicator {
-        top: 50%;
-        left: 50%;
-        width: 0.25rem;
-        height: 42%;
-        border-radius: 9999px;
-        transform-origin: 50% 100%;
-      }
-      .main-knob:active { cursor: grabbing; }
-      .fx-knob-container { cursor: ns-resize; aspect-ratio: 1 / 1; transition: background-color 0.1s linear; will-change: transform; }
-      .retro-select { 
-        -webkit-appearance: none;
-        -moz-appearance: none;
-        appearance: none;
-        background-color: transparent;
-        border: 2px solid var(--color-text); 
-        border-radius: 0; 
-        padding: 0.5rem 1rem; 
-        color: var(--color-text); 
-        font-weight: 700; 
-        text-align: center;
-        text-align-last: center;
-        -moz-text-align-last: center;
-        transition: all 0.2s;
-      }
+      <div id="presets-submenu-container" class="flex flex-col items-start p-2 space-y-2" style="display: none;">
+        <div class="flex flex-col items-stretch w-full max-w-xs space-y-2">
+            <button id="submenu-save-button" class="retro-button text-xs sm:text-sm font-bold preset-save-button w-full text-center">SAVE</button>
+            <button id="submenu-load-button" class="retro-button text-xs sm:text-sm font-bold preset-load-button w-full text-center">LOAD</button>
+        </div>
+        <div id="preset-category-buttons" class="flex flex-col items-stretch w-full max-w-xs space-y-2">
+            <button class="retro-button text-xs sm:text-sm font-bold preset-category-button w-full text-center" data-category="KEYS">KEYS</button>
+            <button class="retro-button text-xs sm:text-sm font-bold preset-category-button w-full text-center" data-category="BASS">BASS</button>
+            <button class="retro-button text-xs sm:text-sm font-bold preset-category-button w-full text-center" data-category="LEADS">LEADS</button>
+            <button class="retro-button text-xs sm:text-sm font-bold preset-category-button w-full text-center" data-category="PADS">PADS</button>
+            <button class="retro-button text-xs sm:text-sm font-bold preset-category-button w-full text-center" data-category="FX">FX</button>
+            <button class="retro-button text-xs sm:text-sm font-bold preset-category-button w-full text-center" data-category="ARPS">ARPS</button>
+            <button class="retro-button text-xs sm:text-sm font-bold preset-category-button w-full text-center" data-category="INIT">INIT</button>
+            <button class="retro-button text-xs sm:text-sm font-bold preset-category-button w-full text-center" data-category="RANDOM">RANDOM</button>
+        </div>
+        <select id="preset-list-selector" class="retro-button retro-select text-xs sm:text-sm cursor-pointer border-none focus:outline-none w-audo" style="display: none;"></select>
+      </div>
+        <div class="flex flex-col items-center p-2 space-y-2">
+          <div id="preset-display-container" class="flex items-center space-x-2">
+            <button id="preset-prev-button" class="retro-button preset-nav-button text-xs sm:text-sm font-bold px-2" aria-label="Previous preset">
+              <svg viewBox="0 0 12 12" aria-hidden="true" focusable="false" class="preset-nav-icon">
+                <path d="M7.5 2.5 4 6l3.5 3.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" />
+              </svg>
+            </button>
+            <div id="preset-display" class="retro-select preset-display text-xs sm:text-sm font-bold text-center leading-tight w-44 sm:w-56" role="button" tabindex="0" aria-label="Open presets menu">PRESET</div>
+            <button id="preset-next-button" class="retro-button preset-nav-button text-xs sm:text-sm font-bold px-2" aria-label="Next preset">
+              <svg viewBox="0 0 12 12" aria-hidden="true" focusable="false" class="preset-nav-icon">
+                <path d="M4.5 2.5 8 6l-3.5 3.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" />
+              </svg>
+            </button>
+          </div>
+          <div class="flex justify-center items-center space-x-4">
+            <select id="keySelector" class="retro-select text-base sm:text-lg focus:outline-none">
+                <option value="C">C</option>
+                <option value="C#">C#</option>
+              <option value="D">D</option>
+              <option value="D#">D#</option>
+              <option value="E">E</option>
+              <option value="F">F</option>
+              <option value="F#">F#</option>
+              <option value="G">G</option>
+              <option value="G#">G#</option>
+              <option value="A">A</option>
+              <option value="A#">A#</option>
+              <option value="B">B</option>
+          </select>
+          <select id="scaleSelector" class="retro-select text-base sm:text-lg focus:outline-none"></select>
+        </div>
+      </div>
+      
+     <div class="flex justify-around items-start p-2 gap-x-4">
+        
+        <div class="flex-1 flex flex-col justify-center items-center">
+          <div class="w-40 h-40 sm:w-48 sm:h-48 relative">
+            <div id="knob-1" data-knob-id="0" class="main-knob rounded-full flex items-center justify-center knob-border">
+              <div id="knob-indicator-1" class="w-1.5 h-8 bg-blue-800 rounded-full absolute top-3 left-0 right-0 mx-auto"></div>
+            </div>
+          </div>
+          <div id="note-display-1" class="mt-2 text-base sm:text-lg font-bold text-yellow-300">G3</div>
+          <div id="octave-display-1" class="flex justify-center items-center space-x-10">
+            <button class="mobile-spin-button" id="spin-left-0">&lt;</button>
+            <button class="mobile-spin-button" id="spin-right-0">&gt;</button>
+          </div>
+          
+          <div class="grid grid-cols-4 place-items-center gap-x-1 sm:gap-x-3 mt-2">
+            <div class="flex flex-col items-center space-y-1">
+              <div class="w-9 h-9 sm:w-11 sm:h-11 bg-orange-300 rounded-full relative fx-knob-container knob-border osc-sub-knob" data-fx-id="30">
+                <div class="w-1 h-3 sm:h-4 bg-blue-800 rounded-full absolute indicator osc-sub-indicator" data-base-transform="translate(-50%, -100%)"></div>
+              </div>
+              <div id="voice-0-wave-display" class="text-[10px] sm:text-xs font-bold text-blue-200">SAW</div>
+            </div>
+            <div class="flex flex-col items-center space-y-1">
+              <div class="w-9 h-9 sm:w-11 sm:h-11 bg-orange-300 rounded-full relative fx-knob-container knob-border osc-sub-knob" data-fx-id="20">
+                <div class="w-1 h-3 sm:h-4 bg-blue-800 rounded-full absolute indicator osc-sub-indicator" data-base-transform="translate(-50%, -100%)"></div>
+              </div>
+              <label class="font-bold tracking-wider text-[10px] sm:text-xs">FILTER</label>
+            </div>
+            <div class="flex flex-col items-center space-y-1">
+              <div class="w-9 h-9 sm:w-11 sm:h-11 bg-orange-300 rounded-full relative fx-knob-container knob-border osc-sub-knob" data-fx-id="28">
+                <div class="w-1 h-3 sm:h-4 bg-blue-800 rounded-full absolute indicator osc-sub-indicator" data-base-transform="translate(-50%, -100%)"></div>
+              </div>
+              <label class="font-bold tracking-wider text-[10px] sm:text-xs">RES</label>
+            </div>
+            <div class="flex flex-col items-center space-y-1">
+              <div class="w-9 h-9 sm:w-11 sm:h-11 bg-orange-300 rounded-full relative fx-knob-container knob-border osc-sub-knob" data-fx-id="26">
+                <div class="w-1 h-3 sm:h-4 bg-blue-800 rounded-full absolute indicator osc-sub-indicator" data-base-transform="translate(-50%, -100%)"></div>
+              </div>
+              <label class="font-bold tracking-wider text-[10px] sm:text-xs">VOLUME</label>
+            </div>
+          </div>
 
-      #midi-clock-toggle {
-        appearance: none;
-        width: 16px;
-        height: 16px;
-        background-color: var(--color-text);
-        border: 2px solid var(--color-text);
-        border-radius: 0;
-        cursor: pointer;
-        transition: background-color 0.15s ease, border-color 0.15s ease;
-      }
+          <div class="flex flex-col items-center mt-4">
+            <div id="arp-switch-0" class="power-switch">
+              <div class="power-switch-handle"></div>
+            </div>
+            <label class="font-bold tracking-wider text-xs sm:text-sm mt-2">ARP</label>
+          </div>
+          <div class="arp-controls mt-2 grid grid-cols-3 grid-rows-2 gap-x-2 gap-y-2 w-full max-w-[160px] sm:max-w-[192px]">
+            <div class="flex flex-col items-center space-y-1">
+              <div id="arp-mode-switch-0" class="power-switch small on">
+                <div class="power-switch-handle"></div>
+              </div>
+              <label class="font-bold tracking-wider text-[10px] sm:text-xs">MODE</label>
+            </div>
+            <div class="flex flex-col items-center space-y-1">
+              <div id="arp-hold-switch-0" class="power-switch small">
+                <div class="power-switch-handle"></div>
+              </div>
+              <label class="font-bold tracking-wider text-[10px] sm:text-xs">HOLD</label>
+            </div>
+            <div class="flex flex-col items-center space-y-1">
+              <div class="w-10 h-10 sm:w-12 sm:h-12 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="16">
+                <div class="w-1 h-3 sm:h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 16px;"></div>
+              </div>
+              <span id="rate-display-0" class="rate-bpm-display text-[10px] sm:text-xs font-bold tracking-wider">100 BPM</span>
+              <div class="rate-display-row text-[10px] sm:text-xs font-bold tracking-wider">
+                <button class="arp-rate-button" data-rate-target="0" data-rate-multiplier="0.5">1/2</button>
+                <button class="arp-rate-button" data-rate-target="0" data-rate-multiplier="2">2x</button>
+              </div>
+            </div>
+            <div class="flex flex-col items-center space-y-1">
+              <div class="w-10 h-10 sm:w-12 sm:h-12 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="24">
+                <div class="w-1 h-3 sm:h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 16px;"></div>
+              </div>
+              <label class="font-bold tracking-wider text-[10px] sm:text-xs">↑↓ <span id="transpose-display-0">0</span></label>
+            </div>
+            <div class="flex flex-col items-center space-y-1">
+              <div class="w-10 h-10 sm:w-12 sm:h-12 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="18">
+                <div class="w-1 h-3 sm:h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 16px;"></div>
+              </div>
+              <label class="font-bold tracking-wider text-[10px] sm:text-xs">
+              OCTS <span id="octs-display-0">0</span>
+              </label>
+            </div>
+            <div class="flex flex-col items-center space-y-1">
+              <div class="w-10 h-10 sm:w-12 sm:h-12 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="22">
+                <div class="w-1 h-3 sm:h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 16px;"></div>
+              </div>
+              <label class="font-bold tracking-wider text-[10px] sm:text-xs">FEEL <span id="feel-display-0">1</span></label>
+            </div>
+          </div>
+          <div id="arp-note-display-0" class="arp-note-indicator text-lg h-6 -mt-2">--</div>
+          <div id="feel-pattern-preview-0" class="feel-pattern-preview hidden" aria-hidden="true"></div>
+          <div class="mt-1 sequence-display-container">
+            <div id="arp-sequence-display-0" class="flex-grow h-auto flex flex-wrap justify-center space-x-1 p-1 rounded"></div>
+          </div>
+        </div>
 
-      #midi-clock-toggle:checked {
-        background-color: var(--color-accent-green);
-        border-color: var(--color-accent-green);
-      }
-      .preset-display {
-        display: block;
-        word-break: break-word;
-        white-space: normal;
-        cursor: pointer;
-      }
-      .preset-nav-button {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 2.25rem;
-        height: 2.25rem;
-        padding: 0;
-        color: var(--color-text);
-        font-family: 'Poppins', 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
-        line-height: 1;
-        letter-spacing: 0;
-        -webkit-font-smoothing: antialiased;
-        text-rendering: optimizeLegibility;
-      }
-      .preset-nav-button:hover {
-        color: var(--color-accent-yellow);
-      }
-      .preset-nav-icon {
-        width: 0.9rem;
-        height: 0.9rem;
-        stroke: currentColor;
-        stroke-width: 1.6;
-      }
-  .retro-select:disabled { opacity: 0.5; cursor: not-allowed; background-color: var(--color-muted); }
-      .retro-select option { background-color: var(--color-text-dark, #000000); }
-      .retro-select:focus { outline: 2px solid var(--color-text); }
-      .power-switch { width: 60px; height: 30px; border: 2px solid var(--color-text); cursor: pointer; position: relative; transition: background-color 0.2s ease-in-out; background-color: var(--color-accent-red); }
-      .power-switch.small { width: 40px; height: 20px; border-width: 1px; }
-      .power-switch.on { background-color: var(--color-accent-green); }
-      .power-switch-handle { width: 24px; height: 24px; background-color: var(--color-accent-yellow); position: absolute; top: 1px; left: 1px; transition: transform 0.2s ease-in-out; }
-      .power-switch.small .power-switch-handle { width: 16px; height: 16px; top: 1px; left: 1px; }
-      .power-switch.on .power-switch-handle { transform: translateX(28px); }
-      .power-switch.small.on .power-switch-handle { transform: translateX(18px); }
-        .is-off > div:not(.power-container):not(.main-header) {
-        filter: grayscale(1);
-        opacity: 0.2;
-        pointer-events: none;
-      }
-      .is-off #main-header-buttons > *:not(#how-to-button-header-container) {
-        filter: grayscale(1);
-        opacity: 0.2;
-        pointer-events: none;
-      }
-      .is-off .main-header h1 {
-        filter: grayscale(1);
-        opacity: 0.2;
-        pointer-events: none;
-      }
+        <div class="flex-1 flex flex-col justify-center items-center">
+          <div class="w-40 h-40 sm:w-48 sm:h-48 relative">
+            <div id="knob-2" data-knob-id="1" class="main-knob rounded-full flex items-center justify-center knob-border">
+              <div id="knob-indicator-2" class="w-1.5 h-8 bg-blue-800 rounded-full absolute top-3 left-0 right-0 mx-auto"></div>
+            </div>
+          </div>
+          <div id="note-display-2" class="mt-2 text-base sm:text-lg font-bold text-yellow-300">G3</div>
+          <div id="octave-display-2" class="flex justify-center items-center space-x-10">
+            <button class="mobile-spin-button" id="spin-left-1">&lt;</button>
+            <button class="mobile-spin-button" id="spin-right-1">&gt;</button>
+          </div>
+          <div class="grid grid-cols-4 place-items-center gap-x-1 sm:gap-x-3 mt-2">
+            <div class="flex flex-col items-center space-y-1">
+              <div class="w-9 h-9 sm:w-11 sm:h-11 bg-orange-300 rounded-full relative fx-knob-container knob-border osc-sub-knob" data-fx-id="31">
+                <div class="w-1 h-3 sm:h-4 bg-blue-800 rounded-full absolute indicator osc-sub-indicator" data-base-transform="translate(-50%, -100%)"></div>
+              </div>
+              <div id="voice-1-wave-display" class="text-[10px] sm:text-xs font-bold text-blue-200">SAW</div>
+            </div>
+            <div class="flex flex-col items-center space-y-1">
+              <div class="w-9 h-9 sm:w-11 sm:h-11 bg-orange-300 rounded-full relative fx-knob-container knob-border osc-sub-knob" data-fx-id="21">
+                <div class="w-1 h-3 sm:h-4 bg-blue-800 rounded-full absolute indicator osc-sub-indicator" data-base-transform="translate(-50%, -100%)"></div>
+              </div>
+              <label class="font-bold tracking-wider text-[10px] sm:text-xs">FILTER</label>
+            </div>
+            <div class="flex flex-col items-center space-y-1">
+              <div class="w-9 h-9 sm:w-11 sm:h-11 bg-orange-300 rounded-full relative fx-knob-container knob-border osc-sub-knob" data-fx-id="29">
+                <div class="w-1 h-3 sm:h-4 bg-blue-800 rounded-full absolute indicator osc-sub-indicator" data-base-transform="translate(-50%, -100%)"></div>
+              </div>
+              <label class="font-bold tracking-wider text-[10px] sm:text-xs">RES</label>
+            </div>
+            <div class="flex flex-col items-center space-y-1">
+              <div class="w-9 h-9 sm:w-11 sm:h-11 bg-orange-300 rounded-full relative fx-knob-container knob-border osc-sub-knob" data-fx-id="27">
+                <div class="w-1 h-3 sm:h-4 bg-blue-800 rounded-full absolute indicator osc-sub-indicator" data-base-transform="translate(-50%, -100%)"></div>
+              </div>
+              <label class="font-bold tracking-wider text-[10px] sm:text-xs">VOLUME</label>
+            </div>
+          </div>
+          <div class="flex flex-col items-center mt-4">
+            <div id="arp-switch-1" class="power-switch">
+              <div class="power-switch-handle"></div>
+            </div>
+            <label class="font-bold tracking-wider text-xs sm:text-sm mt-2">ARP</label>
+          </div>
+          <div class="arp-controls mt-2 grid grid-cols-3 grid-rows-2 gap-x-2 gap-y-2 w-full max-w-[160px] sm:max-w-[192px]">
+            <div class="flex flex-col items-center space-y-1">
+              <div id="arp-mode-switch-1" class="power-switch small on">
+                <div class="power-switch-handle"></div>
+              </div>
+              <label class="font-bold tracking-wider text-[10px] sm:text-xs">MODE</label>
+            </div>
+            <div class="flex flex-col items-center space-y-1">
+              <div id="arp-hold-switch-1" class="power-switch small">
+                <div class="power-switch-handle"></div>
+              </div>
+              <label class="font-bold tracking-wider text-[10px] sm:text-xs">HOLD</label>
+            </div>
+            <div class="flex flex-col items-center space-y-1">
+              <div class="w-10 h-10 sm:w-12 sm:h-12 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="17">
+                <div class="w-1 h-3 sm:h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 16px;"></div>
+              </div>
+              <span id="rate-display-1" class="rate-bpm-display text-[10px] sm:text-xs font-bold tracking-wider">100 BPM</span>
+              <div class="rate-display-row text-[10px] sm:text-xs font-bold tracking-wider">
+                <button class="arp-rate-button" data-rate-target="1" data-rate-multiplier="0.5">1/2</button>
+                <button class="arp-rate-button" data-rate-target="1" data-rate-multiplier="2">2x</button>
+              </div>
+            </div>
+            <div class="flex flex-col items-center space-y-1">
+              <div class="w-10 h-10 sm:w-12 sm:h-12 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="25">
+                <div class="w-1 h-3 sm:h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 16px;"></div>
+              </div>
+              <label class="font-bold tracking-wider text-[10px] sm:text-xs">↑↓ <span id="transpose-display-1">0</span></label>
+            </div>
+            <div class="flex flex-col items-center space-y-1">
+              <div class="w-10 h-10 sm:w-12 sm:h-12 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="19">
+                <div class="w-1 h-3 sm:h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 16px;"></div>
+              </div>
+              <label class="font-bold tracking-wider text-[10px] sm:text-xs">
+              OCTS <span id="octs-display-1">0</span>
+              </label>
+            </div>
+            <div class="flex flex-col items-center space-y-1">
+              <div class="w-10 h-10 sm:w-12 sm:h-12 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="23">
+                <div class="w-1 h-3 sm:h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 16px;"></div>
+              </div>
+              <label class="font-bold tracking-wider text-[10px] sm:text-xs">FEEL <span id="feel-display-1">1</span></label>
+            </div>
+          </div>
+          <div id="arp-note-display-1" class="arp-note-indicator text-lg h-6 -mt-2">--</div>
+          <div id="feel-pattern-preview-1" class="feel-pattern-preview hidden" aria-hidden="true"></div>
+          <div class="mt-1 sequence-display-container">
+            <div id="arp-sequence-display-1" class="flex-grow h-auto flex flex-wrap justify-center space-x-1 p-1 rounded"></div>
+          </div>
+        </div>
+      </div>
+      <div id="master-arp-controls" class="flex flex-wrap justify-center items-center gap-4 p-2">
+        <div id="rate-sync-container" class="flex flex-col items-center">
+          <div id="arp-sync-switch" class="power-switch small">
+            <div class="power-switch-handle"></div>
+          </div>
+          <label class="font-bold tracking-wider text-xs sm:text-sm mt-2">RATE SYNC</label>
+        </div>
 
-    #synth-container.is-off + #lfo-switch-container {
-  filter: grayscale(1);
-  opacity: 0.2;
-  pointer-events: none;
-}
-      #how-to-modal-overlay { transition: opacity 0.3s ease-in-out; }
-      .how-to-guide { border: 2px solid var(--color-text); background-color: var(--color-text-dark, #000000); max-height: 80vh; overflow-y: auto; }
-      .how-to-guide li {
-        list-style-type: none;
-      }
-      .retro-button { transition: color 0.2s; }
-      .retro-button:hover { color: var(--color-accent-yellow); }
-      .retro-button.active { color: var(--color-accent-yellow); text-decoration: underline; }
-      .preset-save-button { color: var(--color-accent-blue); }
-      .preset-load-button { color: var(--color-accent-teal); }
-      .preset-category-button {
-        border: none;
-        background: transparent;
-      }
-      #presets-toggle-button.active,
-      .preset-category-button.active {
-        text-decoration: none;
-      }
-      #presets-submenu-container {
-        position: absolute;
-        z-index: 10;
-        background: rgba(0, 0, 0, 0.85);
-        border: 2px solid rgba(255, 255, 255, 0.7);
-        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
-        color: var(--color-text);
-        backdrop-filter: blur(2px);
-      }
-      .preset-category-button:focus { outline: none; }
-       #preset-list-selector {
-         position: absolute;
-         left: -9999px;
-         top: -9999px;
-         width: 1px;
-         height: 1px;
-         opacity: 0;
-         margin: 0;
-         padding: 0;
-         border: 2px solid rgba(255, 255, 255, 0.7);
-         background: rgba(0, 0, 0, 0.9);
-         color: var(--color-text);
-         box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
-       }
-      .arp-rate-button {
-        min-width: 1.75rem;
-        padding: 0.1rem 0.4rem;
-        border: none;
-        background-color: transparent;
-        color: inherit;
-        font-size: 0.65rem;
-        font-weight: 700;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        line-height: 1;
-        letter-spacing: 0.08em;
-        transition: color 0.2s, opacity 0.2s, transform 0.1s;
-      }
-      .rate-display-row {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 1rem;
-        text-transform: uppercase;
-        color: inherit;
-        width: 100%;
-      }
-      .rate-bpm-display {
-        font-weight: 700;
-        letter-spacing: 0.12em;
-        white-space: nowrap;
-        color: inherit;
-        display: block;
-        text-align: center;
-        line-height: 1.1;
-        margin-top: 0.25rem;
-      }
-      .arp-rate-button:hover {
-        color: var(--color-accent-yellow);
-        transform: translateY(-1px);
-      }
+        <div class="flex flex-col items-center">
+          <select id="arp-order-selector" class="retro-select text-xs sm:text-sm">
+            <option value="As Played" selected>AS PLAYED</option>
+            <option value="Up">UP</option>
+            <option value="Down">DOWN</option>
+            <option value="Up/Down">UP/DOWN</option>
+            <option value="Random">RANDOM</option>
+          </select>
+          <label class="font-bold tracking-wider text-xs sm:text-sm mt-2">ORDER</label>
+        </div>
 
-      body.easter-egg-mode .arp-rate-button:hover {
-        color: var(--color-accent-orange);
-      }
-      #custom-scale-builder { display: none; }
-      .piano { display: flex; position: relative; background-color: var(--color-surface); padding: 0.5rem; border: 2px solid var(--color-text); }
-      .key { border: 2px solid var(--color-surface); cursor: pointer; transition: background-color 0.1s ease-in-out; }
-      .white-key { width: 30px; height: 90px; background-color: var(--color-accent-yellow); }
-      .white-key.selected { background-color: var(--color-accent-green); }
-      .black-key { position: absolute; width: 22px; height: 60px; background-color: var(--color-surface); border: 2px solid var(--color-accent-yellow); }
-      .black-key.selected { background-color: var(--color-accent-indigo); }
-      .black-key[data-note="1"] { left: 27px; }
-      .black-key[data-note="3"] { left: 58px; }
-      .black-key[data-note="6"] { left: 117px; }
-      .black-key[data-note="8"] { left: 148px; }
-      .black-key[data-note="10"] { left: 178px; }
-      .arp-controls { grid-template-rows: repeat(2, minmax(0, 1fr)); }
-      .arp-controls, #master-arp-controls > div { transition: opacity 0.2s ease-in-out; }
-      .arp-disabled { opacity: 0.5 !important; pointer-events: none !important; }
-      .arp-hidden { display: none !important; }
-      .arp-note-indicator { min-width: 2.5rem; text-align: center; color: var(--color-accent-yellow); display: block; font-weight: bold; }
-      .main-knob.knob-active {
-      box-shadow: 0 0 0 2px var(--color-surface), inset 0 0 0 2px var(--color-text); background-color: var(--color-text);
-      mix-blend-mode: difference;}
-      body.easter-egg-mode {
-      background-color: var(--color-dark-tan);
-      color: var(--color-text-dark, #000000);
-      }
-.main-knob.lfo-target {
-  animation: pulse-lfo 1s infinite;
-}
+        <div class="flex flex-col items-center">
+          <div id="arp-lock-switch" class="power-switch small">
+            <div class="power-switch-handle"></div>
+          </div>
+          <label class="font-bold tracking-wider text-xs sm:text-sm mt-2">ARP LOCK</label>
+        </div>
+      </div>
+      <div id="custom-scale-builder" class="justify-center">
+        <div class="piano">
+          <div class="key white-key" data-note="0"></div>
+          <div class="key white-key" data-note="2"></div>
+          <div class="key white-key" data-note="4"></div>
+          <div class="key white-key" data-note="5"></div>
+          <div class="key white-key" data-note="7"></div>
+          <div class="key white-key" data-note="9"></div>
+          <div class="key white-key" data-note="11"></div>
+          <div class="key black-key" data-note="1"></div>
+          <div class="key black-key" data-note="3"></div>
+          <div class="key black-key" data-note="6"></div>
+          <div class="key black-key" data-note="8"></div>
+          <div class="key black-key" data-note="10"></div>
+        </div>
+      </div>
+      <div id="fx-grid-container">
+      <div class="grid grid-cols-4 gap-x-4 gap-y-2 p-2">
+        <div class="flex flex-col items-center space-y-1">
+          <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="8">
+            <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+          </div>
+          <label class="font-bold tracking-wider text-xs original-label">ATTACK</label>
+        </div>
+        <div class="flex flex-col items-center space-y-1">
+          <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="9">
+            <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+          </div>
+          <label class="font-bold tracking-wider text-xs original-label">DECAY</label>
+        </div>
+        <div class="flex flex-col items-center space-y-1">
+          <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="10">
+            <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+          </div>
+          <label class="font-bold tracking-wider text-xs original-label">SUSTAIN</label>
+        </div>
+        <div class="flex flex-col items-center space-y-1">
+          <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="11">
+            <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+          </div>
+          <label class="font-bold tracking-wider text-xs original-label">RELEASE</label>
+        </div>
+      </div>
+      <div class="grid grid-cols-4 gap-x-4 gap-y-2 p-2">
+        <div class="flex flex-col items-center space-y-1">
+          <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="6">
+            <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+          </div>
+          <label class="font-bold tracking-wider text-xs original-label">CHORUS</label>
+        </div>
+        <div class="flex flex-col items-center space-y-1">
+          <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="3">
+            <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+          </div>
+          <label class="font-bold tracking-wider text-xs original-label">OSC3 MIX</label>
+        </div>
+        <div class="flex flex-col items-center space-y-1">
+          <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="4">
+            <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+          </div>
+          <label class="font-bold tracking-wider text-xs original-label">DETUNE</label>
+        </div>
+        <div class="flex flex-col items-center space-y-1">
+          <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="0">
+            <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+          </div>
+          <label class="font-bold tracking-wider text-xs original-label">GLIDE</label>
+        </div>
+      </div>
+      <div class="grid grid-cols-4 gap-x-4 gap-y-2 p-2">
 
-@keyframes pulse-lfo {
-  0%, 100% {
-    box-shadow: 0 0 0 2px var(--color-surface), 0 0 10px 2px rgba(255, 153, 0, 0.5);
-  }
-  50% {
-    box-shadow: 0 0 0 2px var(--color-surface), 0 0 20px 4px rgba(255, 153, 0, 0.8);
-  }
-}
-      body.easter-egg-mode .retro-select,
-      body.easter-egg-mode .power-switch,
-      body.easter-egg-mode .piano {
-      border-color: var(--color-text-dark, #000000);
-      }
-      body.easter-egg-mode #voice-0-wave-display,
-      body.easter-egg-mode #voice-1-wave-display {
-        color: var(--color-midnight-blue);
-      }
-      body.easter-egg-mode .retro-select {
-      color: var(--color-text-dark, #000000);
-      }
-      body.easter-egg-mode .retro-select:focus {
-      outline-color: var(--color-text-dark, #000000);
-      }
-      body.easter-egg-mode #note-display-1,
-      body.easter-egg-mode #note-display-2,
-      body.easter-egg-mode .arp-note-indicator {
-      color: var(--color-midnight-blue) !important;
-      }
-      body.easter-egg-mode .how-to-guide {
-        color: var(--color-text);
-      }
-      body.easter-egg-mode .retro-button:hover {
-        color: var(--color-egg-blue);
-      }
-      body.easter-egg-mode .retro-button.active {
-        color: var(--color-egg-blue);
-        text-decoration-color: var(--color-egg-blue);
-      }
-      body.easter-egg-mode .preset-nav-button,
-      body.easter-egg-mode .preset-nav-button:hover {
-        color: var(--color-text-dark, #000000);
-      }
-      /* --- LFO MODE STYLES --- */
-      #lfo-patch-bay {
-        position: absolute;
-        overflow: visible !important;
-        top: 0; left: 0;
-        width: 100%; height: 100%;
-        pointer-events: none;
-        z-index: 10;
-        display: none; /* Hidden by default */
-      }
-      body.lfo-mode #lfo-patch-bay {
-        display: block; /* Shown only in LFO mode */
-      }
-      .lfo-cable-group {
-        pointer-events: none;
-      }
-      .lfo-cable {
-        stroke-width: 3;
-        fill: none;
-        transition: d 0.1s ease-out;
-        pointer-events: none;
-      }
-      body.lfo-mode {
-        background-color: var(--color-bg);
-        color: var(--color-text);
-      }
-      body.easter-egg-mode.lfo-mode {
-  background-color: var(--color-dark-tan);
-  color: var(--color-text-dark, #000000);
-    }
-   body.easter-egg-mode.lfo-mode #note-display-1,
-body.easter-egg-mode.lfo-mode #note-display-2,
-   body.easter-egg-mode.lfo-mode .arp-note-indicator {
-  color: var(--color-midnight-blue) !important;
-}
+        <div class="flex flex-col items-center space-y-1">
+          <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="1">
+            <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+          </div>
+          <label class="font-bold tracking-wider text-xs original-label">DISTORTION</label>
+        </div>
+        <div class="flex flex-col items-center space-y-1">
+          <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="5">
+            <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+          </div>
+          <label class="font-bold tracking-wider text-xs original-label">AM</label>
+        </div>
+        <div class="flex flex-col items-center space-y-1">
+          <div class="w-14 h-14 fx-delay-knob rounded-full relative fx-knob-container knob-border" data-fx-id="14">
+            <div class="w-1 h-4 fx-delay-indicator rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+          </div>
+          <label class="font-bold tracking-wider text-xs original-label">DELAY</label>
+        </div>
+        <div class="flex flex-col items-center space-y-1">
+          <div class="w-14 h-14 fx-delay-knob rounded-full relative fx-knob-container knob-border" data-fx-id="15">
+            <div class="w-1 h-4 fx-delay-indicator rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+          </div>
+          <label class="font-bold tracking-wider text-xs original-label">DLY TIME</label>
+        </div>
+      </div>
 
-/* Ensure pattern dots also use midnight blue in Duplicate Note Mode */
-body.easter-egg-mode .feel-pattern-step.on {
-  background: var(--color-midnight-blue) !important;
-}
+      <div class="grid grid-cols-4 gap-x-4 gap-y-2 p-2">
 
-#lfo-lock-container {
-  display: none;
-}
+        <div class="flex flex-col items-center space-y-1">
+          <div class="w-14 h-14 fx-reverb-knob rounded-full relative fx-knob-container knob-border" data-fx-id="12">
+            <div class="w-1 h-4 fx-reverb-indicator rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+          </div>
+          <label class="font-bold tracking-wider text-xs original-label">REVERB</label>
+        </div>
+        <div class="flex flex-col items-center space-y-1">
+          <div class="w-14 h-14 fx-reverb-knob rounded-full relative fx-knob-container knob-border" data-fx-id="13">
+            <div class="w-1 h-4 fx-reverb-indicator rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+          </div>
+          <label class="font-bold tracking-wider text-xs original-label">RVB TIME</label>
+        </div>
 
-body.lfo-mode #lfo-lock-container {
-  display: flex;
-}
+        <div class="flex flex-col items-center space-y-1">
+          <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="2">
+            <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+          </div>
+          <label class="font-bold tracking-wider text-xs original-label">FILTER</label>
+        </div>
+        <div class="flex flex-col items-center space-y-1">
+          <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="7">
+            <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+          </div>
+          <label class="font-bold tracking-wider text-xs original-label">VOLUME</label>
+        </div>
+      </div>
 
-        body.easter-egg-mode.lfo-mode .retro-select {
-  color: var(--color-text-dark, #000000);
-  border-color: var(--color-text-dark, #000000);
-  background-color: var(--color-dark-tan); /* Match the background */
-}
+           
+      </div>
+      <div id="lfo-grid-container">
 
-	body.easter-egg-mode.lfo-mode .retro-select option {
-  background-color: var(--color-dark-tan);
-  color: var(--color-text-dark, #000000);
-}
-      #lfo-grid-container {
-        display: none;
-        /* REMOVED TOP BORDER TO FIX WHITE LINE ISSUE */
-        border-top: none; 
-        margin-top: 1rem;
-        padding-top: 1rem;
-      }
+        <div class="grid grid-cols-4 gap-x-4 gap-y-4 p-2">
+          <div class="lfo-column-box flex flex-col items-center space-y-4">
+            <div class="flex flex-col items-center space-y-1">
+              <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="108">
+                <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+              </div>
+              <label class="font-bold tracking-wider text-xs">RATE 1</label>
+              <div class="lfo-display lfo-rate-display" id="lfo-rate-display-0">FREE</div>
+            </div>
+            <div class="flex flex-col items-center space-y-1">
+              <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="106">
+                <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+              </div>
+              <label class="font-bold tracking-wider text-xs">DEPTH 1</label>
+            </div>
+            <div class="flex flex-col items-center space-y-1">
+              <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="101">
+                <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+              </div>
+              <label class="font-bold tracking-wider text-xs">WAVE 1</label>
+              <div class="lfo-display" id="lfo-wave-display-0">SINE</div>
+            </div>
+            <div class="flex flex-col items-center space-y-1">
+              <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="114">
+              </div>
+              <label class="font-bold tracking-wider text-xs">LFO 1 DEST</label>
+              <div class="lfo-display" id="lfo-dest-display-0">OFF</div>
+              <div class="lfo-tempo-switch-wrapper switch-disabled">
+                <div class="power-switch small lfo-tempo-sync-switch" data-lfo-tempo-index="0">
+                  <div class="power-switch-handle"></div>
+                </div>
+                <label class="font-bold tracking-wider text-[10px] sm:text-xs">SYNC</label>
+              </div>
+            </div>
+          </div>
 
-      /* Keep the LFO mode switch tappable without floating during scroll */
-      #lfo-switch-container {
-        position: static;
-        z-index: 20;
-        pointer-events: auto;
-        background: inherit;
-      }
+          <div class="lfo-column-box flex flex-col items-center space-y-4">
+            <div class="flex flex-col items-center space-y-1">
+              <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="109">
+                <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+              </div>
+              <label class="font-bold tracking-wider text-xs">RATE 2</label>
+              <div class="lfo-display lfo-rate-display" id="lfo-rate-display-1">FREE</div>
+            </div>
+            <div class="flex flex-col items-center space-y-1">
+              <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="103">
+                <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+              </div>
+              <label class="font-bold tracking-wider text-xs">DEPTH 2</label>
+            </div>
+            <div class="flex flex-col items-center space-y-1">
+              <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="105">
+                <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+              </div>
+              <label class="font-bold tracking-wider text-xs">WAVE 2</label>
+              <div class="lfo-display" id="lfo-wave-display-1">SINE</div>
+            </div>
+            <div class="flex flex-col items-center space-y-1">
+              <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="115">
+              </div>
+              <label class="font-bold tracking-wider text-xs">LFO 2 DEST</label>
+              <div class="lfo-display" id="lfo-dest-display-1">OFF</div>
+              <div class="lfo-tempo-switch-wrapper switch-disabled">
+                <div class="power-switch small lfo-tempo-sync-switch" data-lfo-tempo-index="1">
+                  <div class="power-switch-handle"></div>
+                </div>
+                <label class="font-bold tracking-wider text-[10px] sm:text-xs">SYNC</label>
+              </div>
+            </div>
+          </div>
 
-      .lfo-column-box {
-        border: 1px solid currentColor;
-        border-radius: 0;
-        padding: 14px 10px 10px 10px;
-      }
+          <div class="lfo-column-box flex flex-col items-center space-y-4">
+            <div class="flex flex-col items-center space-y-1">
+              <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="110">
+                <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+              </div>
+              <label class="font-bold tracking-wider text-xs">RATE 3</label>
+              <div class="lfo-display lfo-rate-display" id="lfo-rate-display-2">FREE</div>
+            </div>
+            <div class="flex flex-col items-center space-y-1">
+              <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="104">
+                <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+              </div>
+              <label class="font-bold tracking-wider text-xs">DEPTH 3</label>
+            </div>
+            <div class="flex flex-col items-center space-y-1">
+              <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="112">
+                <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+              </div>
+              <label class="font-bold tracking-wider text-xs">WAVE 3</label>
+              <div class="lfo-display" id="lfo-wave-display-2">SINE</div>
+            </div>
+            <div class="flex flex-col items-center space-y-1">
+              <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="102">
+              </div>
+              <label class="font-bold tracking-wider text-xs">LFO 3 DEST</label>
+              <div class="lfo-display" id="lfo-dest-display-2">OFF</div>
+              <div class="lfo-tempo-switch-wrapper switch-disabled">
+                <div class="power-switch small lfo-tempo-sync-switch" data-lfo-tempo-index="2">
+                  <div class="power-switch-handle"></div>
+                </div>
+                <label class="font-bold tracking-wider text-[10px] sm:text-xs">SYNC</label>
+              </div>
+            </div>
+          </div>
 
-      .fx-delay-knob {
-        background-color: var(--color-egg-cyan);
-      }
-
-      .fx-delay-indicator {
-        background-color: var(--color-egg-indigo);
-      }
-
-      .fx-reverb-knob {
-        background-color: var(--color-egg-red);
-      }
-
-      .fx-reverb-indicator {
-        background-color: var(--color-egg-indigo);
-      }
-      .lfo-display {
-        color: var(--color-accent-yellow); /* Bright yellow for contrast */
-        font-size: 10px;
-        margin-top: 2px;
-        min-height: 12px;
-        font-weight: bold;
-        text-align: center;
-        white-space: normal;
-        line-height: 1.2;
-      }
-
-      .lfo-rate-display {
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-      }
-
-      .lfo-tempo-switch-wrapper {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 2px;
-        margin-top: 2px;
-      }
-
-      .switch-disabled {
-        opacity: 0.35;
-        filter: grayscale(1);
-        pointer-events: none;
-      }
-       @keyframes blink-green {
-        50% {
-          background-color: var(--color-accent-orange);
-        }
-      }
-      .blinking-lfo-source {
-        animation: blink-green 1s infinite;
-        cursor: pointer !important;
-      }
-       .blinking-lfo-target {
-        animation: blink-green 1s infinite;
-        cursor: pointer !important;
-      }
-      /* --- END LFO MODE STYLES --- */
-     .sequence-note-block {
-  display: inline-block;
-  width: calc(25% - 6px);
-  height: 40px;
-  border-radius: 0px; /* 4px looks better at this size */
-  margin: 3px;
-  cursor: pointer;
-  opacity: 0.7;
-
-  transition: opacity 0.1s;
-}
-
-
-.sequence-note-block.playhead,
-.sequence-note-block.playhead-skipped {
-                                 
-  transition: none !important; 
-}
-
-.sequence-note-block:hover {
-  opacity: 1;
-}
-      .sequence-display-container {
-        display: flex;
-        justify-content: center;
-        width: 100%;
-        max-width: 240px;
-        margin-left: auto;
-        margin-right: auto;
-        padding: 4px 0;
-        box-sizing: content-box;
-      }
-
-.feel-pattern-preview {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  flex-wrap: nowrap;
-  width: auto;
-  /* 8px dots need about 158px. 165px gives a tiny safety buffer. */
-  max-width: 165px; 
-  margin: 2px auto 1px;
-  padding: 0;
-  box-sizing: border-box;
-  --feel-preview-color: rgba(255, 255, 255, 0.85);
-}
-
-.feel-pattern-step {
-  width: 8px;
-  height: 8px;
+          <div class="lfo-column-box flex flex-col items-center space-y-4">
+            <div class="flex flex-col items-center space-y-1">
+              <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="111">
+                <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+              </div>
+              <label class="font-bold tracking-wider text-xs">RATE 4</label>
+              <div class="lfo-display lfo-rate-display" id="lfo-rate-display-3">FREE</div>
+            </div>
+            <div class="flex flex-col items-center space-y-1">
+              <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="100">
+                <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+              </div>
+              <label class="font-bold tracking-wider text-xs">DEPTH 4</label>
+            </div>
+            <div class="flex flex-col items-center space-y-1">
+              <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="113">
+                <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+              </div>
+              <label class="font-bold tracking-wider text-xs">WAVE 4</label>
+              <div class="lfo-display" id="lfo-wave-display-3">SINE</div>
+            </div>
+            <div class="flex flex-col items-center space-y-1">
+              <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="107">
+              </div>
+              <label class="font-bold tracking-wider text-xs">LFO 4 DEST</label>
+              <div class="lfo-display" id="lfo-dest-display-3">OFF</div>
+              <div class="lfo-tempo-switch-wrapper switch-disabled">
+                <div class="power-switch small lfo-tempo-sync-switch" data-lfo-tempo-index="3">
+                  <div class="power-switch-handle"></div>
+                </div>
+                <label class="font-bold tracking-wider text-[10px] sm:text-xs">SYNC</label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
   
-  /* Soft square corners */
-  border-radius: 0px; 
-  
-  /* CHANGE: Set border to 'none' so empty steps are invisible */
-  border: none; 
-  
-  background: transparent;
-  
-  /* This keeps them aligned even without borders */
-  display: inline-block; 
-}
+      <div id="lfo-switch-container" class="flex flex-col items-center p-4 mt-4">
+        <div id="lfo-lock-container" class="flex flex-col items-center space-y-1 mb-2">
+          <div id="lfo-lock-switch" class="power-switch small">
+            <div class="power-switch-handle"></div>
+          </div>
+          <label class="font-bold tracking-wider text-xs">LFO LOCK</label>
+        </div>
+        <div id="lfo-mode-switch" class="power-switch small">
+          <div class="power-switch-handle"></div>
+        </div>
+        <label class="font-bold tracking-wider text-xs mt-1">LFO</label>
+      </div>
+<div id="midi-output-container" class="flex justify-center items-center p-2 space-x-2 mt-10">
+        <select id="midi-output-selector" class="retro-select text-xs" disabled>
+          <option>NO MIDI OUTPUTS</option>
+        </select>
+        <button id="midi-connect-button" class="retro-button text-xs font-bold">CONNECT MIDI</button>
+        <label class="flex items-center space-x-2 text-xs font-bold tracking-wider">
+          <input type="checkbox" id="midi-clock-toggle" class="retro-checkbox">
+          <span>SEND CLOCK</span>
+        </label>
+      </div>
+      
+  </div> <div id="how-to-modal-overlay" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none">
+      <div class="how-to-guide w-full max-w-xs sm:max-w-sm md:max-w-lg rounded-lg p-4">
+        <a class='retro-button block w-full text-center mt-4' href='https://no-b-250.netlify.app/manual' target='_blank'>CLICK FOR FULL MANUAL</a>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2 text-sm mb-4">
+          <div class="col-span-1 sm:col-span-2 text-center text-xs opacity-75 mt-2 text-red-500">Flip the POWER switch to begin. Please disable "Silent Mode" on Mobile and touch the two big circles to make sound. The below keyboard controls are for desktop only and refer to QWERTY keyboards. For all controls besides CORE CONTROLS press the displayed key to turn a knob UP, hold SHIFT and press the key to turn it DOWN.</div>
+          
+          <div class="col-span-1 sm:col-span-2 mt-2 font-bold underline">CORE CONTROLS</div>
+          <li><strong>PLAY KNOB 1:</strong> Press SPACE</li>
+          <li><strong>PLAY KNOB 2:</strong> Press 'B'</li>
+          <li><strong>SPIN KNOB 1 (FAST):</strong> Hold ← / →</li>
+          <li><strong>SPIN KNOB 2 (FAST):</strong> Hold , / .</li>
+          <li><strong>SPIN KNOB 1 (SLOW):</strong> Hold ↑ / ↓</li>
+          <li><strong>SPIN KNOB 2 (SLOW):</strong> Hold ; / '</li>
 
-.feel-pattern-step.on {
-  background: var(--feel-preview-color);
-  opacity: 1;
-}
-     .sequence-note-block.muted {
-     opacity: 0.4;
-     transform: scale(0.8);
-     }
-      .knob-flash {
-        animation: flash-white 1s ease-in-out;
-      }
-      @keyframes flash-white {
-        50% {
-        box-shadow: 0 0 500px 14px rgba(255, 255, 255, 0.8), 0 0 0 2px var(--color-surface);
-        }
-      }
-@keyframes note-retrigger {
-  0% { opacity: 0.6; transform: scale(0.95); } /* Subtle dip to make it visible */
-  100% { opacity: 1; transform: scale(1); }
-}
-    .sequence-note-block.playhead {
-  opacity: 1 !important;
-animation: note-retrigger 0.08s ease-out;
-  box-shadow: 
-    0 0 10px var(--color-accent-yellow); /* Outer glow */
-    
-  /* 4. Brighten the color itself */
-  filter: brightness(1.2);
-  
-  /* Ensure it sits on top */
-  z-index: 5;
-}
+          <div class="col-span-1 sm:col-span-2 mt-2 font-bold underline">DEDICATED CONTROLS</div>
+          <li><strong>OSC 1 FILTER:</strong> 1</li>
+          <li><strong>OSC 2 FILTER:</strong> 4</li>
+          <li><strong>OSC 1 RES:</strong> 2</li>
+          <li><strong>OSC 2 RES:</strong> 5</li>
+          <li><strong>OSC 1 VOLUME:</strong> 3</li>
+          <li><strong>OSC 2 VOLUME:</strong> 6</li>
+          <li><strong>ARP 1 RATE:</strong> -</li>
+          <li><strong>ARP 2 RATE:</strong> =</li>
+          <li><strong>ARP 1 TRANSPOSE:</strong> [</li>
+          <li><strong>ARP 2 TRANSPOSE:</strong> ]</li>
+          <li><strong>ARP 1 OCTAVES:</strong> O</li>
+          <li><strong>ARP 2 OCTAVES:</strong> P</li>
+          <li><strong>ARP 1 FEEL:</strong> K</li>
+          <li><strong>ARP 2 FEEL:</strong> L</li>
+          
+          <div class="col-span-1 sm:col-span-2 mt-2 font-bold underline">GLOBAL EFFECTS (ROW 1)</div>
+          <li><strong>ATTACK:</strong> Q</li>
+          <li><strong>DECAY:</strong> W</li>
+          <li><strong>SUSTAIN:</strong> E</li>
+          <li><strong>RELEASE:</strong> R</li>
 
-.sequence-note-block.playhead-skipped {
-  background: transparent !important;
-  background-image: none !important;
-  border-color: rgba(255, 255, 255, 0.6);
-  border-width: 2px;
-  border-style: solid;
-  opacity: 0.2;
-  transition: none !important;
-}
-      .mobile-spin-button {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        background: transparent;
-        color: white;
-        mix-blend-mode: difference;
-        width: 36px;
-        height: 36px;
-        font-size: 20px;
-        font-weight: bold;
-        line-height: 1;
-        cursor: pointer;
-        -webkit-user-select: none;
-        user-select: none;
-      }
+          <div class="col-span-1 sm:col-span-2 mt-2 font-bold underline">GLOBAL EFFECTS (ROW 2)</div>
+          <li><strong>CHORUS:</strong> A</li>
+          <li><strong>OSC3 MIX:</strong> S</li>
+          <li><strong>DETUNE:</strong> D</li>
+          <li><strong>GLIDE:</strong> F</li>
 
-     @media (max-width: 1024px) {
-  .fx-knob-container {
-    transition: none;
-    transform: translateZ(0);
-    -webkit-transform: translateZ(0);
-    backface-visibility: hidden;
-    -webkit-backface-visibility: hidden;
-    isolation: isolate;
-  }
-  
-  .fx-knob-container > .indicator {
-    backface-visibility: hidden;
-    -webkit-backface-visibility: hidden;
-    will-change: transform;
-    /* Remove these lines: */
-    /* transform: translateZ(0); */
-    /* -webkit-transform: translateZ(0); */
-  }
-  
-  
-  #octave-display-1, #octave-display-2 {
-    height: 36px;
-  }
-  
-}
-@media (min-width: 768px) {
-  .feel-pattern-preview {
-    /* More room on desktop, let them expand */
-    max-width: 220px;
-  }
+          <div class="col-span-1 sm:col-span-2 mt-2 font-bold underline">GLOBAL EFFECTS (ROW 3)</div>
+          <li><strong>DISTORTION:</strong> Z</li>
+          <li><strong>AM:</strong> X</li>
+          <li><strong>DELAY:</strong> C</li>
+          <li><strong>DLY TIME:</strong> V</li>
+          
+          <div class="col-span-1 sm:col-span-2 mt-2 font-bold underline">GLOBAL EFFECTS (ROW 4)</div>
+          <li><strong>REVERB:</strong> T</li>
+          <li><strong>RVB TIME:</strong> Y</li>
+          <li><strong>MASTER FILTER:</strong> U</li>
+          <li><strong>MASTER VOLUME:</strong> I</li>
+        </div>
+        <button id="close-modal-button" class="retro-button w-full mt-4">CLOSE</button>
+      </div>
+    </div>
 
-  .feel-pattern-step {
-    /* Big, clear 10px dots for mouse users */
-    width: 10px;
-    height: 10px;
-  }
-}
+    <div id="share-warning-modal-overlay" class="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none transition-opacity duration-300">
+      <div class="how-to-guide w-full max-w-sm rounded-lg p-6 text-center border-2 border-red-500">
+        <h2 class="text-xl font-bold text-red-500 mb-4 tracking-widest">WARNING</h2>
+        <p class="mb-6 text-sm leading-relaxed">You are about to load a shared preset. The volume or sound may be loud.<br><br>Please turn down your volume/headphones before proceeding. If you are on a Mobile device, please disable Silent Mode.</p>
+        <button id="confirm-share-load-button" class="retro-button w-full border-red-500 text-red-500 hover:text-red-400 hover:border-red-400">I UNDERSTAND, LOAD SOUND</button>
+      </div>
+    </div>
 
-.feel-pattern-step.playhead {
-  /* Force visibility and make it bright white */
-  background-color: #ffffff !important;
-  border: 1px solid #ffffff !important;
-  opacity: 1 !important;
-  
-  /* Make it pop out slightly */
-  transform: scale(1.15);
-  box-shadow: 0 0 5px rgba(255, 255, 255, 0.9);
-  z-index: 10;
-}
+    <script type="module" src="js/main.js"></script>
+    <div class="h-24"></div>
+  </body>
+</html>
