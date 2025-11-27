@@ -1415,6 +1415,8 @@ function generateComplexRandomLfoState(includeArpTargets = true) {
            },
       };
 
+      let lastGeneratedShareUrl = null;
+
       function encodePresetForUrl(presetObj) {
            const json = JSON.stringify(presetObj);
            const base64 = LZString.compressToBase64(json) || '';
@@ -1434,6 +1436,11 @@ function generateComplexRandomLfoState(includeArpTargets = true) {
            // instead of returning nothing.
            const uriEncoded = LZString.compressToEncodedURIComponent(json) || '';
            if (uriEncoded) return uriEncoded;
+
+           // Ultimate fallback: raw URI encoding of the JSON payload. This keeps the
+           // link usable instead of silently producing the base site URL.
+           const rawJson = encodeURIComponent(json);
+           if (rawJson) return rawJson;
 
            throw new Error('Preset encoding failed');
       }
@@ -1498,10 +1505,13 @@ function generateComplexRandomLfoState(includeArpTargets = true) {
                    url.searchParams.set('cat', String(metadata.category));
                }
 
-               return url.toString();
+               const shareUrl = url.toString();
+               lastGeneratedShareUrl = shareUrl;
+               return shareUrl;
            } catch (err) {
                console.error('Failed to generate shareable URL', err);
-               return window.location.href;
+               if (lastGeneratedShareUrl) return lastGeneratedShareUrl;
+               throw err;
            }
       }
 
@@ -1546,6 +1556,11 @@ function generateComplexRandomLfoState(includeArpTargets = true) {
                sourceType: presetSourceType,
                category: presetCategory,
            };
+
+           // Store the incoming URL so we always have a valid share link to fall back to.
+           if (window.location.search.includes('preset=')) {
+               lastGeneratedShareUrl = window.location.href;
+           }
 
            // --- NEW: Intercept with Warning Modal ---
            const warningModal = document.getElementById('share-warning-modal-overlay');
@@ -4177,7 +4192,17 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                if (!shareButton) return;
                const originalLabel = shareButton.textContent;
 
-               const shareUrl = generateShareableUrl();
+               let shareUrl;
+               try {
+                   shareUrl = generateShareableUrl();
+               } catch (err) {
+                   console.error('Unable to build share URL', err);
+                   shareButton.textContent = 'COPY FAILED';
+                   setTimeout(() => {
+                       if (shareButton) shareButton.textContent = originalLabel;
+                   }, 1200);
+                   return;
+               }
                const attemptClipboardCopy = async () => {
                    try {
                        await navigator.clipboard.writeText(shareUrl);
