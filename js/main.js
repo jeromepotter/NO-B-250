@@ -1415,30 +1415,62 @@ function generateComplexRandomLfoState(includeArpTargets = true) {
            },
       };
 
-      function encodePresetForUrl(presetObj) {
-           const json = JSON.stringify(presetObj);
-           return LZString.compressToEncodedURIComponent(json) || '';
-      }
+     function encodePresetForUrl(presetObj) {
+    try {
+        const json = JSON.stringify(presetObj);
+        // Use standard Base64 compression
+        const base64 = LZString.compressToBase64(json) || '';
 
-      function decodePresetFromUrl(encodedPreset) {
-           if (!encodedPreset) return null;
-           const decompressed = LZString.decompressFromEncodedURIComponent(encodedPreset);
-           if (decompressed) return JSON.parse(decompressed);
+        // Convert to URL-safe base64 to avoid %2B expansion and iMessage breaks
+        return base64
+            .replace(/\+/g, '-')
+            .replace(/\//g, '_')
+            .replace(/=+$/g, ''); // Remove padding
+    } catch (err) {
+        console.error('Failed to encode preset', err);
+        return '';
+    }
+}
 
-           // Backward compatibility: fall back to legacy base64 URLs
-           const fromBase64Url = (base64Url) => base64Url
-               .replace(/-/g, '+')
-               .replace(/_/g, '/')
-               .padEnd(base64Url.length + ((4 - (base64Url.length % 4)) % 4), '=');
+function decodePresetFromUrl(encodedPreset) {
+    if (!encodedPreset) return null;
 
-           try {
-               const decoded = decodeURIComponent(escape(atob(fromBase64Url(encodedPreset))));
-               return JSON.parse(decoded);
-           } catch (err) {
-               console.error('Failed to decode preset from URL', err);
-               return null;
-           }
-      }
+    // 1. Try New URL-Safe Base64 (The new standard)
+    try {
+        const restoreBase64 = (str) => {
+            const padLen = (4 - (str.length % 4)) % 4;
+            return str.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat(padLen);
+        };
+        
+        const decompressed = LZString.decompressFromBase64(restoreBase64(encodedPreset));
+        if (decompressed) return JSON.parse(decompressed);
+    } catch (e) {
+        // Continue to fallbacks if this fails
+    }
+
+    // 2. Fallback: Legacy LZString EncodedURIComponent (Your current live version)
+    try {
+        // This handles the format currently in production
+        const decompressed = LZString.decompressFromEncodedURIComponent(encodedPreset);
+        if (decompressed) return JSON.parse(decompressed);
+    } catch (e) {
+        // Continue
+    }
+
+    // 3. Fallback: Legacy Raw Base64 (Very old versions)
+    try {
+        const fromBase64Url = (base64Url) => base64Url
+            .replace(/-/g, '+')
+            .replace(/_/g, '/')
+            .padEnd(base64Url.length + ((4 - (base64Url.length % 4)) % 4), '=');
+
+        const decoded = decodeURIComponent(escape(atob(fromBase64Url(encodedPreset))));
+        return JSON.parse(decoded);
+    } catch (err) {
+        console.error('Failed to decode preset from URL', err);
+        return null;
+    }
+}
 
       function generateShareableUrl() {
            try {
@@ -4887,6 +4919,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
