@@ -21,8 +21,10 @@
   --color-egg-rust: oklch(0.598 0.11 52.2);
   --color-soft-stone: oklch(0.886 0.018 113.9);
   --color-egg-sand: oklch(0.786 0.064 74.6);
-  /* New darker tan for pop */
+  /* Darker tan for Duplicate Note Mode background */
   --color-dark-tan: oklch(0.5412 0.06 74.6);
+  /* Midnight Blue for text accents in Duplicate Note Mode */
+  --color-midnight-blue: #191970;
 }
 
 body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); touch-action: manipulation; color: var(--color-text); overflow-y: auto; -webkit-user-select: none; -ms-user-select: none; user-select: none; }
@@ -261,7 +263,7 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
       }
       body.easter-egg-mode #voice-0-wave-display,
       body.easter-egg-mode #voice-1-wave-display {
-        color: var(--color-egg-rust);
+        color: var(--color-midnight-blue);
       }
       body.easter-egg-mode .retro-select {
       color: var(--color-text-dark, #000000);
@@ -272,7 +274,7 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
       body.easter-egg-mode #note-display-1,
       body.easter-egg-mode #note-display-2,
       body.easter-egg-mode .arp-note-indicator {
-      color: var(--color-egg-blue) !important;
+      color: var(--color-midnight-blue) !important;
       }
       body.easter-egg-mode .how-to-guide {
         color: var(--color-text);
@@ -321,7 +323,12 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
    body.easter-egg-mode.lfo-mode #note-display-1,
 body.easter-egg-mode.lfo-mode #note-display-2,
    body.easter-egg-mode.lfo-mode .arp-note-indicator {
-  color: var(--color-egg-orange) !important;
+  color: var(--color-midnight-blue) !important;
+}
+
+/* Ensure pattern dots also use midnight blue in Duplicate Note Mode */
+body.easter-egg-mode .feel-pattern-step.on {
+  background: var(--color-midnight-blue) !important;
 }
 
 #lfo-lock-container {
@@ -344,7 +351,8 @@ body.lfo-mode #lfo-lock-container {
 }
       #lfo-grid-container {
         display: none;
-        border-top: 2px solid var(--color-text);
+        /* REMOVED TOP BORDER TO FIX WHITE LINE ISSUE */
+        border-top: none; 
         margin-top: 1rem;
         padding-top: 1rem;
       }
