@@ -1050,10 +1050,28 @@ function generateComplexRandomLfoState(includeArpTargets = true) {
            return baseReverseDic[alphabet][character];
       }
       const LZString = {
+             compressToBase64: function (input) {
+        if (input == null) return "";
+        var res = LZString._compress(input, 6, function(a) { return lzBaseChars.charAt(a); });
+        switch (res.length % 4) {
+            default: 
+            case 0: return res;
+            case 1: return res + "===";
+            case 2: return res + "==";
+            case 3: return res + "=";
+        }
+    },
            compressToEncodedURIComponent: function(input) {
                if (input == null) return '';
                return LZString._compress(input, 6, (a) => lzKeyStrUriSafe().charAt(a));
            },
+             decompressFromBase64: function (input) {
+        if (input == null) return "";
+        if (input == "") return null;
+        return LZString._decompress(input.length, 32, function(index) { 
+            return lzGetBaseValue(lzBaseChars, input.charAt(index)); 
+        });
+    },
            decompressFromEncodedURIComponent: function(input) {
                if (input == null) return '';
                input = input.replace(/\s/g, '+');
@@ -4925,6 +4943,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
