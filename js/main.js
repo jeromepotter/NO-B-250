@@ -1425,15 +1425,25 @@ function generateComplexRandomLfoState(includeArpTargets = true) {
            // Messaging apps sometimes wrap long URLs and insert whitespace/newlines into query params.
            // Strip them out so the compressed payload survives copy/paste before decoding.
            const sanitizedPreset = String(encodedPreset).trim().replace(/\s+/g, '');
-           const decompressed = LZString.decompressFromEncodedURIComponent(sanitizedPreset);
-           if (decompressed) return JSON.parse(decompressed);
-
-           // Backward compatibility: fall back to legacy base64 URLs
            const fromBase64Url = (base64Url) => base64Url
                .replace(/-/g, '+')
                .replace(/_/g, '/')
                .padEnd(base64Url.length + ((4 - (base64Url.length % 4)) % 4), '=');
 
+           if (sanitizedPreset !== encodedPreset && /\s/.test(encodedPreset)) {
+               console.debug('decodePresetFromUrl: removed whitespace from preset param before decoding');
+               try {
+                   // Quick guard: ensure base64 decoding still works after sanitization for legacy links.
+                   atob(fromBase64Url(sanitizedPreset));
+                   console.debug('decodePresetFromUrl: legacy base64 payload remains decodable after sanitization');
+               } catch (legacyErr) {
+                   console.debug('decodePresetFromUrl: sanitized preset is not valid legacy base64', legacyErr);
+               }
+           }
+           const decompressed = LZString.decompressFromEncodedURIComponent(sanitizedPreset);
+           if (decompressed) return JSON.parse(decompressed);
+
+           // Backward compatibility: fall back to legacy base64 URLs
            try {
                if (sanitizedPreset !== encodedPreset) {
                    console.debug('decodePresetFromUrl: attempting legacy base64 decode after whitespace stripping');
