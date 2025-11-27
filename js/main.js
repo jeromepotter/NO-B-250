@@ -1415,52 +1415,62 @@ function generateComplexRandomLfoState(includeArpTargets = true) {
            },
       };
 
-      function encodePresetForUrl(presetObj) {
-           const json = JSON.stringify(presetObj);
-           const base64 = LZString.compressToBase64(json) || '';
+      ffunction encodePresetForUrl(presetObj) {
+    try {
+        const json = JSON.stringify(presetObj);
+        // Use standard Base64 compression
+        const base64 = LZString.compressToBase64(json) || '';
 
-           // Convert to URL-safe base64 ("base64url") to avoid iMessage/SMS line breaks.
-           // Using percent-encoding produced noticeably longer links that some
-           // messaging clients split across multiple messages.
-           return base64
-               .replace(/\+/g, '-')
-               .replace(/\//g, '_')
-               .replace(/=+$/g, '');
-      }
+        // Convert to URL-safe base64 to avoid %2B expansion and iMessage breaks
+        return base64
+            .replace(/\+/g, '-')
+            .replace(/\//g, '_')
+            .replace(/=+$/g, ''); // Remove padding
+    } catch (err) {
+        console.error('Failed to encode preset', err);
+        return '';
+    }
+}
 
-      function decodePresetFromUrl(encodedPreset) {
-           if (!encodedPreset) return null;
-           // Primary: try URL-safe base64 (preferred for shorter links)
-           const toBase64 = (base64Url) => {
-               const restored = base64Url
-                   .replace(/-/g, '+')
-                   .replace(/_/g, '/');
+function decodePresetFromUrl(encodedPreset) {
+    if (!encodedPreset) return null;
 
-               const padLength = (4 - (restored.length % 4)) % 4;
-               return restored + '='.repeat(padLength);
-           };
+    // 1. Try New URL-Safe Base64 (The new standard)
+    try {
+        const restoreBase64 = (str) => {
+            const padLen = (4 - (str.length % 4)) % 4;
+            return str.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat(padLen);
+        };
+        
+        const decompressed = LZString.decompressFromBase64(restoreBase64(encodedPreset));
+        if (decompressed) return JSON.parse(decompressed);
+    } catch (e) {
+        // Continue to fallbacks if this fails
+    }
 
-           const fromBase64Url = (base64Url) => base64Url
-               .replace(/-/g, '+')
-               .replace(/_/g, '/')
-               .padEnd(base64Url.length + ((4 - (base64Url.length % 4)) % 4), '=');
+    // 2. Fallback: Legacy LZString EncodedURIComponent (Your current live version)
+    try {
+        // This handles the format currently in production
+        const decompressed = LZString.decompressFromEncodedURIComponent(encodedPreset);
+        if (decompressed) return JSON.parse(decompressed);
+    } catch (e) {
+        // Continue
+    }
 
-           const decompressedBase64 = LZString.decompressFromBase64(toBase64(encodedPreset));
-           if (decompressedBase64) return JSON.parse(decompressedBase64);
+    // 3. Fallback: Legacy Raw Base64 (Very old versions)
+    try {
+        const fromBase64Url = (base64Url) => base64Url
+            .replace(/-/g, '+')
+            .replace(/_/g, '/')
+            .padEnd(base64Url.length + ((4 - (base64Url.length % 4)) % 4), '=');
 
-           // Secondary: legacy percent-encoded payloads (pre-base64url)
-           const decompressed = LZString.decompressFromEncodedURIComponent(encodedPreset);
-           if (decompressed) return JSON.parse(decompressed);
-
-           // Backward compatibility: fall back to legacy base64 URLs
-           try {
-               const decoded = decodeURIComponent(escape(atob(fromBase64Url(encodedPreset))));
-               return JSON.parse(decoded);
-           } catch (err) {
-               console.error('Failed to decode preset from URL', err);
-               return null;
-           }
-      }
+        const decoded = decodeURIComponent(escape(atob(fromBase64Url(encodedPreset))));
+        return JSON.parse(decoded);
+    } catch (err) {
+        console.error('Failed to decode preset from URL', err);
+        return null;
+    }
+}
 
       function generateShareableUrl() {
            try {
@@ -4909,6 +4919,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
