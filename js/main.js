@@ -2668,33 +2668,39 @@ lfoState.forEach((lfo, lfoIndex) => {
                    if (!shouldPlay) updateKnobColor(knobId);
                }
     
-               const baseMidi = baseNoteObject ? baseNoteObject.midi : null;
+              const baseMidi = baseNoteObject ? baseNoteObject.midi : null;
                const visualIndex = baseNoteObject ? baseNoteObject.originalIndex : -1;
     
                const displayContainer = document.getElementById(`arp-sequence-display-${knobId}`);
-              if (displayContainer) { 
+               if (displayContainer) { 
                    const blocks = displayContainer.querySelectorAll('.sequence-note-block');
                    
-                   // 1. CLEANUP: Remove BOTH classes from the previous note
+                   // 1. CLEANUP: Remove 'playhead' class from the previous note
                    if (state.arpLastVisualIndex > -1 && blocks[state.arpLastVisualIndex]) {
-                       blocks[state.arpLastVisualIndex].classList.remove('playhead', 'playhead-skipped');
+                       blocks[state.arpLastVisualIndex].classList.remove('playhead');
                    }
 
-                   // 2. APPLY: Check FEEL pattern and add the correct class
+                   // 2. APPLY: Check FEEL pattern and User Active state
                    if (visualIndex > -1 && blocks[visualIndex]) {
-                       // Check if the Euclidean rhythm says "Skip" (0) for this specific step
                        const isFeelSkipped = modulatedFeelPattern[state.euclideanStepCounter % modulatedFeelPattern.length] === 0;
-                       
-                       // ONLY show the playhead if the note is actually playing (not skipped)
-                       if (!isFeelSkipped) {
-                           blocks[visualIndex].classList.add('playhead');
+                       const isNoteActive = baseNoteObject.active; // Check if user muted it
+
+                       // Only blink if the Rhythm says YES AND the User says YES
+                       if (!isFeelSkipped && isNoteActive) {
+                           const block = blocks[visualIndex];
+
+                           // --- THE JAVASCRIPT TRICK (Restart Animation) ---
+                           block.classList.remove('playhead');
+                           void block.offsetWidth; // Trigger Reflow
+                           block.classList.add('playhead');
+                           // ------------------------------------------------
+
                            state.arpLastVisualIndex = visualIndex;
                        } else {
-                           // If skipped, do nothing (no ghost notes)
                            state.arpLastVisualIndex = -1; 
                        }
                    }
-              }
+               }
     
               const fullScaleMidi = getFullScaleMidi();
                let baseNoteIndexInScale = fullScaleMidi.indexOf(baseMidi);
@@ -4866,6 +4872,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
