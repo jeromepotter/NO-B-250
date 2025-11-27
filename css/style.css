@@ -21,6 +21,8 @@
   --color-egg-rust: oklch(0.598 0.11 52.2);
   --color-soft-stone: oklch(0.886 0.018 113.9);
   --color-egg-sand: oklch(0.786 0.064 74.6);
+  /* New darker tan for pop */
+  --color-dark-tan: oklch(0.42 0.06 74.6);
 }
 
 body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); touch-action: manipulation; color: var(--color-text); overflow-y: auto; -webkit-user-select: none; -ms-user-select: none; user-select: none; }
@@ -237,7 +239,7 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
       box-shadow: 0 0 0 2px var(--color-surface), inset 0 0 0 2px var(--color-text); background-color: var(--color-text);
       mix-blend-mode: difference;}
       body.easter-egg-mode {
-      background-color: var(--color-egg-sand);
+      background-color: var(--color-dark-tan);
       color: var(--color-text-dark, #000000);
       }
 .main-knob.lfo-target {
@@ -309,11 +311,11 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
         pointer-events: none;
       }
       body.lfo-mode {
-        background-color: var(--color-egg-brown);
+        background-color: var(--color-bg);
         color: var(--color-text);
       }
       body.easter-egg-mode.lfo-mode {
-  background-color: var(--color-egg-green);
+  background-color: var(--color-dark-tan);
     }
    body.easter-egg-mode.lfo-mode #note-display-1,
 body.easter-egg-mode.lfo-mode #note-display-2,
@@ -332,11 +334,11 @@ body.lfo-mode #lfo-lock-container {
         body.easter-egg-mode.lfo-mode .retro-select {
   color: white;
   border-color: white;
-  background-color: var(--color-egg-green); /* Match the green background */
+  background-color: var(--color-dark-tan); /* Match the background */
 }
 
 	body.easter-egg-mode.lfo-mode .retro-select option {
-  background-color: var(--color-egg-green);
+  background-color: var(--color-dark-tan);
   color: white;
 }
       #lfo-grid-container {
@@ -590,21 +592,3 @@ animation: note-retrigger 0.08s ease-out;
   box-shadow: 0 0 5px rgba(255, 255, 255, 0.9);
   z-index: 10;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
