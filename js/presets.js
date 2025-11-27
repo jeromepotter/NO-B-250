@@ -1359,29 +1359,75 @@ export const PRESETS = {
                             }
                         },
         'AMARANTH': { // A classic, detuned trance supersaw arpeggio.
-                            tempoMode: 'BPM',
-                            key: 'C#',
-                            scale: 'Custom',
-                            customScale: [0, 3, 7, 10], // Defines a C# Minor 7th chord.
+                            tempoMode: "MS",
+                            key: "C#",
+                            scale: "Custom",
+                            customScale: [0, 3, 7, 10],
+                            allowDuplicateNotesMode: false,
+                            isLfoMode: false,
+                            lfoState: [
+                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
+                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
+                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 },
+                                { rate: 0, depth: 0, wave: 0, dest: -1, destChain: [], tempoSync: false, storedFreeValue: 0 }
+                            ],
+                            knobSettings: [
+                                { id: 0, totalAngle: 1179.7251 },
+                                { id: 1, totalAngle: 1080.6 }
+                            ],
                             fxSettings: [
-                                { id: 4, value: 0.4 },    // DETUNE: The key to the supersaw sound.
-                                { id: 6, value: 0.6 },    // CHORUS: Makes it even wider.
-                                { id: 3, value: 0 },      // OSC3 MIX: Turned off to focus on the detuned saws.
-                                { id: 8, value: 0.1 },    // ATTACK: A little bit of softness.
-                                { id: 11, value: 0.4 },   // RELEASE: Medium release.
-                                { id: 12, value: 0.2 }    // REVERB: A bit of space.
+                                { id: 2, value: 1 },
+                                { id: 4, value: 0.4 },
+                                { id: 6, value: 0.6 },
+                                { id: 7, value: 0.7 },
+                                { id: 8, value: 0.1 },
+                                { id: 10, value: 1 },
+                                { id: 11, value: 0.4 },
+                                { id: 12, value: 0.2 },
+                                { id: 16, value: 0.6912 },
+                                { id: 17, value: 0.6967 },
+                                { id: 18, value: 0.7 },
+                                { id: 19, value: 0.7 },
+                                { id: 20, value: 1 },
+                                { id: 21, value: 1 },
+                                { id: 24, value: 0.5 },
+                                { id: 25, value: 0.5 },
+                                { id: 26, value: 0.5 },
+                                { id: 27, value: 0.5 }
                             ],
                             arpSettings: {
-                                currentArpOrder: 'Up/Down',
-                                arp1: { isArpOn: true, notes: [49, 52, 56, 59] }, // Plays a C#m7 chord.
-                                arp2: { isArpOn: true, notes: [61, 64, 68, 71] }, // Plays the same chord an octave up.
-                                fx: {
-                                    16: 0.8157,              // Arp 1 RATE: Fast trance speed.
-                                    17: 0.8157,              // Arp 2 RATE: Same speed.
-                                    18: 0.7,              // Arp 1 OCTS: Arpeggio jumps up 2 octaves.
-                                    19: 0.7               // Arp 2 OCTS: Arpeggio also jumps up 2 octaves.
+                                isArpRateSynced: false,
+                                currentArpOrder: "Up/Down",
+                                arp1: {
+                                    isOn: true,
+                                    isArpOn: true,
+                                    isSweepMode: true,
+                                    octaves: 2,
+                                    feelValue: 0,
+                                    notes: [
+                                        { midi: 49, active: true },
+                                        { midi: 52, active: true },
+                                        { midi: 56, active: true },
+                                        { midi: 59, active: true }
+                                    ],
+                                    transpose: 0
+                                },
+                                arp2: {
+                                    isOn: true,
+                                    isArpOn: true,
+                                    isSweepMode: true,
+                                    octaves: 2,
+                                    feelValue: 0,
+                                    notes: [
+                                        { midi: 61, active: true },
+                                        { midi: 64, active: true },
+                                        { midi: 68, active: true },
+                                        { midi: 71, active: true }
+                                    ],
+                                    transpose: 0
                                 }
-                            }
+                            },
+                            metadata: { name: "AMARANTH", sourceType: "factory", category: "ARPS" }
                         },
         'BULLS': {
                             tempoMode: "BPM",
