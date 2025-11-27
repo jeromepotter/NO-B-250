@@ -37,10 +37,10 @@
   <body class="min-h-screen p-2 antialiased">
     <div id="synth-container" class="relative w-full max-w-xl mx-auto space-y-1 sm:space-y-2 p-2 rounded-lg is-off">
       <svg id="lfo-patch-bay">
-        <g id="lfo-cable-group-0" class="lfo-cable-group" data-base-color="#FF9900"></g>
-        <g id="lfo-cable-group-1" class="lfo-cable-group" data-base-color="#42A5F5"></g>
-        <g id="lfo-cable-group-2" class="lfo-cable-group" data-base-color="#EC407A"></g>
-        <g id="lfo-cable-group-3" class="lfo-cable-group" data-base-color="#9CCC65"></g>
+        <g id="lfo-cable-group-0" class="lfo-cable-group" data-base-color="#fa9c2d"></g>
+        <g id="lfo-cable-group-1" class="lfo-cable-group" data-base-color="#35a5fb"></g>
+        <g id="lfo-cable-group-2" class="lfo-cable-group" data-base-color="#d85b7e"></g>
+        <g id="lfo-cable-group-3" class="lfo-cable-group" data-base-color="#98ce57"></g>
       </svg>
       <div class="flex justify-start items-center p-2 power-container">
         <div class="flex flex-col items-center">
@@ -206,6 +206,7 @@
             </div>
           </div>
           <div id="arp-note-display-0" class="arp-note-indicator text-lg h-6 mt-1">--</div>
+          <div id="feel-pattern-preview-0" class="feel-pattern-preview hidden" aria-hidden="true"></div>
           <div class="mt-1 sequence-display-container">
             <div id="arp-sequence-display-0" class="flex-grow h-auto flex flex-wrap justify-center space-x-1 p-1 rounded"></div>
           </div>
@@ -299,6 +300,7 @@
             </div>
           </div>
           <div id="arp-note-display-1" class="arp-note-indicator text-lg h-6 mt-1">--</div>
+          <div id="feel-pattern-preview-1" class="feel-pattern-preview hidden" aria-hidden="true"></div>
           <div class="mt-1 sequence-display-container">
             <div id="arp-sequence-display-1" class="flex-grow h-auto flex flex-wrap justify-center space-x-1 p-1 rounded"></div>
           </div>
@@ -613,6 +615,7 @@
         <div id="lfo-mode-switch" class="power-switch small">
           <div class="power-switch-handle"></div>
         </div>
+        <label class="font-bold tracking-wider text-xs mt-1">LFO</label>
       </div>
 <div id="midi-output-container" class="flex justify-center items-center p-2 space-x-2 mt-10">
         <select id="midi-output-selector" class="retro-select text-xs" disabled>

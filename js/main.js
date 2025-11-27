@@ -33,8 +33,8 @@
         const MAIN_LFO_DEST_IDS = { 0: 300, 1: 301 };
         const LFO_DEST_TO_MAIN_KNOB = { 300: 0, 301: 1 };
         const LFO_DEST_NONE = -1;
-        const LFO_CABLE_COLORS = ['#FF9900', '#42A5F5', '#EC407A', '#9CCC65'];
-        const LFO_CABLE_TARGET_COLORS = ['#FF1A00', '#FFFFFF', '#8E24AA', '#8B5A2B'];
+        const LFO_CABLE_COLORS = ['#fa9c2d', '#35a5fb', '#d85b7e', '#98ce57'];
+        const LFO_CABLE_TARGET_COLORS = ['#ae332c', '#ffffff', '#843b9a', '#a44a00'];
         const lfoState = [
     { id: 0, rate: 0.5, depth: 0, wave: 0, dest: LFO_DEST_NONE, destChain: [], phase: 0, lastRandom: 0, output: 0 },
     { id: 1, rate: 0.5, depth: 0, wave: 0, dest: LFO_DEST_NONE, destChain: [], phase: 0, lastRandom: 0, output: 0 },
@@ -2051,11 +2051,12 @@ function sendMidiMessage(message) {
                    
                    // 1. The "Smart Reset" Logic
                    if (state.currentFeelPattern !== EUCLIDEAN_PATTERNS[pIndex]) {
-                       state.currentFeelPattern = EUCLIDEAN_PATTERNS[pIndex]; 
-                       state.euclideanStepCounter = 0; 
+                       state.currentFeelPattern = EUCLIDEAN_PATTERNS[pIndex];
+                       state.euclideanStepCounter = 0;
                    }
-                   
+
                    if (state.dom.feelDisplay) state.dom.feelDisplay.textContent = pIndex + 1;
+                   updateFeelPatternPreview(knobId);
 
                } else if (id === 24 || id === 25) {
                   const trans = Math.floor((d.value * 24) - 12);
@@ -2754,12 +2755,26 @@ lfoState.forEach((lfo, lfoIndex) => {
            names.forEach(name => { const opt = document.createElement('option'); opt.value = name; opt.textContent = name.toUpperCase(); scaleSelector.appendChild(opt); });
        }
       
-     function updateSequenceDisplay(knobId) {
+      function getDisplayNoteColor(noteObj, state, fullScaleMidi) {
+          if (!noteObj || !state) return { r: 255, g: 255, b: 255 };
+          const scale = fullScaleMidi || getFullScaleMidi();
+          const baseIndex = scale.indexOf(noteObj.midi);
+          let transposedMidi = noteObj.midi;
+
+          if (baseIndex !== -1) {
+              const transposedIndex = baseIndex + state.arpTranspose;
+              transposedMidi = scale[Math.max(0, Math.min(scale.length - 1, transposedIndex))];
+          }
+
+          return getArpNoteColor(transposedMidi);
+      }
+
+      function updateSequenceDisplay(knobId) {
          const state = knobState[knobId];
          const displayContainer = document.getElementById(`arp-sequence-display-${knobId}`);
          if (!displayContainer) return;
-         displayContainer.innerHTML = ''; 
-         
+         displayContainer.innerHTML = '';
+
          const fullScaleMidi = getFullScaleMidi();
 
          state.arpNotes.forEach((noteObj, index) => {
@@ -2767,14 +2782,7 @@ lfoState.forEach((lfo, lfoIndex) => {
             noteBlock.className = 'sequence-note-block';
             noteBlock.style.cursor = 'pointer';
 
-            let baseNoteIndexInScale = fullScaleMidi.indexOf(noteObj.midi);
-            let transposedMidi = noteObj.midi; // Default to original note if not in scale
-            if (baseNoteIndexInScale !== -1) {
-                const transposedNoteIndex = baseNoteIndexInScale + state.arpTranspose;
-                transposedMidi = fullScaleMidi[Math.max(0, Math.min(fullScaleMidi.length - 1, transposedNoteIndex))];
-            }
-            
-            const { r, g, b } = getArpNoteColor(transposedMidi);
+            const { r, g, b } = getDisplayNoteColor(noteObj, state, fullScaleMidi);
             noteBlock.style.backgroundColor = `rgb(${r},${g},${b})`;
             noteBlock.classList.toggle('muted', !noteObj.active);
             
@@ -2809,6 +2817,54 @@ lfoState.forEach((lfo, lfoIndex) => {
             });
             displayContainer.appendChild(noteBlock);
          });
+      }
+
+      function updateFeelPatternPreview(knobId) {
+          const state = knobState[knobId];
+          const container = state?.dom?.feelPatternPreview || document.getElementById(`feel-pattern-preview-${knobId}`);
+          if (!state || !container) return;
+
+          if (!state.isArpOn) {
+              container.innerHTML = '';
+              container.classList.add('hidden');
+              container.setAttribute('aria-hidden', 'true');
+              return;
+          }
+
+          const feelValue = typeof state.feelKnobValue === 'number' ? state.feelKnobValue : 0;
+          const pIndex = Math.min(NUM_FEEL_PATTERNS - 1, Math.floor(feelValue * NUM_FEEL_PATTERNS));
+
+          if (pIndex === 0) {
+              container.innerHTML = '';
+              container.classList.add('hidden');
+              container.setAttribute('aria-hidden', 'true');
+              return;
+          }
+
+          const pattern = EUCLIDEAN_PATTERNS[pIndex] || [];
+          container.innerHTML = '';
+
+          const noteDisplayEl = state.dom?.noteDisplay || document.getElementById(`note-display-${knobId + 1}`);
+          const computedColor = noteDisplayEl ? window.getComputedStyle(noteDisplayEl).color : '';
+          if (computedColor) {
+              container.style.setProperty('--feel-preview-color', computedColor);
+          } else {
+              const fallbackColor = getArpNoteColor(getMidiNote(knobId));
+              container.style.setProperty('--feel-preview-color', `rgb(${fallbackColor.r}, ${fallbackColor.g}, ${fallbackColor.b})`);
+          }
+
+          pattern.forEach((step, idx) => {
+              const dot = document.createElement('span');
+              dot.className = 'feel-pattern-step';
+              if (step === 1) {
+                  dot.classList.add('on');
+              }
+              dot.setAttribute('aria-label', `Pattern step ${idx + 1}: ${step === 1 ? 'note' : 'rest'}`);
+              container.appendChild(dot);
+          });
+
+          container.classList.remove('hidden');
+          container.setAttribute('aria-hidden', 'false');
       }
       
        function getRandomWaveValue() {
@@ -3217,6 +3273,7 @@ lfoState.forEach((lfo, lfoIndex) => {
       function toggleEasterEggMode() {
         allowDuplicateNotesMode = !allowDuplicateNotesMode;
         document.body.classList.toggle('easter-egg-mode', allowDuplicateNotesMode);
+        knobState.forEach(k => updateFeelPatternPreview(k.id));
       }
  function toggleLfoModeUI(forceState, isPresetLoad = false) {
     const wasInPatchingMode = activePatchingLfo !== null;
@@ -3357,6 +3414,7 @@ function applyPreset(p, isArpCategoryPreset = false, options = {}) {
                allowDuplicateNotesMode = p.allowDuplicateNotesMode;
            }
            document.body.classList.toggle('easter-egg-mode', allowDuplicateNotesMode);
+           knobState.forEach(k => updateFeelPatternPreview(k.id));
 
            if (!arpLockActive && p.scale === 'Custom') {
                customScale = p.customScale || [];
@@ -3590,6 +3648,7 @@ function setFxValue(id, value, forceVisualUpdate = false) {
                     state.feelKnobValue = d.value;
                     state.currentFeelPattern = EUCLIDEAN_PATTERNS[pIndex];
                     if (state.dom.feelDisplay) state.dom.feelDisplay.textContent = pIndex + 1;
+                    updateFeelPatternPreview(knobId);
                 } else if (id === 24 || id === 25) {
                     state.arpTranspose = Math.floor((d.value * 24) - 12);
                     if (state.dom.transposeDisplay) state.dom.transposeDisplay.textContent = state.arpTranspose;
@@ -4486,7 +4545,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                 if (headerTapCount >= 1) { 
                     toggleEasterEggMode();
                     mainHeader.style.transition = 'color 0.1s';
-                    mainHeader.style.color = '#facc15';
+                    mainHeader.style.color = 'var(--color-accent-yellow)';
                     setTimeout(() => { mainHeader.style.color = ''; }, 200);
                     headerTapCount = 0;
                 } else {
@@ -4530,6 +4589,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                s.dom.arpSwitch = document.getElementById(`arp-switch-${id}`); s.dom.arpControlsContainer = s.dom.arpSwitch?.parentElement?.nextElementSibling;
                s.dom.arpModeSwitch = document.getElementById(`arp-mode-switch-${id}`); s.dom.octsDisplay = document.getElementById(`octs-display-${id}`);
                s.dom.feelDisplay = document.getElementById(`feel-display-${id}`); s.dom.arpNoteDisplay = document.getElementById(`arp-note-display-${id}`);
+               s.dom.feelPatternPreview = document.getElementById(`feel-pattern-preview-${id}`);
                s.dom.transposeDisplay = document.getElementById(`transpose-display-${id}`);
                s.dom.rateDisplay = document.getElementById(`rate-display-${id}`);
       
@@ -4573,6 +4633,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                    }
 
                    updateGlobalArpVisibility();
+                   updateFeelPatternPreview(s.id);
                    if (!s.isArpOn) { stopArpeggiator(s.id); if(s.isHeld) { s.isNoteOn = true; const freq = calculateNote(s.id, false); if(synthNode) synthNode.port.postMessage({type:'noteOn',data:{voice:s.id,freq:freq}}); } s.arpNotes = []; updateSequenceDisplay(s.id);if(s.dom.arpNoteDisplay)s.dom.arpNoteDisplay.textContent="--"; }
                    else { if(s.isHeld) { if (s.isNoteOn) { if(synthNode) synthNode.port.postMessage({type:'noteOff', data:{voice:s.id}}); s.isNoteOn = false; } playNote(s.id); } }
                    updateStateFromTotalAngle(s.id);
@@ -4589,7 +4650,9 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                    } 
                });
            });
-      
+
+           knobState.forEach(k => updateFeelPatternPreview(k.id));
+
            document.addEventListener('mousemove',updateKnobPosition); document.addEventListener('mouseup',handleInteractionEnd);
            document.addEventListener('touchmove',updateKnobPosition,{passive:false}); document.addEventListener('touchend',handleInteractionEnd);
            document.addEventListener('touchcancel', handleInteractionEnd); document.addEventListener('keydown',handleKeyDown); document.addEventListener('keyup',handleKeyUp);
