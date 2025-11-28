@@ -85,7 +85,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let lfoRateDisplays = [];
         let breakGridContainer = null;
         let breakPlayButton = null;
-        let breakSlipButtons = [];
+        let breakSlipDisplay = null;
         let oscillatorRow = null;
         let breakModeActive = false;
         let breakPlayRequested = false;
@@ -104,6 +104,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakPlaybackStartTime = 0;
         let breakWaveformDpr = 1;
         let breakWaveformColors = null;
+        const BREAK_SLIP_DIVISIONS = [4, 2, 1, 0.5, 0.25, 0.125, 0.0625, 0.03125];
 
         function getLfoDestChain(lfo) {
             if (lfo && Array.isArray(lfo.destChain) && lfo.destChain.length) return lfo.destChain;
@@ -382,6 +383,41 @@ let liveLfoOutputs = [0, 0, 0, 0];
             return Math.max(0.1, bpm / BREAK_BASE_BPM);
         }
 
+        function normalizedToBreakSlipDivision(normalized) {
+            const clamped = clamp(normalized, 0, 1);
+            const index = Math.round(clamped * (BREAK_SLIP_DIVISIONS.length - 1));
+            return BREAK_SLIP_DIVISIONS[Math.min(BREAK_SLIP_DIVISIONS.length - 1, Math.max(0, index))];
+        }
+
+        function breakSlipDivisionToNormalized(value) {
+            let closestIdx = 0;
+            let smallestDiff = Infinity;
+            BREAK_SLIP_DIVISIONS.forEach((division, idx) => {
+                const diff = Math.abs(division - value);
+                if (diff < smallestDiff) {
+                    smallestDiff = diff;
+                    closestIdx = idx;
+                }
+            });
+            return BREAK_SLIP_DIVISIONS.length > 1
+                ? closestIdx / (BREAK_SLIP_DIVISIONS.length - 1)
+                : 0;
+        }
+
+        function formatBreakSlipLabel(value) {
+            if (value >= 1) return value.toString();
+            return `1/${Math.round(1 / value)}`;
+        }
+
+        function syncBreakSlipKnob() {
+            const knob = fxKnobData[35];
+            if (!knob) return;
+            const normalized = breakSlipDivisionToNormalized(breakSlipDivision);
+            knob.value = normalized;
+            knob.angle = MIN_FX_ANGLE + normalized * (MAX_FX_ANGLE - MIN_FX_ANGLE);
+            applyIndicatorTransform(knob.indicator, knob.angle);
+        }
+
         function getBreakSlipWindowSeconds() {
             const bpm = calculateMidiBpm();
             if (!Number.isFinite(bpm) || bpm <= 0) return 0;
@@ -398,17 +434,19 @@ let liveLfoOutputs = [0, 0, 0, 0];
         }
 
         function updateBreakSlipUi() {
-            breakSlipButtons.forEach(btn => {
-                const value = parseFloat(btn.dataset?.slip || '0');
-                btn.classList.toggle('active', value === breakSlipDivision);
-            });
+            if (breakSlipDisplay) {
+                breakSlipDisplay.textContent = formatBreakSlipLabel(breakSlipDivision);
+            }
         }
 
         function setBreakSlipDivision(nextDivision) {
-            const normalized = Math.max(0.03125, Math.min(4, nextDivision));
-            if (Math.abs(normalized - breakSlipDivision) < 1e-5) return;
-            breakSlipDivision = normalized;
+            const snapped = normalizedToBreakSlipDivision(
+                breakSlipDivisionToNormalized(Math.max(0.03125, Math.min(4, nextDivision)))
+            );
+            if (Math.abs(snapped - breakSlipDivision) < 1e-5) return;
+            breakSlipDivision = snapped;
             updateBreakSlipUi();
+            syncBreakSlipKnob();
             sendBreakSlipWindow();
         }
 
@@ -424,6 +462,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             breakGridContainer.classList.toggle('visible', shouldShow);
             breakGridContainer.classList.toggle('hidden', !shouldShow);
             oscillatorRow?.classList.toggle('break-blur', shouldShow);
+            document.body?.classList.toggle('break-mode', shouldShow);
             if (shouldShow) {
                 resizeBreakWaveformCanvas();
                 drawBreakWaveform();
@@ -2357,8 +2396,20 @@ function sendMidiMessage(message) {
            let newAngle = Math.max(MIN_FX_ANGLE, Math.min(MAX_FX_ANGLE, d.angle + deltaY));
            d.angle = newAngle; 
            d.value = (d.angle - MIN_FX_ANGLE) / (MAX_FX_ANGLE - MIN_FX_ANGLE);
-           
+
            applyIndicatorTransform(d.indicator, d.angle);
+
+           if (id === 35) {
+               const snappedDivision = normalizedToBreakSlipDivision(d.value);
+               const snappedValue = breakSlipDivisionToNormalized(snappedDivision);
+               if (Math.abs(snappedValue - d.value) > 1e-5) {
+                   d.value = snappedValue;
+                   d.angle = MIN_FX_ANGLE + snappedValue * (MAX_FX_ANGLE - MIN_FX_ANGLE);
+                   applyIndicatorTransform(d.indicator, d.angle);
+               }
+               setBreakSlipDivision(snappedDivision);
+               return;
+           }
 
            if (id === 30 || id === 31) {
                updateVoiceWaveDisplay(id === 30 ? 0 : 1, d.value);
@@ -2537,7 +2588,7 @@ function sendMidiMessage(message) {
                else if(id===9){fxKnobData[id].value=0.0995;} else if(id===10){fxKnobData[id].value=0.8;} else if(id===11){fxKnobData[id].value=0.2;}
                else if(id===13){fxKnobData[id].value=0.5;} else if(id===15){fxKnobData[id].value=0.25;} else if(id===16||id===17){fxKnobData[id].value=arpRateBpmToValue(DEFAULT_ARP_RATE_BPM);}
                else if(id===18||id===19){fxKnobData[id].value=0.0;} else if(id===20||id===21){fxKnobData[id].value=1.0;}
-               else if(id===22||id===23){fxKnobData[id].value=0.0;} else if(id===24||id===25){fxKnobData[id].value=0.5;} else if(id===26||id===27){fxKnobData[id].value=0.5;} else if(id===28||id===29){fxKnobData[id].value=0.0;} else if(id===30||id===31){fxKnobData[id].value=0.0;} else if(id===32){fxKnobData[id].value=1.0;} else if(id===33){fxKnobData[id].value=0.0;} else if(id===34){fxKnobData[id].value=0.7;}
+               else if(id===22||id===23){fxKnobData[id].value=0.0;} else if(id===24||id===25){fxKnobData[id].value=0.5;} else if(id===26||id===27){fxKnobData[id].value=0.5;} else if(id===28||id===29){fxKnobData[id].value=0.0;} else if(id===30||id===31){fxKnobData[id].value=0.0;} else if(id===32){fxKnobData[id].value=1.0;} else if(id===33){fxKnobData[id].value=0.0;} else if(id===34){fxKnobData[id].value=0.7;} else if(id===35){fxKnobData[id].value=breakSlipDivisionToNormalized(breakSlipDivision);}
                fxKnobData[id].angle = MIN_FX_ANGLE + (fxKnobData[id].value * (MAX_FX_ANGLE - MIN_FX_ANGLE));
                if (fxKnobData[id].indicator) { applyIndicatorTransform(fxKnobData[id].indicator, fxKnobData[id].angle); }
                if(id===30||id===31){ updateVoiceWaveDisplay(id === 30 ? 0 : 1, fxKnobData[id].value); }
@@ -4451,7 +4502,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
            oscillatorRow = document.getElementById('oscillator-row');
            breakGridContainer = document.getElementById('break-grid-container');
            breakPlayButton = document.getElementById('break-play-button');
-           breakSlipButtons = Array.from(document.querySelectorAll('.break-slip-button'));
+           breakSlipDisplay = document.getElementById('break-slip-display');
            breakWaveCanvas = document.getElementById('break-waveform');
            breakWaveCtx = breakWaveCanvas ? breakWaveCanvas.getContext('2d') : null;
            
@@ -4500,16 +4551,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                });
                updateBreakPlayUi();
            }
-           if (breakSlipButtons.length) {
-               breakSlipButtons.forEach(btn => {
-                   addTouchListener(btn, () => {
-                       const slipVal = parseFloat(btn.dataset?.slip || '0');
-                       if (!Number.isFinite(slipVal)) return;
-                       setBreakSlipDivision(slipVal);
-                   });
-               });
-               updateBreakSlipUi();
-           }
+           updateBreakSlipUi();
            updateBreakGridVisibility();
            resizeBreakWaveformCanvas();
            window.addEventListener('resize', resizeBreakWaveformCanvas);
