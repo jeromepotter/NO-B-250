@@ -4,11 +4,13 @@
       let isDrumMode = false;
       let drumBuffer = null;
       let drumGrid = new Array(16).fill(1);
+      let breakPlaybackSource = null;
       let isLfoMode = false;
       let isLfoLockEnabled = false;
       let visualUpdatePending = false;
       let activeMainKnobId = null; // For MOUSE input only
       let lastTouchTime = 0; // Mobile double-trigger fix
+      const BREAK_SAMPLE_URLS = ['./audio/break.wav', 'https://no-b-250.netlify.app/audio/break.wav'];
        const fxKnobData = {};
        const VOICE_WAVEFORMS = ['SAW', 'SQR', 'SINE', 'TRI'];
        const spinIntervals = {};
@@ -25,6 +27,7 @@
        let midiEventsTrack2 = [];
        let midiRecordingStartTime = 0;
        let recordMidiButton = null;
+       let breakPlayButton = null;
  let midiAccess = null;
        let selectedMidiOutput = null;
 
@@ -1650,23 +1653,69 @@ function decodePresetFromUrl(encodedPreset) {
             }
        }
 async function loadDrumSample() {
-    if(drumBuffer) return; // Already loaded
-    try {
-        const response = await fetch('./audio/break.wav');
-        const arrayBuffer = await response.arrayBuffer();
-        drumBuffer = await audioContext.decodeAudioData(arrayBuffer);
-        
-        // Send to AudioWorklet
-        const ch0 = drumBuffer.getChannelData(0);
-        const ch1 = drumBuffer.numberOfChannels > 1 ? drumBuffer.getChannelData(1) : ch0;
-        
-        synthNode.port.postMessage({
-            type: 'loadDrumSample',
-            data: { bufferL: ch0, bufferR: ch1 }
-        });
-    } catch (e) {
-        console.error("Error loading breakbeat:", e);
+    if (drumBuffer) return; // Already loaded
+    let lastError = null;
+    for (const url of BREAK_SAMPLE_URLS) {
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                lastError = new Error(`Failed to load breakbeat: ${response.status} ${response.statusText}`);
+                continue;
+            }
+
+            const arrayBuffer = await response.arrayBuffer();
+            drumBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+            // Send to AudioWorklet
+            const ch0 = drumBuffer.getChannelData(0);
+            const ch1 = drumBuffer.numberOfChannels > 1 ? drumBuffer.getChannelData(1) : ch0;
+
+            synthNode.port.postMessage({
+                type: 'loadDrumSample',
+                data: { bufferL: ch0, bufferR: ch1 }
+            });
+            return;
+        } catch (e) {
+            lastError = e;
+        }
     }
+
+    if (lastError) {
+        console.error("Error loading breakbeat:", lastError);
+    }
+}
+
+async function handleBreakPlay() {
+    await powerOn();
+    if (audioSetupPromise) await audioSetupPromise;
+    if (!audioContext) return;
+    if (audioContext.state === 'suspended' || audioContext.state === 'interrupted') {
+        await audioContext.resume();
+    }
+    await loadDrumSample();
+    ensureMasterClock();
+
+    if (!drumBuffer) return;
+
+    if (breakPlaybackSource) {
+        try {
+            breakPlaybackSource.stop();
+        } catch (e) {
+            console.error('Error stopping previous break playback', e);
+        }
+    }
+
+    const source = audioContext.createBufferSource();
+    source.buffer = drumBuffer;
+    source.connect(audioContext.destination);
+    source.start();
+
+    breakPlaybackSource = source;
+    source.onended = () => {
+        if (breakPlaybackSource === source) {
+            breakPlaybackSource = null;
+        }
+    };
 }
 
 function toggleDrumMode() {
@@ -4207,6 +4256,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
            customScaleBuilder = document.getElementById('custom-scale-builder');
            recordButton = document.getElementById('record-button');
            recordMidiButton = document.getElementById('record-midi-button');
+           breakPlayButton = document.getElementById('break-play-button');
            loadPresetInput = document.getElementById('load-preset-input');
            presetNameDisplay = document.getElementById('preset-display');
            presetDisplayContainer = document.getElementById('preset-display-container');
@@ -4286,7 +4336,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                }
           });
 
-          addTouchListener(shareButton, async () => {
+           addTouchListener(shareButton, async () => {
                if (!shareButton) return;
                const originalLabel = shareButton.textContent;
                
@@ -4331,6 +4381,11 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
            addTouchListener(recordMidiButton, () => {
                toggleMidiRecording();
                recordMidiButton.blur();
+           });
+
+           addTouchListener(breakPlayButton, () => {
+               handleBreakPlay();
+               breakPlayButton?.blur();
            });
 
            // --- 7. FIX: DROPDOWN MENUS (Scale, Key, Arp Order) ---

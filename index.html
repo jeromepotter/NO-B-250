@@ -307,15 +307,18 @@
 
       <div id="drum-sequencer-container" class="hidden flex-col items-center mt-4 p-2 border-t-2 border-[var(--color-text)]">
         <label class="font-bold tracking-wider text-xs mb-2">BREAKBEAT SEQUENCER</label>
-        <div class="grid grid-cols-8 sm:grid-cols-16 gap-1 w-full max-w-lg">
-          <div class="drum-step" data-step="0"></div><div class="drum-step" data-step="1"></div>
-          <div class="drum-step" data-step="2"></div><div class="drum-step" data-step="3"></div>
-          <div class="drum-step" data-step="4"></div><div class="drum-step" data-step="5"></div>
-          <div class="drum-step" data-step="6"></div><div class="drum-step" data-step="7"></div>
-          <div class="drum-step" data-step="8"></div><div class="drum-step" data-step="9"></div>
-          <div class="drum-step" data-step="10"></div><div class="drum-step" data-step="11"></div>
-          <div class="drum-step" data-step="12"></div><div class="drum-step" data-step="13"></div>
-          <div class="drum-step" data-step="14"></div><div class="drum-step" data-step="15"></div>
+        <div class="flex items-center gap-2 w-full max-w-lg">
+          <div class="grid grid-cols-8 sm:grid-cols-16 gap-1 flex-grow">
+            <div class="drum-step" data-step="0"></div><div class="drum-step" data-step="1"></div>
+            <div class="drum-step" data-step="2"></div><div class="drum-step" data-step="3"></div>
+            <div class="drum-step" data-step="4"></div><div class="drum-step" data-step="5"></div>
+            <div class="drum-step" data-step="6"></div><div class="drum-step" data-step="7"></div>
+            <div class="drum-step" data-step="8"></div><div class="drum-step" data-step="9"></div>
+            <div class="drum-step" data-step="10"></div><div class="drum-step" data-step="11"></div>
+            <div class="drum-step" data-step="12"></div><div class="drum-step" data-step="13"></div>
+            <div class="drum-step" data-step="14"></div><div class="drum-step" data-step="15"></div>
+          </div>
+          <button id="break-play-button" class="retro-button text-xs sm:text-sm font-bold px-3">PLAY</button>
         </div>
       </div>
 
