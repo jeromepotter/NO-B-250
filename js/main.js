@@ -463,14 +463,25 @@ let liveLfoOutputs = [0, 0, 0, 0];
             return (60 / bpm) * breakSlipActiveDivision;
         }
 
-        function sendBreakSlipWindow() {
+        function isBreakSlipActive(division = breakSlipActiveDivision) {
+            return Number.isFinite(division) && division < 3.999;
+        }
+
+        function shouldRefreshBreakSlipAnchor(prevDivision, nextDivision) {
+            if (prevDivision === undefined || prevDivision === null) return true;
+            return isBreakSlipActive(prevDivision) !== isBreakSlipActive(nextDivision);
+        }
+
+        function sendBreakSlipWindow(previousDivision = null) {
             if (!synthNode || !breakBufferLoaded) return;
             const nextWindow = getBreakSlipWindowSeconds();
             if (!Number.isFinite(nextWindow)) return;
             if (Math.abs(nextWindow - breakSlipWindowSeconds) < 1e-5) return;
             breakSlipWindowSeconds = nextWindow;
             synthNode.port.postMessage({ type: 'setBreakSlipWindow', data: { windowSeconds: breakSlipWindowSeconds } });
-            refreshBreakSlipAnchor();
+            if (shouldRefreshBreakSlipAnchor(previousDivision, breakSlipActiveDivision)) {
+                refreshBreakSlipAnchor();
+            }
             drawBreakWaveform(breakWaveformLastProgress);
         }
 
@@ -512,6 +523,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         }
 
         function setBreakSlipDivision(nextDivision, syncKnob = true) {
+            const previousDivision = breakSlipActiveDivision;
             const snapped = normalizedToBreakSlipDivision(
                 breakSlipDivisionToNormalized(Math.max(0.03125, Math.min(4, nextDivision)))
             );
@@ -529,7 +541,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 }
                 syncBreakSlipKnob();
             }
-            sendBreakSlipWindow();
+            sendBreakSlipWindow(previousDivision);
         }
 
         function applyBreakSlipModulation(modAmount = 0) {
@@ -542,11 +554,12 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const modNormalized = clamp(baseNormalized + modAmount, 0, 1);
             const modDivision = normalizedToBreakSlipDivision(modNormalized);
             const changed = Math.abs(modDivision - breakSlipActiveDivision) > 1e-5;
+            const previousDivision = breakSlipActiveDivision;
             breakSlipActiveDivision = modDivision;
             updateBreakSlipUi();
             syncBreakSlipKnob(modNormalized);
             if (changed) {
-                sendBreakSlipWindow();
+                sendBreakSlipWindow(previousDivision);
             } else {
                 drawBreakWaveform(breakWaveformLastProgress);
             }
@@ -4248,13 +4261,14 @@ function setFxValue(id, value, forceVisualUpdate = false) {
             if (id === 35) {
                 const clampedVal = Math.max(0, Math.min(1, value));
                 const division = normalizedToBreakSlipDivision(clampedVal);
+                const previousDivision = breakSlipActiveDivision;
                 breakSlipBaseDivision = division;
                 breakSlipActiveDivision = division;
                 d.value = clampedVal;
                 d.angle = MIN_FX_ANGLE + (clampedVal * (MAX_FX_ANGLE - MIN_FX_ANGLE));
                 updateBreakSlipUi();
                 syncBreakSlipKnob();
-                sendBreakSlipWindow();
+                sendBreakSlipWindow(previousDivision);
                 return;
             }
 
