@@ -321,6 +321,25 @@ const LFO_DEST_NONE = -1;
                    this.sampleLength = 0;
                    this.sliceLength = 0;
                    this.samplerPlayback = { active: false, position: 0, end: 0, rate: 1, loop: false };
+                   this.slipWindowSeconds = 0;
+                   this.slipWindowSamples = 0;
+                   this.slipRenderPhase = 0;
+                   this.slipAnchorStart = 0;
+                   this.slipActive = false;
+
+                   this.recomputeSlipWindow = () => {
+                       if (this.slipWindowSeconds > 0 && this.samplerPlayback.rate > 0) {
+                           this.slipWindowSamples = this.slipWindowSeconds * this.samplerPlayback.rate * sampleRate;
+                           this.slipAnchorStart = Math.max(0, this.samplerPlayback.position - this.slipWindowSamples);
+                           this.slipRenderPhase = 0;
+                           this.slipActive = this.slipWindowSamples > 0;
+                       } else {
+                           this.slipWindowSamples = 0;
+                           this.slipRenderPhase = 0;
+                           this.slipAnchorStart = 0;
+                           this.slipActive = false;
+                       }
+                   };
       
                    this.port.onmessage = ({ data: { type, data } }) => {
                        const { voice, freq, id, value, lfoId, param } = data || {};
@@ -380,16 +399,23 @@ const LFO_DEST_NONE = -1;
                                    const playbackRate = Math.max(0.01, data?.playbackRate || 1);
                                    const rate = playbackRate * (this.sampleSourceRate / sampleRate);
                                    this.samplerPlayback = { active: true, position: 0, end: this.sampleLength, rate, loop: true };
+                                   this.recomputeSlipWindow();
                                }
                                break;
                            case 'stopBreakLoop':
                                this.samplerPlayback = { active: false, position: 0, end: 0, rate: 1, loop: false };
+                               this.slipRenderPhase = 0;
                                break;
                            case 'setBreakPlaybackRate':
                                if (this.samplerPlayback && this.samplerPlayback.active) {
                                    const playbackRate = Math.max(0.01, data?.playbackRate || 1);
                                    this.samplerPlayback.rate = playbackRate * (this.sampleSourceRate / sampleRate);
+                                   this.recomputeSlipWindow();
                                }
+                               break;
+                           case 'setBreakSlipWindow':
+                               this.slipWindowSeconds = Math.max(0, data?.windowSeconds || 0);
+                               this.recomputeSlipWindow();
                                break;
                             case 'setLfo':
                                 if (lfoId >= 0 && lfoId < this.lfoParams.length) {
@@ -663,13 +689,25 @@ for(let i=0;i<blockSize;i++){
         if (effectivePos >= this.sampleLength || effectivePos >= this.samplerPlayback.end) {
             if (this.samplerPlayback.loop) {
                 this.samplerPlayback.position = 0;
+                this.slipAnchorStart = Math.max(0, this.samplerPlayback.position - this.slipWindowSamples);
+                this.slipRenderPhase = 0;
             } else {
                 this.samplerPlayback.active = false;
             }
         }
 
         if (this.samplerPlayback.active) {
-            sampleVal = this.getSamplerSample(this.samplerPlayback.position);
+            let renderPos = this.samplerPlayback.position;
+            if (this.slipActive && this.slipWindowSamples > 0) {
+                const windowSize = Math.max(1, this.slipWindowSamples);
+                const anchor = Math.max(0, this.slipAnchorStart % this.sampleLength);
+                renderPos = (anchor + (this.slipRenderPhase % windowSize)) % this.sampleLength;
+                this.slipRenderPhase += this.samplerPlayback.rate;
+            } else {
+                this.slipRenderPhase = 0;
+            }
+
+            sampleVal = this.getSamplerSample(renderPos);
             this.samplerPlayback.position += this.samplerPlayback.rate;
         }
     }

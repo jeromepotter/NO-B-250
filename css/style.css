@@ -605,6 +605,9 @@ animation: note-retrigger 0.08s ease-out;
 .break-grid {
   margin: 10px auto 0;
   max-width: 680px;
+  background: #0d0f12;
+  border-radius: 8px;
+  padding: 12px;
 }
 
 .break-grid.hidden {
@@ -621,6 +624,42 @@ animation: note-retrigger 0.08s ease-out;
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.break-slip-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  justify-content: center;
+  padding: 4px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.break-slip-button {
+  min-width: 1.75rem;
+  padding: 0.1rem 0.5rem;
+  border: none;
+  background-color: transparent;
+  color: inherit;
+  font-size: 0.65rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  transition: color 0.2s, opacity 0.2s, transform 0.1s;
+}
+
+.break-slip-button.active {
+  color: var(--color-accent-orange);
+}
+
+.break-slip-button:hover {
+  color: var(--color-accent-yellow);
+  transform: translateY(-1px);
 }
 
 .break-knob-row {
@@ -656,6 +695,6 @@ animation: note-retrigger 0.08s ease-out;
 }
 
 .break-blur {
-  filter: blur(3px) brightness(1.05);
+  filter: blur(1.5px) brightness(1.05);
   transition: filter 0.3s ease;
 }

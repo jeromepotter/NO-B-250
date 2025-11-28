@@ -85,6 +85,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let lfoRateDisplays = [];
         let breakGridContainer = null;
         let breakPlayButton = null;
+        let breakSlipButtons = [];
         let oscillatorRow = null;
         let breakModeActive = false;
         let breakPlayRequested = false;
@@ -93,6 +94,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakBufferLoaded = false;
         let breakSampleLoadingPromise = null;
         let breakPlaybackRate = 1;
+        let breakSlipDivision = 1;
+        let breakSlipWindowSeconds = 0;
         let breakWaveCanvas = null;
         let breakWaveCtx = null;
         let breakWaveformPeaks = null;
@@ -379,9 +382,39 @@ let liveLfoOutputs = [0, 0, 0, 0];
             return Math.max(0.1, bpm / BREAK_BASE_BPM);
         }
 
+        function getBreakSlipWindowSeconds() {
+            const bpm = calculateMidiBpm();
+            if (!Number.isFinite(bpm) || bpm <= 0) return 0;
+            return (60 / bpm) * breakSlipDivision;
+        }
+
+        function sendBreakSlipWindow() {
+            if (!synthNode || !breakBufferLoaded) return;
+            const nextWindow = getBreakSlipWindowSeconds();
+            if (!Number.isFinite(nextWindow)) return;
+            if (Math.abs(nextWindow - breakSlipWindowSeconds) < 1e-5) return;
+            breakSlipWindowSeconds = nextWindow;
+            synthNode.port.postMessage({ type: 'setBreakSlipWindow', data: { windowSeconds: breakSlipWindowSeconds } });
+        }
+
+        function updateBreakSlipUi() {
+            breakSlipButtons.forEach(btn => {
+                const value = parseFloat(btn.dataset?.slip || '0');
+                btn.classList.toggle('active', value === breakSlipDivision);
+            });
+        }
+
+        function setBreakSlipDivision(nextDivision) {
+            const normalized = Math.max(0.03125, Math.min(4, nextDivision));
+            if (Math.abs(normalized - breakSlipDivision) < 1e-5) return;
+            breakSlipDivision = normalized;
+            updateBreakSlipUi();
+            sendBreakSlipWindow();
+        }
+
         function updateBreakPlayUi() {
             if (breakPlayButton) {
-                breakPlayButton.textContent = breakPlayRequested ? 'pause' : 'play';
+                breakPlayButton.textContent = breakPlayRequested ? 'PAUSE' : 'PLAY';
             }
         }
 
@@ -546,6 +579,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         function handleBreakLoopTick() {
             if (!breakRunning || !breakBufferLoaded) return;
             sendBreakPlaybackRate();
+            sendBreakSlipWindow();
         }
 
         function clearBreakStartTimer() {
@@ -561,6 +595,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
             breakRunning = true;
             breakPlaybackRate = getBreakPlaybackRate();
             breakPlaybackStartTime = audioContext ? audioContext.currentTime : (performance.now() / 1000);
+            breakSlipWindowSeconds = 0;
+            sendBreakSlipWindow();
             synthNode?.port.postMessage({ type: 'startBreakLoop', data: { playbackRate: breakPlaybackRate } });
             startBreakWaveformAnimation();
         }
@@ -4415,6 +4451,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
            oscillatorRow = document.getElementById('oscillator-row');
            breakGridContainer = document.getElementById('break-grid-container');
            breakPlayButton = document.getElementById('break-play-button');
+           breakSlipButtons = Array.from(document.querySelectorAll('.break-slip-button'));
            breakWaveCanvas = document.getElementById('break-waveform');
            breakWaveCtx = breakWaveCanvas ? breakWaveCanvas.getContext('2d') : null;
            
@@ -4462,6 +4499,16 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                    await toggleBreakPlayback();
                });
                updateBreakPlayUi();
+           }
+           if (breakSlipButtons.length) {
+               breakSlipButtons.forEach(btn => {
+                   addTouchListener(btn, () => {
+                       const slipVal = parseFloat(btn.dataset?.slip || '0');
+                       if (!Number.isFinite(slipVal)) return;
+                       setBreakSlipDivision(slipVal);
+                   });
+               });
+               updateBreakSlipUi();
            }
            updateBreakGridVisibility();
            resizeBreakWaveformCanvas();
