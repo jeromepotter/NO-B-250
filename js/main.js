@@ -1549,8 +1549,8 @@ function decodePresetFromUrl(encodedPreset) {
 
            if (!parsedPreset && presetUrl) {
                try {
-                   const response = await fetch(presetUrl);
-                   if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    const response = await fetch('https://no-b-250.netlify.app/audio/break.wav');
+                      if (!response.ok) throw new Error(`HTTP ${response.status}`);
                    parsedPreset = await response.json();
                } catch (err) {
                    console.error('Failed to fetch preset from URL', err);
