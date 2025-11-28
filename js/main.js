@@ -87,6 +87,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakPlayButton = null;
         let breakSlipDisplay = null;
         let breakFxSwitch = null;
+        let breakSlipModeSwitch = null;
         let oscillatorRow = null;
         let breakModeActive = false;
         let breakPlayRequested = false;
@@ -110,6 +111,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakWaveformLastProgress = 0;
         let breakSlipCycleStartTime = 0;
         let breakFxSendToGlobalFx = false;
+        let breakSlipAnchorHoldEnabled = true;
         const BREAK_SLIP_DIVISIONS = [4, 2, 1, 0.5, 0.25, 0.125, 0.0625, 0.03125];
         const BREAK_MODE_ARP_TOGGLE_COUNT = 6;
         const BREAK_MODE_ARP_WINDOW_MS = 1800;
@@ -432,6 +434,23 @@ let liveLfoOutputs = [0, 0, 0, 0];
             breakFxSwitch.setAttribute('aria-checked', breakFxSendToGlobalFx ? 'true' : 'false');
         }
 
+        function updateBreakSlipModeUi() {
+            if (!breakSlipModeSwitch) return;
+            breakSlipModeSwitch.classList.toggle('on', breakSlipAnchorHoldEnabled);
+            breakSlipModeSwitch.setAttribute('aria-checked', breakSlipAnchorHoldEnabled ? 'true' : 'false');
+        }
+
+        function setBreakSlipAnchorHold(enabled) {
+            const next = !!enabled;
+            if (breakSlipAnchorHoldEnabled === next) return;
+            breakSlipAnchorHoldEnabled = next;
+            updateBreakSlipModeUi();
+            if (!breakSlipAnchorHoldEnabled && isBreakSlipActive()) {
+                refreshBreakSlipAnchor();
+                drawBreakWaveform(breakWaveformLastProgress);
+            }
+        }
+
         function setBreakFxRouting(enabled) {
             const next = !!enabled;
             if (breakFxSendToGlobalFx !== next) {
@@ -463,14 +482,28 @@ let liveLfoOutputs = [0, 0, 0, 0];
             return (60 / bpm) * breakSlipActiveDivision;
         }
 
-        function sendBreakSlipWindow() {
+        function isBreakSlipActive(division = breakSlipActiveDivision) {
+            return Number.isFinite(division) && division < 3.999;
+        }
+
+        function shouldRefreshBreakSlipAnchor(prevDivision, nextDivision) {
+            if (prevDivision === undefined || prevDivision === null) return true;
+            return isBreakSlipActive(prevDivision) !== isBreakSlipActive(nextDivision);
+        }
+
+        function sendBreakSlipWindow(previousDivision = null) {
             if (!synthNode || !breakBufferLoaded) return;
             const nextWindow = getBreakSlipWindowSeconds();
             if (!Number.isFinite(nextWindow)) return;
             if (Math.abs(nextWindow - breakSlipWindowSeconds) < 1e-5) return;
             breakSlipWindowSeconds = nextWindow;
             synthNode.port.postMessage({ type: 'setBreakSlipWindow', data: { windowSeconds: breakSlipWindowSeconds } });
-            refreshBreakSlipAnchor();
+            const shouldRefresh = breakSlipAnchorHoldEnabled
+                ? shouldRefreshBreakSlipAnchor(previousDivision, breakSlipActiveDivision)
+                : (isBreakSlipActive(previousDivision) || isBreakSlipActive(breakSlipActiveDivision));
+            if (shouldRefresh) {
+                refreshBreakSlipAnchor();
+            }
             drawBreakWaveform(breakWaveformLastProgress);
         }
 
@@ -512,6 +545,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         }
 
         function setBreakSlipDivision(nextDivision, syncKnob = true) {
+            const previousDivision = breakSlipActiveDivision;
             const snapped = normalizedToBreakSlipDivision(
                 breakSlipDivisionToNormalized(Math.max(0.03125, Math.min(4, nextDivision)))
             );
@@ -529,7 +563,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 }
                 syncBreakSlipKnob();
             }
-            sendBreakSlipWindow();
+            sendBreakSlipWindow(previousDivision);
         }
 
         function applyBreakSlipModulation(modAmount = 0) {
@@ -542,11 +576,12 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const modNormalized = clamp(baseNormalized + modAmount, 0, 1);
             const modDivision = normalizedToBreakSlipDivision(modNormalized);
             const changed = Math.abs(modDivision - breakSlipActiveDivision) > 1e-5;
+            const previousDivision = breakSlipActiveDivision;
             breakSlipActiveDivision = modDivision;
             updateBreakSlipUi();
             syncBreakSlipKnob(modNormalized);
             if (changed) {
-                sendBreakSlipWindow();
+                sendBreakSlipWindow(previousDivision);
             } else {
                 drawBreakWaveform(breakWaveformLastProgress);
             }
@@ -4248,13 +4283,14 @@ function setFxValue(id, value, forceVisualUpdate = false) {
             if (id === 35) {
                 const clampedVal = Math.max(0, Math.min(1, value));
                 const division = normalizedToBreakSlipDivision(clampedVal);
+                const previousDivision = breakSlipActiveDivision;
                 breakSlipBaseDivision = division;
                 breakSlipActiveDivision = division;
                 d.value = clampedVal;
                 d.angle = MIN_FX_ANGLE + (clampedVal * (MAX_FX_ANGLE - MIN_FX_ANGLE));
                 updateBreakSlipUi();
                 syncBreakSlipKnob();
-                sendBreakSlipWindow();
+                sendBreakSlipWindow(previousDivision);
                 return;
             }
 
@@ -4679,6 +4715,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
            breakPlayButton = document.getElementById('break-play-button');
            breakSlipDisplay = document.getElementById('break-slip-display');
            breakFxSwitch = document.getElementById('break-fx-switch');
+           breakSlipModeSwitch = document.getElementById('break-slip-mode-switch');
            breakWaveCanvas = document.getElementById('break-waveform');
            breakWaveCtx = breakWaveCanvas ? breakWaveCanvas.getContext('2d') : null;
            
@@ -4744,6 +4781,13 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                    setBreakFxRouting(!breakFxSendToGlobalFx);
                });
                updateBreakFxSwitchUi();
+           }
+           if (breakSlipModeSwitch) {
+               addTouchListener(breakSlipModeSwitch, async () => {
+                   if (!isPowerOn) await powerOn();
+                   setBreakSlipAnchorHold(!breakSlipAnchorHoldEnabled);
+               });
+               updateBreakSlipModeUi();
            }
            updateBreakSlipUi();
            updateBreakGridVisibility();
