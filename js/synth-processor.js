@@ -271,7 +271,7 @@ const LFO_DEST_NONE = -1;
                    // Envelope state
                    this.envStage1='off'; this.envValue1=0.0; this.envStage2='off'; this.envValue2=0.0;
                    // FX params (from main thread)
-                   this.params=new Array(32).fill(0.0);
+                   this.params=new Array(36).fill(0.0);
                    // Envelope times
                    this.attackTime=0.01; this.decayTime=0.2; this.sustainLevel=0.8; this.releaseTime=0.1;
                    this.releaseRate = Math.exp(-1 / (this.releaseTime * sampleRate));
@@ -290,6 +290,7 @@ const LFO_DEST_NONE = -1;
                    this.filterCoeffs={b0:1,b1:0,b2:0,a1:0,a2:0}; this.updateFilterCoefficients(this.filterCoeffs, 1.0, 0.0);
                    this.filterOsc1Coeffs={b0:1,b1:0,b2:0,a1:0,a2:0}; this.filter_osc1_x1=0; this.filter_osc1_x2=0; this.filter_osc1_y1=0; this.filter_osc1_y2=0; this.updateFilterCoefficients(this.filterOsc1Coeffs, 1.0, 0.0);
                    this.filterOsc2Coeffs={b0:1,b1:0,b2:0,a1:0,a2:0}; this.filter_osc2_x1=0; this.filter_osc2_x2=0; this.filter_osc2_y1=0; this.filter_osc2_y2=0; this.updateFilterCoefficients(this.filterOsc2Coeffs, 1.0, 0.0);
+                   this.breakFilterCoeffs={b0:1,b1:0,b2:0,a1:0,a2:0}; this.break_filter_x1=0; this.break_filter_x2=0; this.break_filter_y1=0; this.break_filter_y2=0; this.smoothedBreakCutoff=1.0; this.smoothedBreakRes=0.0; this.updateFilterCoefficients(this.breakFilterCoeffs, 1.0, 0.0);
                    // Delay & Chorus state
                    this.delayBufferL=new Float32Array(sampleRate*2);this.delayBufferR=new Float32Array(sampleRate*2);this.delayWritePos=0;
                    this.smoothDelayTime = 0.01;
@@ -313,6 +314,35 @@ const LFO_DEST_NONE = -1;
                        { rate: 0, depth: 0, wave: 0, dest: LFO_DEST_NONE, destChain: [], phase: 0, lastRandom: 0 },
                    ];
                    this.lfoOutputs = [0,0,0,0];
+
+                   // --- Sampler State ---
+                   this.sampleBuffer = null;
+                   this.sampleSourceRate = sampleRate;
+                   this.sampleLength = 0;
+                   this.sliceLength = 0;
+                   this.samplerPlayback = { active: false, position: 0, end: 0, rate: 1, loop: false };
+                   this.slipWindowSeconds = 0;
+                   this.slipWindowSamples = 0;
+                   this.slipRenderPhase = 0;
+                   this.slipAnchorStart = 0;
+                   this.slipActive = false;
+                   this.breakFxSend = false;
+                   this.breakBypassL = new Float32Array(128);
+                   this.breakBypassR = new Float32Array(128);
+
+                   this.recomputeSlipWindow = () => {
+                       if (this.slipWindowSeconds > 0 && this.samplerPlayback.rate > 0) {
+                           this.slipWindowSamples = this.slipWindowSeconds * this.samplerPlayback.rate * sampleRate;
+                           this.slipAnchorStart = Math.max(0, this.samplerPlayback.position - this.slipWindowSamples);
+                           this.slipRenderPhase = 0;
+                           this.slipActive = this.slipWindowSamples > 0;
+                       } else {
+                           this.slipWindowSamples = 0;
+                           this.slipRenderPhase = 0;
+                           this.slipAnchorStart = 0;
+                           this.slipActive = false;
+                       }
+                   };
       
                    this.port.onmessage = ({ data: { type, data } }) => {
                        const { voice, freq, id, value, lfoId, param } = data || {};
@@ -345,7 +375,7 @@ const LFO_DEST_NONE = -1;
                                else if(id===8){ this.attackTime=0.001+Math.pow(value,2)*2; } else if(id===9){ this.decayTime=0.001+Math.pow(value,2)*2; }
                                else if(id===10){ this.sustainLevel=value; } else if(id===11){ this.releaseTime=0.001+Math.pow(value,2)*1.25; this.releaseRate=Math.exp(-1/(this.releaseTime*sampleRate)); }
                                // Reverb Params Mapping
-                               else if(id===13){ 
+                               else if(id===13){
                                 // Map 0-1 knob to LARGER RT60 ranges
                                 // lowRt60: 0.5s -> 5.5s (Huge bass decay)
                                  // midRt60: 0.4s -> 4.5s (Long atmospheric tail)
@@ -353,10 +383,45 @@ const LFO_DEST_NONE = -1;
                                    this.zita.params.midRt60 = 0.4 + value * 4.1;
     
                                   // Open up the filter as the room gets bigger (same as before)
-                                    this.zita.params.hfDamp = 3000 + value * 5000;
-                                      }
-                               else if (id===20 || id===28){ this.updateFilterCoefficients(this.filterOsc1Coeffs, this.params[20], this.params[28]); } 
+                                  this.zita.params.hfDamp = 3000 + value * 5000;
+                                    }
+                               else if (id===20 || id===28){ this.updateFilterCoefficients(this.filterOsc1Coeffs, this.params[20], this.params[28]); }
                                else if(id===21 || id===29){ this.updateFilterCoefficients(this.filterOsc2Coeffs, this.params[21], this.params[29]); }
+                               else if(id===32 || id===33){ this.updateFilterCoefficients(this.breakFilterCoeffs, this.params[32], this.params[33]); }
+                               break;
+                           case 'setSampleBuffer':
+                               if (data?.samples) {
+                                   this.sampleBuffer = data.samples;
+                                   this.sampleSourceRate = data.sampleRate || sampleRate;
+                                   this.sampleLength = this.sampleBuffer.length;
+                                   this.sliceLength = this.sampleLength / 16;
+                               }
+                               break;
+                           case 'startBreakLoop':
+                               if (this.sampleBuffer && this.sampleLength > 0) {
+                                   const playbackRate = Math.max(0.01, data?.playbackRate || 1);
+                                   const rate = playbackRate * (this.sampleSourceRate / sampleRate);
+                                   this.samplerPlayback = { active: true, position: 0, end: this.sampleLength, rate, loop: true };
+                                   this.recomputeSlipWindow();
+                               }
+                               break;
+                           case 'stopBreakLoop':
+                               this.samplerPlayback = { active: false, position: 0, end: 0, rate: 1, loop: false };
+                               this.slipRenderPhase = 0;
+                               break;
+                           case 'setBreakPlaybackRate':
+                               if (this.samplerPlayback && this.samplerPlayback.active) {
+                                   const playbackRate = Math.max(0.01, data?.playbackRate || 1);
+                                   this.samplerPlayback.rate = playbackRate * (this.sampleSourceRate / sampleRate);
+                                   this.recomputeSlipWindow();
+                               }
+                               break;
+                           case 'setBreakSlipWindow':
+                               this.slipWindowSeconds = Math.max(0, data?.windowSeconds || 0);
+                               this.recomputeSlipWindow();
+                               break;
+                           case 'setBreakFxSend':
+                               this.breakFxSend = !!(data && data.enabled);
                                break;
                             case 'setLfo':
                                 if (lfoId >= 0 && lfoId < this.lfoParams.length) {
@@ -387,6 +452,7 @@ case 'ping':
                    // Initialize default FX params that are not 0
                    this.params[2] = 1.0; this.params[7] = 0.5; this.params[10] = 0.8;
                    this.params[20] = 1.0; this.params[21] = 1.0; this.params[26] = 0.5; this.params[27] = 0.5;
+                   this.params[32] = 1.0; this.params[33] = 0.0; this.params[34] = 0.7;
                }
       
                updateFilterCoefficients(c,v, res){ const p=Math.pow(v,3); const Q=0.707 + Math.pow(res, 2) * 24; const w=2*Math.PI*(40+p*(sampleRate/2.2-40))/sampleRate; const s=Math.sin(w); const a=s/(2*Q); const i=1/(1+a); c.b0=(1-Math.cos(w))/2*i; c.b1=(1-Math.cos(w))*i; c.b2=(1-Math.cos(w))/2*i; c.a1=-2*Math.cos(w)*i; c.a2=(1-a)*i; }
@@ -399,8 +465,17 @@ case 'ping':
                    const idxA = Math.floor(readPos);
                    const idxB = (idxA + 1) % buffer.length;
                    const frac = readPos - idxA;
-                   
+
                    return buffer[idxA] * (1 - frac) + buffer[idxB] * frac;
+               }
+
+               getSamplerSample(position) {
+                   if (!this.sampleBuffer || this.sampleLength === 0) return 0;
+                   const clamped = Math.max(0, Math.min(this.sampleLength - 1.001, position));
+                   const idxA = Math.floor(clamped);
+                   const idxB = Math.min(this.sampleLength - 1, idxA + 1);
+                   const frac = clamped - idxA;
+                   return (this.sampleBuffer[idxA] * (1 - frac)) + (this.sampleBuffer[idxB] * frac);
                }
 
                process(i,o,p){
@@ -415,8 +490,17 @@ case 'ping':
                         this.zitaWetR = new Float32Array(blockSize);
                    }
 
+                   if (this.breakBypassL.length !== blockSize) {
+                        this.breakBypassL = new Float32Array(blockSize);
+                        this.breakBypassR = new Float32Array(blockSize);
+                   } else {
+                        this.breakBypassL.fill(0);
+                        this.breakBypassR.fill(0);
+                   }
+
 // --- LFO Processing (with LFO-to-LFO modulation) ---
 let rawLfoOutputs = [0, 0, 0, 0];
+const breakFxSend = this.breakFxSend;
 const getLfoDestinations = (lfo) => {
     if (lfo && Array.isArray(lfo.destChain) && lfo.destChain.length) {
         return lfo.destChain;
@@ -613,6 +697,53 @@ for(let i=0;i<blockSize;i++){
         s2 = (s2 + (o3_2 * currentParams[3])) * 0.8;
     }
 
+    let sampleVal = 0;
+    if (this.samplerPlayback.active && this.sampleBuffer) {
+        const effectivePos = Math.max(0, this.samplerPlayback.position);
+
+        if (effectivePos >= this.sampleLength || effectivePos >= this.samplerPlayback.end) {
+            if (this.samplerPlayback.loop) {
+                this.samplerPlayback.position = 0;
+                this.slipAnchorStart = Math.max(0, this.samplerPlayback.position - this.slipWindowSamples);
+                this.slipRenderPhase = 0;
+            } else {
+                this.samplerPlayback.active = false;
+            }
+        }
+
+        if (this.samplerPlayback.active) {
+            let renderPos = this.samplerPlayback.position;
+            if (this.slipActive && this.slipWindowSamples > 0) {
+                const windowSize = Math.max(1, this.slipWindowSamples);
+                const anchor = Math.max(0, this.slipAnchorStart % this.sampleLength);
+                renderPos = (anchor + (this.slipRenderPhase % windowSize)) % this.sampleLength;
+                this.slipRenderPhase += this.samplerPlayback.rate;
+            } else {
+                this.slipRenderPhase = 0;
+            }
+
+            sampleVal = this.getSamplerSample(renderPos);
+            this.samplerPlayback.position += this.samplerPlayback.rate;
+        }
+    }
+
+    this.smoothedBreakCutoff += (currentParams[32] - this.smoothedBreakCutoff) * 0.05;
+    this.smoothedBreakRes += (currentParams[33] - this.smoothedBreakRes) * 0.05;
+    this.updateFilterCoefficients(this.breakFilterCoeffs, this.smoothedBreakCutoff, this.smoothedBreakRes);
+
+    let sampleFiltered = sampleVal;
+    if (this.samplerPlayback.active) {
+        const cB = this.breakFilterCoeffs;
+        sampleFiltered = cB.b0*sampleVal + cB.b1*this.break_filter_x1 + cB.b2*this.break_filter_x2 - cB.a1*this.break_filter_y1 - cB.a2*this.break_filter_y2;
+        this.break_filter_x2 = this.break_filter_x1; this.break_filter_x1 = sampleVal; this.break_filter_y2 = this.break_filter_y1; this.break_filter_y1 = sampleFiltered;
+    } else {
+        this.break_filter_x1 = this.break_filter_x2 = 0; this.break_filter_y1 = this.break_filter_y2 = 0;
+    }
+
+    const sampleGain = Math.max(0, Math.min(1.5, currentParams[34] ?? 0));
+    const sampleMixL = sampleFiltered * sampleGain;
+    const sampleMixR = sampleFiltered * sampleGain;
+
     const dither = (Math.random() - 0.5) * 0.00001;
     s1 += dither;
     s2 += dither;
@@ -642,6 +773,16 @@ for(let i=0;i<blockSize;i++){
     // "Discrete Circuit" Panning
     let s_L = (s1_f * 0.8 + s2_f * 0.6) * 0.7;
     let s_R = (s1_f * 0.6 + s2_f * 0.8) * 0.7;
+
+    if (sampleMixL !== 0 || sampleMixR !== 0) {
+        if (breakFxSend) {
+            s_L += sampleMixL;
+            s_R += sampleMixR;
+        } else {
+            this.breakBypassL[i] = sampleMixL;
+            this.breakBypassR[i] = sampleMixR;
+        }
+    }
     
     this.smoothedDist += (currentParams[1] - this.smoothedDist) * 0.0025;
     const dV=this.smoothedDist;
@@ -788,8 +929,10 @@ for(let i=0; i<blockSize; i++) {
     this.filter_x2_R=this.filter_x1_R;this.filter_x1_R=s_R;this.filter_y2_R=this.filter_y1_R;this.filter_y1_R=_yR;
     
    // 4. Apply Master Volume
-    let finalL = yL * currentParams[7];
-    let finalR = _yR * currentParams[7];
+    const bypassL = breakFxSend ? 0 : this.breakBypassL[i];
+    const bypassR = breakFxSend ? 0 : this.breakBypassR[i];
+    let finalL = (yL + bypassL) * currentParams[7];
+    let finalR = (_yR + bypassR) * currentParams[7];
 
     // 5. Master Soft Clipper
    finalL = Math.tanh(finalL * 1.2); 

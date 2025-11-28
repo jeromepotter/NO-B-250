@@ -35,6 +35,7 @@
         const LFO_DEST_NONE = -1;
         const LFO_CABLE_COLORS = ['#fa9c2d', '#35a5fb', '#d85b7e', '#98ce57'];
         const LFO_CABLE_TARGET_COLORS = ['#ae332c', '#ffffff', '#843b9a', '#a44a00'];
+        const BREAK_BASE_BPM = 165;
         const lfoState = [
     { id: 0, rate: 0.5, depth: 0, wave: 0, dest: LFO_DEST_NONE, destChain: [], phase: 0, lastRandom: 0, output: 0 },
     { id: 1, rate: 0.5, depth: 0, wave: 0, dest: LFO_DEST_NONE, destChain: [], phase: 0, lastRandom: 0, output: 0 },
@@ -82,6 +83,38 @@ let liveLfoOutputs = [0, 0, 0, 0];
         const lfoTempoLinkState = LFO_RATE_KNOB_IDS.map(() => ({ enabled: false, storedFreeValue: 0.5 }));
         let lfoTempoSyncSwitches = [];
         let lfoRateDisplays = [];
+        let breakGridContainer = null;
+        let breakPlayButton = null;
+        let breakSlipDisplay = null;
+        let breakFxSwitch = null;
+        let oscillatorRow = null;
+        let breakModeActive = false;
+        let breakPlayRequested = false;
+        let breakRunning = false;
+        let breakStartTimeoutId = null;
+        let breakBufferLoaded = false;
+        let breakSampleLoadingPromise = null;
+        let breakPlaybackRate = 1;
+        let breakSlipBaseDivision = 4;
+        let breakSlipActiveDivision = 4;
+        let breakSlipWindowSeconds = 0;
+        let breakSlipAnchorNormalized = 0;
+        let breakWaveCanvas = null;
+        let breakWaveCtx = null;
+        let breakWaveformPeaks = null;
+        let breakWaveformDuration = 0;
+        let breakWaveformAnimationId = null;
+        let breakPlaybackStartTime = 0;
+        let breakWaveformDpr = 1;
+        let breakWaveformColors = null;
+        let breakWaveformLastProgress = 0;
+        let breakSlipKnobValue = 0;
+        let breakFxSendToGlobalFx = false;
+        const BREAK_SLIP_DIVISIONS = [4, 2, 1, 0.5, 0.25, 0.125, 0.0625, 0.03125];
+        const BREAK_MODE_ARP_TOGGLE_COUNT = 6;
+        const BREAK_MODE_ARP_WINDOW_MS = 1800;
+        let leftArpToggleCount = 0;
+        let leftArpToggleTimer = null;
 
         function getLfoDestChain(lfo) {
             if (lfo && Array.isArray(lfo.destChain) && lfo.destChain.length) return lfo.destChain;
@@ -277,6 +310,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
                             updateArpeggiator(idx, timestamp);
                         }
                     });
+                    handleBreakLoopTick();
                 } else if (type === 'midiTick' && midiClockEnabled && midiClockRunning) {
                     sendMidiMessage([0xF8]);
                 }
@@ -295,7 +329,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
         function stopMasterClockIfIdle() {
             if (!masterClockRunning || !masterClockWorker) return;
-            if (knobState.some(state => state?.arpRunning)) return;
+            if (knobState.some(state => state?.arpRunning) || breakPlayRequested) return;
             masterClockWorker.postMessage({ type: 'stop' });
             masterClockRunning = false;
             masterClockStartTime = null;
@@ -352,6 +386,408 @@ let liveLfoOutputs = [0, 0, 0, 0];
             } else if (shouldRun && midiClockRunning) {
                 updateMidiClockBpm();
             }
+        }
+
+        function getBreakPlaybackRate() {
+            const bpm = calculateMidiBpm();
+            return Math.max(0.1, bpm / BREAK_BASE_BPM);
+        }
+
+        function normalizedToBreakSlipDivision(normalized) {
+            const clamped = clamp(normalized, 0, 1);
+            const index = Math.round(clamped * (BREAK_SLIP_DIVISIONS.length - 1));
+            return BREAK_SLIP_DIVISIONS[Math.min(BREAK_SLIP_DIVISIONS.length - 1, Math.max(0, index))];
+        }
+
+        function breakSlipDivisionToNormalized(value) {
+            let closestIdx = 0;
+            let smallestDiff = Infinity;
+            BREAK_SLIP_DIVISIONS.forEach((division, idx) => {
+                const diff = Math.abs(division - value);
+                if (diff < smallestDiff) {
+                    smallestDiff = diff;
+                    closestIdx = idx;
+                }
+            });
+            return BREAK_SLIP_DIVISIONS.length > 1
+                ? closestIdx / (BREAK_SLIP_DIVISIONS.length - 1)
+                : 0;
+        }
+
+        function formatBreakSlipLabel(value) {
+            if (value >= 1) return value.toString();
+            return `1/${Math.round(1 / value)}`;
+        }
+
+        function updateBreakFxSwitchUi() {
+            if (!breakFxSwitch) return;
+            breakFxSwitch.classList.toggle('on', breakFxSendToGlobalFx);
+            breakFxSwitch.setAttribute('aria-checked', breakFxSendToGlobalFx ? 'true' : 'false');
+        }
+
+        function setBreakFxRouting(enabled) {
+            const next = !!enabled;
+            if (breakFxSendToGlobalFx !== next) {
+                breakFxSendToGlobalFx = next;
+            }
+            updateBreakFxSwitchUi();
+            if (synthNode) {
+                synthNode.port.postMessage({ type: 'setBreakFxSend', data: { enabled: breakFxSendToGlobalFx } });
+            }
+        }
+
+        function syncBreakSlipKnob(visualNormalized) {
+            const knob = fxKnobData[35];
+            if (!knob) return;
+            if (Number.isFinite(visualNormalized)) {
+                breakSlipKnobValue = clamp(visualNormalized, 0, 1);
+            } else if (!Number.isFinite(breakSlipKnobValue)) {
+                breakSlipKnobValue = breakSlipDivisionToNormalized(breakSlipBaseDivision);
+            }
+
+            const renderNormalized = Number.isFinite(breakSlipKnobValue)
+                ? clamp(breakSlipKnobValue, 0, 1)
+                : 0;
+
+            knob.value = renderNormalized;
+            knob.angle = MIN_FX_ANGLE + renderNormalized * (MAX_FX_ANGLE - MIN_FX_ANGLE);
+            applyIndicatorTransform(knob.indicator, knob.angle);
+        }
+
+        function getBreakSlipWindowSeconds() {
+            const bpm = calculateMidiBpm();
+            if (!Number.isFinite(bpm) || bpm <= 0) return 0;
+            if (breakSlipActiveDivision >= 3.999) return 0;
+            return (60 / bpm) * breakSlipActiveDivision;
+        }
+
+        function sendBreakSlipWindow() {
+            if (!synthNode || !breakBufferLoaded) return;
+            const nextWindow = getBreakSlipWindowSeconds();
+            if (!Number.isFinite(nextWindow)) return;
+            if (Math.abs(nextWindow - breakSlipWindowSeconds) < 1e-5) return;
+            breakSlipWindowSeconds = nextWindow;
+            synthNode.port.postMessage({ type: 'setBreakSlipWindow', data: { windowSeconds: breakSlipWindowSeconds } });
+            refreshBreakSlipAnchor();
+            drawBreakWaveform(breakWaveformLastProgress);
+        }
+
+        function refreshBreakSlipAnchor() {
+            if (!breakRunning || !breakBufferLoaded || breakWaveformDuration <= 0 || breakSlipWindowSeconds <= 0) {
+                breakSlipAnchorNormalized = 0;
+                return;
+            }
+
+            const rate = Math.max(0.01, breakPlaybackRate);
+            const effectiveDuration = breakWaveformDuration / rate;
+            if (!Number.isFinite(effectiveDuration) || effectiveDuration <= 0) {
+                breakSlipAnchorNormalized = 0;
+                return;
+            }
+
+            const windowNorm = Math.max(0, Math.min(1, breakSlipWindowSeconds / effectiveDuration));
+            if (windowNorm <= 0) {
+                breakSlipAnchorNormalized = 0;
+                return;
+            }
+
+            const now = audioContext ? audioContext.currentTime : (performance.now() / 1000);
+            const elapsed = Math.max(0, now - breakPlaybackStartTime);
+            const progressSec = effectiveDuration > 0 ? (elapsed % effectiveDuration) : 0;
+            const progressNorm = effectiveDuration > 0 ? progressSec / effectiveDuration : 0;
+            const bucketIndex = Math.max(0, Math.floor(progressNorm / windowNorm));
+            breakSlipAnchorNormalized = Math.min(1, bucketIndex * windowNorm);
+        }
+
+        function updateBreakSlipUi() {
+            if (breakSlipDisplay) {
+                breakSlipDisplay.textContent = formatBreakSlipLabel(breakSlipActiveDivision);
+            }
+        }
+
+        function setBreakSlipDivision(nextDivision, syncKnob = true) {
+            const snapped = normalizedToBreakSlipDivision(
+                breakSlipDivisionToNormalized(Math.max(0.03125, Math.min(4, nextDivision)))
+            );
+            if (Math.abs(snapped - breakSlipBaseDivision) < 1e-5) {
+                breakSlipActiveDivision = snapped;
+            } else {
+                breakSlipBaseDivision = snapped;
+                breakSlipActiveDivision = snapped;
+            }
+            updateBreakSlipUi();
+            if (syncKnob) {
+                const normalized = breakSlipDivisionToNormalized(breakSlipActiveDivision);
+                breakSlipKnobValue = normalized;
+                syncBreakSlipKnob(normalized);
+            }
+            sendBreakSlipWindow();
+        }
+
+        function applyBreakSlipModulation(modAmount = 0) {
+            if (Math.abs(modAmount) < 1e-6 && Math.abs(breakSlipActiveDivision - breakSlipBaseDivision) < 1e-6) {
+                syncBreakSlipKnob();
+                updateBreakSlipUi();
+                return;
+            }
+
+            const baseNormalized = breakSlipDivisionToNormalized(breakSlipBaseDivision);
+            const modNormalized = clamp(baseNormalized + modAmount, 0, 1);
+            const modDivision = normalizedToBreakSlipDivision(modNormalized);
+            const changed = Math.abs(modDivision - breakSlipActiveDivision) > 1e-5;
+            breakSlipActiveDivision = modDivision;
+            updateBreakSlipUi();
+            breakSlipKnobValue = modNormalized;
+            syncBreakSlipKnob(modNormalized);
+            if (changed) {
+                sendBreakSlipWindow();
+            } else {
+                drawBreakWaveform(breakWaveformLastProgress);
+            }
+        }
+
+        function updateBreakPlayUi() {
+            if (breakPlayButton) {
+                breakPlayButton.textContent = breakPlayRequested ? 'PAUSE' : 'PLAY';
+            }
+        }
+
+        function updateBreakGridVisibility() {
+            if (!breakGridContainer) return;
+            const shouldShow = breakModeActive;
+            breakGridContainer.classList.toggle('visible', shouldShow);
+            breakGridContainer.classList.toggle('hidden', !shouldShow);
+            document.body?.classList.toggle('break-mode', shouldShow);
+            if (shouldShow) {
+                resizeBreakWaveformCanvas();
+                drawBreakWaveform();
+            }
+        }
+
+        function buildBreakWaveformPeaks(samples, buckets = 640) {
+            if (!samples || !samples.length) return [];
+            const bucketSize = Math.max(1, Math.floor(samples.length / buckets));
+            const peaks = [];
+            for (let i = 0; i < buckets; i++) {
+                const start = i * bucketSize;
+                if (start >= samples.length) break;
+                const end = Math.min(samples.length, start + bucketSize);
+                let min = 1;
+                let max = -1;
+                for (let j = start; j < end; j++) {
+                    const v = samples[j];
+                    if (v < min) min = v;
+                    if (v > max) max = v;
+                }
+                peaks.push({ min, max });
+            }
+            return peaks;
+        }
+
+        function getBreakWaveformColors() {
+            if (!breakWaveformColors) {
+                breakWaveformColors = {
+                    wave: '#ffffff',
+                    head: '#ffffff',
+                    slip: 'rgba(255, 64, 64, 0.22)',
+                };
+            }
+            return breakWaveformColors;
+        }
+
+        function resizeBreakWaveformCanvas() {
+            if (!breakWaveCanvas || !breakWaveCtx) return;
+            const dpr = window.devicePixelRatio || 1;
+            const rect = breakWaveCanvas.getBoundingClientRect();
+            const width = Math.max(1, Math.floor(rect.width * dpr));
+            const height = Math.max(1, Math.floor(rect.height * dpr));
+
+            if (breakWaveCanvas.width !== width || breakWaveCanvas.height !== height) {
+                breakWaveCanvas.width = width;
+                breakWaveCanvas.height = height;
+            }
+            breakWaveformDpr = dpr;
+            breakWaveCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            drawBreakWaveform();
+        }
+
+        function drawBreakWaveform(progress = (Number.isFinite(breakWaveformLastProgress) ? breakWaveformLastProgress : 0)) {
+            if (!breakWaveCtx || !breakWaveCanvas) return;
+            breakWaveformLastProgress = progress;
+            const logicalWidth = breakWaveCanvas.width / breakWaveformDpr;
+            const logicalHeight = breakWaveCanvas.height / breakWaveformDpr;
+            breakWaveCtx.clearRect(0, 0, logicalWidth, logicalHeight);
+            if (!breakWaveformPeaks || !breakWaveformPeaks.length) return;
+
+            const colors = getBreakWaveformColors();
+            const centerY = logicalHeight / 2;
+            const amplitude = logicalHeight * 0.46;
+
+            breakWaveCtx.lineWidth = 2;
+            breakWaveCtx.strokeStyle = colors.wave;
+            breakWaveCtx.beginPath();
+            const peakCount = breakWaveformPeaks.length;
+            for (let i = 0; i < peakCount; i++) {
+                const x = (i / (peakCount - 1)) * logicalWidth;
+                const peak = breakWaveformPeaks[i];
+                const yTop = centerY - peak.max * amplitude;
+                const yBottom = centerY - peak.min * amplitude;
+                breakWaveCtx.moveTo(x, yTop);
+                breakWaveCtx.lineTo(x, yBottom);
+            }
+            breakWaveCtx.stroke();
+
+            if (breakSlipWindowSeconds > 0 && breakWaveformDuration > 0) {
+                const rate = Math.max(0.01, breakPlaybackRate);
+                const effectiveDuration = breakWaveformDuration / rate;
+                const windowNorm = Math.max(0, Math.min(1, breakSlipWindowSeconds / effectiveDuration));
+                if (windowNorm > 0) {
+                    const startX = Math.max(0, Math.min(logicalWidth, breakSlipAnchorNormalized * logicalWidth));
+                    const width = Math.max(1, Math.min(logicalWidth - startX, windowNorm * logicalWidth));
+                    breakWaveCtx.fillStyle = colors.slip;
+                    breakWaveCtx.fillRect(startX, 0, width, logicalHeight);
+                }
+            }
+
+            const headX = Math.max(0, Math.min(logicalWidth, progress * logicalWidth));
+            breakWaveCtx.strokeStyle = colors.head;
+            breakWaveCtx.beginPath();
+            breakWaveCtx.moveTo(headX, 0);
+            breakWaveCtx.lineTo(headX, logicalHeight);
+            breakWaveCtx.stroke();
+        }
+
+        function startBreakWaveformAnimation() {
+            if (!breakWaveCanvas || !breakWaveCtx || breakWaveformDuration <= 0) return;
+            stopBreakWaveformAnimation();
+            breakPlaybackStartTime = audioContext ? audioContext.currentTime : (performance.now() / 1000);
+            const tick = () => {
+                if (!breakRunning || !breakPlayRequested || breakWaveformDuration <= 0) return;
+                const rate = Math.max(0.01, breakPlaybackRate);
+                const effectiveDuration = breakWaveformDuration / rate;
+                if (!Number.isFinite(effectiveDuration) || effectiveDuration <= 0) return;
+                const now = audioContext ? audioContext.currentTime : (performance.now() / 1000);
+                const elapsed = now - breakPlaybackStartTime;
+                const progress = ((elapsed % effectiveDuration) / effectiveDuration + 1) % 1;
+                drawBreakWaveform(progress);
+                breakWaveformAnimationId = requestAnimationFrame(tick);
+            };
+            breakWaveformAnimationId = requestAnimationFrame(tick);
+        }
+
+        function stopBreakWaveformAnimation(progress = 0) {
+            if (breakWaveformAnimationId) {
+                cancelAnimationFrame(breakWaveformAnimationId);
+                breakWaveformAnimationId = null;
+            }
+            drawBreakWaveform(progress);
+        }
+
+        async function ensureBreakSampleLoaded() {
+            if (breakBufferLoaded || !audioContext) return;
+            if (breakSampleLoadingPromise) return breakSampleLoadingPromise;
+
+            breakSampleLoadingPromise = (async () => {
+                try {
+                    const res = await fetch('audio/break.wav');
+                    const buf = await res.arrayBuffer();
+                    const decoded = await audioContext.decodeAudioData(buf);
+                    const mono = decoded.numberOfChannels > 0 ? decoded.getChannelData(0) : null;
+                    if (!mono) return;
+                    breakWaveformDuration = decoded.duration || 0;
+                    breakWaveformPeaks = buildBreakWaveformPeaks(mono);
+                    const copy = new Float32Array(mono.length);
+                    copy.set(mono);
+                    if (synthNode) {
+                        synthNode.port.postMessage({ type: 'setSampleBuffer', data: { samples: copy, sampleRate: decoded.sampleRate } }, [copy.buffer]);
+                        breakBufferLoaded = true;
+                        resizeBreakWaveformCanvas();
+                        drawBreakWaveform();
+                    }
+                } catch (err) {
+                    console.error('Failed to load break sample', err);
+                } finally {
+                    breakSampleLoadingPromise = null;
+                }
+            })();
+
+            return breakSampleLoadingPromise;
+        }
+
+        function sendBreakPlaybackRate() {
+            if (!synthNode || !breakRunning || !breakBufferLoaded) return;
+            const nextRate = getBreakPlaybackRate();
+            if (!Number.isFinite(nextRate)) return;
+            if (Math.abs(nextRate - breakPlaybackRate) < 0.001) return;
+            breakPlaybackRate = nextRate;
+            synthNode.port.postMessage({ type: 'setBreakPlaybackRate', data: { playbackRate: breakPlaybackRate } });
+            breakPlaybackStartTime = audioContext ? audioContext.currentTime : (performance.now() / 1000);
+            refreshBreakSlipAnchor();
+        }
+
+        function handleBreakLoopTick() {
+            if (!breakRunning || !breakBufferLoaded) return;
+            sendBreakPlaybackRate();
+            sendBreakSlipWindow();
+        }
+
+        function clearBreakStartTimer() {
+            if (breakStartTimeoutId) {
+                clearTimeout(breakStartTimeoutId);
+                breakStartTimeoutId = null;
+            }
+        }
+
+        function beginBreakPlayback() {
+            breakStartTimeoutId = null;
+            if (!breakPlayRequested || !breakBufferLoaded) return;
+            breakRunning = true;
+            breakPlaybackRate = getBreakPlaybackRate();
+            breakPlaybackStartTime = audioContext ? audioContext.currentTime : (performance.now() / 1000);
+            breakSlipWindowSeconds = 0;
+            sendBreakSlipWindow();
+            refreshBreakSlipAnchor();
+            synthNode?.port.postMessage({ type: 'startBreakLoop', data: { playbackRate: breakPlaybackRate } });
+            startBreakWaveformAnimation();
+        }
+
+        function stopBreakPlaybackImmediate() {
+            clearBreakStartTimer();
+            if (breakRunning) {
+                synthNode?.port.postMessage({ type: 'stopBreakLoop' });
+            }
+            breakRunning = false;
+            breakPlayRequested = false;
+            breakSlipAnchorNormalized = 0;
+            stopBreakWaveformAnimation(0);
+            updateBreakPlayUi();
+        }
+
+        async function toggleBreakPlayback() {
+            if (breakPlayRequested) {
+                stopBreakPlaybackImmediate();
+                stopMasterClockIfIdle();
+                return;
+            }
+
+            breakPlayRequested = true;
+            updateBreakPlayUi();
+            ensureMasterClock();
+            await ensureBreakSampleLoaded();
+            if (!breakBufferLoaded) {
+                breakPlayRequested = false;
+                stopMasterClockIfIdle();
+                updateBreakPlayUi();
+                return;
+            }
+
+            const bpm = calculateMidiBpm();
+            const quarterIntervalMs = 60000 / Math.max(1, bpm);
+            const now = getNowMs();
+            const startTime = quantizeToNextSixteenth(now, quarterIntervalMs);
+            const delayMs = Math.max(0, startTime - now);
+            clearBreakStartTimer();
+            breakStartTimeoutId = setTimeout(beginBreakPlayback, delayMs);
         }
 
         function startArpClockForState(knobId) {
@@ -871,7 +1307,7 @@ const SAFE_UNIVERSAL_TARGETS = [
     4,      // Detune
     6,      // Chorus
     1, 5,   // Distortion & AM
-    12, 14  // Reverb & Delay Mix
+    12, 14,  // Reverb & Delay Mix
 ];
 
 // 2. Arp-Only Targets (Hidden in Sound Mode)
@@ -1878,6 +2314,8 @@ for (const event of events) {
                    if (synthNode && ((d.id <= 29 && d.id !== 1) || d.id === 30 || d.id === 31)) { synthNode.port.postMessage({type:'setFx', data:{id:d.id, value:d.value}}); }
                    if (synthNode && d.id === 7) { synthNode.port.postMessage({type:'setFx', data:{id:d.id, value:d.value}}); }
                });
+               await ensureBreakSampleLoaded();
+               setBreakFxRouting(breakFxSendToGlobalFx);
            })();
 
            return audioSetupPromise;
@@ -2071,8 +2509,15 @@ function sendMidiMessage(message) {
            let newAngle = Math.max(MIN_FX_ANGLE, Math.min(MAX_FX_ANGLE, d.angle + deltaY));
            d.angle = newAngle; 
            d.value = (d.angle - MIN_FX_ANGLE) / (MAX_FX_ANGLE - MIN_FX_ANGLE);
-           
+
            applyIndicatorTransform(d.indicator, d.angle);
+
+           if (id === 35) {
+               breakSlipKnobValue = d.value;
+               const snappedDivision = normalizedToBreakSlipDivision(d.value);
+               setBreakSlipDivision(snappedDivision, false);
+               return;
+           }
 
            if (id === 30 || id === 31) {
                updateVoiceWaveDisplay(id === 30 ? 0 : 1, d.value);
@@ -2187,6 +2632,9 @@ function sendMidiMessage(message) {
                if (activePatchingLfo !== null) return;
                const k = e.currentTarget; const id = parseInt(k.dataset.fxId, 10);
                if (!isPowerOn || (id >= 16 && id <= 25 && k.closest('.arp-disabled'))) return;
+               if (e.cancelable) {
+                   e.preventDefault();
+               }
                const d = fxKnobData[id]; if (!d) return;
                for (const t of e.changedTouches) {
                    if (d.touchId === null) {
@@ -2251,7 +2699,10 @@ function sendMidiMessage(message) {
                else if(id===9){fxKnobData[id].value=0.0995;} else if(id===10){fxKnobData[id].value=0.8;} else if(id===11){fxKnobData[id].value=0.2;}
                else if(id===13){fxKnobData[id].value=0.5;} else if(id===15){fxKnobData[id].value=0.25;} else if(id===16||id===17){fxKnobData[id].value=arpRateBpmToValue(DEFAULT_ARP_RATE_BPM);}
                else if(id===18||id===19){fxKnobData[id].value=0.0;} else if(id===20||id===21){fxKnobData[id].value=1.0;}
-               else if(id===22||id===23){fxKnobData[id].value=0.0;} else if(id===24||id===25){fxKnobData[id].value=0.5;} else if(id===26||id===27){fxKnobData[id].value=0.5;} else if(id===28||id===29){fxKnobData[id].value=0.0;} else if(id===30||id===31){fxKnobData[id].value=0.0;}
+else if(id===22||id===23){fxKnobData[id].value=0.0;} else if(id===24||id===25){fxKnobData[id].value=0.5;} else if(id===26||id===27){fxKnobData[id].value=0.5;} else if(id===28||id===29){fxKnobData[id].value=0.0;} else if(id===30||id===31){fxKnobData[id].value=0.0;} else if(id===32){fxKnobData[id].value=1.0;} else if(id===33){fxKnobData[id].value=0.0;} else if(id===34){fxKnobData[id].value=0.7;} else if(id===35){
+    fxKnobData[id].value=breakSlipDivisionToNormalized(breakSlipBaseDivision);
+    breakSlipKnobValue = fxKnobData[id].value;
+} 
                fxKnobData[id].angle = MIN_FX_ANGLE + (fxKnobData[id].value * (MAX_FX_ANGLE - MIN_FX_ANGLE));
                if (fxKnobData[id].indicator) { applyIndicatorTransform(fxKnobData[id].indicator, fxKnobData[id].angle); }
                if(id===30||id===31){ updateVoiceWaveDisplay(id === 30 ? 0 : 1, fxKnobData[id].value); }
@@ -3195,6 +3646,12 @@ lfoState.forEach((lfo, lfoIndex) => {
         const knobData = fxKnobData[knobId];
         let finalValue = knobData.value;
 
+        if (knobId === 35) {
+            const modOffset = modulatedValues[knobId] || 0;
+            applyBreakSlipModulation(modOffset);
+            continue;
+        }
+
         if (modulatedValues[knobId] !== undefined) {
             finalValue += modulatedValues[knobId];
         }
@@ -3371,12 +3828,63 @@ lfoState.forEach((lfo, lfoIndex) => {
         function shouldKeepLfoAnimationRunning() {
             return isLfoMode || lfoState.some(lfo => getLfoDestChain(lfo).length);
         }
-      
-      function toggleEasterEggMode() {
-        allowDuplicateNotesMode = !allowDuplicateNotesMode;
-        document.body.classList.toggle('easter-egg-mode', allowDuplicateNotesMode);
-        knobState.forEach(k => updateFeelPatternPreview(k.id));
+
+      function animateMainKnobsToZero() {
+        const startAngles = knobState.map(k => k.totalAngle);
+        const duration = 800;
+        const startTime = performance.now();
+
+        const tick = (now) => {
+          const t = Math.min(1, (now - startTime) / duration);
+          const eased = 1 - Math.pow(1 - t, 3);
+          knobState.forEach((state, idx) => {
+            state.totalAngle = startAngles[idx] * (1 - eased);
+            updateStateFromTotalAngle(idx);
+          });
+          if (t < 1) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
       }
+
+        function toggleDuplicateNoteMode() {
+            allowDuplicateNotesMode = !allowDuplicateNotesMode;
+            document.body.classList.toggle('easter-egg-mode', allowDuplicateNotesMode);
+            knobState.forEach(k => updateFeelPatternPreview(k.id));
+        }
+
+        function toggleBreakMode() {
+            breakModeActive = !breakModeActive;
+            updateBreakGridVisibility();
+            if (breakModeActive) {
+                ensureBreakSampleLoaded()?.then(() => {
+                    resizeBreakWaveformCanvas();
+                    drawBreakWaveform();
+                });
+            } else {
+                stopBreakPlaybackImmediate();
+                stopMasterClockIfIdle();
+            }
+        }
+
+        function handleLeftArpToggleTrigger() {
+            leftArpToggleCount++;
+
+            if (!leftArpToggleTimer) {
+                leftArpToggleTimer = setTimeout(() => {
+                    leftArpToggleCount = 0;
+                    leftArpToggleTimer = null;
+                }, BREAK_MODE_ARP_WINDOW_MS);
+            }
+
+            if (leftArpToggleCount >= BREAK_MODE_ARP_TOGGLE_COUNT) {
+                if (leftArpToggleTimer) {
+                    clearTimeout(leftArpToggleTimer);
+                    leftArpToggleTimer = null;
+                }
+                leftArpToggleCount = 0;
+                toggleBreakMode();
+            }
+        }
  function toggleLfoModeUI(forceState, isPresetLoad = false) {
     const wasInPatchingMode = activePatchingLfo !== null;
     if (wasInPatchingMode) stopLfoPatching();
@@ -3516,6 +4024,7 @@ function applyPreset(p, isArpCategoryPreset = false, options = {}) {
                allowDuplicateNotesMode = p.allowDuplicateNotesMode;
            }
            document.body.classList.toggle('easter-egg-mode', allowDuplicateNotesMode);
+           updateBreakGridVisibility();
            if (!arpLockActive && p.scale === 'Custom') {
                customScale = p.customScale || [];
                document.querySelectorAll('#custom-scale-builder .key').forEach(k => { const n = parseInt(k.dataset.note); k.classList.toggle('selected', customScale.includes(n)); });
@@ -3714,6 +4223,20 @@ function setFxValue(id, value, forceVisualUpdate = false) {
             const d = fxKnobData[id];
             if (!d) return;
 
+            if (id === 35) {
+                const clampedVal = Math.max(0, Math.min(1, value));
+                const division = normalizedToBreakSlipDivision(clampedVal);
+                breakSlipBaseDivision = division;
+                breakSlipActiveDivision = division;
+                d.value = clampedVal;
+                d.angle = MIN_FX_ANGLE + (clampedVal * (MAX_FX_ANGLE - MIN_FX_ANGLE));
+                breakSlipKnobValue = clampedVal;
+                updateBreakSlipUi();
+                syncBreakSlipKnob(clampedVal);
+                sendBreakSlipWindow();
+                return;
+            }
+
             d.value = Math.max(0, Math.min(1, value));
             d.angle = MIN_FX_ANGLE + (d.value * (MAX_FX_ANGLE - MIN_FX_ANGLE));
             if (d.indicator && (!isLfoMode || forceVisualUpdate)) {
@@ -3789,6 +4312,9 @@ function resetAllFxToDefaults({ skipArpKnobs = false, skipLfoKnobs = false } = {
                if (id === 26 || id === 27) defaultValue = 0.5;
                if (id === 24 || id === 25) defaultValue = 0.5;
                if (id === 30 || id === 31) defaultValue = 0.0;
+               if (id === 32) defaultValue = 1.0;
+               if (id === 33) defaultValue = 0.0;
+               if (id === 34) defaultValue = 0.7;
                setFxValue(id, defaultValue);
            });
        }
@@ -4127,10 +4653,24 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
            powerSwitch = document.getElementById('power-switch');
            keySelector = document.getElementById('keySelector');
            scaleSelector = document.getElementById('scaleSelector');
+           oscillatorRow = document.getElementById('oscillator-row');
+           breakGridContainer = document.getElementById('break-grid-container');
+           breakPlayButton = document.getElementById('break-play-button');
+           breakSlipDisplay = document.getElementById('break-slip-display');
+           breakFxSwitch = document.getElementById('break-fx-switch');
+           breakWaveCanvas = document.getElementById('break-waveform');
+           breakWaveCtx = breakWaveCanvas ? breakWaveCanvas.getContext('2d') : null;
            
            // --- 1. Audio Resume (Touch & Click) ---
            const resumeAudio = () => {
-                if (isPowerOn && audioContext && (audioContext.state === 'suspended' || audioContext.state === 'interrupted')) {
+                // If the engine isn't powered, start it on interaction.
+                if (!isPowerOn || !audioContext) {
+                    powerOn();
+                    return;
+                }
+
+                // If the context exists but is suspended/interrupted, resume it.
+                if (audioContext.state === 'suspended' || audioContext.state === 'interrupted') {
                     audioContext.resume();
                 }
            };
@@ -4165,6 +4705,25 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                element.addEventListener('touchend', handler);
                element.addEventListener('click', handler);
            };
+
+           if (breakPlayButton) {
+               addTouchListener(breakPlayButton, async () => {
+                   if (!isPowerOn) await powerOn();
+                   await toggleBreakPlayback();
+               });
+               updateBreakPlayUi();
+           }
+           if (breakFxSwitch) {
+               addTouchListener(breakFxSwitch, async () => {
+                   if (!isPowerOn) await powerOn();
+                   setBreakFxRouting(!breakFxSendToGlobalFx);
+               });
+               updateBreakFxSwitchUi();
+           }
+           updateBreakSlipUi();
+           updateBreakGridVisibility();
+           resizeBreakWaveformCanvas();
+           window.addEventListener('resize', resizeBreakWaveformCanvas);
 
           addTouchListener(presetPrevButton, (event) => handlePresetNavigation(-1, event));
           addTouchListener(presetNextButton, (event) => handlePresetNavigation(1, event));
@@ -4571,7 +5130,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                  // Skip patch handling for preset/system controls so their default interactions work
                  if (e.target.closest('#presets-submenu-container, #preset-list-selector, #preset-category-buttons')) return;
 
-                const targetKnobEl = e.target.closest('.fx-knob-container, .main-knob');
+                const targetKnobEl = e.target.closest('.fx-knob-container, .main-knob, [data-fx-id]');
 
                 if (!targetKnobEl) {
                     if (activePatchingLfo !== null) stopLfoPatching();
@@ -4640,22 +5199,11 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
             synthContainer.addEventListener('click', handleGlobalPatchClick);
 
             const mainHeader = document.querySelector('.main-header h1');
-            let headerTapCount = 0;
-            let headerTapTimer = null;
             mainHeader?.addEventListener('click', () => {
-                headerTapCount++;
-                clearTimeout(headerTapTimer);
-                if (headerTapCount >= 1) { 
-                    toggleEasterEggMode();
-                    mainHeader.style.transition = 'color 0.1s';
-                    mainHeader.style.color = 'var(--color-accent-yellow)';
-                    setTimeout(() => { mainHeader.style.color = ''; }, 200);
-                    headerTapCount = 0;
-                } else {
-                    headerTapTimer = setTimeout(() => {
-                        headerTapCount = 0;
-                    }, 750);
-                }
+                toggleDuplicateNoteMode();
+                mainHeader.style.transition = 'color 0.1s';
+                mainHeader.style.color = 'var(--color-accent-yellow)';
+                setTimeout(() => { mainHeader.style.color = ''; }, 200);
             });
       
            const setupSpinButton = (button, knobId, direction) => {
@@ -4740,6 +5288,9 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                    if (!s.isArpOn) { stopArpeggiator(s.id); if(s.isHeld) { s.isNoteOn = true; const freq = calculateNote(s.id, false); if(synthNode) synthNode.port.postMessage({type:'noteOn',data:{voice:s.id,freq:freq}}); } s.arpNotes = []; updateSequenceDisplay(s.id);if(s.dom.arpNoteDisplay)s.dom.arpNoteDisplay.textContent="--"; }
                    else { if(s.isHeld) { if (s.isNoteOn) { if(synthNode) synthNode.port.postMessage({type:'noteOff', data:{voice:s.id}}); s.isNoteOn = false; } playNote(s.id); } }
                    updateStateFromTotalAngle(s.id);
+                   if (s.id === 0) {
+                       handleLeftArpToggleTrigger();
+                   }
                });
 
                addTouchListener(s.dom.arpModeSwitch, () => { 
