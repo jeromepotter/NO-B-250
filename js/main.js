@@ -108,6 +108,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakWaveformDpr = 1;
         let breakWaveformColors = null;
         let breakWaveformLastProgress = 0;
+        let breakSlipCycleStartTime = 0;
         let breakFxSendToGlobalFx = false;
         const BREAK_SLIP_DIVISIONS = [4, 2, 1, 0.5, 0.25, 0.125, 0.0625, 0.03125];
         const BREAK_MODE_ARP_TOGGLE_COUNT = 6;
@@ -260,6 +261,13 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
         function getNowMs() {
             return performance.now();
+        }
+
+        function getNowSeconds() {
+            if (audioContext && audioContext.currentTime) {
+                return audioContext.currentTime;
+            }
+            return performance.now() / 1000;
         }
 
         function normalizeArpRateBpm(rateBpm) {
@@ -467,8 +475,10 @@ let liveLfoOutputs = [0, 0, 0, 0];
         }
 
         function refreshBreakSlipAnchor() {
+            const nowSeconds = getNowSeconds();
             if (!breakRunning || !breakBufferLoaded || breakWaveformDuration <= 0 || breakSlipWindowSeconds <= 0) {
                 breakSlipAnchorNormalized = 0;
+                breakSlipCycleStartTime = nowSeconds;
                 return;
             }
 
@@ -476,21 +486,23 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const effectiveDuration = breakWaveformDuration / rate;
             if (!Number.isFinite(effectiveDuration) || effectiveDuration <= 0) {
                 breakSlipAnchorNormalized = 0;
+                breakSlipCycleStartTime = nowSeconds;
                 return;
             }
 
             const windowNorm = Math.max(0, Math.min(1, breakSlipWindowSeconds / effectiveDuration));
             if (windowNorm <= 0) {
                 breakSlipAnchorNormalized = 0;
+                breakSlipCycleStartTime = nowSeconds;
                 return;
             }
 
-            const now = audioContext ? audioContext.currentTime : (performance.now() / 1000);
-            const elapsed = Math.max(0, now - breakPlaybackStartTime);
+            const elapsed = Math.max(0, nowSeconds - breakPlaybackStartTime);
             const progressSec = effectiveDuration > 0 ? (elapsed % effectiveDuration) : 0;
             const progressNorm = effectiveDuration > 0 ? progressSec / effectiveDuration : 0;
             const bucketIndex = Math.max(0, Math.floor(progressNorm / windowNorm));
             breakSlipAnchorNormalized = Math.min(1, bucketIndex * windowNorm);
+            breakSlipCycleStartTime = nowSeconds;
         }
 
         function updateBreakSlipUi() {
@@ -584,6 +596,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
                     wave: '#ffffff',
                     head: '#ffffff',
                     slip: 'rgba(255, 64, 64, 0.22)',
+                    slipHead: '#ff9f9f',
                 };
             }
             return breakWaveformColors;
@@ -631,15 +644,25 @@ let liveLfoOutputs = [0, 0, 0, 0];
             }
             breakWaveCtx.stroke();
 
+            let slipHeadX = null;
             if (breakSlipWindowSeconds > 0 && breakWaveformDuration > 0) {
                 const rate = Math.max(0.01, breakPlaybackRate);
                 const effectiveDuration = breakWaveformDuration / rate;
                 const windowNorm = Math.max(0, Math.min(1, breakSlipWindowSeconds / effectiveDuration));
                 if (windowNorm > 0) {
-                    const startX = Math.max(0, Math.min(logicalWidth, breakSlipAnchorNormalized * logicalWidth));
+                    const startNorm = Math.max(0, Math.min(1, breakSlipAnchorNormalized));
+                    const startX = Math.max(0, Math.min(logicalWidth, startNorm * logicalWidth));
                     const width = Math.max(1, Math.min(logicalWidth - startX, windowNorm * logicalWidth));
                     breakWaveCtx.fillStyle = colors.slip;
                     breakWaveCtx.fillRect(startX, 0, width, logicalHeight);
+
+                    const slipDuration = Math.max(0, breakSlipWindowSeconds);
+                    if (slipDuration > 0 && Number.isFinite(breakSlipCycleStartTime)) {
+                        const slipElapsed = Math.max(0, getNowSeconds() - breakSlipCycleStartTime);
+                        const slipProgress = slipDuration > 0 ? ((slipElapsed % slipDuration) / slipDuration) : 0;
+                        const slipHeadNorm = (startNorm + slipProgress * windowNorm) % 1;
+                        slipHeadX = Math.max(0, Math.min(logicalWidth, slipHeadNorm * logicalWidth));
+                    }
                 }
             }
 
@@ -649,6 +672,15 @@ let liveLfoOutputs = [0, 0, 0, 0];
             breakWaveCtx.moveTo(headX, 0);
             breakWaveCtx.lineTo(headX, logicalHeight);
             breakWaveCtx.stroke();
+
+            if (slipHeadX !== null) {
+                breakWaveCtx.strokeStyle = colors.slipHead;
+                breakWaveCtx.lineWidth = 2;
+                breakWaveCtx.beginPath();
+                breakWaveCtx.moveTo(slipHeadX, 0);
+                breakWaveCtx.lineTo(slipHeadX, logicalHeight);
+                breakWaveCtx.stroke();
+            }
         }
 
         function startBreakWaveformAnimation() {
