@@ -305,18 +305,18 @@
         </div>
       </div>
 
-      <div id="drum-sequencer-container" class="hidden transition-all duration-500 ease-in-out">
-        <div class="flex justify-center items-center space-x-4 mb-2">
-            <button id="drum-play-button" class="retro-button text-xs font-bold border-2 border-current px-3 py-1 rounded-sm">PLAY DRUMS</button>
-            <div class="flex flex-col items-center cursor-pointer" id="slice-knob-container">
-                <div class="w-8 h-8 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="302">
-                    <div class="w-1 h-3 bg-blue-800 rounded-full absolute top-0.5 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 14px;"></div>
-                </div>
-                <label class="font-bold tracking-wider text-[10px] mt-1">SLICE</label>
-            </div>
+      <div id="drum-sequencer-container" class="hidden flex-col items-center mt-4 p-2 border-t-2 border-[var(--color-text)]">
+        <label class="font-bold tracking-wider text-xs mb-2">BREAKBEAT SEQUENCER</label>
+        <div class="grid grid-cols-8 sm:grid-cols-16 gap-1 w-full max-w-lg">
+          <div class="drum-step" data-step="0"></div><div class="drum-step" data-step="1"></div>
+          <div class="drum-step" data-step="2"></div><div class="drum-step" data-step="3"></div>
+          <div class="drum-step" data-step="4"></div><div class="drum-step" data-step="5"></div>
+          <div class="drum-step" data-step="6"></div><div class="drum-step" data-step="7"></div>
+          <div class="drum-step" data-step="8"></div><div class="drum-step" data-step="9"></div>
+          <div class="drum-step" data-step="10"></div><div class="drum-step" data-step="11"></div>
+          <div class="drum-step" data-step="12"></div><div class="drum-step" data-step="13"></div>
+          <div class="drum-step" data-step="14"></div><div class="drum-step" data-step="15"></div>
         </div>
-        <div id="drum-sequencer-grid" class="flex justify-center flex-wrap gap-1 px-2">
-            </div>
       </div>
 
       <div id="master-arp-controls" class="flex flex-wrap justify-center items-center gap-4 p-2">
@@ -711,3 +711,4 @@
     <div class="h-24"></div>
   </body>
 </html>
+
