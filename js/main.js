@@ -4646,9 +4646,12 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
            
            // --- 1. Audio Resume (Touch & Click) ---
            const resumeAudio = () => {
-                // If the engine isn't powered, start it on interaction.
-                if (!isPowerOn || !audioContext) {
-                    powerOn();
+                // Only resume if the synth is already powered on.
+                if (!isPowerOn) return;
+
+                // If the context is missing or closed while powered, rebuild it without toggling UI state.
+                if (!audioContext || audioContext.state === 'closed') {
+                    audioSetupPromise = setupAudio();
                     return;
                 }
 
