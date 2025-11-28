@@ -477,7 +477,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             }
         }
 
-        function setBreakSlipDivision(nextDivision) {
+        function setBreakSlipDivision(nextDivision, syncKnob = true) {
             const snapped = normalizedToBreakSlipDivision(
                 breakSlipDivisionToNormalized(Math.max(0.03125, Math.min(4, nextDivision)))
             );
@@ -488,7 +488,9 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 breakSlipActiveDivision = snapped;
             }
             updateBreakSlipUi();
-            syncBreakSlipKnob();
+            if (syncKnob) {
+                syncBreakSlipKnob();
+            }
             sendBreakSlipWindow();
         }
 
@@ -2480,13 +2482,7 @@ function sendMidiMessage(message) {
 
            if (id === 35) {
                const snappedDivision = normalizedToBreakSlipDivision(d.value);
-               const snappedValue = breakSlipDivisionToNormalized(snappedDivision);
-               if (Math.abs(snappedValue - d.value) > 1e-5) {
-                   d.value = snappedValue;
-                   d.angle = MIN_FX_ANGLE + snappedValue * (MAX_FX_ANGLE - MIN_FX_ANGLE);
-                   applyIndicatorTransform(d.indicator, d.angle);
-               }
-               setBreakSlipDivision(snappedDivision);
+               setBreakSlipDivision(snappedDivision, false);
                return;
            }
 
