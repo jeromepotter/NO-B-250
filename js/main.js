@@ -36,7 +36,6 @@
         const LFO_CABLE_COLORS = ['#fa9c2d', '#35a5fb', '#d85b7e', '#98ce57'];
         const LFO_CABLE_TARGET_COLORS = ['#ae332c', '#ffffff', '#843b9a', '#a44a00'];
         const BREAK_BASE_BPM = 165;
-        const BREAK_STEP_COUNT = 16;
         const lfoState = [
     { id: 0, rate: 0.5, depth: 0, wave: 0, dest: LFO_DEST_NONE, destChain: [], phase: 0, lastRandom: 0, output: 0 },
     { id: 1, rate: 0.5, depth: 0, wave: 0, dest: LFO_DEST_NONE, destChain: [], phase: 0, lastRandom: 0, output: 0 },
@@ -86,12 +85,11 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let lfoRateDisplays = [];
         let breakGridContainer = null;
         let breakPlayButton = null;
-        let breakStepButtons = [];
         let oscillatorRow = null;
-        let breakStepState = Array(BREAK_STEP_COUNT).fill(true);
-        let breakSequencerPlaying = false;
-        let breakNextStepTime = 0;
-        let breakCurrentStep = 0;
+        let breakModeActive = false;
+        let breakPlayRequested = false;
+        let breakRunning = false;
+        let breakStartTimeoutId = null;
         let breakBufferLoaded = false;
         let breakSampleLoadingPromise = null;
         let breakPlaybackRate = 1;
@@ -298,7 +296,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
                             updateArpeggiator(idx, timestamp);
                         }
                     });
-                    handleBreakSequencerTick(timestamp);
+                    handleBreakLoopTick();
                 } else if (type === 'midiTick' && midiClockEnabled && midiClockRunning) {
                     sendMidiMessage([0xF8]);
                 }
@@ -317,7 +315,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
         function stopMasterClockIfIdle() {
             if (!masterClockRunning || !masterClockWorker) return;
-            if (knobState.some(state => state?.arpRunning) || breakSequencerPlaying) return;
+            if (knobState.some(state => state?.arpRunning) || breakPlayRequested) return;
             masterClockWorker.postMessage({ type: 'stop' });
             masterClockRunning = false;
             masterClockStartTime = null;
@@ -381,29 +379,15 @@ let liveLfoOutputs = [0, 0, 0, 0];
             return Math.max(0.1, bpm / BREAK_BASE_BPM);
         }
 
-        function getBreakStepIntervalMs() {
-            const bpm = calculateMidiBpm();
-            return 60000 / (Math.max(1, bpm) * SIXTEENTH_NOTES_PER_QUARTER);
-        }
-
-        function setBreakStepState(stepIndex, isOn) {
-            if (stepIndex < 0 || stepIndex >= BREAK_STEP_COUNT) return;
-            breakStepState[stepIndex] = !!isOn;
-            const btn = breakStepButtons[stepIndex];
-            if (btn) {
-                btn.classList.toggle('active', !!isOn);
-            }
-        }
-
         function updateBreakPlayUi() {
             if (breakPlayButton) {
-                breakPlayButton.textContent = breakSequencerPlaying ? 'pause' : 'play';
+                breakPlayButton.textContent = breakPlayRequested ? 'pause' : 'play';
             }
         }
 
         function updateBreakGridVisibility() {
             if (!breakGridContainer) return;
-            const shouldShow = allowDuplicateNotesMode;
+            const shouldShow = breakModeActive;
             breakGridContainer.classList.toggle('visible', shouldShow);
             breakGridContainer.classList.toggle('hidden', !shouldShow);
         }
@@ -430,10 +414,9 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
         function getBreakWaveformColors() {
             if (!breakWaveformColors) {
-                const style = getComputedStyle(document.documentElement);
                 breakWaveformColors = {
-                    wave: style.getPropertyValue('--color-text').trim() || '#ffffff',
-                    head: style.getPropertyValue('--color-egg-orange').trim() || '#fa9c2d',
+                    wave: '#ffffff',
+                    head: '#ffffff',
                 };
             }
             return breakWaveformColors;
@@ -493,7 +476,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             stopBreakWaveformAnimation();
             breakPlaybackStartTime = audioContext ? audioContext.currentTime : (performance.now() / 1000);
             const tick = () => {
-                if (!breakSequencerPlaying || breakWaveformDuration <= 0) return;
+                if (!breakRunning || !breakPlayRequested || breakWaveformDuration <= 0) return;
                 const rate = Math.max(0.01, breakPlaybackRate);
                 const effectiveDuration = breakWaveformDuration / rate;
                 if (!Number.isFinite(effectiveDuration) || effectiveDuration <= 0) return;
@@ -545,7 +528,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         }
 
         function sendBreakPlaybackRate() {
-            if (!synthNode || !breakSequencerPlaying || !breakBufferLoaded) return;
+            if (!synthNode || !breakRunning || !breakBufferLoaded) return;
             const nextRate = getBreakPlaybackRate();
             if (!Number.isFinite(nextRate)) return;
             if (Math.abs(nextRate - breakPlaybackRate) < 0.001) return;
@@ -554,50 +537,64 @@ let liveLfoOutputs = [0, 0, 0, 0];
             breakPlaybackStartTime = audioContext ? audioContext.currentTime : (performance.now() / 1000);
         }
 
-        function handleBreakSequencerTick(timestamp) {
-            if (!breakSequencerPlaying || !breakBufferLoaded) return;
-            const intervalMs = getBreakStepIntervalMs();
-            if (!Number.isFinite(intervalMs) || intervalMs <= 0) return;
-
+        function handleBreakLoopTick() {
+            if (!breakRunning || !breakBufferLoaded) return;
             sendBreakPlaybackRate();
+        }
 
-            if (breakNextStepTime === 0) {
-                breakNextStepTime = quantizeToNextSixteenth(timestamp, intervalMs);
-            }
-
-            while (timestamp + MASTER_CLOCK_TOLERANCE_MS >= breakNextStepTime) {
-                breakStepButtons.forEach(btn => btn?.classList.remove('current'));
-                const activeBtn = breakStepButtons[breakCurrentStep];
-                if (activeBtn) activeBtn.classList.add('current');
-
-                breakCurrentStep = (breakCurrentStep + 1) % BREAK_STEP_COUNT;
-                breakNextStepTime += intervalMs;
+        function clearBreakStartTimer() {
+            if (breakStartTimeoutId) {
+                clearTimeout(breakStartTimeoutId);
+                breakStartTimeoutId = null;
             }
         }
 
-        async function toggleBreakSequencer() {
-            breakSequencerPlaying = !breakSequencerPlaying;
-            breakNextStepTime = 0;
-            breakCurrentStep = 0;
-            breakStepButtons.forEach(btn => btn?.classList.remove('current'));
-            updateBreakPlayUi();
-            if (breakSequencerPlaying) {
-                ensureMasterClock();
-                await ensureBreakSampleLoaded();
-                if (!breakBufferLoaded) {
-                    breakSequencerPlaying = false;
-                    stopMasterClockIfIdle();
-                    updateBreakPlayUi();
-                    return;
-                }
-                breakPlaybackRate = getBreakPlaybackRate();
-                synthNode?.port.postMessage({ type: 'startBreakLoop', data: { playbackRate: breakPlaybackRate } });
-                startBreakWaveformAnimation();
-            } else {
+        function beginBreakPlayback() {
+            breakStartTimeoutId = null;
+            if (!breakPlayRequested || !breakBufferLoaded) return;
+            breakRunning = true;
+            breakPlaybackRate = getBreakPlaybackRate();
+            breakPlaybackStartTime = audioContext ? audioContext.currentTime : (performance.now() / 1000);
+            synthNode?.port.postMessage({ type: 'startBreakLoop', data: { playbackRate: breakPlaybackRate } });
+            startBreakWaveformAnimation();
+        }
+
+        function stopBreakPlaybackImmediate() {
+            clearBreakStartTimer();
+            if (breakRunning) {
                 synthNode?.port.postMessage({ type: 'stopBreakLoop' });
-                stopBreakWaveformAnimation(0);
-                stopMasterClockIfIdle();
             }
+            breakRunning = false;
+            breakPlayRequested = false;
+            stopBreakWaveformAnimation(0);
+            updateBreakPlayUi();
+        }
+
+        async function toggleBreakPlayback() {
+            if (breakPlayRequested) {
+                stopBreakPlaybackImmediate();
+                stopMasterClockIfIdle();
+                return;
+            }
+
+            breakPlayRequested = true;
+            updateBreakPlayUi();
+            ensureMasterClock();
+            await ensureBreakSampleLoaded();
+            if (!breakBufferLoaded) {
+                breakPlayRequested = false;
+                stopMasterClockIfIdle();
+                updateBreakPlayUi();
+                return;
+            }
+
+            const bpm = calculateMidiBpm();
+            const quarterIntervalMs = 60000 / Math.max(1, bpm);
+            const now = getNowMs();
+            const startTime = quantizeToNextSixteenth(now, quarterIntervalMs);
+            const delayMs = Math.max(0, startTime - now);
+            clearBreakStartTimer();
+            breakStartTimeoutId = setTimeout(beginBreakPlayback, delayMs);
         }
 
         function startArpClockForState(knobId) {
@@ -3636,27 +3633,23 @@ lfoState.forEach((lfo, lfoIndex) => {
         requestAnimationFrame(tick);
       }
 
-        function toggleEasterEggMode() {
-        allowDuplicateNotesMode = !allowDuplicateNotesMode;
-        document.body.classList.toggle('easter-egg-mode', allowDuplicateNotesMode);
-        knobState.forEach(k => updateFeelPatternPreview(k.id));
-        updateBreakGridVisibility();
-
-        if (allowDuplicateNotesMode) {
-          animateMainKnobsToZero();
-          oscillatorRow?.classList.add('glow-down');
-          ensureBreakSampleLoaded();
-        } else {
-          oscillatorRow?.classList.remove('glow-down');
-          synthNode?.port.postMessage({ type: 'stopBreakLoop' });
-          breakSequencerPlaying = false;
-          breakNextStepTime = 0;
-          stopBreakWaveformAnimation(0);
-          breakStepButtons.forEach(btn => btn?.classList.remove('current'));
-          updateBreakPlayUi();
-          stopMasterClockIfIdle();
+        function toggleDuplicateNoteMode() {
+            allowDuplicateNotesMode = !allowDuplicateNotesMode;
+            document.body.classList.toggle('easter-egg-mode', allowDuplicateNotesMode);
+            knobState.forEach(k => updateFeelPatternPreview(k.id));
         }
-      }
+
+        function toggleBreakMode() {
+            breakModeActive = !breakModeActive;
+            updateBreakGridVisibility();
+            if (breakModeActive) {
+                animateMainKnobsToZero();
+                ensureBreakSampleLoaded();
+            } else {
+                stopBreakPlaybackImmediate();
+                stopMasterClockIfIdle();
+            }
+        }
  function toggleLfoModeUI(forceState, isPresetLoad = false) {
     const wasInPatchingMode = activePatchingLfo !== null;
     if (wasInPatchingMode) stopLfoPatching();
@@ -4411,7 +4404,6 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
            oscillatorRow = document.getElementById('oscillator-row');
            breakGridContainer = document.getElementById('break-grid-container');
            breakPlayButton = document.getElementById('break-play-button');
-           breakStepButtons = Array.from(document.querySelectorAll('.break-step'));
            breakWaveCanvas = document.getElementById('break-waveform');
            breakWaveCtx = breakWaveCanvas ? breakWaveCanvas.getContext('2d') : null;
            
@@ -4456,17 +4448,10 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
            if (breakPlayButton) {
                addTouchListener(breakPlayButton, async () => {
                    if (!isPowerOn) await powerOn();
-                   await ensureBreakSampleLoaded();
-                   toggleBreakSequencer();
+                   await toggleBreakPlayback();
                });
                updateBreakPlayUi();
            }
-
-           breakStepButtons.forEach(btn => {
-               const idx = parseInt(btn.dataset.step, 10) || 0;
-               setBreakStepState(idx, breakStepState[idx]);
-               addTouchListener(btn, () => setBreakStepState(idx, !breakStepState[idx]));
-           });
            updateBreakGridVisibility();
            resizeBreakWaveformCanvas();
            window.addEventListener('resize', resizeBreakWaveformCanvas);
@@ -4947,19 +4932,22 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
             const mainHeader = document.querySelector('.main-header h1');
             let headerTapCount = 0;
             let headerTapTimer = null;
+            const headerTapWindowMs = 500;
             mainHeader?.addEventListener('click', () => {
                 headerTapCount++;
-                clearTimeout(headerTapTimer);
-                if (headerTapCount >= 1) { 
-                    toggleEasterEggMode();
-                    mainHeader.style.transition = 'color 0.1s';
-                    mainHeader.style.color = 'var(--color-accent-yellow)';
-                    setTimeout(() => { mainHeader.style.color = ''; }, 200);
-                    headerTapCount = 0;
-                } else {
+                if (!headerTapTimer) {
                     headerTapTimer = setTimeout(() => {
+                        if (headerTapCount >= 3) {
+                            toggleBreakMode();
+                        } else if (headerTapCount === 1) {
+                            toggleDuplicateNoteMode();
+                        }
+                        mainHeader.style.transition = 'color 0.1s';
+                        mainHeader.style.color = 'var(--color-accent-yellow)';
+                        setTimeout(() => { mainHeader.style.color = ''; }, 200);
                         headerTapCount = 0;
-                    }, 750);
+                        headerTapTimer = null;
+                    }, headerTapWindowMs);
                 }
             });
       
