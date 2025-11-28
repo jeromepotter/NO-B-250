@@ -112,7 +112,7 @@
         </div>
       </div>
       
-     <div class="flex justify-around items-start p-2 gap-x-4">
+     <div id="oscillator-row" class="flex justify-around items-start p-2 gap-x-4">
         
         <div class="flex-1 flex flex-col justify-center items-center">
           <div class="w-40 h-40 sm:w-48 sm:h-48 relative">
@@ -304,6 +304,36 @@
           </div>
         </div>
       </div>
+
+      <div id="break-grid-container" class="break-grid hidden">
+        <div class="break-grid-header">
+          <div class="break-title">BREAK SEQUENCER</div>
+          <button id="break-play-button" class="retro-button text-xs sm:text-sm font-bold px-3 break-play-btn">play</button>
+        </div>
+        <div class="break-waveform-shell">
+          <canvas id="break-waveform" class="break-waveform" aria-label="Break waveform preview"></canvas>
+        </div>
+        <div id="break-steps" class="break-steps" aria-label="Breakbeat step sequencer">
+          <button class="break-step" data-step="0"></button>
+          <button class="break-step" data-step="1"></button>
+          <button class="break-step" data-step="2"></button>
+          <button class="break-step" data-step="3"></button>
+          <button class="break-step" data-step="4"></button>
+          <button class="break-step" data-step="5"></button>
+          <button class="break-step" data-step="6"></button>
+          <button class="break-step" data-step="7"></button>
+          <button class="break-step" data-step="8"></button>
+          <button class="break-step" data-step="9"></button>
+          <button class="break-step" data-step="10"></button>
+          <button class="break-step" data-step="11"></button>
+          <button class="break-step" data-step="12"></button>
+          <button class="break-step" data-step="13"></button>
+          <button class="break-step" data-step="14"></button>
+          <button class="break-step" data-step="15"></button>
+        </div>
+        <div class="break-caption">Secret loop rider</div>
+      </div>
+
       <div id="master-arp-controls" class="flex flex-wrap justify-center items-center gap-4 p-2">
         <div id="rate-sync-container" class="flex flex-col items-center">
           <div id="arp-sync-switch" class="power-switch small">

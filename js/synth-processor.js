@@ -313,6 +313,13 @@ const LFO_DEST_NONE = -1;
                        { rate: 0, depth: 0, wave: 0, dest: LFO_DEST_NONE, destChain: [], phase: 0, lastRandom: 0 },
                    ];
                    this.lfoOutputs = [0,0,0,0];
+
+                   // --- Sampler State ---
+                   this.sampleBuffer = null;
+                   this.sampleSourceRate = sampleRate;
+                   this.sampleLength = 0;
+                   this.sliceLength = 0;
+                   this.samplerPlayback = { active: false, position: 0, end: 0, rate: 1, loop: false };
       
                    this.port.onmessage = ({ data: { type, data } }) => {
                        const { voice, freq, id, value, lfoId, param } = data || {};
@@ -345,7 +352,7 @@ const LFO_DEST_NONE = -1;
                                else if(id===8){ this.attackTime=0.001+Math.pow(value,2)*2; } else if(id===9){ this.decayTime=0.001+Math.pow(value,2)*2; }
                                else if(id===10){ this.sustainLevel=value; } else if(id===11){ this.releaseTime=0.001+Math.pow(value,2)*1.25; this.releaseRate=Math.exp(-1/(this.releaseTime*sampleRate)); }
                                // Reverb Params Mapping
-                               else if(id===13){ 
+                               else if(id===13){
                                 // Map 0-1 knob to LARGER RT60 ranges
                                 // lowRt60: 0.5s -> 5.5s (Huge bass decay)
                                  // midRt60: 0.4s -> 4.5s (Long atmospheric tail)
@@ -353,10 +360,34 @@ const LFO_DEST_NONE = -1;
                                    this.zita.params.midRt60 = 0.4 + value * 4.1;
     
                                   // Open up the filter as the room gets bigger (same as before)
-                                    this.zita.params.hfDamp = 3000 + value * 5000;
-                                      }
-                               else if (id===20 || id===28){ this.updateFilterCoefficients(this.filterOsc1Coeffs, this.params[20], this.params[28]); } 
+                                  this.zita.params.hfDamp = 3000 + value * 5000;
+                                    }
+                               else if (id===20 || id===28){ this.updateFilterCoefficients(this.filterOsc1Coeffs, this.params[20], this.params[28]); }
                                else if(id===21 || id===29){ this.updateFilterCoefficients(this.filterOsc2Coeffs, this.params[21], this.params[29]); }
+                               break;
+                           case 'setSampleBuffer':
+                               if (data?.samples) {
+                                   this.sampleBuffer = data.samples;
+                                   this.sampleSourceRate = data.sampleRate || sampleRate;
+                                   this.sampleLength = this.sampleBuffer.length;
+                                   this.sliceLength = this.sampleLength / 16;
+                               }
+                               break;
+                           case 'startBreakLoop':
+                               if (this.sampleBuffer && this.sampleLength > 0) {
+                                   const playbackRate = Math.max(0.01, data?.playbackRate || 1);
+                                   const rate = playbackRate * (this.sampleSourceRate / sampleRate);
+                                   this.samplerPlayback = { active: true, position: 0, end: this.sampleLength, rate, loop: true };
+                               }
+                               break;
+                           case 'stopBreakLoop':
+                               this.samplerPlayback = { active: false, position: 0, end: 0, rate: 1, loop: false };
+                               break;
+                           case 'setBreakPlaybackRate':
+                               if (this.samplerPlayback && this.samplerPlayback.active) {
+                                   const playbackRate = Math.max(0.01, data?.playbackRate || 1);
+                                   this.samplerPlayback.rate = playbackRate * (this.sampleSourceRate / sampleRate);
+                               }
                                break;
                             case 'setLfo':
                                 if (lfoId >= 0 && lfoId < this.lfoParams.length) {
@@ -399,8 +430,17 @@ case 'ping':
                    const idxA = Math.floor(readPos);
                    const idxB = (idxA + 1) % buffer.length;
                    const frac = readPos - idxA;
-                   
+
                    return buffer[idxA] * (1 - frac) + buffer[idxB] * frac;
+               }
+
+               getSamplerSample(position) {
+                   if (!this.sampleBuffer || this.sampleLength === 0) return 0;
+                   const clamped = Math.max(0, Math.min(this.sampleLength - 1.001, position));
+                   const idxA = Math.floor(clamped);
+                   const idxB = Math.min(this.sampleLength - 1, idxA + 1);
+                   const frac = clamped - idxA;
+                   return (this.sampleBuffer[idxA] * (1 - frac)) + (this.sampleBuffer[idxB] * frac);
                }
 
                process(i,o,p){
@@ -613,6 +653,27 @@ for(let i=0;i<blockSize;i++){
         s2 = (s2 + (o3_2 * currentParams[3])) * 0.8;
     }
 
+    let sampleVal = 0;
+    if (this.samplerPlayback.active && this.sampleBuffer) {
+        const effectivePos = Math.max(0, this.samplerPlayback.position);
+
+        if (effectivePos >= this.sampleLength || effectivePos >= this.samplerPlayback.end) {
+            if (this.samplerPlayback.loop) {
+                this.samplerPlayback.position = 0;
+            } else {
+                this.samplerPlayback.active = false;
+            }
+        }
+
+        if (this.samplerPlayback.active) {
+            sampleVal = this.getSamplerSample(this.samplerPlayback.position);
+            this.samplerPlayback.position += this.samplerPlayback.rate;
+        }
+    }
+    const sampleGain = 0.7;
+    const sampleMixL = sampleVal * sampleGain;
+    const sampleMixR = sampleVal * sampleGain;
+
     const dither = (Math.random() - 0.5) * 0.00001;
     s1 += dither;
     s2 += dither;
@@ -642,6 +703,11 @@ for(let i=0;i<blockSize;i++){
     // "Discrete Circuit" Panning
     let s_L = (s1_f * 0.8 + s2_f * 0.6) * 0.7;
     let s_R = (s1_f * 0.6 + s2_f * 0.8) * 0.7;
+
+    if (sampleMixL !== 0 || sampleMixR !== 0) {
+        s_L += sampleMixL;
+        s_R += sampleMixR;
+    }
     
     this.smoothedDist += (currentParams[1] - this.smoothedDist) * 0.0025;
     const dV=this.smoothedDist;
