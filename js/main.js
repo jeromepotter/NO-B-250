@@ -1475,6 +1475,7 @@ function generateComplexRandomLfoState(includeArpTargets = true) {
                breakModeActive: breakModeActive,
                breakFxSendToGlobalFx: breakFxSendToGlobalFx,
                breakSlipAnchorHoldEnabled: breakSlipAnchorHoldEnabled,
+               breakPlayActive: breakPlayRequested || breakRunning,
                breakSlipBaseDivision: breakSlipBaseDivision,
              lfoState: lfoState.map(lfo => {
             const obj = {};
@@ -4099,6 +4100,15 @@ function applyPreset(p, isArpCategoryPreset = false, options = {}) {
            }
            if (p.breakSlipAnchorHoldEnabled !== undefined) {
                setBreakSlipAnchorHold(!!p.breakSlipAnchorHoldEnabled);
+           }
+           if (p.breakPlayActive !== undefined) {
+               const shouldPlayBreak = !!p.breakPlayActive;
+               if (shouldPlayBreak && !breakPlayRequested) {
+                   toggleBreakPlayback();
+               } else if (!shouldPlayBreak && breakPlayRequested) {
+                   stopBreakPlaybackImmediate();
+                   stopMasterClockIfIdle();
+               }
            }
            if (!arpLockActive && p.scale === 'Custom') {
                customScale = p.customScale || [];
