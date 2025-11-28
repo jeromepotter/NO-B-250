@@ -491,6 +491,18 @@ let liveLfoOutputs = [0, 0, 0, 0];
             sendBreakSlipWindow();
         }
 
+        function cycleBreakSlipDivision(step = 1) {
+            const length = BREAK_SLIP_DIVISIONS.length;
+            if (!length) return;
+            const startIndex = BREAK_SLIP_DIVISIONS.reduce((best, value, idx) => {
+                const diff = Math.abs(value - breakSlipBaseDivision);
+                return diff < best.diff ? { idx, diff } : best;
+            }, { idx: 0, diff: Infinity }).idx;
+            let nextIndex = (startIndex + step) % length;
+            if (nextIndex < 0) nextIndex += length;
+            setBreakSlipDivision(BREAK_SLIP_DIVISIONS[nextIndex]);
+        }
+
         function applyBreakSlipModulation(modAmount = 0) {
             if (Math.abs(modAmount) < 1e-6 && Math.abs(breakSlipActiveDivision - breakSlipBaseDivision) < 1e-6) {
                 syncBreakSlipKnob();
@@ -2583,35 +2595,42 @@ function sendMidiMessage(message) {
                const k = e.currentTarget; if (!isPowerOn) return;
                if (id >= 16 && id <= 25 && k.closest('.arp-disabled')) return;
                activeMouseFxKnobId = id; const d = fxKnobData[id]; if (!d) return;
-               d.isDragging = true; d.startY = e.clientY; d.knobEl.style.cursor = 'grabbing'; document.body.style.cursor = 'ns-resize';
+               d.isDragging = true; d.startY = e.clientY; d.mouseStartY = e.clientY; d.mouseMoved = false; d.knobEl.style.cursor = 'grabbing'; document.body.style.cursor = 'ns-resize';
            };
            const handleFxMouseMove = (e) => {
                if (activeMouseFxKnobId === null) return;
                const d = fxKnobData[activeMouseFxKnobId]; if (!d || !d.isDragging) return;
                e.preventDefault(); const cY = e.clientY; let sensitivity = 1.5;
                if (activeMouseFxKnobId === 16 || activeMouseFxKnobId === 17) { sensitivity = 0.6; }
+               if (d.mouseStartY !== null && Math.abs(cY - d.mouseStartY) > 2) { d.mouseMoved = true; }
                const dY = (d.startY - cY) * sensitivity; d.startY = cY; updateFxKnob(activeMouseFxKnobId, dY);
            };
            const handleFxMouseUp = () => {
                if (activeMouseFxKnobId === null) return;
                const d = fxKnobData[activeMouseFxKnobId];
-               if (d) { d.isDragging = false; d.knobEl.style.cursor = 'ns-resize'; }
+               if (d) {
+                   if (activeMouseFxKnobId === 35 && !d.mouseMoved) {
+                       cycleBreakSlipDivision(1);
+                   }
+                   d.isDragging = false; d.knobEl.style.cursor = 'ns-resize';
+               }
                document.body.style.cursor = 'default'; activeMouseFxKnobId = null;
            };
            const handleFxTouchStart = (e) => {
                if (activePatchingLfo !== null) return;
                const k = e.currentTarget; const id = parseInt(k.dataset.fxId, 10);
-               if (!isPowerOn || (id >= 16 && id <= 25 && k.closest('.arp-disabled'))) return;
-               const d = fxKnobData[id]; if (!d) return;
-               for (const t of e.changedTouches) {
-                   if (d.touchId === null) {
-                       d.touchId = t.identifier;
-                       d.startY = t.clientY;
-                       d.touchStartX = t.clientX;
-                       d.touchStartY = t.clientY;
-                       d.touchMoved = false;
-                       break;
-                   }
+                   if (!isPowerOn || (id >= 16 && id <= 25 && k.closest('.arp-disabled'))) return;
+                   const d = fxKnobData[id]; if (!d) return;
+                   for (const t of e.changedTouches) {
+                       if (d.touchId === null) {
+                           d.touchId = t.identifier;
+                           d.startY = t.clientY;
+                           d.mouseStartY = t.clientY;
+                           d.touchStartX = t.clientX;
+                           d.touchStartY = t.clientY;
+                           d.touchMoved = false;
+                           break;
+                       }
                }
            };
            const handleFxTouchMove = (e) => {
@@ -2640,6 +2659,10 @@ function sendMidiMessage(message) {
                    const [id, d] = entry;
                    d.touchId = null;
                    const knobId = parseInt(id, 10);
+                   if (knobId === 35 && !d.touchMoved) {
+                       if (e.cancelable) e.preventDefault();
+                       cycleBreakSlipDivision(1);
+                   }
                    if (knobId === 16 || knobId === 17) {
                        if (!d.touchMoved) {
                            const now = performance.now();
@@ -2661,7 +2684,7 @@ function sendMidiMessage(message) {
            };
            document.querySelectorAll('.fx-knob-container').forEach(k => {
                const id = parseInt(k.dataset.fxId, 10);
-               fxKnobData[id] = { id:id, knobEl:k, indicator:k.querySelector('.indicator'), angle:MIN_FX_ANGLE, value:0.0, isDragging:false, startY:0, touchId:null, touchStartX:null, touchStartY:null, touchMoved:false, lastTapTime:0 };
+               fxKnobData[id] = { id:id, knobEl:k, indicator:k.querySelector('.indicator'), angle:MIN_FX_ANGLE, value:0.0, isDragging:false, startY:0, touchId:null, touchStartX:null, touchStartY:null, touchMoved:false, lastTapTime:0, mouseStartY:null, mouseMoved:false };
                if(id===2){fxKnobData[id].value=1.0;} else if(id===7){fxKnobData[id].value=0.5;} else if(id===8){fxKnobData[id].value=0.0045;}
                else if(id===9){fxKnobData[id].value=0.0995;} else if(id===10){fxKnobData[id].value=0.8;} else if(id===11){fxKnobData[id].value=0.2;}
                else if(id===13){fxKnobData[id].value=0.5;} else if(id===15){fxKnobData[id].value=0.25;} else if(id===16||id===17){fxKnobData[id].value=arpRateBpmToValue(DEFAULT_ARP_RATE_BPM);}
@@ -5062,6 +5085,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
             KNOB_ID_TO_NAME_MAP[17] = 'TEMPO 2';
             KNOB_ID_TO_NAME_MAP[22] = 'FEEL';
             KNOB_ID_TO_NAME_MAP[23] = 'FEEL';
+            KNOB_ID_TO_NAME_MAP[35] = 'SLIP';
 
             // --- GLOBAL PATCHING HANDLER ---
             let isScrollingGlobal = false;
