@@ -274,11 +274,39 @@ body.break-mode {
       body.easter-egg-mode .retro-select:focus {
       outline-color: var(--color-text-dark, #000000);
       }
-      body.easter-egg-mode #note-display-1,
-      body.easter-egg-mode #note-display-2,
-      body.easter-egg-mode .arp-note-indicator {
-      color: var(--color-midnight-blue) !important;
-      }
+body.easter-egg-mode #note-display-1,
+body.easter-egg-mode #note-display-2,
+body.easter-egg-mode .arp-note-indicator {
+  color: var(--color-midnight-blue) !important;
+}
+/* Keep Break Mode palette when Duplicate Note Mode is active */
+body.break-mode.easter-egg-mode {
+  color: #917373;
+}
+
+body.break-mode.easter-egg-mode #note-display-1,
+body.break-mode.easter-egg-mode #note-display-2,
+body.break-mode.easter-egg-mode .arp-note-indicator,
+body.break-mode.easter-egg-mode #voice-0-wave-display,
+body.break-mode.easter-egg-mode #voice-1-wave-display {
+  color: #917373 !important;
+}
+
+body.break-mode.easter-egg-mode .feel-pattern-step.on {
+  background: var(--feel-preview-color) !important;
+}
+
+body.break-mode.easter-egg-mode .rate-display-row,
+body.break-mode.easter-egg-mode .arp-rate-button,
+body.break-mode.easter-egg-mode .rate-bpm-display {
+  color: #917373 !important;
+}
+
+body.break-mode.easter-egg-mode .main-header,
+body.break-mode.easter-egg-mode .main-header h1,
+body.break-mode.easter-egg-mode #main-header-buttons {
+  color: #000000 !important;
+}
       body.easter-egg-mode .how-to-guide {
         color: var(--color-text);
       }
