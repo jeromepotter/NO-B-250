@@ -428,22 +428,13 @@ let liveLfoOutputs = [0, 0, 0, 0];
             return (60 / bpm) * breakSlipActiveDivision;
         }
 
-        function sendBreakSlipWindow() {
-            if (!synthNode || !breakBufferLoaded) return;
-            const nextWindow = getBreakSlipWindowSeconds();
-            if (!Number.isFinite(nextWindow)) return;
-            if (Math.abs(nextWindow - breakSlipWindowSeconds) < 1e-5) return;
-            breakSlipWindowSeconds = nextWindow;
-            synthNode.port.postMessage({ type: 'setBreakSlipWindow', data: { windowSeconds: breakSlipWindowSeconds } });
-            refreshBreakSlipAnchor();
-            drawBreakWaveform(breakWaveformLastProgress);
-        }
-
-        function refreshBreakSlipAnchor() {
+        function refreshBreakSlipAnchor({ resync } = { resync: false }) {
             if (!breakRunning || !breakBufferLoaded || breakWaveformDuration <= 0 || breakSlipWindowSeconds <= 0) {
                 breakSlipAnchorNormalized = 0;
                 return;
             }
+
+            if (!resync) return;
 
             const rate = Math.max(0.01, breakPlaybackRate);
             const effectiveDuration = breakWaveformDuration / rate;
@@ -464,6 +455,18 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const progressNorm = effectiveDuration > 0 ? progressSec / effectiveDuration : 0;
             const bucketIndex = Math.max(0, Math.floor(progressNorm / windowNorm));
             breakSlipAnchorNormalized = Math.min(1, bucketIndex * windowNorm);
+        }
+
+        function sendBreakSlipWindow({ preserveAnchor = false } = {}) {
+            if (!synthNode || !breakBufferLoaded) return;
+            const nextWindow = getBreakSlipWindowSeconds();
+            if (!Number.isFinite(nextWindow)) return;
+            const changed = Math.abs(nextWindow - breakSlipWindowSeconds) >= 1e-5;
+            if (!changed) return;
+            breakSlipWindowSeconds = nextWindow;
+            synthNode.port.postMessage({ type: 'setBreakSlipWindow', data: { windowSeconds: breakSlipWindowSeconds, preserveAnchor } });
+            refreshBreakSlipAnchor({ resync: !preserveAnchor });
+            drawBreakWaveform(breakWaveformLastProgress);
         }
 
         function updateBreakSlipUi() {
@@ -684,7 +687,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             breakPlaybackRate = nextRate;
             synthNode.port.postMessage({ type: 'setBreakPlaybackRate', data: { playbackRate: breakPlaybackRate } });
             breakPlaybackStartTime = audioContext ? audioContext.currentTime : (performance.now() / 1000);
-            refreshBreakSlipAnchor();
+            refreshBreakSlipAnchor({ resync: true });
         }
 
         function handleBreakLoopTick() {
@@ -708,7 +711,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             breakPlaybackStartTime = audioContext ? audioContext.currentTime : (performance.now() / 1000);
             breakSlipWindowSeconds = 0;
             sendBreakSlipWindow();
-            refreshBreakSlipAnchor();
+            refreshBreakSlipAnchor({ resync: true });
             synthNode?.port.postMessage({ type: 'startBreakLoop', data: { playbackRate: breakPlaybackRate } });
             startBreakWaveformAnimation();
         }
@@ -3806,14 +3809,23 @@ lfoState.forEach((lfo, lfoIndex) => {
         requestAnimationFrame(tick);
       }
 
-        function toggleDuplicateNoteMode() {
-            allowDuplicateNotesMode = !allowDuplicateNotesMode;
+        function setDuplicateNoteMode(enabled) {
+            if (breakModeActive && !enabled) return;
+            if (allowDuplicateNotesMode === enabled) return;
+            allowDuplicateNotesMode = enabled;
             document.body.classList.toggle('easter-egg-mode', allowDuplicateNotesMode);
             knobState.forEach(k => updateFeelPatternPreview(k.id));
         }
 
+        function toggleDuplicateNoteMode() {
+            setDuplicateNoteMode(!allowDuplicateNotesMode);
+        }
+
         function toggleBreakMode() {
             breakModeActive = !breakModeActive;
+            if (breakModeActive) {
+                setDuplicateNoteMode(true);
+            }
             updateBreakGridVisibility();
             if (breakModeActive) {
                 ensureBreakSampleLoaded()?.then(() => {
@@ -5131,7 +5143,11 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                 if (!headerTapTimer) {
                     headerTapTimer = setTimeout(() => {
                         if (headerTapCount >= 3) {
-                            toggleBreakMode();
+                            if (allowDuplicateNotesMode) {
+                                toggleBreakMode();
+                            } else {
+                                setDuplicateNoteMode(true);
+                            }
                         } else if (headerTapCount === 1) {
                             toggleDuplicateNoteMode();
                         }

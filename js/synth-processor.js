@@ -327,11 +327,15 @@ const LFO_DEST_NONE = -1;
                    this.slipAnchorStart = 0;
                    this.slipActive = false;
 
-                   this.recomputeSlipWindow = () => {
+                   this.recomputeSlipWindow = (preserveAnchor = false) => {
                        if (this.slipWindowSeconds > 0 && this.samplerPlayback.rate > 0) {
                            this.slipWindowSamples = this.slipWindowSeconds * this.samplerPlayback.rate * sampleRate;
-                           this.slipAnchorStart = Math.max(0, this.samplerPlayback.position - this.slipWindowSamples);
-                           this.slipRenderPhase = 0;
+                           if (!preserveAnchor || !this.slipActive) {
+                               const windowSize = Math.max(1, this.slipWindowSamples);
+                               const bucket = Math.max(0, Math.floor(Math.max(0, this.samplerPlayback.position) / windowSize));
+                               this.slipAnchorStart = Math.max(0, bucket * windowSize);
+                               this.slipRenderPhase = 0;
+                           }
                            this.slipActive = this.slipWindowSamples > 0;
                        } else {
                            this.slipWindowSamples = 0;
@@ -415,7 +419,7 @@ const LFO_DEST_NONE = -1;
                                break;
                            case 'setBreakSlipWindow':
                                this.slipWindowSeconds = Math.max(0, data?.windowSeconds || 0);
-                               this.recomputeSlipWindow();
+                               this.recomputeSlipWindow(!!data?.preserveAnchor);
                                break;
                             case 'setLfo':
                                 if (lfoId >= 0 && lfoId < this.lfoParams.length) {
@@ -683,18 +687,18 @@ for(let i=0;i<blockSize;i++){
     }
 
     let sampleVal = 0;
-    if (this.samplerPlayback.active && this.sampleBuffer) {
-        const effectivePos = Math.max(0, this.samplerPlayback.position);
+        if (this.samplerPlayback.active && this.sampleBuffer) {
+            const effectivePos = Math.max(0, this.samplerPlayback.position);
 
-        if (effectivePos >= this.sampleLength || effectivePos >= this.samplerPlayback.end) {
-            if (this.samplerPlayback.loop) {
-                this.samplerPlayback.position = 0;
-                this.slipAnchorStart = Math.max(0, this.samplerPlayback.position - this.slipWindowSamples);
+            if (effectivePos >= this.sampleLength || effectivePos >= this.samplerPlayback.end) {
+                if (this.samplerPlayback.loop) {
+                    this.samplerPlayback.position = 0;
+                this.slipAnchorStart = 0;
                 this.slipRenderPhase = 0;
-            } else {
-                this.samplerPlayback.active = false;
+                } else {
+                    this.samplerPlayback.active = false;
+                }
             }
-        }
 
         if (this.samplerPlayback.active) {
             let renderPos = this.samplerPlayback.position;

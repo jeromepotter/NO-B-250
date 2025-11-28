@@ -310,6 +310,12 @@
           <button id="break-play-button" class="retro-button break-play-btn">PLAY</button>
           <div class="break-knob-row">
             <div class="flex flex-col items-center space-y-1">
+              <div class="break-slip-knob bg-orange-300 rounded-full relative fx-knob-container knob-border osc-sub-knob" data-fx-id="35">
+                <div class="w-1 h-3 sm:h-4 bg-blue-800 rounded-full absolute indicator osc-sub-indicator" data-base-transform="translate(-50%, -100%)"></div>
+              </div>
+              <label class="font-bold tracking-wider text-[10px] sm:text-xs"><span id="break-slip-display">1</span></label>
+            </div>
+            <div class="flex flex-col items-center space-y-1">
               <div class="w-9 h-9 sm:w-11 sm:h-11 bg-orange-300 rounded-full relative fx-knob-container knob-border osc-sub-knob" data-fx-id="32">
                 <div class="w-1 h-3 sm:h-4 bg-blue-800 rounded-full absolute indicator osc-sub-indicator" data-base-transform="translate(-50%, -100%)"></div>
               </div>
@@ -326,12 +332,6 @@
                 <div class="w-1 h-3 sm:h-4 bg-blue-800 rounded-full absolute indicator osc-sub-indicator" data-base-transform="translate(-50%, -100%)"></div>
               </div>
               <label class="font-bold tracking-wider text-[10px] sm:text-xs">VOLUME</label>
-            </div>
-            <div class="flex flex-col items-center space-y-1">
-              <div class="w-9 h-9 sm:w-11 sm:h-11 bg-orange-300 rounded-full relative fx-knob-container knob-border osc-sub-knob" data-fx-id="35">
-                <div class="w-1 h-3 sm:h-4 bg-blue-800 rounded-full absolute indicator osc-sub-indicator" data-base-transform="translate(-50%, -100%)"></div>
-              </div>
-              <label class="font-bold tracking-wider text-[10px] sm:text-xs">SLIP <span id="break-slip-display">1</span></label>
             </div>
           </div>
         </div>
