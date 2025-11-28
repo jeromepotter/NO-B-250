@@ -1,6 +1,9 @@
        // --- App State ---
       let audioContext; let synthNode; let isPowerOn = false; let audioSetupPromise = null;
       let allowDuplicateNotesMode = false;
+      let isDrumMode = false;
+      let drumBuffer = null;
+      let drumGrid = new Array(16).fill(1);
       let isLfoMode = false;
       let isLfoLockEnabled = false;
       let visualUpdatePending = false;
@@ -1646,6 +1649,63 @@ function decodePresetFromUrl(encodedPreset) {
                 midiEventsTrack2.push(event);
             }
        }
+async function loadDrumSample() {
+    if(drumBuffer) return; // Already loaded
+    try {
+        const response = await fetch('./audio/break.wav');
+        const arrayBuffer = await response.arrayBuffer();
+        drumBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        
+        // Send to AudioWorklet
+        const ch0 = drumBuffer.getChannelData(0);
+        const ch1 = drumBuffer.numberOfChannels > 1 ? drumBuffer.getChannelData(1) : ch0;
+        
+        synthNode.port.postMessage({
+            type: 'loadDrumSample',
+            data: { bufferL: ch0, bufferR: ch1 }
+        });
+    } catch (e) {
+        console.error("Error loading breakbeat:", e);
+    }
+}
+
+function toggleDrumMode() {
+    isDrumMode = !isDrumMode;
+    const drumContainer = document.getElementById('drum-sequencer-container');
+    const knobs = document.querySelectorAll('.main-knob');
+    
+    if (isDrumMode) {
+        // 1. Initialize Audio
+        if (!audioContext) powerOn();
+        loadDrumSample();
+        
+        // 2. Visual Effects (Spin Down + Blur)
+        knobState.forEach(k => {
+            // Animate angle to near zero
+            const currentObj = { val: k.totalAngle };
+            // Simple tween logic could go here, or just snap for now:
+            k.totalAngle = 0; 
+            updateStateFromTotalAngle(k.id);
+            k.dom.knob.parentElement.classList.add('drum-mode-blur');
+        });
+
+        // 3. Show Sequencer
+        drumContainer.classList.remove('hidden');
+        drumContainer.classList.add('flex');
+        
+        // 4. Update Engine
+        synthNode.port.postMessage({ type: 'setDrumMode', data: { value: true } });
+        
+    } else {
+        // Restore
+        knobState.forEach(k => {
+            k.dom.knob.parentElement.classList.remove('drum-mode-blur');
+        });
+        drumContainer.classList.add('hidden');
+        drumContainer.classList.remove('flex');
+        synthNode.port.postMessage({ type: 'setDrumMode', data: { value: false } });
+    }
+}
 async function setupMidiOutput() {
            const midiOutputSelector = document.getElementById('midi-output-selector');
            if (!midiOutputSelector) return;
@@ -4137,6 +4197,8 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
            document.addEventListener('touchstart', resumeAudio, { passive: true });
            document.addEventListener('click', resumeAudio);
 
+              
+
            // --- 2. Get Elements ---
            modalOverlay = document.getElementById('how-to-modal-overlay');
            howToButton = document.getElementById('how-to-button-header');
@@ -4154,6 +4216,23 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updatePresetDisplay();
 
           let presetLoadedFromUrl = false;
+              document.querySelectorAll('.drum-step').forEach((step, idx) => {
+        // Set initial state
+        if(drumGrid[idx]) step.classList.add('active');
+        
+        step.addEventListener('click', () => {
+            drumGrid[idx] = drumGrid[idx] ? 0 : 1;
+            step.classList.toggle('active', drumGrid[idx]);
+            // Send grid to processor
+            if(synthNode) {
+                synthNode.port.postMessage({
+                    type: 'setDrumGrid',
+                    data: { grid: drumGrid }
+                });
+            }
+        });
+    });
+    
            
            // --- 3. TOUCH HELPER FUNCTION ---
            const addTouchListener = (element, callback) => {
@@ -4954,6 +5033,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
