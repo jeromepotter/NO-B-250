@@ -29,7 +29,8 @@
 
 body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); touch-action: manipulation; color: var(--color-text); overflow-y: auto; -webkit-user-select: none; -ms-user-select: none; user-select: none; }
 body.break-mode {
-  background-color: #2a2923 !important;
+  background-color: #363636 !important;
+ --color-text: var(--color-accent-yellow); 
 }
       .text-yellow-300 { color: var(--color-accent-yellow); }
       .knob-border { border: 2px solid var(--color-surface); box-shadow: 0 0 0 2px var(--color-surface); }
@@ -672,3 +673,4 @@ animation: note-retrigger 0.08s ease-out;
   filter: none;
   transition: none;
 }
+
