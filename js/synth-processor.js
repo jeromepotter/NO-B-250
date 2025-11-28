@@ -261,7 +261,6 @@ const MIN_LFO_RATE_HZ = 0.01;
 const MAX_LFO_RATE_HZ = 100;
 const LFO_RATE_RANGE_RATIO = MAX_LFO_RATE_HZ / MIN_LFO_RATE_HZ;
 const LFO_DEST_NONE = -1;
-const SAMPLER_SLICE_DEST_ID = 901;
 
            class SynthProcessor extends AudioWorkletProcessor {
                constructor() {
@@ -320,8 +319,7 @@ const SAMPLER_SLICE_DEST_ID = 901;
                    this.sampleSourceRate = sampleRate;
                    this.sampleLength = 0;
                    this.sliceLength = 0;
-                   this.samplerPlayback = { active: false, position: 0, end: 0, rate: 1, sliceIndex: 0 };
-                   this.samplerSliceMod = 0;
+                   this.samplerPlayback = { active: false, position: 0, end: 0, rate: 1, loop: false };
       
                    this.port.onmessage = ({ data: { type, data } }) => {
                        const { voice, freq, id, value, lfoId, param } = data || {};
@@ -375,14 +373,20 @@ const SAMPLER_SLICE_DEST_ID = 901;
                                    this.sliceLength = this.sampleLength / 16;
                                }
                                break;
-                           case 'triggerSlice':
-                               if (this.sampleBuffer && this.sliceLength > 0) {
-                                   const sliceIndex = Math.max(0, Math.min(15, data?.slice ?? 0));
+                           case 'startBreakLoop':
+                               if (this.sampleBuffer && this.sampleLength > 0) {
                                    const playbackRate = Math.max(0.01, data?.playbackRate || 1);
-                                   const start = sliceIndex * this.sliceLength;
-                                   const end = start + this.sliceLength;
                                    const rate = playbackRate * (this.sampleSourceRate / sampleRate);
-                                   this.samplerPlayback = { active: true, position: start, end, rate, sliceIndex };
+                                   this.samplerPlayback = { active: true, position: 0, end: this.sampleLength, rate, loop: true };
+                               }
+                               break;
+                           case 'stopBreakLoop':
+                               this.samplerPlayback = { active: false, position: 0, end: 0, rate: 1, loop: false };
+                               break;
+                           case 'setBreakPlaybackRate':
+                               if (this.samplerPlayback && this.samplerPlayback.active) {
+                                   const playbackRate = Math.max(0.01, data?.playbackRate || 1);
+                                   this.samplerPlayback.rate = playbackRate * (this.sampleSourceRate / sampleRate);
                                }
                                break;
                             case 'setLfo':
@@ -577,9 +581,6 @@ for (const fxId in modulatedFx) {
     }
 }
 
-const sliceMod = Math.max(-1, Math.min(1, modulatedFx[SAMPLER_SLICE_DEST_ID] || 0));
-this.samplerSliceMod = sliceMod;
-
 // Calculate envelope times ONCE per buffer
 this.attackTime = 0.001 + Math.pow(currentParams[8], 2) * 2;
 this.decayTime = 0.001 + Math.pow(currentParams[9], 2) * 2;
@@ -654,18 +655,19 @@ for(let i=0;i<blockSize;i++){
 
     let sampleVal = 0;
     if (this.samplerPlayback.active && this.sampleBuffer) {
-        const offset = this.samplerSliceMod * (this.sliceLength * 0.5);
-        const effectivePos = Math.max(0, this.samplerPlayback.position + offset);
-        const effectiveEnd = this.samplerPlayback.end + offset;
+        const effectivePos = Math.max(0, this.samplerPlayback.position);
 
-        if (effectivePos >= this.sampleLength || effectivePos >= effectiveEnd) {
-            this.samplerPlayback.active = false;
-        } else {
-            sampleVal = this.getSamplerSample(effectivePos);
-            this.samplerPlayback.position += this.samplerPlayback.rate;
-            if (this.samplerPlayback.position >= this.samplerPlayback.end || this.samplerPlayback.position >= this.sampleLength) {
+        if (effectivePos >= this.sampleLength || effectivePos >= this.samplerPlayback.end) {
+            if (this.samplerPlayback.loop) {
+                this.samplerPlayback.position = 0;
+            } else {
                 this.samplerPlayback.active = false;
             }
+        }
+
+        if (this.samplerPlayback.active) {
+            sampleVal = this.getSamplerSample(this.samplerPlayback.position);
+            this.samplerPlayback.position += this.samplerPlayback.rate;
         }
     }
     if (sampleVal !== 0) {

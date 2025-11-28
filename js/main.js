@@ -35,7 +35,6 @@
         const LFO_DEST_NONE = -1;
         const LFO_CABLE_COLORS = ['#fa9c2d', '#35a5fb', '#d85b7e', '#98ce57'];
         const LFO_CABLE_TARGET_COLORS = ['#ae332c', '#ffffff', '#843b9a', '#a44a00'];
-        const LFO_DEST_SLICE = 901;
         const BREAK_BASE_BPM = 165;
         const BREAK_STEP_COUNT = 16;
         const lfoState = [
@@ -95,6 +94,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakCurrentStep = 0;
         let breakBufferLoaded = false;
         let breakSampleLoadingPromise = null;
+        let breakPlaybackRate = 1;
 
         function getLfoDestChain(lfo) {
             if (lfo && Array.isArray(lfo.destChain) && lfo.destChain.length) return lfo.destChain;
@@ -427,10 +427,13 @@ let liveLfoOutputs = [0, 0, 0, 0];
             return breakSampleLoadingPromise;
         }
 
-        function triggerBreakSlice(stepIndex) {
-            if (!synthNode || !breakBufferLoaded) return;
-            const playbackRate = getBreakPlaybackRate();
-            synthNode.port.postMessage({ type: 'triggerSlice', data: { slice: stepIndex, playbackRate } });
+        function sendBreakPlaybackRate() {
+            if (!synthNode || !breakSequencerPlaying || !breakBufferLoaded) return;
+            const nextRate = getBreakPlaybackRate();
+            if (!Number.isFinite(nextRate)) return;
+            if (Math.abs(nextRate - breakPlaybackRate) < 0.001) return;
+            breakPlaybackRate = nextRate;
+            synthNode.port.postMessage({ type: 'setBreakPlaybackRate', data: { playbackRate: breakPlaybackRate } });
         }
 
         function handleBreakSequencerTick(timestamp) {
@@ -438,16 +441,14 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const intervalMs = getBreakStepIntervalMs();
             if (!Number.isFinite(intervalMs) || intervalMs <= 0) return;
 
+            sendBreakPlaybackRate();
+
             if (breakNextStepTime === 0) {
                 breakNextStepTime = quantizeToNextSixteenth(timestamp, intervalMs);
             }
 
             while (timestamp + MASTER_CLOCK_TOLERANCE_MS >= breakNextStepTime) {
                 breakStepButtons.forEach(btn => btn?.classList.remove('current'));
-                const shouldPlay = breakStepState[breakCurrentStep];
-                if (shouldPlay) {
-                    triggerBreakSlice(breakCurrentStep);
-                }
                 const activeBtn = breakStepButtons[breakCurrentStep];
                 if (activeBtn) activeBtn.classList.add('current');
 
@@ -456,7 +457,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             }
         }
 
-        function toggleBreakSequencer() {
+        async function toggleBreakSequencer() {
             breakSequencerPlaying = !breakSequencerPlaying;
             breakNextStepTime = 0;
             breakCurrentStep = 0;
@@ -464,8 +465,11 @@ let liveLfoOutputs = [0, 0, 0, 0];
             updateBreakPlayUi();
             if (breakSequencerPlaying) {
                 ensureMasterClock();
-                ensureBreakSampleLoaded();
+                await ensureBreakSampleLoaded();
+                breakPlaybackRate = getBreakPlaybackRate();
+                synthNode?.port.postMessage({ type: 'startBreakLoop', data: { playbackRate: breakPlaybackRate } });
             } else {
+                synthNode?.port.postMessage({ type: 'stopBreakLoop' });
                 stopMasterClockIfIdle();
             }
         }
@@ -988,7 +992,6 @@ const SAFE_UNIVERSAL_TARGETS = [
     6,      // Chorus
     1, 5,   // Distortion & AM
     12, 14,  // Reverb & Delay Mix
-    LFO_DEST_SLICE,
 ];
 
 // 2. Arp-Only Targets (Hidden in Sound Mode)
@@ -4725,7 +4728,6 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
             KNOB_ID_TO_NAME_MAP[17] = 'TEMPO 2';
             KNOB_ID_TO_NAME_MAP[22] = 'FEEL';
             KNOB_ID_TO_NAME_MAP[23] = 'FEEL';
-            KNOB_ID_TO_NAME_MAP[LFO_DEST_SLICE] = 'SLICE';
 
             // --- GLOBAL PATCHING HANDLER ---
             let isScrollingGlobal = false;
