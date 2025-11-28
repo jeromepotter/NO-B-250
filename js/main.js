@@ -390,6 +390,11 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const shouldShow = breakModeActive;
             breakGridContainer.classList.toggle('visible', shouldShow);
             breakGridContainer.classList.toggle('hidden', !shouldShow);
+            oscillatorRow?.classList.toggle('break-blur', shouldShow);
+            if (shouldShow) {
+                resizeBreakWaveformCanvas();
+                drawBreakWaveform();
+            }
         }
 
         function buildBreakWaveformPeaks(samples, buckets = 640) {
@@ -516,6 +521,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
                         synthNode.port.postMessage({ type: 'setSampleBuffer', data: { samples: copy, sampleRate: decoded.sampleRate } }, [copy.buffer]);
                         breakBufferLoaded = true;
                         resizeBreakWaveformCanvas();
+                        drawBreakWaveform();
                     }
                 } catch (err) {
                     console.error('Failed to load break sample', err);
@@ -2495,7 +2501,7 @@ function sendMidiMessage(message) {
                else if(id===9){fxKnobData[id].value=0.0995;} else if(id===10){fxKnobData[id].value=0.8;} else if(id===11){fxKnobData[id].value=0.2;}
                else if(id===13){fxKnobData[id].value=0.5;} else if(id===15){fxKnobData[id].value=0.25;} else if(id===16||id===17){fxKnobData[id].value=arpRateBpmToValue(DEFAULT_ARP_RATE_BPM);}
                else if(id===18||id===19){fxKnobData[id].value=0.0;} else if(id===20||id===21){fxKnobData[id].value=1.0;}
-               else if(id===22||id===23){fxKnobData[id].value=0.0;} else if(id===24||id===25){fxKnobData[id].value=0.5;} else if(id===26||id===27){fxKnobData[id].value=0.5;} else if(id===28||id===29){fxKnobData[id].value=0.0;} else if(id===30||id===31){fxKnobData[id].value=0.0;}
+               else if(id===22||id===23){fxKnobData[id].value=0.0;} else if(id===24||id===25){fxKnobData[id].value=0.5;} else if(id===26||id===27){fxKnobData[id].value=0.5;} else if(id===28||id===29){fxKnobData[id].value=0.0;} else if(id===30||id===31){fxKnobData[id].value=0.0;} else if(id===32){fxKnobData[id].value=1.0;} else if(id===33){fxKnobData[id].value=0.0;} else if(id===34){fxKnobData[id].value=0.7;}
                fxKnobData[id].angle = MIN_FX_ANGLE + (fxKnobData[id].value * (MAX_FX_ANGLE - MIN_FX_ANGLE));
                if (fxKnobData[id].indicator) { applyIndicatorTransform(fxKnobData[id].indicator, fxKnobData[id].angle); }
                if(id===30||id===31){ updateVoiceWaveDisplay(id === 30 ? 0 : 1, fxKnobData[id].value); }
@@ -3643,8 +3649,10 @@ lfoState.forEach((lfo, lfoIndex) => {
             breakModeActive = !breakModeActive;
             updateBreakGridVisibility();
             if (breakModeActive) {
-                animateMainKnobsToZero();
-                ensureBreakSampleLoaded();
+                ensureBreakSampleLoaded()?.then(() => {
+                    resizeBreakWaveformCanvas();
+                    drawBreakWaveform();
+                });
             } else {
                 stopBreakPlaybackImmediate();
                 stopMasterClockIfIdle();
@@ -4063,6 +4071,9 @@ function resetAllFxToDefaults({ skipArpKnobs = false, skipLfoKnobs = false } = {
                if (id === 26 || id === 27) defaultValue = 0.5;
                if (id === 24 || id === 25) defaultValue = 0.5;
                if (id === 30 || id === 31) defaultValue = 0.0;
+               if (id === 32) defaultValue = 1.0;
+               if (id === 33) defaultValue = 0.0;
+               if (id === 34) defaultValue = 0.7;
                setFxValue(id, defaultValue);
            });
        }

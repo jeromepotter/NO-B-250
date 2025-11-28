@@ -271,7 +271,7 @@ const LFO_DEST_NONE = -1;
                    // Envelope state
                    this.envStage1='off'; this.envValue1=0.0; this.envStage2='off'; this.envValue2=0.0;
                    // FX params (from main thread)
-                   this.params=new Array(32).fill(0.0);
+                   this.params=new Array(36).fill(0.0);
                    // Envelope times
                    this.attackTime=0.01; this.decayTime=0.2; this.sustainLevel=0.8; this.releaseTime=0.1;
                    this.releaseRate = Math.exp(-1 / (this.releaseTime * sampleRate));
@@ -290,6 +290,7 @@ const LFO_DEST_NONE = -1;
                    this.filterCoeffs={b0:1,b1:0,b2:0,a1:0,a2:0}; this.updateFilterCoefficients(this.filterCoeffs, 1.0, 0.0);
                    this.filterOsc1Coeffs={b0:1,b1:0,b2:0,a1:0,a2:0}; this.filter_osc1_x1=0; this.filter_osc1_x2=0; this.filter_osc1_y1=0; this.filter_osc1_y2=0; this.updateFilterCoefficients(this.filterOsc1Coeffs, 1.0, 0.0);
                    this.filterOsc2Coeffs={b0:1,b1:0,b2:0,a1:0,a2:0}; this.filter_osc2_x1=0; this.filter_osc2_x2=0; this.filter_osc2_y1=0; this.filter_osc2_y2=0; this.updateFilterCoefficients(this.filterOsc2Coeffs, 1.0, 0.0);
+                   this.breakFilterCoeffs={b0:1,b1:0,b2:0,a1:0,a2:0}; this.break_filter_x1=0; this.break_filter_x2=0; this.break_filter_y1=0; this.break_filter_y2=0; this.smoothedBreakCutoff=1.0; this.smoothedBreakRes=0.0; this.updateFilterCoefficients(this.breakFilterCoeffs, 1.0, 0.0);
                    // Delay & Chorus state
                    this.delayBufferL=new Float32Array(sampleRate*2);this.delayBufferR=new Float32Array(sampleRate*2);this.delayWritePos=0;
                    this.smoothDelayTime = 0.01;
@@ -364,6 +365,7 @@ const LFO_DEST_NONE = -1;
                                     }
                                else if (id===20 || id===28){ this.updateFilterCoefficients(this.filterOsc1Coeffs, this.params[20], this.params[28]); }
                                else if(id===21 || id===29){ this.updateFilterCoefficients(this.filterOsc2Coeffs, this.params[21], this.params[29]); }
+                               else if(id===32 || id===33){ this.updateFilterCoefficients(this.breakFilterCoeffs, this.params[32], this.params[33]); }
                                break;
                            case 'setSampleBuffer':
                                if (data?.samples) {
@@ -418,6 +420,7 @@ case 'ping':
                    // Initialize default FX params that are not 0
                    this.params[2] = 1.0; this.params[7] = 0.5; this.params[10] = 0.8;
                    this.params[20] = 1.0; this.params[21] = 1.0; this.params[26] = 0.5; this.params[27] = 0.5;
+                   this.params[32] = 1.0; this.params[33] = 0.0; this.params[34] = 0.7;
                }
       
                updateFilterCoefficients(c,v, res){ const p=Math.pow(v,3); const Q=0.707 + Math.pow(res, 2) * 24; const w=2*Math.PI*(40+p*(sampleRate/2.2-40))/sampleRate; const s=Math.sin(w); const a=s/(2*Q); const i=1/(1+a); c.b0=(1-Math.cos(w))/2*i; c.b1=(1-Math.cos(w))*i; c.b2=(1-Math.cos(w))/2*i; c.a1=-2*Math.cos(w)*i; c.a2=(1-a)*i; }
@@ -670,9 +673,23 @@ for(let i=0;i<blockSize;i++){
             this.samplerPlayback.position += this.samplerPlayback.rate;
         }
     }
-    const sampleGain = 0.7;
-    const sampleMixL = sampleVal * sampleGain;
-    const sampleMixR = sampleVal * sampleGain;
+
+    this.smoothedBreakCutoff += (currentParams[32] - this.smoothedBreakCutoff) * 0.05;
+    this.smoothedBreakRes += (currentParams[33] - this.smoothedBreakRes) * 0.05;
+    this.updateFilterCoefficients(this.breakFilterCoeffs, this.smoothedBreakCutoff, this.smoothedBreakRes);
+
+    let sampleFiltered = sampleVal;
+    if (this.samplerPlayback.active) {
+        const cB = this.breakFilterCoeffs;
+        sampleFiltered = cB.b0*sampleVal + cB.b1*this.break_filter_x1 + cB.b2*this.break_filter_x2 - cB.a1*this.break_filter_y1 - cB.a2*this.break_filter_y2;
+        this.break_filter_x2 = this.break_filter_x1; this.break_filter_x1 = sampleVal; this.break_filter_y2 = this.break_filter_y1; this.break_filter_y1 = sampleFiltered;
+    } else {
+        this.break_filter_x1 = this.break_filter_x2 = 0; this.break_filter_y1 = this.break_filter_y2 = 0;
+    }
+
+    const sampleGain = Math.max(0, Math.min(1.5, currentParams[34] ?? 0));
+    const sampleMixL = sampleFiltered * sampleGain;
+    const sampleMixR = sampleFiltered * sampleGain;
 
     const dither = (Math.random() - 0.5) * 0.00001;
     s1 += dither;
