@@ -4646,7 +4646,14 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
            
            // --- 1. Audio Resume (Touch & Click) ---
            const resumeAudio = () => {
-                if (isPowerOn && audioContext && (audioContext.state === 'suspended' || audioContext.state === 'interrupted')) {
+                // If the engine isn't powered, start it on interaction.
+                if (!isPowerOn || !audioContext) {
+                    powerOn();
+                    return;
+                }
+
+                // If the context exists but is suspended/interrupted, resume it.
+                if (audioContext.state === 'suspended' || audioContext.state === 'interrupted') {
                     audioContext.resume();
                 }
            };
