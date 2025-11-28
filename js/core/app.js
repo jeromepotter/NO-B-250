@@ -1,3 +1,5 @@
+import { PRESETS } from './presets.js';
+
 export function initApp() {
        // --- App State ---
       let audioContext; let synthNode; let isPowerOn = false; let audioSetupPromise = null;
@@ -1337,9 +1339,6 @@ let liveLfoOutputs = [0, 0, 0, 0];
       let modalOverlay, howToButton, closeModalButton, shareButton;
 
       let currentPresetMetadata = null;
-
-      import { PRESETS } from './presets.js';
-
 
       const PRESET_NAV_EXCLUDED_CATEGORIES = new Set(['ARPS', 'RANDOM', 'FX', 'INIT']);
       let presetNavigationList = [];
@@ -4808,6 +4807,14 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                element.addEventListener('click', handler);
            };
 
+           const scheduleOptionalSetup = (callback) => {
+               if (typeof window.requestIdleCallback === 'function') {
+                   window.requestIdleCallback(callback, { timeout: 500 });
+               } else {
+                   setTimeout(callback, 0);
+               }
+           };
+
            if (breakPlayButton) {
                addTouchListener(breakPlayButton, async () => {
                    if (!isPowerOn) await powerOn();
@@ -5153,16 +5160,23 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                 cleanupPresetsSubmenuDismissListener();
            });
 
-           const midiConnectButton = document.getElementById('midi-connect-button');
-           midiConnectButton?.addEventListener('click', () => {
-               setupMidiOutput();
-               midiConnectButton.textContent = 'RESCAN';
-           });
+           scheduleOptionalSetup(() => {
+               const midiConnectButton = document.getElementById('midi-connect-button');
+               midiConnectButton?.addEventListener('click', () => {
+                   setupMidiOutput();
+                   midiConnectButton.textContent = 'RESCAN';
+               });
 
-           const midiClockToggle = document.getElementById('midi-clock-toggle');
-           midiClockToggle?.addEventListener('change', () => {
-               midiClockEnabled = midiClockToggle.checked;
-               updateMidiClockState();
+               const midiClockToggle = document.getElementById('midi-clock-toggle');
+               midiClockToggle?.addEventListener('change', () => {
+                   midiClockEnabled = midiClockToggle.checked;
+                   updateMidiClockState();
+               });
+
+               addTouchListener(recordMidiButton, () => {
+                   toggleMidiRecording();
+                   recordMidiButton.blur();
+               });
            });
 
            // --- 10. ARP & SYNTH CONTROLS ---
