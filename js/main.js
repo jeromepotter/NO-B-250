@@ -4721,20 +4721,27 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
             const mainHeader = document.querySelector('.main-header h1');
             let headerTapCount = 0;
             let headerTapTimer = null;
-            mainHeader?.addEventListener('click', () => {
+        mainHeader?.addEventListener('click', () => {
                 headerTapCount++;
                 clearTimeout(headerTapTimer);
-                if (headerTapCount >= 1) { 
-                    toggleEasterEggMode();
+                
+                // Wait 400ms to see how many times user tapped
+                headerTapTimer = setTimeout(() => {
+                    if (headerTapCount >= 3) {
+                        // 3 Taps = DRUM MODE
+                        toggleDrumMode();
+                    } else {
+                        // 1 or 2 Taps = DUPLICATE NOTE MODE
+                        toggleEasterEggMode();
+                    }
+                    
+                    // Visual feedback
                     mainHeader.style.transition = 'color 0.1s';
                     mainHeader.style.color = 'var(--color-accent-yellow)';
                     setTimeout(() => { mainHeader.style.color = ''; }, 200);
+                    
                     headerTapCount = 0;
-                } else {
-                    headerTapTimer = setTimeout(() => {
-                        headerTapCount = 0;
-                    }, 750);
-                }
+                }, 400);
             });
       
            const setupSpinButton = (button, knobId, direction) => {
@@ -5033,6 +5040,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
