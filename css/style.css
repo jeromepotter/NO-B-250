@@ -29,8 +29,7 @@
 
 body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); touch-action: manipulation; color: var(--color-text); overflow-y: auto; -webkit-user-select: none; -ms-user-select: none; user-select: none; }
 body.break-mode {
-  background-color: #363636 !important;
- --color-text: var(--color-accent-yellow); 
+  background-color: #1a1a1a !important;
 }
       .text-yellow-300 { color: var(--color-accent-yellow); }
       .knob-border { border: 2px solid var(--color-surface); box-shadow: 0 0 0 2px var(--color-surface); }
@@ -601,7 +600,6 @@ animation: note-retrigger 0.08s ease-out;
   opacity: 1 !important;
   
   /* Make it pop out slightly */
-
   transform: scale(1.15);
   box-shadow: 0 0 5px rgba(255, 255, 255, 0.9);
   z-index: 10;
@@ -669,8 +667,43 @@ animation: note-retrigger 0.08s ease-out;
   text-transform: uppercase;
 }
 
-.break-blur {
-  filter: none;
-  transition: none;
+
+body.break-mode #note-display-1,
+body.break-mode #note-display-2,
+body.break-mode .arp-note-indicator,
+body.break-mode #voice-0-wave-display,
+body.break-mode #voice-1-wave-display {
+  color: #917373 !important;
 }
 
+body.break-mode .retro-select {
+  color: #917373 !important;
+  border-color: #917373 !important;
+}
+
+body.break-mode .retro-select:focus {
+  outline-color: #917373 !important;
+}
+
+body.break-mode .preset-nav-button,
+body.break-mode .preset-nav-button:hover {
+  color: #917373 !important;
+}
+
+body.break-mode .power-switch,
+body.break-mode .piano {
+  border-color: #917373 !important;
+}
+
+body.break-mode .retro-select option {
+  background-color: #1a1a1a;
+  color: #917373;
+}
+
+body.break-mode label {
+  color: #917373 !important;
+}
+
+body.break-mode .rate-bpm-display {
+  color: #917373 !important;
+}
