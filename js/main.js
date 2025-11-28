@@ -1472,6 +1472,11 @@ function generateComplexRandomLfoState(includeArpTargets = true) {
                customScale: scaleSelector.value === 'Custom' ? customScale : [],
                allowDuplicateNotesMode: allowDuplicateNotesMode,
                isLfoMode: isLfoMode,
+               breakModeActive: breakModeActive,
+               breakFxSendToGlobalFx: breakFxSendToGlobalFx,
+               breakSlipAnchorHoldEnabled: breakSlipAnchorHoldEnabled,
+               breakPlayActive: breakPlayRequested || breakRunning,
+               breakSlipBaseDivision: breakSlipBaseDivision,
              lfoState: lfoState.map(lfo => {
             const obj = {};
             // Only save values if they differ from defaults
@@ -2393,7 +2398,8 @@ for (const event of events) {
            if(!isPowerOn)return;
            if (isRecordingAudio && synthNode) { synthNode.port.postMessage({ type: 'stopRecording', data: {} }); }
            if (isRecordingMidi) { stopMidiRecording(); }
-           isPowerOn=false; 
+           stopBreakPlaybackImmediate();
+           isPowerOn=false;
            knobState.forEach(k=>{ stopNote(k.id, true); if (k.isArpOn) { k.isArpOn = false; k.dom.arpSwitch.classList.remove('on'); } k.isSweepMode = true; if (k.dom.arpModeSwitch) { k.dom.arpModeSwitch.classList.add('on'); } });
            isArpRateSynced = false; if(arpSyncSwitch) arpSyncSwitch.classList.remove('on');
            if (isLfoMode) { toggleLfoModeUI(false); }
@@ -4082,6 +4088,29 @@ function applyPreset(p, isArpCategoryPreset = false, options = {}) {
            }
            document.body.classList.toggle('easter-egg-mode', allowDuplicateNotesMode);
            updateBreakGridVisibility();
+           if (p.breakModeActive !== undefined) {
+               const targetBreakMode = !!p.breakModeActive;
+               if (targetBreakMode !== breakModeActive) {
+                   toggleBreakMode();
+               } else {
+                   updateBreakGridVisibility();
+               }
+           }
+           if (p.breakFxSendToGlobalFx !== undefined) {
+               setBreakFxRouting(!!p.breakFxSendToGlobalFx);
+           }
+           if (p.breakSlipAnchorHoldEnabled !== undefined) {
+               setBreakSlipAnchorHold(!!p.breakSlipAnchorHoldEnabled);
+           }
+           if (p.breakPlayActive !== undefined) {
+               const shouldPlayBreak = !!p.breakPlayActive;
+               if (shouldPlayBreak && !breakPlayRequested) {
+                   toggleBreakPlayback();
+               } else if (!shouldPlayBreak && breakPlayRequested) {
+                   stopBreakPlaybackImmediate();
+                   stopMasterClockIfIdle();
+               }
+           }
            if (!arpLockActive && p.scale === 'Custom') {
                customScale = p.customScale || [];
                document.querySelectorAll('#custom-scale-builder .key').forEach(k => { const n = parseInt(k.dataset.note); k.classList.toggle('selected', customScale.includes(n)); });
@@ -4209,7 +4238,13 @@ function applyPreset(p, isArpCategoryPreset = false, options = {}) {
            toggleLfoModeUI(targetLfoMode, true);
 
            if (p.knobSettings) { p.knobSettings.forEach(kD => { const s = knobState.find(k => k.id === kD.id); if (s) s.totalAngle = kD.totalAngle ?? 0; }); }
-           
+
+           const hasBreakSlipFxSetting = Array.isArray(p.fxSettings) && p.fxSettings.some(fx => fx.id === 35);
+           if (!hasBreakSlipFxSetting && p.breakSlipBaseDivision !== undefined) {
+               const normalizedSlip = breakSlipDivisionToNormalized(p.breakSlipBaseDivision);
+               setFxValue(35, normalizedSlip, true);
+           }
+
            if (p.fxSettings) {
                p.fxSettings.forEach(fx => {
                    if (arpLockActive && [16, 17, 18, 19, 22, 23, 24, 25].includes(fx.id)) return;
