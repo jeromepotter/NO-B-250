@@ -35,6 +35,9 @@
         const LFO_DEST_NONE = -1;
         const LFO_CABLE_COLORS = ['#fa9c2d', '#35a5fb', '#d85b7e', '#98ce57'];
         const LFO_CABLE_TARGET_COLORS = ['#ae332c', '#ffffff', '#843b9a', '#a44a00'];
+        const LFO_DEST_SLICE = 901;
+        const BREAK_BASE_BPM = 165;
+        const BREAK_STEP_COUNT = 16;
         const lfoState = [
     { id: 0, rate: 0.5, depth: 0, wave: 0, dest: LFO_DEST_NONE, destChain: [], phase: 0, lastRandom: 0, output: 0 },
     { id: 1, rate: 0.5, depth: 0, wave: 0, dest: LFO_DEST_NONE, destChain: [], phase: 0, lastRandom: 0, output: 0 },
@@ -82,6 +85,16 @@ let liveLfoOutputs = [0, 0, 0, 0];
         const lfoTempoLinkState = LFO_RATE_KNOB_IDS.map(() => ({ enabled: false, storedFreeValue: 0.5 }));
         let lfoTempoSyncSwitches = [];
         let lfoRateDisplays = [];
+        let breakGridContainer = null;
+        let breakPlayButton = null;
+        let breakStepButtons = [];
+        let oscillatorRow = null;
+        let breakStepState = Array(BREAK_STEP_COUNT).fill(true);
+        let breakSequencerPlaying = false;
+        let breakNextStepTime = 0;
+        let breakCurrentStep = 0;
+        let breakBufferLoaded = false;
+        let breakSampleLoadingPromise = null;
 
         function getLfoDestChain(lfo) {
             if (lfo && Array.isArray(lfo.destChain) && lfo.destChain.length) return lfo.destChain;
@@ -277,6 +290,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
                             updateArpeggiator(idx, timestamp);
                         }
                     });
+                    handleBreakSequencerTick(timestamp);
                 } else if (type === 'midiTick' && midiClockEnabled && midiClockRunning) {
                     sendMidiMessage([0xF8]);
                 }
@@ -295,7 +309,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
         function stopMasterClockIfIdle() {
             if (!masterClockRunning || !masterClockWorker) return;
-            if (knobState.some(state => state?.arpRunning)) return;
+            if (knobState.some(state => state?.arpRunning) || breakSequencerPlaying) return;
             masterClockWorker.postMessage({ type: 'stop' });
             masterClockRunning = false;
             masterClockStartTime = null;
@@ -351,6 +365,108 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 stopMidiClockTransport();
             } else if (shouldRun && midiClockRunning) {
                 updateMidiClockBpm();
+            }
+        }
+
+        function getBreakPlaybackRate() {
+            const bpm = calculateMidiBpm();
+            return Math.max(0.1, bpm / BREAK_BASE_BPM);
+        }
+
+        function getBreakStepIntervalMs() {
+            const bpm = calculateMidiBpm();
+            return 60000 / (Math.max(1, bpm) * SIXTEENTH_NOTES_PER_QUARTER);
+        }
+
+        function setBreakStepState(stepIndex, isOn) {
+            if (stepIndex < 0 || stepIndex >= BREAK_STEP_COUNT) return;
+            breakStepState[stepIndex] = !!isOn;
+            const btn = breakStepButtons[stepIndex];
+            if (btn) {
+                btn.classList.toggle('active', !!isOn);
+            }
+        }
+
+        function updateBreakPlayUi() {
+            if (breakPlayButton) {
+                breakPlayButton.textContent = breakSequencerPlaying ? 'STOP' : 'PLAY';
+            }
+        }
+
+        function updateBreakGridVisibility() {
+            if (!breakGridContainer) return;
+            const shouldShow = allowDuplicateNotesMode;
+            breakGridContainer.classList.toggle('visible', shouldShow);
+            breakGridContainer.classList.toggle('hidden', !shouldShow);
+        }
+
+        async function ensureBreakSampleLoaded() {
+            if (breakBufferLoaded || !audioContext) return;
+            if (breakSampleLoadingPromise) return breakSampleLoadingPromise;
+
+            breakSampleLoadingPromise = (async () => {
+                try {
+                    const res = await fetch('audio/break.wav');
+                    const buf = await res.arrayBuffer();
+                    const decoded = await audioContext.decodeAudioData(buf);
+                    const mono = decoded.numberOfChannels > 0 ? decoded.getChannelData(0) : null;
+                    if (!mono) return;
+                    const copy = new Float32Array(mono.length);
+                    copy.set(mono);
+                    if (synthNode) {
+                        synthNode.port.postMessage({ type: 'setSampleBuffer', data: { samples: copy, sampleRate: decoded.sampleRate } }, [copy.buffer]);
+                        breakBufferLoaded = true;
+                    }
+                } catch (err) {
+                    console.error('Failed to load break sample', err);
+                } finally {
+                    breakSampleLoadingPromise = null;
+                }
+            })();
+
+            return breakSampleLoadingPromise;
+        }
+
+        function triggerBreakSlice(stepIndex) {
+            if (!synthNode || !breakBufferLoaded) return;
+            const playbackRate = getBreakPlaybackRate();
+            synthNode.port.postMessage({ type: 'triggerSlice', data: { slice: stepIndex, playbackRate } });
+        }
+
+        function handleBreakSequencerTick(timestamp) {
+            if (!breakSequencerPlaying || !breakBufferLoaded) return;
+            const intervalMs = getBreakStepIntervalMs();
+            if (!Number.isFinite(intervalMs) || intervalMs <= 0) return;
+
+            if (breakNextStepTime === 0) {
+                breakNextStepTime = quantizeToNextSixteenth(timestamp, intervalMs);
+            }
+
+            while (timestamp + MASTER_CLOCK_TOLERANCE_MS >= breakNextStepTime) {
+                breakStepButtons.forEach(btn => btn?.classList.remove('current'));
+                const shouldPlay = breakStepState[breakCurrentStep];
+                if (shouldPlay) {
+                    triggerBreakSlice(breakCurrentStep);
+                }
+                const activeBtn = breakStepButtons[breakCurrentStep];
+                if (activeBtn) activeBtn.classList.add('current');
+
+                breakCurrentStep = (breakCurrentStep + 1) % BREAK_STEP_COUNT;
+                breakNextStepTime += intervalMs;
+            }
+        }
+
+        function toggleBreakSequencer() {
+            breakSequencerPlaying = !breakSequencerPlaying;
+            breakNextStepTime = 0;
+            breakCurrentStep = 0;
+            breakStepButtons.forEach(btn => btn?.classList.remove('current'));
+            updateBreakPlayUi();
+            if (breakSequencerPlaying) {
+                ensureMasterClock();
+                ensureBreakSampleLoaded();
+            } else {
+                stopMasterClockIfIdle();
             }
         }
 
@@ -871,7 +987,8 @@ const SAFE_UNIVERSAL_TARGETS = [
     4,      // Detune
     6,      // Chorus
     1, 5,   // Distortion & AM
-    12, 14  // Reverb & Delay Mix
+    12, 14,  // Reverb & Delay Mix
+    LFO_DEST_SLICE,
 ];
 
 // 2. Arp-Only Targets (Hidden in Sound Mode)
@@ -1878,6 +1995,7 @@ for (const event of events) {
                    if (synthNode && ((d.id <= 29 && d.id !== 1) || d.id === 30 || d.id === 31)) { synthNode.port.postMessage({type:'setFx', data:{id:d.id, value:d.value}}); }
                    if (synthNode && d.id === 7) { synthNode.port.postMessage({type:'setFx', data:{id:d.id, value:d.value}}); }
                });
+               await ensureBreakSampleLoaded();
            })();
 
            return audioSetupPromise;
@@ -3371,11 +3489,42 @@ lfoState.forEach((lfo, lfoIndex) => {
         function shouldKeepLfoAnimationRunning() {
             return isLfoMode || lfoState.some(lfo => getLfoDestChain(lfo).length);
         }
-      
+
+      function animateMainKnobsToZero() {
+        const startAngles = knobState.map(k => k.totalAngle);
+        const duration = 800;
+        const startTime = performance.now();
+
+        const tick = (now) => {
+          const t = Math.min(1, (now - startTime) / duration);
+          const eased = 1 - Math.pow(1 - t, 3);
+          knobState.forEach((state, idx) => {
+            state.totalAngle = startAngles[idx] * (1 - eased);
+            updateStateFromTotalAngle(idx);
+          });
+          if (t < 1) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      }
+
       function toggleEasterEggMode() {
         allowDuplicateNotesMode = !allowDuplicateNotesMode;
         document.body.classList.toggle('easter-egg-mode', allowDuplicateNotesMode);
         knobState.forEach(k => updateFeelPatternPreview(k.id));
+        updateBreakGridVisibility();
+
+        if (allowDuplicateNotesMode) {
+          animateMainKnobsToZero();
+          oscillatorRow?.classList.add('glow-down');
+          ensureBreakSampleLoaded();
+        } else {
+          oscillatorRow?.classList.remove('glow-down');
+          breakSequencerPlaying = false;
+          breakNextStepTime = 0;
+          breakStepButtons.forEach(btn => btn?.classList.remove('current'));
+          updateBreakPlayUi();
+          stopMasterClockIfIdle();
+        }
       }
  function toggleLfoModeUI(forceState, isPresetLoad = false) {
     const wasInPatchingMode = activePatchingLfo !== null;
@@ -3516,6 +3665,7 @@ function applyPreset(p, isArpCategoryPreset = false, options = {}) {
                allowDuplicateNotesMode = p.allowDuplicateNotesMode;
            }
            document.body.classList.toggle('easter-egg-mode', allowDuplicateNotesMode);
+           updateBreakGridVisibility();
            if (!arpLockActive && p.scale === 'Custom') {
                customScale = p.customScale || [];
                document.querySelectorAll('#custom-scale-builder .key').forEach(k => { const n = parseInt(k.dataset.note); k.classList.toggle('selected', customScale.includes(n)); });
@@ -4127,6 +4277,10 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
            powerSwitch = document.getElementById('power-switch');
            keySelector = document.getElementById('keySelector');
            scaleSelector = document.getElementById('scaleSelector');
+           oscillatorRow = document.getElementById('oscillator-row');
+           breakGridContainer = document.getElementById('break-grid-container');
+           breakPlayButton = document.getElementById('break-play-button');
+           breakStepButtons = Array.from(document.querySelectorAll('.break-step'));
            
            // --- 1. Audio Resume (Touch & Click) ---
            const resumeAudio = () => {
@@ -4165,6 +4319,22 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                element.addEventListener('touchend', handler);
                element.addEventListener('click', handler);
            };
+
+           if (breakPlayButton) {
+               addTouchListener(breakPlayButton, async () => {
+                   if (!isPowerOn) await powerOn();
+                   await ensureBreakSampleLoaded();
+                   toggleBreakSequencer();
+               });
+               updateBreakPlayUi();
+           }
+
+           breakStepButtons.forEach(btn => {
+               const idx = parseInt(btn.dataset.step, 10) || 0;
+               setBreakStepState(idx, breakStepState[idx]);
+               addTouchListener(btn, () => setBreakStepState(idx, !breakStepState[idx]));
+           });
+           updateBreakGridVisibility();
 
           addTouchListener(presetPrevButton, (event) => handlePresetNavigation(-1, event));
           addTouchListener(presetNextButton, (event) => handlePresetNavigation(1, event));
@@ -4555,6 +4725,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
             KNOB_ID_TO_NAME_MAP[17] = 'TEMPO 2';
             KNOB_ID_TO_NAME_MAP[22] = 'FEEL';
             KNOB_ID_TO_NAME_MAP[23] = 'FEEL';
+            KNOB_ID_TO_NAME_MAP[LFO_DEST_SLICE] = 'SLICE';
 
             // --- GLOBAL PATCHING HANDLER ---
             let isScrollingGlobal = false;
@@ -4571,7 +4742,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                  // Skip patch handling for preset/system controls so their default interactions work
                  if (e.target.closest('#presets-submenu-container, #preset-list-selector, #preset-category-buttons')) return;
 
-                const targetKnobEl = e.target.closest('.fx-knob-container, .main-knob');
+                const targetKnobEl = e.target.closest('.fx-knob-container, .main-knob, [data-fx-id]');
 
                 if (!targetKnobEl) {
                     if (activePatchingLfo !== null) stopLfoPatching();
