@@ -95,6 +95,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakSampleLoadingPromise = null;
         let breakPlaybackRate = 1;
         let breakSlipBaseDivision = 1;
+        let breakSlipBaseKnobValue = 0.5;
         let breakSlipActiveDivision = 1;
         let breakSlipWindowSeconds = 0;
         let breakSlipAnchorNormalized = 0;
@@ -390,25 +391,30 @@ let liveLfoOutputs = [0, 0, 0, 0];
             return Math.max(0.1, bpm / BREAK_BASE_BPM);
         }
 
-        function normalizedToBreakSlipDivision(normalized) {
-            const clamped = clamp(normalized, 0, 1);
-            const index = Math.round(clamped * (BREAK_SLIP_DIVISIONS.length - 1));
-            return BREAK_SLIP_DIVISIONS[Math.min(BREAK_SLIP_DIVISIONS.length - 1, Math.max(0, index))];
+        const MIN_BREAK_SLIP_DIVISION = 0.03125;
+        const MAX_BREAK_SLIP_DIVISION = 4;
+
+        function breakSlipValueToDivision(value) {
+            const clamped = clamp(value ?? 0, 0, 1);
+            return MIN_BREAK_SLIP_DIVISION * Math.pow(MAX_BREAK_SLIP_DIVISION / MIN_BREAK_SLIP_DIVISION, clamped);
         }
 
-        function breakSlipDivisionToNormalized(value) {
-            let closestIdx = 0;
-            let smallestDiff = Infinity;
-            BREAK_SLIP_DIVISIONS.forEach((division, idx) => {
-                const diff = Math.abs(division - value);
-                if (diff < smallestDiff) {
-                    smallestDiff = diff;
-                    closestIdx = idx;
+        function breakSlipDivisionToValue(division) {
+            const safe = clamp(division ?? 1, MIN_BREAK_SLIP_DIVISION, MAX_BREAK_SLIP_DIVISION);
+            return Math.log(safe / MIN_BREAK_SLIP_DIVISION) / Math.log(MAX_BREAK_SLIP_DIVISION / MIN_BREAK_SLIP_DIVISION);
+        }
+
+        function quantizeBreakSlipDivision(value) {
+            let closest = BREAK_SLIP_DIVISIONS[0];
+            let minDiff = Infinity;
+            BREAK_SLIP_DIVISIONS.forEach(div => {
+                const diff = Math.abs(div - value);
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    closest = div;
                 }
             });
-            return BREAK_SLIP_DIVISIONS.length > 1
-                ? closestIdx / (BREAK_SLIP_DIVISIONS.length - 1)
-                : 0;
+            return closest;
         }
 
         function formatBreakSlipLabel(value) {
@@ -419,10 +425,10 @@ let liveLfoOutputs = [0, 0, 0, 0];
         function syncBreakSlipKnob(visualNormalized) {
             const knob = fxKnobData[35];
             if (!knob) return;
-            const baseNormalized = breakSlipDivisionToNormalized(breakSlipBaseDivision);
-            const renderNormalized = visualNormalized !== undefined ? visualNormalized : breakSlipDivisionToNormalized(breakSlipActiveDivision);
+            const baseNormalized = breakSlipBaseKnobValue;
+            const renderNormalized = visualNormalized !== undefined ? visualNormalized : baseNormalized;
             knob.value = baseNormalized;
-            knob.angle = MIN_FX_ANGLE + renderNormalized * (MAX_FX_ANGLE - MIN_FX_ANGLE);
+            knob.angle = MIN_FX_ANGLE + clamp(renderNormalized, 0, 1) * (MAX_FX_ANGLE - MIN_FX_ANGLE);
             applyIndicatorTransform(knob.indicator, knob.angle);
         }
 
@@ -476,31 +482,21 @@ let liveLfoOutputs = [0, 0, 0, 0];
             }
         }
 
-        function setBreakSlipDivision(nextDivision) {
-            const snapped = normalizedToBreakSlipDivision(
-                breakSlipDivisionToNormalized(Math.max(0.03125, Math.min(4, nextDivision)))
-            );
-            if (Math.abs(snapped - breakSlipBaseDivision) < 1e-5) {
-                breakSlipActiveDivision = snapped;
-            } else {
-                breakSlipBaseDivision = snapped;
-                breakSlipActiveDivision = snapped;
-            }
+        function setBreakSlipFromKnobValue(nextValue) {
+            const clampedValue = clamp(nextValue ?? 0, 0, 1);
+            breakSlipBaseKnobValue = clampedValue;
+            const divisionCandidate = breakSlipValueToDivision(clampedValue);
+            const snapped = quantizeBreakSlipDivision(divisionCandidate);
+            breakSlipBaseDivision = snapped;
+            breakSlipActiveDivision = snapped;
             updateBreakSlipUi();
             syncBreakSlipKnob();
             sendBreakSlipWindow();
         }
 
         function applyBreakSlipModulation(modAmount = 0) {
-            if (Math.abs(modAmount) < 1e-6 && Math.abs(breakSlipActiveDivision - breakSlipBaseDivision) < 1e-6) {
-                syncBreakSlipKnob();
-                updateBreakSlipUi();
-                return;
-            }
-
-            const baseNormalized = breakSlipDivisionToNormalized(breakSlipBaseDivision);
-            const modNormalized = clamp(baseNormalized + modAmount, 0, 1);
-            const modDivision = normalizedToBreakSlipDivision(modNormalized);
+            const modNormalized = clamp(breakSlipBaseKnobValue + modAmount, 0, 1);
+            const modDivision = quantizeBreakSlipDivision(breakSlipValueToDivision(modNormalized));
             const changed = Math.abs(modDivision - breakSlipActiveDivision) > 1e-5;
             breakSlipActiveDivision = modDivision;
             updateBreakSlipUi();
@@ -2478,14 +2474,7 @@ function sendMidiMessage(message) {
            applyIndicatorTransform(d.indicator, d.angle);
 
            if (id === 35) {
-               const snappedDivision = normalizedToBreakSlipDivision(d.value);
-               const snappedValue = breakSlipDivisionToNormalized(snappedDivision);
-               if (Math.abs(snappedValue - d.value) > 1e-5) {
-                   d.value = snappedValue;
-                   d.angle = MIN_FX_ANGLE + snappedValue * (MAX_FX_ANGLE - MIN_FX_ANGLE);
-                   applyIndicatorTransform(d.indicator, d.angle);
-               }
-               setBreakSlipDivision(snappedDivision);
+               setBreakSlipFromKnobValue(d.value);
                return;
            }
 
@@ -2669,7 +2658,7 @@ function sendMidiMessage(message) {
                else if(id===9){fxKnobData[id].value=0.0995;} else if(id===10){fxKnobData[id].value=0.8;} else if(id===11){fxKnobData[id].value=0.2;}
                else if(id===13){fxKnobData[id].value=0.5;} else if(id===15){fxKnobData[id].value=0.25;} else if(id===16||id===17){fxKnobData[id].value=arpRateBpmToValue(DEFAULT_ARP_RATE_BPM);}
                else if(id===18||id===19){fxKnobData[id].value=0.0;} else if(id===20||id===21){fxKnobData[id].value=1.0;}
-else if(id===22||id===23){fxKnobData[id].value=0.0;} else if(id===24||id===25){fxKnobData[id].value=0.5;} else if(id===26||id===27){fxKnobData[id].value=0.5;} else if(id===28||id===29){fxKnobData[id].value=0.0;} else if(id===30||id===31){fxKnobData[id].value=0.0;} else if(id===32){fxKnobData[id].value=1.0;} else if(id===33){fxKnobData[id].value=0.0;} else if(id===34){fxKnobData[id].value=0.7;} else if(id===35){fxKnobData[id].value=breakSlipDivisionToNormalized(breakSlipBaseDivision);} 
+else if(id===22||id===23){fxKnobData[id].value=0.0;} else if(id===24||id===25){fxKnobData[id].value=0.5;} else if(id===26||id===27){fxKnobData[id].value=0.5;} else if(id===28||id===29){fxKnobData[id].value=0.0;} else if(id===30||id===31){fxKnobData[id].value=0.0;} else if(id===32){fxKnobData[id].value=1.0;} else if(id===33){fxKnobData[id].value=0.0;} else if(id===34){fxKnobData[id].value=0.7;} else if(id===35){fxKnobData[id].value=breakSlipBaseKnobValue;}
                fxKnobData[id].angle = MIN_FX_ANGLE + (fxKnobData[id].value * (MAX_FX_ANGLE - MIN_FX_ANGLE));
                if (fxKnobData[id].indicator) { applyIndicatorTransform(fxKnobData[id].indicator, fxKnobData[id].angle); }
                if(id===30||id===31){ updateVoiceWaveDisplay(id === 30 ? 0 : 1, fxKnobData[id].value); }
@@ -4191,8 +4180,9 @@ function setFxValue(id, value, forceVisualUpdate = false) {
             if (!d) return;
 
             if (id === 35) {
-                const clampedVal = Math.max(0, Math.min(1, value));
-                const division = normalizedToBreakSlipDivision(clampedVal);
+                const clampedVal = clamp(value ?? 0, 0, 1);
+                breakSlipBaseKnobValue = clampedVal;
+                const division = quantizeBreakSlipDivision(breakSlipValueToDivision(clampedVal));
                 breakSlipBaseDivision = division;
                 breakSlipActiveDivision = division;
                 d.value = clampedVal;
@@ -4625,6 +4615,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
            breakSlipDisplay = document.getElementById('break-slip-display');
            breakWaveCanvas = document.getElementById('break-waveform');
            breakWaveCtx = breakWaveCanvas ? breakWaveCanvas.getContext('2d') : null;
+           breakSlipBaseKnobValue = breakSlipDivisionToValue(breakSlipBaseDivision);
            
            // --- 1. Audio Resume (Touch & Click) ---
            const resumeAudio = () => {
