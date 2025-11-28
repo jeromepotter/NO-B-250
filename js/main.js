@@ -87,6 +87,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakPlayButton = null;
         let breakSlipDisplay = null;
         let breakFxSwitch = null;
+        let breakSlipModeSwitch = null;
         let oscillatorRow = null;
         let breakModeActive = false;
         let breakPlayRequested = false;
@@ -110,6 +111,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakWaveformLastProgress = 0;
         let breakSlipCycleStartTime = 0;
         let breakFxSendToGlobalFx = false;
+        let breakSlipAnchorHoldEnabled = true;
         const BREAK_SLIP_DIVISIONS = [4, 2, 1, 0.5, 0.25, 0.125, 0.0625, 0.03125];
         const BREAK_MODE_ARP_TOGGLE_COUNT = 6;
         const BREAK_MODE_ARP_WINDOW_MS = 1800;
@@ -432,6 +434,23 @@ let liveLfoOutputs = [0, 0, 0, 0];
             breakFxSwitch.setAttribute('aria-checked', breakFxSendToGlobalFx ? 'true' : 'false');
         }
 
+        function updateBreakSlipModeUi() {
+            if (!breakSlipModeSwitch) return;
+            breakSlipModeSwitch.classList.toggle('on', breakSlipAnchorHoldEnabled);
+            breakSlipModeSwitch.setAttribute('aria-checked', breakSlipAnchorHoldEnabled ? 'true' : 'false');
+        }
+
+        function setBreakSlipAnchorHold(enabled) {
+            const next = !!enabled;
+            if (breakSlipAnchorHoldEnabled === next) return;
+            breakSlipAnchorHoldEnabled = next;
+            updateBreakSlipModeUi();
+            if (!breakSlipAnchorHoldEnabled && isBreakSlipActive()) {
+                refreshBreakSlipAnchor();
+                drawBreakWaveform(breakWaveformLastProgress);
+            }
+        }
+
         function setBreakFxRouting(enabled) {
             const next = !!enabled;
             if (breakFxSendToGlobalFx !== next) {
@@ -479,7 +498,10 @@ let liveLfoOutputs = [0, 0, 0, 0];
             if (Math.abs(nextWindow - breakSlipWindowSeconds) < 1e-5) return;
             breakSlipWindowSeconds = nextWindow;
             synthNode.port.postMessage({ type: 'setBreakSlipWindow', data: { windowSeconds: breakSlipWindowSeconds } });
-            if (shouldRefreshBreakSlipAnchor(previousDivision, breakSlipActiveDivision)) {
+            const shouldRefresh = breakSlipAnchorHoldEnabled
+                ? shouldRefreshBreakSlipAnchor(previousDivision, breakSlipActiveDivision)
+                : (isBreakSlipActive(previousDivision) || isBreakSlipActive(breakSlipActiveDivision));
+            if (shouldRefresh) {
                 refreshBreakSlipAnchor();
             }
             drawBreakWaveform(breakWaveformLastProgress);
@@ -4693,6 +4715,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
            breakPlayButton = document.getElementById('break-play-button');
            breakSlipDisplay = document.getElementById('break-slip-display');
            breakFxSwitch = document.getElementById('break-fx-switch');
+           breakSlipModeSwitch = document.getElementById('break-slip-mode-switch');
            breakWaveCanvas = document.getElementById('break-waveform');
            breakWaveCtx = breakWaveCanvas ? breakWaveCanvas.getContext('2d') : null;
            
@@ -4758,6 +4781,13 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                    setBreakFxRouting(!breakFxSendToGlobalFx);
                });
                updateBreakFxSwitchUi();
+           }
+           if (breakSlipModeSwitch) {
+               addTouchListener(breakSlipModeSwitch, async () => {
+                   if (!isPowerOn) await powerOn();
+                   setBreakSlipAnchorHold(!breakSlipAnchorHoldEnabled);
+               });
+               updateBreakSlipModeUi();
            }
            updateBreakSlipUi();
            updateBreakGridVisibility();
@@ -5544,7 +5574,6 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
-
 
 
 
