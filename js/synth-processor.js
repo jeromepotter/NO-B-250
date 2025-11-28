@@ -331,10 +331,14 @@ const LFO_DEST_NONE = -1;
                    this.breakBypassR = new Float32Array(128);
 
                    this.recomputeSlipWindow = () => {
+                       const wasActive = this.slipActive;
                        if (this.slipWindowSeconds > 0 && this.samplerPlayback.rate > 0) {
                            this.slipWindowSamples = this.slipWindowSeconds * this.samplerPlayback.rate * sampleRate;
-                           this.slipAnchorStart = Math.max(0, this.samplerPlayback.position - this.slipWindowSamples);
-                           this.slipRenderPhase = 0;
+                           if (!wasActive || this.slipAnchorStart <= 0) {
+                               this.slipAnchorStart = Math.max(0, this.samplerPlayback.position - this.slipWindowSamples);
+                           }
+                           const windowSize = Math.max(1, this.slipWindowSamples);
+                           this.slipRenderPhase = wasActive ? (this.slipRenderPhase % windowSize) : 0;
                            this.slipActive = this.slipWindowSamples > 0;
                        } else {
                            this.slipWindowSamples = 0;
@@ -703,9 +707,15 @@ for(let i=0;i<blockSize;i++){
 
         if (effectivePos >= this.sampleLength || effectivePos >= this.samplerPlayback.end) {
             if (this.samplerPlayback.loop) {
-                this.samplerPlayback.position = 0;
-                this.slipAnchorStart = Math.max(0, this.samplerPlayback.position - this.slipWindowSamples);
-                this.slipRenderPhase = 0;
+                const wrapped = effectivePos % this.sampleLength;
+                this.samplerPlayback.position = wrapped;
+                const windowSize = Math.max(1, this.slipWindowSamples);
+                if (!this.slipActive) {
+                    this.slipAnchorStart = Math.max(0, this.samplerPlayback.position - this.slipWindowSamples);
+                    this.slipRenderPhase = 0;
+                } else {
+                    this.slipRenderPhase = this.slipRenderPhase % windowSize;
+                }
             } else {
                 this.samplerPlayback.active = false;
             }
