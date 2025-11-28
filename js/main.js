@@ -2399,6 +2399,10 @@ for (const event of events) {
            if (isRecordingAudio && synthNode) { synthNode.port.postMessage({ type: 'stopRecording', data: {} }); }
            if (isRecordingMidi) { stopMidiRecording(); }
            stopBreakPlaybackImmediate();
+           breakBufferLoaded = false;
+           breakSampleLoadingPromise = null;
+           breakWaveformPeaks = null;
+           breakWaveformDuration = 0;
            isPowerOn=false;
            knobState.forEach(k=>{ stopNote(k.id, true); if (k.isArpOn) { k.isArpOn = false; k.dom.arpSwitch.classList.remove('on'); } k.isSweepMode = true; if (k.dom.arpModeSwitch) { k.dom.arpModeSwitch.classList.add('on'); } });
            isArpRateSynced = false; if(arpSyncSwitch) arpSyncSwitch.classList.remove('on');
