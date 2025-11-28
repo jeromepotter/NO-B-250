@@ -271,7 +271,10 @@ const LFO_DEST_NONE = -1;
                    // Envelope state
                    this.envStage1='off'; this.envValue1=0.0; this.envStage2='off'; this.envValue2=0.0;
                    // FX params (from main thread)
-                   this.params=new Array(32).fill(0.0);
+                   this.params=new Array(35).fill(0.0);
+                   this.params[32] = 1.0;
+                   this.params[33] = 0.15;
+                   this.params[34] = 0.7;
                    // Envelope times
                    this.attackTime=0.01; this.decayTime=0.2; this.sustainLevel=0.8; this.releaseTime=0.1;
                    this.releaseRate = Math.exp(-1 / (this.releaseTime * sampleRate));
@@ -290,6 +293,10 @@ const LFO_DEST_NONE = -1;
                    this.filterCoeffs={b0:1,b1:0,b2:0,a1:0,a2:0}; this.updateFilterCoefficients(this.filterCoeffs, 1.0, 0.0);
                    this.filterOsc1Coeffs={b0:1,b1:0,b2:0,a1:0,a2:0}; this.filter_osc1_x1=0; this.filter_osc1_x2=0; this.filter_osc1_y1=0; this.filter_osc1_y2=0; this.updateFilterCoefficients(this.filterOsc1Coeffs, 1.0, 0.0);
                    this.filterOsc2Coeffs={b0:1,b1:0,b2:0,a1:0,a2:0}; this.filter_osc2_x1=0; this.filter_osc2_x2=0; this.filter_osc2_y1=0; this.filter_osc2_y2=0; this.updateFilterCoefficients(this.filterOsc2Coeffs, 1.0, 0.0);
+                   this.breakFilterCoeffs={b0:1,b1:0,b2:0,a1:0,a2:0}; this.break_filter_x1=0; this.break_filter_x2=0; this.break_filter_y1=0; this.break_filter_y2=0; this.updateFilterCoefficients(this.breakFilterCoeffs, 1.0, 0.0);
+                   this.smoothedBreakCutoff = 1.0;
+                   this.smoothedBreakRes = 0.0;
+                   this.smoothedBreakVolume = 0.7;
                    // Delay & Chorus state
                    this.delayBufferL=new Float32Array(sampleRate*2);this.delayBufferR=new Float32Array(sampleRate*2);this.delayWritePos=0;
                    this.smoothDelayTime = 0.01;
@@ -364,6 +371,8 @@ const LFO_DEST_NONE = -1;
                                     }
                                else if (id===20 || id===28){ this.updateFilterCoefficients(this.filterOsc1Coeffs, this.params[20], this.params[28]); }
                                else if(id===21 || id===29){ this.updateFilterCoefficients(this.filterOsc2Coeffs, this.params[21], this.params[29]); }
+                               else if(id===32 || id===33){ this.updateFilterCoefficients(this.breakFilterCoeffs, this.params[32], this.params[33]); }
+                               else if(id===34){ this.smoothedBreakVolume = value; }
                                break;
                            case 'setSampleBuffer':
                                if (data?.samples) {
@@ -670,20 +679,35 @@ for(let i=0;i<blockSize;i++){
             this.samplerPlayback.position += this.samplerPlayback.rate;
         }
     }
-    if (sampleVal !== 0) {
-        const sampleGain = 0.7;
-        s1 += sampleVal * sampleGain;
-        s2 += sampleVal * sampleGain;
+
+    this.smoothedBreakCutoff += (this.params[32] - this.smoothedBreakCutoff) * 0.05;
+    this.smoothedBreakRes += (this.params[33] - this.smoothedBreakRes) * 0.05;
+    this.updateFilterCoefficients(this.breakFilterCoeffs, this.smoothedBreakCutoff, this.smoothedBreakRes);
+    const bf = this.breakFilterCoeffs;
+    const sampleFiltered = bf.b0 * sampleVal + bf.b1 * this.break_filter_x1 + bf.b2 * this.break_filter_x2 - bf.a1 * this.break_filter_y1 - bf.a2 * this.break_filter_y2;
+    this.break_filter_x2 = this.break_filter_x1;
+    this.break_filter_x1 = sampleVal;
+    this.break_filter_y2 = this.break_filter_y1;
+    this.break_filter_y1 = sampleFiltered;
+
+    this.smoothedBreakVolume += (this.params[34] - this.smoothedBreakVolume) * 0.01;
+    const sampleOut = sampleFiltered * this.smoothedBreakVolume;
+
+    if (sampleOut !== 0) {
+        s1 += sampleOut;
+        s2 += sampleOut;
     }
 
     const dither = (Math.random() - 0.5) * 0.00001;
     s1 += dither;
     s2 += dither;
-    
+
     // Analog Drive: Boost (1.5x) and Saturate (tanh) before the filter
-    const drive = 1.5; 
-    const s1_e = Math.tanh(s1 * this.envValue1 * drive);
-    const s2_e = Math.tanh(s2 * this.envValue2 * drive);
+    const drive = 1.5;
+    const s1_in = (s1 * this.envValue1) + sampleOut;
+    const s2_in = (s2 * this.envValue2) + sampleOut;
+    const s1_e = Math.tanh(s1_in * drive);
+    const s2_e = Math.tanh(s2_in * drive);
     
     this.smoothedCutoff1 += (currentParams[20] - this.smoothedCutoff1) * 0.05;
     this.smoothedRes1 += (currentParams[28] - this.smoothedRes1) * 0.05; // Smooth Res
