@@ -584,6 +584,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
                     wave: '#ffffff',
                     head: '#ffffff',
                     slip: 'rgba(255, 64, 64, 0.22)',
+                    slipHead: 'rgba(255, 224, 64, 0.9)',
                 };
             }
             return breakWaveformColors;
@@ -640,6 +641,16 @@ let liveLfoOutputs = [0, 0, 0, 0];
                     const width = Math.max(1, Math.min(logicalWidth - startX, windowNorm * logicalWidth));
                     breakWaveCtx.fillStyle = colors.slip;
                     breakWaveCtx.fillRect(startX, 0, width, logicalHeight);
+
+                    const clampedProgress = Math.max(0, Math.min(1, progress));
+                    const relativeProgress = ((clampedProgress - breakSlipAnchorNormalized) % windowNorm + windowNorm) % windowNorm;
+                    const slipPlayheadNorm = breakSlipAnchorNormalized + relativeProgress;
+                    const slipX = Math.max(startX, Math.min(startX + width, slipPlayheadNorm * logicalWidth));
+                    breakWaveCtx.strokeStyle = colors.slipHead;
+                    breakWaveCtx.beginPath();
+                    breakWaveCtx.moveTo(slipX, 0);
+                    breakWaveCtx.lineTo(slipX, logicalHeight);
+                    breakWaveCtx.stroke();
                 }
             }
 
