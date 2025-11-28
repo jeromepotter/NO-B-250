@@ -29,7 +29,7 @@
 
 body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); touch-action: manipulation; color: var(--color-text); overflow-y: auto; -webkit-user-select: none; -ms-user-select: none; user-select: none; }
 body.break-mode {
-  background-color: #0b0d10;
+  background-color: #15171b;
 }
       .text-yellow-300 { color: var(--color-accent-yellow); }
       .knob-border { border: 2px solid var(--color-surface); box-shadow: 0 0 0 2px var(--color-surface); }
@@ -47,7 +47,7 @@ body.break-mode {
         transform-origin: 50% 100%;
       }
       .main-knob:active { cursor: grabbing; }
-      .fx-knob-container { cursor: ns-resize; aspect-ratio: 1 / 1; transition: background-color 0.1s linear; will-change: transform; }
+      .fx-knob-container { cursor: ns-resize; aspect-ratio: 1 / 1; transition: background-color 0.1s linear; will-change: transform; touch-action: none; }
       .retro-select { 
         -webkit-appearance: none;
         -moz-appearance: none;
@@ -608,7 +608,7 @@ animation: note-retrigger 0.08s ease-out;
 .break-grid {
   margin: 10px auto 0;
   max-width: 680px;
-  background: #0d0f12;
+  background: #16191f;
   border-radius: 8px;
   padding: 12px;
 }

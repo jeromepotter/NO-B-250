@@ -94,8 +94,11 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakBufferLoaded = false;
         let breakSampleLoadingPromise = null;
         let breakPlaybackRate = 1;
-        let breakSlipDivision = 1;
+        let breakSlipDivision = 4;
         let breakSlipWindowSeconds = 0;
+        let breakSlipWindowFraction = 0;
+        let breakSlipAnchorProgress = 0;
+        let breakSlipInitialized = false;
         let breakWaveCanvas = null;
         let breakWaveCtx = null;
         let breakWaveformPeaks = null;
@@ -383,6 +386,16 @@ let liveLfoOutputs = [0, 0, 0, 0];
             return Math.max(0.1, bpm / BREAK_BASE_BPM);
         }
 
+        function getCurrentBreakProgress() {
+            if (!breakWaveformDuration || breakWaveformDuration <= 0) return 0;
+            const now = audioContext ? audioContext.currentTime : (performance.now() / 1000);
+            const rate = Math.max(0.01, breakPlaybackRate || getBreakPlaybackRate());
+            const elapsed = Math.max(0, now - breakPlaybackStartTime);
+            const effectiveDuration = breakWaveformDuration / rate;
+            if (!Number.isFinite(effectiveDuration) || effectiveDuration <= 0) return 0;
+            return ((elapsed % effectiveDuration) / effectiveDuration + 1) % 1;
+        }
+
         function normalizedToBreakSlipDivision(normalized) {
             const clamped = clamp(normalized, 0, 1);
             const index = Math.round(clamped * (BREAK_SLIP_DIVISIONS.length - 1));
@@ -402,6 +415,22 @@ let liveLfoOutputs = [0, 0, 0, 0];
             return BREAK_SLIP_DIVISIONS.length > 1
                 ? closestIdx / (BREAK_SLIP_DIVISIONS.length - 1)
                 : 0;
+        }
+
+        function updateSlipHighlightMetadata() {
+            if (!breakWaveformDuration || breakSlipWindowSeconds <= 0) {
+                breakSlipWindowFraction = 0;
+                breakSlipAnchorProgress = 0;
+                return;
+            }
+
+            const rate = Math.max(0.01, breakPlaybackRate || getBreakPlaybackRate());
+            const windowFraction = Math.min(1, (breakSlipWindowSeconds * rate) / breakWaveformDuration);
+            breakSlipWindowFraction = windowFraction;
+
+            const progress = (breakRunning && breakPlayRequested) ? getCurrentBreakProgress() : 0;
+            const anchor = ((progress - windowFraction) % 1 + 1) % 1;
+            breakSlipAnchorProgress = anchor;
         }
 
         function formatBreakSlipLabel(value) {
@@ -425,11 +454,15 @@ let liveLfoOutputs = [0, 0, 0, 0];
         }
 
         function sendBreakSlipWindow() {
-            if (!synthNode || !breakBufferLoaded) return;
             const nextWindow = getBreakSlipWindowSeconds();
             if (!Number.isFinite(nextWindow)) return;
-            if (Math.abs(nextWindow - breakSlipWindowSeconds) < 1e-5) return;
+            const unchanged = Math.abs(nextWindow - breakSlipWindowSeconds) < 1e-5;
             breakSlipWindowSeconds = nextWindow;
+            updateSlipHighlightMetadata();
+            const currentProgress = breakRunning ? getCurrentBreakProgress() : 0;
+            drawBreakWaveform(currentProgress);
+            if (!synthNode || !breakBufferLoaded) return;
+            if (unchanged) return;
             synthNode.port.postMessage({ type: 'setBreakSlipWindow', data: { windowSeconds: breakSlipWindowSeconds } });
         }
 
@@ -439,14 +472,17 @@ let liveLfoOutputs = [0, 0, 0, 0];
             }
         }
 
-        function setBreakSlipDivision(nextDivision) {
+        function setBreakSlipDivision(nextDivision, { fromKnob = false, force = false } = {}) {
             const snapped = normalizedToBreakSlipDivision(
                 breakSlipDivisionToNormalized(Math.max(0.03125, Math.min(4, nextDivision)))
             );
-            if (Math.abs(snapped - breakSlipDivision) < 1e-5) return;
+            if (!force && breakSlipInitialized && Math.abs(snapped - breakSlipDivision) < 1e-5) {
+                return;
+            }
             breakSlipDivision = snapped;
+            breakSlipInitialized = true;
             updateBreakSlipUi();
-            syncBreakSlipKnob();
+            if (!fromKnob) syncBreakSlipKnob();
             sendBreakSlipWindow();
         }
 
@@ -540,6 +576,29 @@ let liveLfoOutputs = [0, 0, 0, 0];
             }
             breakWaveCtx.stroke();
 
+            if (breakSlipWindowFraction > 0) {
+                const startX = breakSlipAnchorProgress * logicalWidth;
+                const spanWidth = Math.min(logicalWidth, breakSlipWindowFraction * logicalWidth);
+                const slipColor = 'rgba(255, 64, 64, 0.28)';
+                const drawSlipSegment = (x, width) => {
+                    breakWaveCtx.fillStyle = slipColor;
+                    breakWaveCtx.fillRect(x, 0, width, logicalHeight);
+                };
+
+                if (spanWidth >= logicalWidth) {
+                    drawSlipSegment(0, logicalWidth);
+                } else {
+                    const endX = startX + spanWidth;
+                    if (endX <= logicalWidth) {
+                        drawSlipSegment(startX, spanWidth);
+                    } else {
+                        const firstWidth = logicalWidth - startX;
+                        drawSlipSegment(startX, firstWidth);
+                        drawSlipSegment(0, spanWidth - firstWidth);
+                    }
+                }
+            }
+
             const headX = Math.max(0, Math.min(logicalWidth, progress * logicalWidth));
             breakWaveCtx.strokeStyle = colors.head;
             breakWaveCtx.beginPath();
@@ -592,6 +651,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
                     if (synthNode) {
                         synthNode.port.postMessage({ type: 'setSampleBuffer', data: { samples: copy, sampleRate: decoded.sampleRate } }, [copy.buffer]);
                         breakBufferLoaded = true;
+                        updateSlipHighlightMetadata();
                         resizeBreakWaveformCanvas();
                         drawBreakWaveform();
                     }
@@ -613,6 +673,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             breakPlaybackRate = nextRate;
             synthNode.port.postMessage({ type: 'setBreakPlaybackRate', data: { playbackRate: breakPlaybackRate } });
             breakPlaybackStartTime = audioContext ? audioContext.currentTime : (performance.now() / 1000);
+            updateSlipHighlightMetadata();
         }
 
         function handleBreakLoopTick() {
@@ -2393,21 +2454,16 @@ function sendMidiMessage(message) {
            if (id >= 16 && id <= 25 && d.knobEl.closest('.arp-disabled')) return;
            if (activePatchingLfo !== null) return; // Prevent adjustment during patching
            
-           let newAngle = Math.max(MIN_FX_ANGLE, Math.min(MAX_FX_ANGLE, d.angle + deltaY));
-           d.angle = newAngle; 
+           const effectiveDelta = id === 35 ? deltaY * 0.6 : deltaY;
+           let newAngle = Math.max(MIN_FX_ANGLE, Math.min(MAX_FX_ANGLE, d.angle + effectiveDelta));
+           d.angle = newAngle;
            d.value = (d.angle - MIN_FX_ANGLE) / (MAX_FX_ANGLE - MIN_FX_ANGLE);
 
            applyIndicatorTransform(d.indicator, d.angle);
 
            if (id === 35) {
                const snappedDivision = normalizedToBreakSlipDivision(d.value);
-               const snappedValue = breakSlipDivisionToNormalized(snappedDivision);
-               if (Math.abs(snappedValue - d.value) > 1e-5) {
-                   d.value = snappedValue;
-                   d.angle = MIN_FX_ANGLE + snappedValue * (MAX_FX_ANGLE - MIN_FX_ANGLE);
-                   applyIndicatorTransform(d.indicator, d.angle);
-               }
-               setBreakSlipDivision(snappedDivision);
+               setBreakSlipDivision(snappedDivision, { fromKnob: true });
                return;
            }
 
@@ -4161,6 +4217,7 @@ function resetAllFxToDefaults({ skipArpKnobs = false, skipLfoKnobs = false } = {
                if (id === 32) defaultValue = 1.0;
                if (id === 33) defaultValue = 0.0;
                if (id === 34) defaultValue = 0.7;
+               if (id === 35) defaultValue = breakSlipDivisionToNormalized(breakSlipDivision);
                setFxValue(id, defaultValue);
            });
        }
@@ -4552,6 +4609,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                updateBreakPlayUi();
            }
            updateBreakSlipUi();
+           setBreakSlipDivision(breakSlipDivision, { force: true });
            updateBreakGridVisibility();
            resizeBreakWaveformCanvas();
            window.addEventListener('resize', resizeBreakWaveformCanvas);
