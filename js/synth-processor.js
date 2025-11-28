@@ -326,6 +326,9 @@ const LFO_DEST_NONE = -1;
                    this.slipRenderPhase = 0;
                    this.slipAnchorStart = 0;
                    this.slipActive = false;
+                   this.breakFxSend = false;
+                   this.breakBypassL = new Float32Array(128);
+                   this.breakBypassR = new Float32Array(128);
 
                    this.recomputeSlipWindow = () => {
                        if (this.slipWindowSeconds > 0 && this.samplerPlayback.rate > 0) {
@@ -417,6 +420,9 @@ const LFO_DEST_NONE = -1;
                                this.slipWindowSeconds = Math.max(0, data?.windowSeconds || 0);
                                this.recomputeSlipWindow();
                                break;
+                           case 'setBreakFxSend':
+                               this.breakFxSend = !!(data && data.enabled);
+                               break;
                             case 'setLfo':
                                 if (lfoId >= 0 && lfoId < this.lfoParams.length) {
                                     const lfoTarget = this.lfoParams[lfoId];
@@ -484,8 +490,17 @@ case 'ping':
                         this.zitaWetR = new Float32Array(blockSize);
                    }
 
+                   if (this.breakBypassL.length !== blockSize) {
+                        this.breakBypassL = new Float32Array(blockSize);
+                        this.breakBypassR = new Float32Array(blockSize);
+                   } else {
+                        this.breakBypassL.fill(0);
+                        this.breakBypassR.fill(0);
+                   }
+
 // --- LFO Processing (with LFO-to-LFO modulation) ---
 let rawLfoOutputs = [0, 0, 0, 0];
+const breakFxSend = this.breakFxSend;
 const getLfoDestinations = (lfo) => {
     if (lfo && Array.isArray(lfo.destChain) && lfo.destChain.length) {
         return lfo.destChain;
@@ -760,8 +775,13 @@ for(let i=0;i<blockSize;i++){
     let s_R = (s1_f * 0.6 + s2_f * 0.8) * 0.7;
 
     if (sampleMixL !== 0 || sampleMixR !== 0) {
-        s_L += sampleMixL;
-        s_R += sampleMixR;
+        if (breakFxSend) {
+            s_L += sampleMixL;
+            s_R += sampleMixR;
+        } else {
+            this.breakBypassL[i] = sampleMixL;
+            this.breakBypassR[i] = sampleMixR;
+        }
     }
     
     this.smoothedDist += (currentParams[1] - this.smoothedDist) * 0.0025;
@@ -909,8 +929,10 @@ for(let i=0; i<blockSize; i++) {
     this.filter_x2_R=this.filter_x1_R;this.filter_x1_R=s_R;this.filter_y2_R=this.filter_y1_R;this.filter_y1_R=_yR;
     
    // 4. Apply Master Volume
-    let finalL = yL * currentParams[7];
-    let finalR = _yR * currentParams[7];
+    const bypassL = breakFxSend ? 0 : this.breakBypassL[i];
+    const bypassR = breakFxSend ? 0 : this.breakBypassR[i];
+    let finalL = (yL + bypassL) * currentParams[7];
+    let finalR = (_yR + bypassR) * currentParams[7];
 
     // 5. Master Soft Clipper
    finalL = Math.tanh(finalL * 1.2); 
