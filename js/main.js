@@ -438,9 +438,12 @@ let liveLfoOutputs = [0, 0, 0, 0];
         function syncBreakSlipKnob(visualNormalized) {
             const knob = fxKnobData[35];
             if (!knob) return;
-            const baseNormalized = breakSlipDivisionToNormalized(breakSlipBaseDivision);
-            const renderNormalized = visualNormalized !== undefined ? visualNormalized : breakSlipDivisionToNormalized(breakSlipActiveDivision);
-            knob.value = baseNormalized;
+            const storedNormalized = Number.isFinite(knob.value)
+                ? clamp(knob.value, 0, 1)
+                : breakSlipDivisionToNormalized(breakSlipBaseDivision);
+            const renderNormalized = visualNormalized !== undefined
+                ? clamp(visualNormalized, 0, 1)
+                : storedNormalized;
             knob.angle = MIN_FX_ANGLE + renderNormalized * (MAX_FX_ANGLE - MIN_FX_ANGLE);
             applyIndicatorTransform(knob.indicator, knob.angle);
         }
@@ -508,6 +511,10 @@ let liveLfoOutputs = [0, 0, 0, 0];
             }
             updateBreakSlipUi();
             if (syncKnob) {
+                const knob = fxKnobData[35];
+                if (knob) {
+                    knob.value = breakSlipDivisionToNormalized(breakSlipBaseDivision);
+                }
                 syncBreakSlipKnob();
             }
             sendBreakSlipWindow();
@@ -515,7 +522,6 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
         function applyBreakSlipModulation(modAmount = 0) {
             if (Math.abs(modAmount) < 1e-6 && Math.abs(breakSlipActiveDivision - breakSlipBaseDivision) < 1e-6) {
-                syncBreakSlipKnob();
                 updateBreakSlipUi();
                 return;
             }
