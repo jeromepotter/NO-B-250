@@ -28,6 +28,9 @@
 }
 
 body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); touch-action: manipulation; color: var(--color-text); overflow-y: auto; -webkit-user-select: none; -ms-user-select: none; user-select: none; }
+body.break-mode {
+  background-color: #1a1a1a !important;
+}
       .text-yellow-300 { color: var(--color-accent-yellow); }
       .knob-border { border: 2px solid var(--color-surface); box-shadow: 0 0 0 2px var(--color-surface); }
       .main-knob { cursor: grab; aspect-ratio: 1 / 1; transition: background-color 0.05s linear; width: 100%; }
@@ -600,4 +603,71 @@ animation: note-retrigger 0.08s ease-out;
   transform: scale(1.15);
   box-shadow: 0 0 5px rgba(255, 255, 255, 0.9);
   z-index: 10;
+}
+
+.break-grid {
+  margin: 10px auto 0;
+  max-width: 680px;
+  background: transparent;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.break-grid.hidden {
+  display: none;
+}
+
+.break-grid.visible {
+  display: block;
+}
+
+.break-grid-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.break-knob-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.break-waveform-shell {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.break-waveform {
+  width: 100%;
+  height: 82px;
+  display: block;
+  background: transparent;
+  border: none;
+}
+
+.fx-knob-container {
+  touch-action: none;
+}
+
+.break-play-btn {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  color: var(--color-text);
+  padding: 6px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.break-blur {
+  filter: none;
+  transition: none;
 }
