@@ -1,12 +1,20 @@
 # Changelog
 ### Future Plans
 - "Split" Presets, taking advantage of dual voices with independent waveforms
+
+## [11.28] - 2025-11-29
+
+###Fixed
+- FEEL knob no longer resets playhead allowing continuous groove
+
+  
 ## [11.27] - 2025-11-27
 ### Added
+-Break Mode
 -Zita Reverb by Gregory Bowler ( https://github.com/gregoryhbowler/reverb1 )
 
-###
-- Changed Background Colors for LFO mode same as their respective modes
+### Changed
+- Background Colors for LFO mode same as their respective modes
 
 
 ## [11.26] - 2025-11-26
