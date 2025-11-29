@@ -1516,7 +1516,9 @@ function generateComplexRandomLfoState(includeArpTargets = true) {
                        octaves: knobState[0].arpOctaveRange, 
                        feelValue: trim(knobState[0].feelKnobValue), 
                        notes: knobState[0].arpNotes, 
-                       transpose: knobState[0].arpTranspose 
+                       transpose: knobState[0].arpTranspose,
+                        stepCounter: knobState[0].euclideanStepCounter,
+                       noteIndex: knobState[0].currentArpNoteIndex
                    }, 
                    arp2: { 
                        isOn: knobState[1].isArpHoldOn, 
@@ -1525,7 +1527,9 @@ function generateComplexRandomLfoState(includeArpTargets = true) {
                        octaves: knobState[1].arpOctaveRange, 
                        feelValue: trim(knobState[1].feelKnobValue), 
                        notes: knobState[1].arpNotes, 
-                       transpose: knobState[1].arpTranspose 
+                       transpose: knobState[1].arpTranspose,
+                       stepCounter: knobState[1].euclideanStepCounter,
+                      noteIndex: knobState[1].currentArpNoteIndex
                    } 
                },
                metadata: {
@@ -4313,9 +4317,24 @@ function applyPreset(p, isArpCategoryPreset = false, options = {}) {
 
            updateGlobalArpVisibility();
            knobState.forEach(k => { updateStateFromTotalAngle(k.id); });
-           knobState.forEach(k => {
+          knobState.forEach(k => {
                if (isPowerOn && k.isArpOn && k.isArpHoldOn && k.arpNotes.length > 0) {
                    startArpeggiator(k.id);
+                      if (p.arpSettings) {
+                const arpData = (k.id === 0) ? p.arpSettings.arp1 : p.arpSettings.arp2;
+                
+                if (arpData) {
+                    // Restore Euclidean Step (Rhythm Phase)
+                    if (typeof arpData.stepCounter === 'number') {
+                        k.euclideanStepCounter = arpData.stepCounter;
+                    }
+                    
+                    // Restore Note Index (Melodic Phase)
+                    if (typeof arpData.noteIndex === 'number') {
+                        k.currentArpNoteIndex = arpData.noteIndex;
+                    }
+                }
+               }
                }
            });
        }
@@ -5618,6 +5637,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
