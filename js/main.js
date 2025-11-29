@@ -477,28 +477,11 @@ let liveLfoOutputs = [0, 0, 0, 0];
             applyIndicatorTransform(knob.indicator, knob.angle);
         }
 
-        function getBreakSlipWindowSeconds() {
-            const bpm = calculateMidiBpm();
-            if (!Number.isFinite(bpm) || bpm <= 0) return 0;
-            if (breakSlipActiveDivision >= 3.999) return 0;
-            return (60 / bpm) * breakSlipActiveDivision;
-        }
-
-        function isBreakSlipActive(division = breakSlipActiveDivision) {
-            return Number.isFinite(division) && division < 3.999;
-        }
-
-        function shouldRefreshBreakSlipAnchor(prevDivision, nextDivision) {
-            if (prevDivision === undefined || prevDivision === null) return true;
-            return isBreakSlipActive(prevDivision) !== isBreakSlipActive(nextDivision);
-        }
-
-        function sendBreakSlipWindow(previousDivision = null) {
+       function sendBreakSlipWindow(previousDivision = null) {
             if (!synthNode || !breakBufferLoaded) return;
             const nextWindow = getBreakSlipWindowSeconds();
             if (!Number.isFinite(nextWindow)) return;
             
-            // Allow update even if window size hasn't changed (needed for "Surfing")
             breakSlipWindowSeconds = nextWindow;
 
             // --- CALCULATE CURRENT PLAYHEAD POSITION ---
@@ -507,7 +490,6 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const effectiveDuration = breakWaveformDuration / rate;
             const elapsed = Math.max(0, now - breakPlaybackStartTime);
             const currentProgress = effectiveDuration > 0 ? (elapsed % effectiveDuration) / effectiveDuration : 0;
-            const windowNorm = effectiveDuration > 0 ? breakSlipWindowSeconds / effectiveDuration : 0;
 
             // --- "SLIP ROLL" LOGIC ---
             // 1. "Safe State" = Free Mode OR Knob is at 4 (Reset)
@@ -520,22 +502,23 @@ let liveLfoOutputs = [0, 0, 0, 0];
             } else {
                 // We are in "Locked/Stutter State" (< 4)
                 
-                // If this is the FIRST moment we entered the lock, capture the current tail!
+                // If this is the FIRST moment we entered the lock, capture the CURRENT position.
                 if (breakSlipGrabProgress === null) {
                     breakSlipGrabProgress = currentProgress;
                 }
 
-                // Calculate Anchor relative to the CAPTURED point (Zoom behavior)
-                // Anchor = GrabbedPoint - NewWindowSize
-                breakSlipAnchorNormalized = Math.max(0, breakSlipGrabProgress - windowNorm);
-                
-                // Keep the visual cycle timer synced for the red box animation
+                // --- FIX: ANCHOR = GRAB POINT ---
+                // Old logic: Grab - Window (Looked backwards, caused jumping)
+                // New logic: Grab (Locks exactly where you were, plays forward)
+                breakSlipAnchorNormalized = breakSlipGrabProgress;
+                // --------------------------------
+
+                // Keep the visual cycle timer synced
                 breakSlipCycleStartTime = now;
             }
 
             // --- SEND TO AUDIO ENGINE ---
             let explicitAnchor = null;
-            // Only force the anchor if we are effectively locked
             if (!isSafeState && typeof breakSampleLength === 'number' && breakSampleLength > 0) {
                 explicitAnchor = breakSlipAnchorNormalized * breakSampleLength;
             }
@@ -5723,6 +5706,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
