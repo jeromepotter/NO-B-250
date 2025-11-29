@@ -330,16 +330,10 @@ const LFO_DEST_NONE = -1;
                    this.breakBypassL = new Float32Array(128);
                    this.breakBypassR = new Float32Array(128);
 
-                  this.recomputeSlipWindow = () => {
+                   this.recomputeSlipWindow = () => {
                        if (this.slipWindowSeconds > 0 && this.samplerPlayback.rate > 0) {
                            this.slipWindowSamples = this.slipWindowSeconds * this.samplerPlayback.rate * sampleRate;
-                           
-                           if (this.forcedSlipAnchor !== null && this.forcedSlipAnchor !== undefined) {
-                               this.slipAnchorStart = this.forcedSlipAnchor;
-                           } else {
-                               this.slipAnchorStart = Math.max(0, this.samplerPlayback.position - this.slipWindowSamples);
-                           }
-                           
+                           this.slipAnchorStart = Math.max(0, this.samplerPlayback.position - this.slipWindowSamples);
                            this.slipRenderPhase = 0;
                            this.slipActive = this.slipWindowSamples > 0;
                        } else {
@@ -408,9 +402,6 @@ const LFO_DEST_NONE = -1;
                                    const playbackRate = Math.max(0.01, data?.playbackRate || 1);
                                    const rate = playbackRate * (this.sampleSourceRate / sampleRate);
                                    this.samplerPlayback = { active: true, position: 0, end: this.sampleLength, rate, loop: true };
-                                   
-                                   this.forcedSlipAnchor = (typeof data?.explicitAnchor === 'number') ? data.explicitAnchor : null;
-                                   
                                    this.recomputeSlipWindow();
                                }
                                break;
@@ -427,7 +418,6 @@ const LFO_DEST_NONE = -1;
                                break;
                            case 'setBreakSlipWindow':
                                this.slipWindowSeconds = Math.max(0, data?.windowSeconds || 0);
-                               this.forcedSlipAnchor = (typeof data?.explicitAnchor === 'number') ? data.explicitAnchor : null;
                                this.recomputeSlipWindow();
                                break;
                            case 'setBreakFxSend':
@@ -978,5 +968,3 @@ return true;
 }
 }
 registerProcessor('synth-processor', SynthProcessor);
-
-
