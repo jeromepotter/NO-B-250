@@ -496,11 +496,28 @@ let liveLfoOutputs = [0, 0, 0, 0];
             if (!synthNode || !breakBufferLoaded) return;
             const nextWindow = getBreakSlipWindowSeconds();
             if (!Number.isFinite(nextWindow)) return;
-            if (Math.abs(nextWindow - breakSlipWindowSeconds) < 1e-5) return;
-            breakSlipWindowSeconds = nextWindow;
             
+            // Only proceed if the window size actually changed
+            if (Math.abs(nextWindow - breakSlipWindowSeconds) < 1e-5) return;
+            
+            breakSlipWindowSeconds = nextWindow;
+
+            // --- LOGIC UPDATE: WHEN TO GRAB A NEW SLICE? ---
+            // 1. If we are in Free Mode (!breakSlipAnchorHoldEnabled) -> Always grab.
+            // 2. If we are in Locked Mode but the User turned the knob (divisionChanged) -> Grab "Now" and lock it.
+            // 3. If we are in Locked Mode and just Tempo drifted -> Keep old slice (Don't grab).
+            
+            const divisionChanged = (previousDivision !== null && previousDivision !== undefined) && 
+                                    (Math.abs(previousDivision - breakSlipActiveDivision) > 1e-5);
+
+            if (!breakSlipAnchorHoldEnabled || divisionChanged) {
+                refreshBreakSlipAnchor();
+            }
+            // -----------------------------------------------
+
+            // Calculate Explicit Anchor (for Locked Mode)
             let explicitAnchor = null;
-            if (breakSlipAnchorHoldEnabled && breakSampleLength > 0) {
+            if (breakSlipAnchorHoldEnabled && typeof breakSampleLength === 'number' && breakSampleLength > 0) {
                 explicitAnchor = breakSlipAnchorNormalized * breakSampleLength;
             }
             
@@ -508,15 +525,10 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 type: 'setBreakSlipWindow', 
                 data: { 
                     windowSeconds: breakSlipWindowSeconds,
-                    explicitAnchor: explicitAnchor // Send it to processor
+                    explicitAnchor: explicitAnchor 
                 } 
             });
-            const shouldRefresh = breakSlipAnchorHoldEnabled
-                ? shouldRefreshBreakSlipAnchor(previousDivision, breakSlipActiveDivision)
-                : (isBreakSlipActive(previousDivision) || isBreakSlipActive(breakSlipActiveDivision));
-            if (shouldRefresh) {
-                refreshBreakSlipAnchor();
-            }
+            
             drawBreakWaveform(breakWaveformLastProgress);
         }
 
@@ -5692,6 +5704,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
