@@ -111,6 +111,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakWaveformColors = null;
         let breakWaveformLastProgress = 0;
         let breakSlipCycleStartTime = 0;
+        let breakSlipGrabProgress = null;
         let breakFxSendToGlobalFx = false;
         let breakSlipAnchorHoldEnabled = true;
         const BREAK_SLIP_DIVISIONS = [4, 2, 1, 0.5, 0.25, 0.125, 0.0625, 0.03125];
@@ -497,33 +498,45 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const nextWindow = getBreakSlipWindowSeconds();
             if (!Number.isFinite(nextWindow)) return;
             
-            const windowChanged = Math.abs(nextWindow - breakSlipWindowSeconds) > 1e-5;
-            
-            // --- FIX 1: RESTORE FREE MODE BEHAVIOR ---
-            // If we are in Free Mode (!breakSlipAnchorHoldEnabled), we MUST proceed 
-            // even if the window hasn't changed, because we need to update the anchor 
-            // to follow the track (chase the tail).
-            // We only return early if we are LOCKED and the window hasn't changed.
-            if (!windowChanged && previousDivision === null && breakSlipAnchorHoldEnabled) return;
-            // -----------------------------------------
-            
+            // Allow update even if window size hasn't changed (needed for "Surfing")
             breakSlipWindowSeconds = nextWindow;
 
-            // --- "SLIP ROLL" LOGIC ---
-            const isFreeMode = !breakSlipAnchorHoldEnabled;
-            // Use a small epsilon for "4" to handle floating point jitter
-            const isResetState = breakSlipActiveDivision >= 3.99; 
-            const isEngagingLock = (previousDivision !== null && previousDivision >= 3.99 && breakSlipActiveDivision < 3.99);
+            // --- CALCULATE CURRENT PLAYHEAD POSITION ---
+            const now = audioContext ? audioContext.currentTime : (performance.now() / 1000);
+            const rate = Math.max(0.01, breakPlaybackRate);
+            const effectiveDuration = breakWaveformDuration / rate;
+            const elapsed = Math.max(0, now - breakPlaybackStartTime);
+            const currentProgress = effectiveDuration > 0 ? (elapsed % effectiveDuration) / effectiveDuration : 0;
+            const windowNorm = effectiveDuration > 0 ? breakSlipWindowSeconds / effectiveDuration : 0;
 
-            // 1. Free Mode OR Reset State (Knob at 4): Always refresh (follow track).
-            // 2. Engaging (4 -> smaller): Refresh ONCE (Snap to Now).
-            // 3. Otherwise (Locked & manipulation): SKIP refresh (Keep the lock).
-            if (isFreeMode || isResetState || isEngagingLock) {
+            // --- "SLIP ROLL" LOGIC ---
+            // 1. "Safe State" = Free Mode OR Knob is at 4 (Reset)
+            const isSafeState = !breakSlipAnchorHoldEnabled || breakSlipActiveDivision >= 3.99;
+
+            if (isSafeState) {
+                // We are surfing! Clear the grab point and refresh normally.
+                breakSlipGrabProgress = null;
                 refreshBreakSlipAnchor();
+            } else {
+                // We are in "Locked/Stutter State" (< 4)
+                
+                // If this is the FIRST moment we entered the lock, capture the current tail!
+                if (breakSlipGrabProgress === null) {
+                    breakSlipGrabProgress = currentProgress;
+                }
+
+                // Calculate Anchor relative to the CAPTURED point (Zoom behavior)
+                // Anchor = GrabbedPoint - NewWindowSize
+                breakSlipAnchorNormalized = Math.max(0, breakSlipGrabProgress - windowNorm);
+                
+                // Keep the visual cycle timer synced for the red box animation
+                breakSlipCycleStartTime = now;
             }
 
+            // --- SEND TO AUDIO ENGINE ---
             let explicitAnchor = null;
-            if (breakSlipAnchorHoldEnabled && typeof breakSampleLength === 'number' && breakSampleLength > 0) {
+            // Only force the anchor if we are effectively locked
+            if (!isSafeState && typeof breakSampleLength === 'number' && breakSampleLength > 0) {
                 explicitAnchor = breakSlipAnchorNormalized * breakSampleLength;
             }
             
@@ -5710,6 +5723,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
