@@ -454,7 +454,7 @@ case 'ping':
                    this.params[20] = 0.5; this.params[21] = 0.5; this.params[26] = 0.5; this.params[27] = 0.5;
                    this.params[32] = 0.5; this.params[33] = 0.0; this.params[34] = 0.7;
                }
-      
+      updateFilterCoefficients(c,v, res){ const p=Math.pow(v,3); const Q=0.707 + Math.pow(res, 2) * 24; const w=2*Math.PI*(40+p*(sampleRate/2.2-40))/sampleRate; const s=Math.sin(w); const a=s/(2*Q); const i=1/(1+a); c.b0=(1-Math.cos(w))/2*i; c.b1=(1-Math.cos(w))*i; c.b2=(1-Math.cos(w))/2*i; c.a1=-2*Math.cos(w)*i; c.a2=(1-a)*i; }
                updateDjFilterCoefficients(c, v, res) {
     const centerOffset = v - 0.5;
     const amount = Math.min(1, Math.max(0, Math.abs(centerOffset) * 2));
@@ -1004,3 +1004,4 @@ return true;
 }
 }
 registerProcessor('synth-processor', SynthProcessor);
+
