@@ -95,7 +95,6 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakStartTimeoutId = null;
         let breakBufferLoaded = false;
         let breakSampleLoadingPromise = null;
-        let breakSampleLength = 0;
         let breakPlaybackRate = 1;
         let breakSlipBaseDivision = 4;
         let breakSlipActiveDivision = 4;
@@ -111,7 +110,6 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakWaveformColors = null;
         let breakWaveformLastProgress = 0;
         let breakSlipCycleStartTime = 0;
-        let breakSlipGrabProgress = null;
         let breakFxSendToGlobalFx = false;
         let breakSlipAnchorHoldEnabled = true;
         const BREAK_SLIP_DIVISIONS = [4, 2, 1, 0.5, 0.25, 0.125, 0.0625, 0.03125];
@@ -477,7 +475,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             applyIndicatorTransform(knob.indicator, knob.angle);
         }
 
-      function getBreakSlipWindowSeconds() {
+        function getBreakSlipWindowSeconds() {
             const bpm = calculateMidiBpm();
             if (!Number.isFinite(bpm) || bpm <= 0) return 0;
             if (breakSlipActiveDivision >= 3.999) return 0;
@@ -495,61 +493,17 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
         function sendBreakSlipWindow(previousDivision = null) {
             if (!synthNode || !breakBufferLoaded) return;
-            
-            // --- THIS WAS THE MISSING FUNCTION CAUSING THE ERROR ---
-            const nextWindow = getBreakSlipWindowSeconds(); 
-            
+            const nextWindow = getBreakSlipWindowSeconds();
             if (!Number.isFinite(nextWindow)) return;
-            
-            // Allow update even if window size hasn't changed (needed for "Surfing")
+            if (Math.abs(nextWindow - breakSlipWindowSeconds) < 1e-5) return;
             breakSlipWindowSeconds = nextWindow;
-
-            // --- CALCULATE CURRENT PLAYHEAD POSITION ---
-            const now = audioContext ? audioContext.currentTime : (performance.now() / 1000);
-            const rate = Math.max(0.01, breakPlaybackRate);
-            const effectiveDuration = breakWaveformDuration / rate;
-            const elapsed = Math.max(0, now - breakPlaybackStartTime);
-            const currentProgress = effectiveDuration > 0 ? (elapsed % effectiveDuration) / effectiveDuration : 0;
-            const windowNorm = effectiveDuration > 0 ? breakSlipWindowSeconds / effectiveDuration : 0;
-
-            // --- "SLIP ROLL" LOGIC ---
-            // 1. "Safe State" = Free Mode OR Knob is at 4 (Reset)
-            const isSafeState = !breakSlipAnchorHoldEnabled || breakSlipActiveDivision >= 3.99;
-
-            if (isSafeState) {
-                // We are surfing! Clear the grab point and refresh normally.
-                breakSlipGrabProgress = null;
+            synthNode.port.postMessage({ type: 'setBreakSlipWindow', data: { windowSeconds: breakSlipWindowSeconds } });
+            const shouldRefresh = breakSlipAnchorHoldEnabled
+                ? shouldRefreshBreakSlipAnchor(previousDivision, breakSlipActiveDivision)
+                : (isBreakSlipActive(previousDivision) || isBreakSlipActive(breakSlipActiveDivision));
+            if (shouldRefresh) {
                 refreshBreakSlipAnchor();
-            } else {
-                // We are in "Locked/Stutter State" (< 4)
-                
-                // If this is the FIRST moment we entered the lock, capture the CURRENT position.
-                if (breakSlipGrabProgress === null) {
-                    breakSlipGrabProgress = currentProgress;
-                }
-
-                // --- FIX: ANCHOR = GRAB POINT ---
-                // Locks exactly where you were, plays forward
-                breakSlipAnchorNormalized = breakSlipGrabProgress;
-                
-                // Keep the visual cycle timer synced
-                breakSlipCycleStartTime = now;
             }
-
-            // --- SEND TO AUDIO ENGINE ---
-            let explicitAnchor = null;
-            if (!isSafeState && typeof breakSampleLength === 'number' && breakSampleLength > 0) {
-                explicitAnchor = breakSlipAnchorNormalized * breakSampleLength;
-            }
-            
-            synthNode.port.postMessage({ 
-                type: 'setBreakSlipWindow', 
-                data: { 
-                    windowSeconds: breakSlipWindowSeconds,
-                    explicitAnchor: explicitAnchor 
-                } 
-            });
-            
             drawBreakWaveform(breakWaveformLastProgress);
         }
 
@@ -579,8 +533,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const elapsed = Math.max(0, nowSeconds - breakPlaybackStartTime);
             const progressSec = effectiveDuration > 0 ? (elapsed % effectiveDuration) : 0;
             const progressNorm = effectiveDuration > 0 ? progressSec / effectiveDuration : 0;
-            breakSlipAnchorNormalized = Math.max(0, progressNorm - windowNorm);
-            
+            const bucketIndex = Math.max(0, Math.floor(progressNorm / windowNorm));
+            breakSlipAnchorNormalized = Math.min(1, bucketIndex * windowNorm);
             breakSlipCycleStartTime = nowSeconds;
         }
 
@@ -802,7 +756,6 @@ let liveLfoOutputs = [0, 0, 0, 0];
                     const mono = decoded.numberOfChannels > 0 ? decoded.getChannelData(0) : null;
                     if (!mono) return;
                     breakWaveformDuration = decoded.duration || 0;
-                    breakSampleLength = mono.length;
                     breakWaveformPeaks = buildBreakWaveformPeaks(mono);
                     const copy = new Float32Array(mono.length);
                     copy.set(mono);
@@ -826,31 +779,11 @@ let liveLfoOutputs = [0, 0, 0, 0];
             if (!synthNode || !breakRunning || !breakBufferLoaded) return;
             const nextRate = getBreakPlaybackRate();
             if (!Number.isFinite(nextRate)) return;
-            
             if (Math.abs(nextRate - breakPlaybackRate) < 0.001) return;
-
-            const now = audioContext ? audioContext.currentTime : (performance.now() / 1000);
-
-            // 1. Calculate current loop phase (0% to 100%)
-            const oldRate = Math.max(0.01, breakPlaybackRate);
-            const oldEffectiveDuration = breakWaveformDuration / oldRate;
-            const oldElapsed = Math.max(0, now - breakPlaybackStartTime);
-            const currentPhase = oldEffectiveDuration > 0 ? (oldElapsed % oldEffectiveDuration) / oldEffectiveDuration : 0;
-
-            // 2. Update Rate
             breakPlaybackRate = nextRate;
             synthNode.port.postMessage({ type: 'setBreakPlaybackRate', data: { playbackRate: breakPlaybackRate } });
-
-            // 3. Preserve Phase (Back-calculate start time)
-            const newEffectiveDuration = breakWaveformDuration / breakPlaybackRate;
-            breakPlaybackStartTime = now - (currentPhase * newEffectiveDuration);
-
-            // 4. Update Loop Anchor if NOT locked
-            if (!breakSlipAnchorHoldEnabled) {
-                refreshBreakSlipAnchor();
-            } else {
-                breakSlipCycleStartTime = now; 
-            }
+            breakPlaybackStartTime = audioContext ? audioContext.currentTime : (performance.now() / 1000);
+            refreshBreakSlipAnchor();
         }
 
         function handleBreakLoopTick() {
@@ -872,31 +805,10 @@ let liveLfoOutputs = [0, 0, 0, 0];
             breakRunning = true;
             breakPlaybackRate = getBreakPlaybackRate();
             breakPlaybackStartTime = audioContext ? audioContext.currentTime : (performance.now() / 1000);
-            breakSlipWindowSeconds = Number.NaN;
-            
-            // 1. Update Window logic (sets breakSlipGrabProgress if needed)
+            breakSlipWindowSeconds = Number.NaN; // Force re-send of current slip window
             sendBreakSlipWindow();
-            
-            // 2. Calculate Start Anchor
-            let startAnchor = null;
-            // Check if we are in Locked Mode (< 4)
-            if (breakSlipAnchorHoldEnabled && breakSlipActiveDivision < 3.99 && breakSampleLength > 0) {
-                 // Use the normalized anchor we just calculated/restored
-                 startAnchor = breakSlipAnchorNormalized * breakSampleLength;
-            } else {
-                // If at 4 or Free Mode, just ensure visuals are fresh
-                refreshBreakSlipAnchor();
-            }
-
-            // 3. Start Loop
-            synthNode?.port.postMessage({ 
-                type: 'startBreakLoop', 
-                data: { 
-                    playbackRate: breakPlaybackRate,
-                    explicitAnchor: startAnchor 
-                } 
-            });
-            
+            refreshBreakSlipAnchor();
+            synthNode?.port.postMessage({ type: 'startBreakLoop', data: { playbackRate: breakPlaybackRate } });
             startBreakWaveformAnimation();
         }
 
@@ -5725,60 +5637,5 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
