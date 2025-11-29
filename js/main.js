@@ -498,24 +498,26 @@ let liveLfoOutputs = [0, 0, 0, 0];
             if (!Number.isFinite(nextWindow)) return;
             
             // Only proceed if the window size actually changed
-            if (Math.abs(nextWindow - breakSlipWindowSeconds) < 1e-5) return;
+            // (Or if we need to refresh the anchor due to a mode change)
+            if (Math.abs(nextWindow - breakSlipWindowSeconds) < 1e-5 && previousDivision === null) return;
             
             breakSlipWindowSeconds = nextWindow;
 
-            // --- LOGIC UPDATE: WHEN TO GRAB A NEW SLICE? ---
-            // 1. If we are in Free Mode (!breakSlipAnchorHoldEnabled) -> Always grab.
-            // 2. If we are in Locked Mode but the User turned the knob (divisionChanged) -> Grab "Now" and lock it.
-            // 3. If we are in Locked Mode and just Tempo drifted -> Keep old slice (Don't grab).
+            // --- NEW LOGIC: "SLIP ROLL" BEHAVIOR ---
+            // 1. Free Mode (!breakSlipAnchorHoldEnabled): Always refresh (follow track).
+            // 2. At 4 (breakSlipActiveDivision === 4): Always refresh (follow track/ready to grab).
+            // 3. Leaving 4 (previousDivision === 4): The "Grab" moment. Snap to NOW and lock.
+            // 4. Everything else (e.g. 2 -> 1): Do NOT refresh. Keep the lock.
             
-            const divisionChanged = (previousDivision !== null && previousDivision !== undefined) && 
-                                    (Math.abs(previousDivision - breakSlipActiveDivision) > 1e-5);
+            const isFreeMode = !breakSlipAnchorHoldEnabled;
+            const isResetState = breakSlipActiveDivision >= 4; // "4" is the release state
+            const isEngagingLock = (previousDivision !== null && previousDivision >= 4 && breakSlipActiveDivision < 4);
 
-            if (!breakSlipAnchorHoldEnabled || divisionChanged) {
+            if (isFreeMode || isResetState || isEngagingLock) {
                 refreshBreakSlipAnchor();
             }
-            // -----------------------------------------------
+            // ---------------------------------------
 
-            // Calculate Explicit Anchor (for Locked Mode)
             let explicitAnchor = null;
             if (breakSlipAnchorHoldEnabled && typeof breakSampleLength === 'number' && breakSampleLength > 0) {
                 explicitAnchor = breakSlipAnchorNormalized * breakSampleLength;
@@ -5704,6 +5706,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
