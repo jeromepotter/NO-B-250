@@ -2700,6 +2700,7 @@ function sendMidiMessage(message) {
                const d = fxKnobData[activeMouseFxKnobId]; if (!d || !d.isDragging) return;
                e.preventDefault(); const cY = e.clientY; let sensitivity = 1.5;
                if (activeMouseFxKnobId === 16 || activeMouseFxKnobId === 17) { sensitivity = 0.6; }
+               else if (activeMouseFxKnobId === 35) { sensitivity = 3.0; }
                const dY = (d.startY - cY) * sensitivity; d.startY = cY; updateFxKnob(activeMouseFxKnobId, dY);
            };
            const handleFxMouseUp = () => {
@@ -2736,6 +2737,7 @@ function sendMidiMessage(message) {
                    const cY = t.clientY;
                    let sensitivity = 1.5;
                    if (id === '16' || id === '17') { sensitivity = 0.6; }
+                   else if (id === '35') { sensitivity = 3.0; }
                    const deltaX = d.touchStartX === null ? 0 : Math.abs(t.clientX - d.touchStartX);
                    const deltaYAbs = d.touchStartY === null ? 0 : Math.abs(t.clientY - d.touchStartY);
                    if (!d.touchMoved && (deltaX > 6 || deltaYAbs > 6)) {
