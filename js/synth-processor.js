@@ -672,8 +672,9 @@ const getWaveSample = (phase, waveType) => {
     switch (waveType) {
         case 0: return (phase / Math.PI) - 1.0; // Saw
         case 1: return phase < Math.PI ? 1.0 : -1.0; // Square
-        case 2: return Math.sin(phase); // Sine
-        case 3: return (2 / Math.PI) * Math.asin(Math.sin(phase)); // Triangle
+        case 2: return Math.sin(phase) * 1.5; // Sine
+        case 3: return ((2 / Math.PI) * Math.asin(Math.sin(phase))) * 1.5; // Triangle
+        
         default: return (phase / Math.PI) - 1.0;
     }
 };
@@ -1004,4 +1005,5 @@ return true;
 }
 }
 registerProcessor('synth-processor', SynthProcessor);
+
 
