@@ -112,7 +112,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakSlipCycleStartTime = 0;
         let breakFxSendToGlobalFx = false;
         let breakSlipAnchorHoldEnabled = true;
-        const BREAK_SLIP_DIVISIONS = [4, 2, 1, 0.5, 0.25, 0.125, 0.0625, 0.03125];
+        const BREAK_SLIP_DIVISIONS = [4, 1, 0.5, 0.25, 0.125, 0.0625, 0.03125];
         const BREAK_MODE_ARP_TOGGLE_COUNT = 6;
         const BREAK_MODE_ARP_WINDOW_MS = 1800;
         let leftArpToggleCount = 0;
@@ -424,6 +424,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         }
 
         function formatBreakSlipLabel(value) {
+            if (value >= 3.999) return 'OFF';
             if (value >= 1) return value.toString();
             return `1/${Math.round(1 / value)}`;
         }
