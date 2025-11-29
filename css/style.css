@@ -28,9 +28,6 @@
 }
 
 body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); touch-action: manipulation; color: var(--color-text); overflow-y: auto; -webkit-user-select: none; -ms-user-select: none; user-select: none; }
-body.break-mode {
-  background-color: #1a1a1a !important;
-}
       .text-yellow-300 { color: var(--color-accent-yellow); }
       .knob-border { border: 2px solid var(--color-surface); box-shadow: 0 0 0 2px var(--color-surface); }
       .main-knob { cursor: grab; aspect-ratio: 1 / 1; transition: background-color 0.05s linear; width: 100%; }
@@ -278,34 +275,6 @@ body.easter-egg-mode #note-display-1,
 body.easter-egg-mode #note-display-2,
 body.easter-egg-mode .arp-note-indicator {
   color: var(--color-midnight-blue) !important;
-}
-/* Keep Break Mode palette when Duplicate Note Mode is active */
-body.break-mode.easter-egg-mode {
-  color: #917373;
-}
-
-body.break-mode.easter-egg-mode #note-display-1,
-body.break-mode.easter-egg-mode #note-display-2,
-body.break-mode.easter-egg-mode .arp-note-indicator,
-body.break-mode.easter-egg-mode #voice-0-wave-display,
-body.break-mode.easter-egg-mode #voice-1-wave-display {
-  color: #917373 !important;
-}
-
-body.break-mode.easter-egg-mode .feel-pattern-step.on {
-  background: var(--feel-preview-color) !important;
-}
-
-body.break-mode.easter-egg-mode .rate-display-row,
-body.break-mode.easter-egg-mode .arp-rate-button,
-body.break-mode.easter-egg-mode .rate-bpm-display {
-  color: #917373 !important;
-}
-
-body.break-mode.easter-egg-mode .main-header,
-body.break-mode.easter-egg-mode .main-header h1,
-body.break-mode.easter-egg-mode #main-header-buttons {
-  color: #000000 !important;
 }
       body.easter-egg-mode .how-to-guide {
         color: var(--color-text);
@@ -637,7 +606,8 @@ animation: note-retrigger 0.08s ease-out;
   margin: 10px auto 0;
   max-width: 680px;
   background: transparent;
-  border-radius: 8px;
+  border-radius: 0;
+  border: 1px solid currentColor;
   padding: 12px;
 }
 
@@ -647,6 +617,10 @@ animation: note-retrigger 0.08s ease-out;
 
 .break-grid.visible {
   display: block;
+}
+
+body.easter-egg-mode .break-grid {
+  border-color: var(--color-text-dark, #000000);
 }
 
 .break-grid-header {
@@ -693,45 +667,4 @@ animation: note-retrigger 0.08s ease-out;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-}
-
-
-body.break-mode #note-display-1,
-body.break-mode #note-display-2,
-body.break-mode .arp-note-indicator,
-body.break-mode #voice-0-wave-display,
-body.break-mode #voice-1-wave-display {
-  color: #917373 !important;
-}
-
-body.break-mode .retro-select {
-  color: #917373 !important;
-  border-color: #917373 !important;
-}
-
-body.break-mode .retro-select:focus {
-  outline-color: #917373 !important;
-}
-
-body.break-mode .preset-nav-button,
-body.break-mode .preset-nav-button:hover {
-  color: #917373 !important;
-}
-
-body.break-mode .power-switch,
-body.break-mode .piano {
-  border-color: #917373 !important;
-}
-
-body.break-mode .retro-select option {
-  background-color: #1a1a1a;
-  color: #917373;
-}
-
-body.break-mode label {
-  color: #917373 !important;
-}
-
-body.break-mode .rate-bpm-display {
-  color: #917373 !important;
 }
