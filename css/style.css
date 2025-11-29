@@ -695,6 +695,30 @@ animation: note-retrigger 0.08s ease-out;
   text-transform: uppercase;
 }
 
+#synth-container {
+  max-width: 100%;
+}
+
+#synth-layout-grid {
+  width: 100%;
+}
+
+@media (min-width: 1024px) {
+  #synth-container {
+    max-width: 1200px;
+  }
+
+  #synth-layout-grid {
+    align-items: start;
+  }
+}
+
+@media (min-width: 1280px) {
+  #synth-container {
+    max-width: 1400px;
+  }
+}
+
 
 body.break-mode #note-display-1,
 body.break-mode #note-display-2,
