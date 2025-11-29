@@ -779,11 +779,36 @@ let liveLfoOutputs = [0, 0, 0, 0];
             if (!synthNode || !breakRunning || !breakBufferLoaded) return;
             const nextRate = getBreakPlaybackRate();
             if (!Number.isFinite(nextRate)) return;
+            
+            // Only update if rate actually changed significantly
             if (Math.abs(nextRate - breakPlaybackRate) < 0.001) return;
+
+            const now = audioContext ? audioContext.currentTime : (performance.now() / 1000);
+
+            // 1. Calculate where we currently are in the loop (0% to 100%)
+            const oldRate = Math.max(0.01, breakPlaybackRate);
+            const oldEffectiveDuration = breakWaveformDuration / oldRate;
+            const oldElapsed = Math.max(0, now - breakPlaybackStartTime);
+            const currentPhase = oldEffectiveDuration > 0 ? (oldElapsed % oldEffectiveDuration) / oldEffectiveDuration : 0;
+
+            // 2. Update the Rate
             breakPlaybackRate = nextRate;
             synthNode.port.postMessage({ type: 'setBreakPlaybackRate', data: { playbackRate: breakPlaybackRate } });
-            breakPlaybackStartTime = audioContext ? audioContext.currentTime : (performance.now() / 1000);
-            refreshBreakSlipAnchor();
+
+            // 3. Back-calculate the new start time so the visual playhead doesn't jump
+            // New Start = Now - (Percentage * New Total Duration)
+            const newEffectiveDuration = breakWaveformDuration / breakPlaybackRate;
+            breakPlaybackStartTime = now - (currentPhase * newEffectiveDuration);
+
+            // 4. Update the Loop Anchor (Red Box)
+            // CRITICAL: Only move the red box if we are NOT in Locked Mode.
+            if (!breakSlipAnchorHoldEnabled) {
+                refreshBreakSlipAnchor();
+            } else {
+                // If locked, we still need to update the cycle start time for the "Slip Head" animation
+                // to stay in sync, even if the anchor (red box) doesn't move.
+                breakSlipCycleStartTime = now; 
+            }
         }
 
         function handleBreakLoopTick() {
@@ -5637,6 +5662,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
