@@ -4,8 +4,11 @@
 
 ## [11.28] - 2025-11-29
 
-###Fixed
+ ### Fixed
 - FEEL knob no longer resets playhead allowing continuous groove
+
+  ### Added
+- Break Mode data to json
 
   
 ## [11.27] - 2025-11-27
