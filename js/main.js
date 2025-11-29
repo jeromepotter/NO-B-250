@@ -88,6 +88,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakSlipDisplay = null;
         let breakFxSwitch = null;
         let breakSlipModeSwitch = null;
+        let breakModeSwitch = null;
         let oscillatorRow = null;
         let breakModeActive = false;
         let breakPlayRequested = false;
@@ -113,10 +114,6 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakFxSendToGlobalFx = false;
         let breakSlipAnchorHoldEnabled = true;
         const BREAK_SLIP_DIVISIONS = [4, 1, 0.5, 0.25, 0.125, 0.0625, 0.03125];
-        const BREAK_MODE_ARP_TOGGLE_COUNT = 6;
-        const BREAK_MODE_ARP_WINDOW_MS = 1800;
-        let leftArpToggleCount = 0;
-        let leftArpToggleTimer = null;
 
         function getLfoDestChain(lfo) {
             if (lfo && Array.isArray(lfo.destChain) && lfo.destChain.length) return lfo.destChain;
@@ -595,11 +592,14 @@ let liveLfoOutputs = [0, 0, 0, 0];
         }
 
         function updateBreakGridVisibility() {
+            if (breakModeSwitch) {
+                breakModeSwitch.classList.toggle('on', breakModeActive);
+                breakModeSwitch.setAttribute('aria-checked', breakModeActive ? 'true' : 'false');
+            }
             if (!breakGridContainer) return;
             const shouldShow = breakModeActive;
             breakGridContainer.classList.toggle('visible', shouldShow);
             breakGridContainer.classList.toggle('hidden', !shouldShow);
-            document.body?.classList.toggle('break-mode', shouldShow);
             if (shouldShow) {
                 resizeBreakWaveformCanvas();
                 drawBreakWaveform();
@@ -3948,26 +3948,6 @@ lfoState.forEach((lfo, lfoIndex) => {
                 stopMasterClockIfIdle();
             }
         }
-
-        function handleLeftArpToggleTrigger() {
-            leftArpToggleCount++;
-
-            if (!leftArpToggleTimer) {
-                leftArpToggleTimer = setTimeout(() => {
-                    leftArpToggleCount = 0;
-                    leftArpToggleTimer = null;
-                }, BREAK_MODE_ARP_WINDOW_MS);
-            }
-
-            if (leftArpToggleCount >= BREAK_MODE_ARP_TOGGLE_COUNT) {
-                if (leftArpToggleTimer) {
-                    clearTimeout(leftArpToggleTimer);
-                    leftArpToggleTimer = null;
-                }
-                leftArpToggleCount = 0;
-                toggleBreakMode();
-            }
-        }
  function toggleLfoModeUI(forceState, isPresetLoad = false) {
     const wasInPatchingMode = activePatchingLfo !== null;
     if (wasInPatchingMode) stopLfoPatching();
@@ -4786,6 +4766,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
            breakSlipDisplay = document.getElementById('break-slip-display');
            breakFxSwitch = document.getElementById('break-fx-switch');
            breakSlipModeSwitch = document.getElementById('break-slip-mode-switch');
+           breakModeSwitch = document.getElementById('break-mode-switch');
            breakWaveCanvas = document.getElementById('break-waveform');
            breakWaveCtx = breakWaveCanvas ? breakWaveCanvas.getContext('2d') : null;
            
@@ -4858,6 +4839,12 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                    setBreakSlipAnchorHold(!breakSlipAnchorHoldEnabled);
                });
                updateBreakSlipModeUi();
+           }
+           if (breakModeSwitch) {
+               addTouchListener(breakModeSwitch, async () => {
+                   if (!isPowerOn) await powerOn();
+                   toggleBreakMode();
+               });
            }
            updateBreakSlipUi();
            updateBreakGridVisibility();
@@ -5427,9 +5414,6 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                    if (!s.isArpOn) { stopArpeggiator(s.id); if(s.isHeld) { s.isNoteOn = true; const freq = calculateNote(s.id, false); if(synthNode) synthNode.port.postMessage({type:'noteOn',data:{voice:s.id,freq:freq}}); } s.arpNotes = []; updateSequenceDisplay(s.id);if(s.dom.arpNoteDisplay)s.dom.arpNoteDisplay.textContent="--"; }
                    else { if(s.isHeld) { if (s.isNoteOn) { if(synthNode) synthNode.port.postMessage({type:'noteOff', data:{voice:s.id}}); s.isNoteOn = false; } playNote(s.id); } }
                    updateStateFromTotalAngle(s.id);
-                   if (s.id === 0) {
-                       handleLeftArpToggleTrigger();
-                   }
                });
 
                addTouchListener(s.dom.arpModeSwitch, () => { 
