@@ -1,4 +1,4 @@
-// --- ZitaReverb Engine (Integrated Helper Class) ---
+// --- ZitaReverb Engine (Optimized) ---
 class ZitaReverbEngine {
     constructor(sr) {
         this.sampleRate = sr;
@@ -48,6 +48,10 @@ class ZitaReverbEngine {
         for (let i = 0; i < 8; i++) {
             this.filterStates.push({ damping: [0, 0], lowpass: [0, 0], combOut: [0, 0], rec: [0, 0, 0] });
         }
+        
+        // FIX: Pre-allocate this array once to prevent garbage collection stutter
+        this.combOuts = new Float32Array(8); 
+        
         this.lfCoeff = { scale: 0, feedback: 0 }; 
         this.coeffs = [];
         this.IOTA = 0;
@@ -95,13 +99,9 @@ class ZitaReverbEngine {
             const delayedR = this.inputR[(this.IOTA - this.preDelaySamples) & 16383];
             const fTemp0 = 0.3 * delayedL;
             const fTemp2 = 0.3 * delayedR;
-            const combOuts = new Array(8);
-
-            for(let j=0; j<8; j++) {
-                // Determine feedback inputs based on the matrix
-                let feedbackInput = 0; 
-                // We'll calculate the matrix mix in the specialized blocks below to match the C++ exactly
-            }
+            
+            // FIX: Use pre-allocated member variable instead of new Array(8)
+            const combOuts = this.combOuts;
 
             // Unrolled loop for the 8 filters matching the Faust structure
             // Filter 0
@@ -454,17 +454,23 @@ case 'ping':
                    this.params[20] = 0.5; this.params[21] = 0.5; this.params[26] = 0.5; this.params[27] = 0.5;
                    this.params[32] = 0.5; this.params[33] = 0.0; this.params[34] = 0.7;
                }
-      
-               updateFilterCoefficients(c,v, res){ const p=Math.pow(v,3); const Q=0.707 + Math.pow(res, 2) * 24; const w=2*Math.PI*(40+p*(sampleRate/2.2-40))/sampleRate; const s=Math.sin(w); const a=s/(2*Q); const i=1/(1+a); c.b0=(1-Math.cos(w))/2*i; c.b1=(1-Math.cos(w))*i; c.b2=(1-Math.cos(w))/2*i; c.a1=-2*Math.cos(w)*i; c.a2=(1-a)*i; }
+      updateFilterCoefficients(c,v, res){ const p=Math.pow(v,3); const Q=0.707 + Math.pow(res, 2) * 24; const w=2*Math.PI*(40+p*(sampleRate/2.2-40))/sampleRate; const s=Math.sin(w); const a=s/(2*Q); const i=1/(1+a); c.b0=(1-Math.cos(w))/2*i; c.b1=(1-Math.cos(w))*i; c.b2=(1-Math.cos(w))/2*i; c.a1=-2*Math.cos(w)*i; c.a2=(1-a)*i; }
                updateDjFilterCoefficients(c, v, res) {
-                   const centerOffset = v - 0.5;
-                   const amount = Math.min(1, Math.max(0, Math.abs(centerOffset) * 2));
-                   if (amount < 0.001) {
-                       c.b0 = 1; c.b1 = 0; c.b2 = 0; c.a1 = 0; c.a2 = 0;
-                       return;
-                   }
+    const centerOffset = v - 0.5;
+    const amount = Math.min(1, Math.max(0, Math.abs(centerOffset) * 2));
+    if (amount < 0.001) {
+        c.b0 = 1; c.b1 = 0; c.b2 = 0; c.a1 = 0; c.a2 = 0;
+        return;
+    }
 
-                   const Q = 0.707 + Math.pow(res, 2) * 24;
+    // FIX: "Safe Zone Fade"
+    // Multiply 'amount' by 10 so the fade happens very quickly.
+    // Result: Resonance is untouched (1.0) for 90% of the knob's range.
+    // It only fades out when you are within +/- 5% of the center.
+    const fade = Math.min(1, amount * 10);
+    const scaledRes = res * fade;
+    
+    const Q = 0.707 + Math.pow(scaledRes, 2) * 24;
                    const freqNorm = centerOffset < 0
                        ? Math.pow(1 - amount, 3)
                        : Math.pow(amount, 3);
@@ -666,8 +672,9 @@ const getWaveSample = (phase, waveType) => {
     switch (waveType) {
         case 0: return (phase / Math.PI) - 1.0; // Saw
         case 1: return phase < Math.PI ? 1.0 : -1.0; // Square
-        case 2: return Math.sin(phase); // Sine
-        case 3: return (2 / Math.PI) * Math.asin(Math.sin(phase)); // Triangle
+        case 2: return Math.sin(phase) * 1.5; // Sine
+        case 3: return ((2 / Math.PI) * Math.asin(Math.sin(phase))) * 1.5; // Triangle
+        
         default: return (phase / Math.PI) - 1.0;
     }
 };
@@ -998,3 +1005,6 @@ return true;
 }
 }
 registerProcessor('synth-processor', SynthProcessor);
+
+
+
