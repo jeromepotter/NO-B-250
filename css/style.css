@@ -697,25 +697,82 @@ animation: note-retrigger 0.08s ease-out;
 
 #synth-container {
   max-width: 100%;
+  margin: 0 auto;
+  padding-inline: clamp(0.75rem, 2vw, 1.5rem);
 }
 
 #synth-layout-grid {
   width: 100%;
+  grid-template-columns: 1fr;
+  grid-auto-rows: min-content;
+}
+
+.layout-oscillators {
+  grid-area: osc;
+}
+
+.layout-break {
+  grid-area: break;
+}
+
+.layout-master {
+  grid-area: master;
+}
+
+.layout-scale {
+  grid-area: scale;
+}
+
+.layout-fx {
+  grid-area: fx;
+}
+
+.layout-lfo {
+  grid-area: lfo;
+}
+
+.layout-midi {
+  grid-area: midi;
 }
 
 @media (min-width: 1024px) {
+  body {
+    overflow-y: hidden;
+  }
+
   #synth-container {
-    max-width: 1200px;
+    max-width: 1300px;
   }
 
   #synth-layout-grid {
     align-items: start;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-areas:
+      "osc osc osc"
+      "break break break"
+      "master scale midi"
+      "fx fx lfo";
+    gap: 1.25rem;
+  }
+
+  #midi-output-container {
+    justify-content: flex-start;
   }
 }
 
 @media (min-width: 1280px) {
   #synth-container {
-    max-width: 1400px;
+    max-width: 1600px;
+  }
+
+  #synth-layout-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-areas:
+      "osc osc osc osc"
+      "break break break break"
+      "master scale midi midi"
+      "fx fx lfo lfo";
+    gap: 1.5rem;
   }
 }
 

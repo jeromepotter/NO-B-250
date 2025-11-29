@@ -112,9 +112,9 @@
         </div>
       </div>
 
-      <div id="synth-layout-grid" class="grid gap-4 sm:gap-5 lg:gap-6 lg:grid-cols-2 xl:grid-cols-3 items-start">
+      <div id="synth-layout-grid" class="grid gap-4 sm:gap-5 lg:gap-6 items-start">
 
-      <div id="oscillator-row" class="flex justify-around items-start p-2 gap-x-4 lg:col-span-2 xl:col-span-3">
+      <div id="oscillator-row" class="layout-oscillators flex justify-around items-start p-2 gap-x-4">
         
         <div class="flex-1 flex flex-col justify-center items-center">
           <div class="w-40 h-40 sm:w-48 sm:h-48 relative">
@@ -307,7 +307,7 @@
         </div>
       </div>
 
-      <div id="break-grid-container" class="break-grid hidden lg:col-span-2 xl:col-span-3">
+      <div id="break-grid-container" class="layout-break break-grid hidden">
         <div class="break-grid-header">
           <button id="break-play-button" class="retro-button break-play-btn">PLAY</button>
           <div class="break-knob-row">
@@ -354,7 +354,7 @@
         </div>
       </div>
 
-      <div id="master-arp-controls" class="flex flex-wrap justify-center items-center gap-4 p-2 lg:col-span-1">
+      <div id="master-arp-controls" class="layout-master flex flex-wrap justify-center items-center gap-4 p-2">
         <div id="rate-sync-container" class="flex flex-col items-center">
           <div id="arp-sync-switch" class="power-switch small">
             <div class="power-switch-handle"></div>
@@ -380,7 +380,7 @@
           <label class="font-bold tracking-wider text-xs sm:text-sm mt-2">ARP LOCK</label>
         </div>
       </div>
-      <div id="custom-scale-builder" class="justify-center flex lg:justify-center lg:col-span-1">
+      <div id="custom-scale-builder" class="layout-scale justify-center flex lg:justify-center">
         <div class="piano">
           <div class="key white-key" data-note="0"></div>
           <div class="key white-key" data-note="2"></div>
@@ -396,119 +396,134 @@
           <div class="key black-key" data-note="10"></div>
         </div>
       </div>
-      <div id="fx-grid-container" class="lg:col-span-2 xl:col-span-3 space-y-2">
-      <div class="grid grid-cols-4 gap-x-4 gap-y-2 p-2">
-        <div class="flex flex-col items-center space-y-1">
-          <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="8">
-            <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+      <div id="fx-grid-container" class="layout-fx space-y-2">
+        <div class="grid grid-cols-4 gap-x-4 gap-y-2 p-2">
+          <div class="flex flex-col items-center space-y-1">
+            <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="8">
+              <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+            </div>
+            <label class="font-bold tracking-wider text-xs original-label">ATTACK</label>
           </div>
-          <label class="font-bold tracking-wider text-xs original-label">ATTACK</label>
-        </div>
-        <div class="flex flex-col items-center space-y-1">
-          <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="9">
-            <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+          <div class="flex flex-col items-center space-y-1">
+            <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="9">
+              <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+            </div>
+            <label class="font-bold tracking-wider text-xs original-label">DECAY</label>
           </div>
-          <label class="font-bold tracking-wider text-xs original-label">DECAY</label>
-        </div>
-        <div class="flex flex-col items-center space-y-1">
-          <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="10">
-            <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+          <div class="flex flex-col items-center space-y-1">
+            <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="10">
+              <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+            </div>
+            <label class="font-bold tracking-wider text-xs original-label">SUSTAIN</label>
           </div>
-          <label class="font-bold tracking-wider text-xs original-label">SUSTAIN</label>
-        </div>
-        <div class="flex flex-col items-center space-y-1">
-          <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="11">
-            <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+          <div class="flex flex-col items-center space-y-1">
+            <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="11">
+              <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+            </div>
+            <label class="font-bold tracking-wider text-xs original-label">RELEASE</label>
           </div>
-          <label class="font-bold tracking-wider text-xs original-label">RELEASE</label>
         </div>
-      </div>
-      <div class="grid grid-cols-4 gap-x-4 gap-y-2 p-2">
-        <div class="flex flex-col items-center space-y-1">
-          <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="6">
-            <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+        <div class="grid grid-cols-4 gap-x-4 gap-y-2 p-2">
+          <div class="flex flex-col items-center space-y-1">
+            <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="6">
+              <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+            </div>
+            <label class="font-bold tracking-wider text-xs original-label">CHORUS</label>
           </div>
-          <label class="font-bold tracking-wider text-xs original-label">CHORUS</label>
-        </div>
-        <div class="flex flex-col items-center space-y-1">
-          <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="3">
-            <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+          <div class="flex flex-col items-center space-y-1">
+            <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="3">
+              <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+            </div>
+            <label class="font-bold tracking-wider text-xs original-label">OSC3 MIX</label>
           </div>
-          <label class="font-bold tracking-wider text-xs original-label">OSC3 MIX</label>
-        </div>
-        <div class="flex flex-col items-center space-y-1">
-          <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="4">
-            <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+          <div class="flex flex-col items-center space-y-1">
+            <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="4">
+              <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+            </div>
+            <label class="font-bold tracking-wider text-xs original-label">DETUNE</label>
           </div>
-          <label class="font-bold tracking-wider text-xs original-label">DETUNE</label>
-        </div>
-        <div class="flex flex-col items-center space-y-1">
-          <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="0">
-            <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+          <div class="flex flex-col items-center space-y-1">
+            <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="0">
+              <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+            </div>
+            <label class="font-bold tracking-wider text-xs original-label">GLIDE</label>
           </div>
-          <label class="font-bold tracking-wider text-xs original-label">GLIDE</label>
         </div>
-      </div>
-      <div class="grid grid-cols-4 gap-x-4 gap-y-2 p-2">
+        <div class="grid grid-cols-4 gap-x-4 gap-y-2 p-2">
 
-        <div class="flex flex-col items-center space-y-1">
-          <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="1">
-            <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+          <div class="flex flex-col items-center space-y-1">
+            <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="1">
+              <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+            </div>
+            <label class="font-bold tracking-wider text-xs original-label">DISTORTION</label>
           </div>
-          <label class="font-bold tracking-wider text-xs original-label">DISTORTION</label>
-        </div>
-        <div class="flex flex-col items-center space-y-1">
-          <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="5">
-            <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+          <div class="flex flex-col items-center space-y-1">
+            <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="5">
+              <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+            </div>
+            <label class="font-bold tracking-wider text-xs original-label">AM</label>
           </div>
-          <label class="font-bold tracking-wider text-xs original-label">AM</label>
-        </div>
-        <div class="flex flex-col items-center space-y-1">
-          <div class="w-14 h-14 fx-delay-knob rounded-full relative fx-knob-container knob-border" data-fx-id="14">
-            <div class="w-1 h-4 fx-delay-indicator rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+          <div class="flex flex-col items-center space-y-1">
+            <div class="w-14 h-14 fx-delay-knob rounded-full relative fx-knob-container knob-border" data-fx-id="14">
+              <div class="w-1 h-4 fx-delay-indicator rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+            </div>
+            <label class="font-bold tracking-wider text-xs original-label">DELAY</label>
           </div>
-          <label class="font-bold tracking-wider text-xs original-label">DELAY</label>
-        </div>
-        <div class="flex flex-col items-center space-y-1">
-          <div class="w-14 h-14 fx-delay-knob rounded-full relative fx-knob-container knob-border" data-fx-id="15">
-            <div class="w-1 h-4 fx-delay-indicator rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+          <div class="flex flex-col items-center space-y-1">
+            <div class="w-14 h-14 fx-delay-knob rounded-full relative fx-knob-container knob-border" data-fx-id="15">
+              <div class="w-1 h-4 fx-delay-indicator rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+            </div>
+            <label class="font-bold tracking-wider text-xs original-label">DLY TIME</label>
           </div>
-          <label class="font-bold tracking-wider text-xs original-label">DLY TIME</label>
-        </div>
-      </div>
-
-      <div class="grid grid-cols-4 gap-x-4 gap-y-2 p-2">
-
-        <div class="flex flex-col items-center space-y-1">
-          <div class="w-14 h-14 fx-reverb-knob rounded-full relative fx-knob-container knob-border" data-fx-id="12">
-            <div class="w-1 h-4 fx-reverb-indicator rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
-          </div>
-          <label class="font-bold tracking-wider text-xs original-label">REVERB</label>
-        </div>
-        <div class="flex flex-col items-center space-y-1">
-          <div class="w-14 h-14 fx-reverb-knob rounded-full relative fx-knob-container knob-border" data-fx-id="13">
-            <div class="w-1 h-4 fx-reverb-indicator rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
-          </div>
-          <label class="font-bold tracking-wider text-xs original-label">RVB TIME</label>
         </div>
 
-        <div class="flex flex-col items-center space-y-1">
-          <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="2">
-            <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
-          </div>
-          <label class="font-bold tracking-wider text-xs original-label">FILTER</label>
-        </div>
-        <div class="flex flex-col items-center space-y-1">
-          <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="7">
-            <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
-          </div>
-          <label class="font-bold tracking-wider text-xs original-label">VOLUME</label>
-        </div>
-      </div>
+        <div class="grid grid-cols-4 gap-x-4 gap-y-2 p-2">
 
-           
+          <div class="flex flex-col items-center space-y-1">
+            <div class="w-14 h-14 fx-reverb-knob rounded-full relative fx-knob-container knob-border" data-fx-id="12">
+              <div class="w-1 h-4 fx-reverb-indicator rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+            </div>
+            <label class="font-bold tracking-wider text-xs original-label">REVERB</label>
+          </div>
+          <div class="flex flex-col items-center space-y-1">
+            <div class="w-14 h-14 fx-reverb-knob rounded-full relative fx-knob-container knob-border" data-fx-id="13">
+              <div class="w-1 h-4 fx-reverb-indicator rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+            </div>
+            <label class="font-bold tracking-wider text-xs original-label">RVB TIME</label>
+          </div>
+
+          <div class="flex flex-col items-center space-y-1">
+            <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="2">
+              <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+            </div>
+            <label class="font-bold tracking-wider text-xs original-label">FILTER</label>
+          </div>
+          <div class="flex flex-col items-center space-y-1">
+            <div class="w-14 h-14 bg-orange-300 rounded-full relative fx-knob-container knob-border" data-fx-id="7">
+              <div class="w-1 h-4 bg-blue-800 rounded-full absolute top-1 left-1/2 -ml-0.5 indicator" style="transform-origin: 50% 24px;"></div>
+            </div>
+            <label class="font-bold tracking-wider text-xs original-label">VOLUME</label>
+          </div>
+        </div>
+
+
       </div>
-      <div id="lfo-grid-container" class="lg:col-span-2 xl:col-span-3">
+      <div id="lfo-panel" class="layout-lfo flex flex-col gap-3">
+        <div id="lfo-switch-container" class="flex justify-end items-center gap-3 px-2">
+          <div id="lfo-lock-container" class="flex flex-col items-center space-y-1">
+            <div id="lfo-lock-switch" class="power-switch small">
+              <div class="power-switch-handle"></div>
+            </div>
+            <label class="font-bold tracking-wider text-xs">LFO LOCK</label>
+          </div>
+          <div class="flex flex-col items-center space-y-1">
+            <div id="lfo-mode-switch" class="power-switch small">
+              <div class="power-switch-handle"></div>
+            </div>
+            <label class="font-bold tracking-wider text-xs">LFO</label>
+          </div>
+        </div>
+        <div id="lfo-grid-container">
 
         <div class="grid grid-cols-4 gap-x-4 gap-y-4 p-2">
           <div class="lfo-column-box flex flex-col items-center space-y-4">
@@ -653,19 +668,7 @@
         </div>
       </div>
   
-      <div id="lfo-switch-container" class="flex flex-col items-center p-4 mt-4 lg:col-span-1">
-        <div id="lfo-lock-container" class="flex flex-col items-center space-y-1 mb-2">
-          <div id="lfo-lock-switch" class="power-switch small">
-            <div class="power-switch-handle"></div>
-          </div>
-          <label class="font-bold tracking-wider text-xs">LFO LOCK</label>
-        </div>
-        <div id="lfo-mode-switch" class="power-switch small">
-          <div class="power-switch-handle"></div>
-        </div>
-        <label class="font-bold tracking-wider text-xs mt-1">LFO</label>
-      </div>
-      <div id="midi-output-container" class="flex justify-center items-center p-2 space-x-2 mt-10 lg:mt-4 lg:col-span-3 xl:col-span-3">
+      <div id="midi-output-container" class="layout-midi flex justify-center items-center p-2 space-x-2 mt-4">
         <select id="midi-output-selector" class="retro-select text-xs" disabled>
           <option>NO MIDI OUTPUTS</option>
         </select>
@@ -747,6 +750,5 @@
     </div>
 
     <script type="module" src="js/main.js"></script>
-    <div class="h-24"></div>
   </body>
 </html>
