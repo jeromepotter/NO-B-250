@@ -477,11 +477,31 @@ let liveLfoOutputs = [0, 0, 0, 0];
             applyIndicatorTransform(knob.indicator, knob.angle);
         }
 
-       function sendBreakSlipWindow(previousDivision = null) {
+      function getBreakSlipWindowSeconds() {
+            const bpm = calculateMidiBpm();
+            if (!Number.isFinite(bpm) || bpm <= 0) return 0;
+            if (breakSlipActiveDivision >= 3.999) return 0;
+            return (60 / bpm) * breakSlipActiveDivision;
+        }
+
+        function isBreakSlipActive(division = breakSlipActiveDivision) {
+            return Number.isFinite(division) && division < 3.999;
+        }
+
+        function shouldRefreshBreakSlipAnchor(prevDivision, nextDivision) {
+            if (prevDivision === undefined || prevDivision === null) return true;
+            return isBreakSlipActive(prevDivision) !== isBreakSlipActive(nextDivision);
+        }
+
+        function sendBreakSlipWindow(previousDivision = null) {
             if (!synthNode || !breakBufferLoaded) return;
-            const nextWindow = getBreakSlipWindowSeconds();
+            
+            // --- THIS WAS THE MISSING FUNCTION CAUSING THE ERROR ---
+            const nextWindow = getBreakSlipWindowSeconds(); 
+            
             if (!Number.isFinite(nextWindow)) return;
             
+            // Allow update even if window size hasn't changed (needed for "Surfing")
             breakSlipWindowSeconds = nextWindow;
 
             // --- CALCULATE CURRENT PLAYHEAD POSITION ---
@@ -490,6 +510,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const effectiveDuration = breakWaveformDuration / rate;
             const elapsed = Math.max(0, now - breakPlaybackStartTime);
             const currentProgress = effectiveDuration > 0 ? (elapsed % effectiveDuration) / effectiveDuration : 0;
+            const windowNorm = effectiveDuration > 0 ? breakSlipWindowSeconds / effectiveDuration : 0;
 
             // --- "SLIP ROLL" LOGIC ---
             // 1. "Safe State" = Free Mode OR Knob is at 4 (Reset)
@@ -508,11 +529,9 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 }
 
                 // --- FIX: ANCHOR = GRAB POINT ---
-                // Old logic: Grab - Window (Looked backwards, caused jumping)
-                // New logic: Grab (Locks exactly where you were, plays forward)
+                // Locks exactly where you were, plays forward
                 breakSlipAnchorNormalized = breakSlipGrabProgress;
-                // --------------------------------
-
+                
                 // Keep the visual cycle timer synced
                 breakSlipCycleStartTime = now;
             }
@@ -5706,6 +5725,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
