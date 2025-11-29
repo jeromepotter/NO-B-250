@@ -533,8 +533,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const elapsed = Math.max(0, nowSeconds - breakPlaybackStartTime);
             const progressSec = effectiveDuration > 0 ? (elapsed % effectiveDuration) : 0;
             const progressNorm = effectiveDuration > 0 ? progressSec / effectiveDuration : 0;
-            const bucketIndex = Math.max(0, Math.floor(progressNorm / windowNorm));
-            breakSlipAnchorNormalized = Math.min(1, bucketIndex * windowNorm);
+            breakSlipAnchorNormalized = Math.max(0, progressNorm - windowNorm);
+            
             breakSlipCycleStartTime = nowSeconds;
         }
 
@@ -5637,6 +5637,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
