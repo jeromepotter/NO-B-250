@@ -3881,8 +3881,12 @@ lfoState.forEach((lfo, lfoIndex) => {
 
                 state.feelKnobValue = feelValue;
                 if (state.currentFeelPattern !== newPattern) {
+                    const prevCounter = state.euclideanStepCounter;
                     state.currentFeelPattern = newPattern;
-                    state.euclideanStepCounter = 0;
+                    const patternLen = Array.isArray(newPattern) && newPattern.length ? newPattern.length : null;
+                    if (patternLen) {
+                        state.euclideanStepCounter = prevCounter % patternLen;
+                    }
                 }
 
                 if (state.dom.feelDisplay) {
