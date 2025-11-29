@@ -807,7 +807,9 @@ let liveLfoOutputs = [0, 0, 0, 0];
             breakPlaybackStartTime = audioContext ? audioContext.currentTime : (performance.now() / 1000);
             breakSlipWindowSeconds = Number.NaN; // Force re-send of current slip window
             sendBreakSlipWindow();
-            refreshBreakSlipAnchor();
+            if (!breakSlipAnchorHoldEnabled) {
+                refreshBreakSlipAnchor();
+            }            
             synthNode?.port.postMessage({ type: 'startBreakLoop', data: { playbackRate: breakPlaybackRate } });
             startBreakWaveformAnimation();
         }
@@ -1475,6 +1477,7 @@ function generateComplexRandomLfoState(includeArpTargets = true) {
                breakModeActive: breakModeActive,
                breakFxSendToGlobalFx: breakFxSendToGlobalFx,
                breakSlipAnchorHoldEnabled: breakSlipAnchorHoldEnabled,
+               breakSlipAnchor: breakSlipAnchorNormalized,
                breakPlayActive: breakPlayRequested || breakRunning,
                breakSlipBaseDivision: breakSlipBaseDivision,
              lfoState: lfoState.map(lfo => {
@@ -4115,6 +4118,9 @@ function applyPreset(p, isArpCategoryPreset = false, options = {}) {
            if (p.breakSlipAnchorHoldEnabled !== undefined) {
                setBreakSlipAnchorHold(!!p.breakSlipAnchorHoldEnabled);
            }
+           if (typeof p.breakSlipAnchor === 'number') {
+               breakSlipAnchorNormalized = p.breakSlipAnchor;
+           }
            if (p.breakPlayActive !== undefined) {
                const shouldPlayBreak = !!p.breakPlayActive;
                if (shouldPlayBreak && !breakPlayRequested) {
@@ -5637,6 +5643,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
