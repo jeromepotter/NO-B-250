@@ -495,15 +495,26 @@ let liveLfoOutputs = [0, 0, 0, 0];
             if (!synthNode || !breakBufferLoaded) return;
             const nextWindow = getBreakSlipWindowSeconds();
             if (!Number.isFinite(nextWindow)) return;
-            if (Math.abs(nextWindow - breakSlipWindowSeconds) < 1e-5) return;
-            breakSlipWindowSeconds = nextWindow;
-            synthNode.port.postMessage({ type: 'setBreakSlipWindow', data: { windowSeconds: breakSlipWindowSeconds } });
+
+            const previousWindow = breakSlipWindowSeconds;
             const shouldRefresh = breakSlipAnchorHoldEnabled
                 ? shouldRefreshBreakSlipAnchor(previousDivision, breakSlipActiveDivision)
                 : (isBreakSlipActive(previousDivision) || isBreakSlipActive(breakSlipActiveDivision));
+
+            breakSlipWindowSeconds = nextWindow;
             if (shouldRefresh) {
                 refreshBreakSlipAnchor();
             }
+
+            const payload = { windowSeconds: breakSlipWindowSeconds };
+            if (breakSlipAnchorHoldEnabled && isBreakSlipActive() && Number.isFinite(breakSlipAnchorNormalized)) {
+                payload.anchorNormalized = clamp(breakSlipAnchorNormalized, 0, 1);
+            }
+
+            if (Math.abs(nextWindow - previousWindow) > 1e-5 || payload.anchorNormalized !== undefined) {
+                synthNode.port.postMessage({ type: 'setBreakSlipWindow', data: payload });
+            }
+
             drawBreakWaveform(breakWaveformLastProgress);
         }
 

@@ -416,10 +416,19 @@ const LFO_DEST_NONE = -1;
                                    this.recomputeSlipWindow();
                                }
                                break;
-                           case 'setBreakSlipWindow':
+                           case 'setBreakSlipWindow': {
                                this.slipWindowSeconds = Math.max(0, data?.windowSeconds || 0);
                                this.recomputeSlipWindow();
+
+                               const anchorNorm = data?.anchorNormalized;
+                               if (Number.isFinite(anchorNorm)) {
+                                   const clamped = Math.max(0, Math.min(1, anchorNorm));
+                                   this.slipAnchorStart = clamped * this.sampleLength;
+                                   this.slipRenderPhase = 0;
+                                   this.slipActive = this.slipWindowSamples > 0;
+                               }
                                break;
+                           }
                            case 'setBreakFxSend':
                                this.breakFxSend = !!(data && data.enabled);
                                break;
