@@ -855,21 +855,21 @@ let liveLfoOutputs = [0, 0, 0, 0];
             breakPlaybackStartTime = audioContext ? audioContext.currentTime : (performance.now() / 1000);
             breakSlipWindowSeconds = Number.NaN;
             
-            // 1. Send Window
+            // 1. Update Window logic (sets breakSlipGrabProgress if needed)
             sendBreakSlipWindow();
             
-            // 2. Refresh Anchor ONLY if free
-            if (!breakSlipAnchorHoldEnabled) {
+            // 2. Calculate Start Anchor
+            let startAnchor = null;
+            // Check if we are in Locked Mode (< 4)
+            if (breakSlipAnchorHoldEnabled && breakSlipActiveDivision < 3.99 && breakSampleLength > 0) {
+                 // Use the normalized anchor we just calculated/restored
+                 startAnchor = breakSlipAnchorNormalized * breakSampleLength;
+            } else {
+                // If at 4 or Free Mode, just ensure visuals are fresh
                 refreshBreakSlipAnchor();
             }
 
-            // 3. Calculate Start Anchor for Audio Engine
-            let startAnchor = null;
-            if (breakSlipAnchorHoldEnabled && typeof breakSampleLength === 'number' && breakSampleLength > 0) {
-                startAnchor = breakSlipAnchorNormalized * breakSampleLength;
-            }
-
-            // 4. Start Loop
+            // 3. Start Loop
             synthNode?.port.postMessage({ 
                 type: 'startBreakLoop', 
                 data: { 
@@ -5706,6 +5706,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
