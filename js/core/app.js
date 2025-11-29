@@ -1,4 +1,4 @@
-import { PRESETS } from './presets.js';
+import { PRESETS } from '../presets.js';
 
 export function initApp() {
        // --- App State ---
