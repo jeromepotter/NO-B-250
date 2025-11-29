@@ -497,26 +497,30 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const nextWindow = getBreakSlipWindowSeconds();
             if (!Number.isFinite(nextWindow)) return;
             
-            // Only proceed if the window size actually changed
-            // (Or if we need to refresh the anchor due to a mode change)
-            if (Math.abs(nextWindow - breakSlipWindowSeconds) < 1e-5 && previousDivision === null) return;
+            const windowChanged = Math.abs(nextWindow - breakSlipWindowSeconds) > 1e-5;
+            
+            // --- FIX 1: RESTORE FREE MODE BEHAVIOR ---
+            // If we are in Free Mode (!breakSlipAnchorHoldEnabled), we MUST proceed 
+            // even if the window hasn't changed, because we need to update the anchor 
+            // to follow the track (chase the tail).
+            // We only return early if we are LOCKED and the window hasn't changed.
+            if (!windowChanged && previousDivision === null && breakSlipAnchorHoldEnabled) return;
+            // -----------------------------------------
             
             breakSlipWindowSeconds = nextWindow;
 
-            // --- NEW LOGIC: "SLIP ROLL" BEHAVIOR ---
-            // 1. Free Mode (!breakSlipAnchorHoldEnabled): Always refresh (follow track).
-            // 2. At 4 (breakSlipActiveDivision === 4): Always refresh (follow track/ready to grab).
-            // 3. Leaving 4 (previousDivision === 4): The "Grab" moment. Snap to NOW and lock.
-            // 4. Everything else (e.g. 2 -> 1): Do NOT refresh. Keep the lock.
-            
+            // --- "SLIP ROLL" LOGIC ---
             const isFreeMode = !breakSlipAnchorHoldEnabled;
-            const isResetState = breakSlipActiveDivision >= 4; // "4" is the release state
-            const isEngagingLock = (previousDivision !== null && previousDivision >= 4 && breakSlipActiveDivision < 4);
+            // Use a small epsilon for "4" to handle floating point jitter
+            const isResetState = breakSlipActiveDivision >= 3.99; 
+            const isEngagingLock = (previousDivision !== null && previousDivision >= 3.99 && breakSlipActiveDivision < 3.99);
 
+            // 1. Free Mode OR Reset State (Knob at 4): Always refresh (follow track).
+            // 2. Engaging (4 -> smaller): Refresh ONCE (Snap to Now).
+            // 3. Otherwise (Locked & manipulation): SKIP refresh (Keep the lock).
             if (isFreeMode || isResetState || isEngagingLock) {
                 refreshBreakSlipAnchor();
             }
-            // ---------------------------------------
 
             let explicitAnchor = null;
             if (breakSlipAnchorHoldEnabled && typeof breakSampleLength === 'number' && breakSampleLength > 0) {
@@ -5706,6 +5710,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
