@@ -455,16 +455,22 @@ case 'ping':
                    this.params[32] = 0.5; this.params[33] = 0.0; this.params[34] = 0.7;
                }
       
-               updateFilterCoefficients(c,v, res){ const p=Math.pow(v,3); const Q=0.707 + Math.pow(res, 2) * 24; const w=2*Math.PI*(40+p*(sampleRate/2.2-40))/sampleRate; const s=Math.sin(w); const a=s/(2*Q); const i=1/(1+a); c.b0=(1-Math.cos(w))/2*i; c.b1=(1-Math.cos(w))*i; c.b2=(1-Math.cos(w))/2*i; c.a1=-2*Math.cos(w)*i; c.a2=(1-a)*i; }
                updateDjFilterCoefficients(c, v, res) {
-                   const centerOffset = v - 0.5;
-                   const amount = Math.min(1, Math.max(0, Math.abs(centerOffset) * 2));
-                   if (amount < 0.001) {
-                       c.b0 = 1; c.b1 = 0; c.b2 = 0; c.a1 = 0; c.a2 = 0;
-                       return;
-                   }
+    const centerOffset = v - 0.5;
+    const amount = Math.min(1, Math.max(0, Math.abs(centerOffset) * 2));
+    if (amount < 0.001) {
+        c.b0 = 1; c.b1 = 0; c.b2 = 0; c.a1 = 0; c.a2 = 0;
+        return;
+    }
 
-                   const Q = 0.707 + Math.pow(res, 2) * 24;
+    // FIX: "Safe Zone Fade"
+    // Multiply 'amount' by 10 so the fade happens very quickly.
+    // Result: Resonance is untouched (1.0) for 90% of the knob's range.
+    // It only fades out when you are within +/- 5% of the center.
+    const fade = Math.min(1, amount * 10);
+    const scaledRes = res * fade;
+    
+    const Q = 0.707 + Math.pow(scaledRes, 2) * 24;
                    const freqNorm = centerOffset < 0
                        ? Math.pow(1 - amount, 3)
                        : Math.pow(amount, 3);
