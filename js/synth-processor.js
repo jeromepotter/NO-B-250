@@ -288,8 +288,8 @@ const LFO_DEST_NONE = -1;
                    this.smoothedRes1 = 0.0;
                    this.smoothedRes2 = 0.0;
                    this.filterCoeffs={b0:1,b1:0,b2:0,a1:0,a2:0}; this.updateFilterCoefficients(this.filterCoeffs, 1.0, 0.0);
-                   this.filterOsc1Coeffs={b0:1,b1:0,b2:0,a1:0,a2:0}; this.filter_osc1_x1=0; this.filter_osc1_x2=0; this.filter_osc1_y1=0; this.filter_osc1_y2=0; this.updateFilterCoefficients(this.filterOsc1Coeffs, 1.0, 0.0);
-                   this.filterOsc2Coeffs={b0:1,b1:0,b2:0,a1:0,a2:0}; this.filter_osc2_x1=0; this.filter_osc2_x2=0; this.filter_osc2_y1=0; this.filter_osc2_y2=0; this.updateFilterCoefficients(this.filterOsc2Coeffs, 1.0, 0.0);
+                   this.filterOsc1Coeffs={b0:1,b1:0,b2:0,a1:0,a2:0}; this.filter_osc1_x1=0; this.filter_osc1_x2=0; this.filter_osc1_y1=0; this.filter_osc1_y2=0; this.updateDjFilterCoefficients(this.filterOsc1Coeffs, 0.5, 0.0);
+                   this.filterOsc2Coeffs={b0:1,b1:0,b2:0,a1:0,a2:0}; this.filter_osc2_x1=0; this.filter_osc2_x2=0; this.filter_osc2_y1=0; this.filter_osc2_y2=0; this.updateDjFilterCoefficients(this.filterOsc2Coeffs, 0.5, 0.0);
                    this.breakFilterCoeffs={b0:1,b1:0,b2:0,a1:0,a2:0}; this.break_filter_x1=0; this.break_filter_x2=0; this.break_filter_y1=0; this.break_filter_y2=0; this.smoothedBreakCutoff=0.5; this.smoothedBreakRes=0.0; this.updateDjFilterCoefficients(this.breakFilterCoeffs, 0.5, 0.0);
                    // Delay & Chorus state
                    this.delayBufferL=new Float32Array(sampleRate*2);this.delayBufferR=new Float32Array(sampleRate*2);this.delayWritePos=0;
@@ -385,8 +385,8 @@ const LFO_DEST_NONE = -1;
                                   // Open up the filter as the room gets bigger (same as before)
                                   this.zita.params.hfDamp = 3000 + value * 5000;
                                     }
-                               else if (id===20 || id===28){ this.updateFilterCoefficients(this.filterOsc1Coeffs, this.params[20], this.params[28]); }
-                               else if(id===21 || id===29){ this.updateFilterCoefficients(this.filterOsc2Coeffs, this.params[21], this.params[29]); }
+                               else if (id===20 || id===28){ this.updateDjFilterCoefficients(this.filterOsc1Coeffs, this.params[20], this.params[28]); }
+                               else if(id===21 || id===29){ this.updateDjFilterCoefficients(this.filterOsc2Coeffs, this.params[21], this.params[29]); }
                                else if(id===32 || id===33){ this.updateDjFilterCoefficients(this.breakFilterCoeffs, this.params[32], this.params[33]); }
                                break;
                            case 'setSampleBuffer':
@@ -451,7 +451,7 @@ case 'ping':
 
                    // Initialize default FX params that are not 0
                    this.params[2] = 1.0; this.params[7] = 0.5; this.params[10] = 0.8;
-                   this.params[20] = 1.0; this.params[21] = 1.0; this.params[26] = 0.5; this.params[27] = 0.5;
+                   this.params[20] = 0.5; this.params[21] = 0.5; this.params[26] = 0.5; this.params[27] = 0.5;
                    this.params[32] = 0.5; this.params[33] = 0.0; this.params[34] = 0.7;
                }
       
@@ -789,7 +789,7 @@ for(let i=0;i<blockSize;i++){
     this.smoothedRes1 += (currentParams[28] - this.smoothedRes1) * 0.05; // Smooth Res
     
     // Pass BOTH smoothed values
-    this.updateFilterCoefficients(this.filterOsc1Coeffs, this.smoothedCutoff1, this.smoothedRes1);
+    this.updateDjFilterCoefficients(this.filterOsc1Coeffs, this.smoothedCutoff1, this.smoothedRes1);
 
     let s1_f=0; if (this.envStage1 !== 'off'){ const c1=this.filterOsc1Coeffs; s1_f=c1.b0*s1_e+c1.b1*this.filter_osc1_x1+c1.b2*this.filter_osc1_x2-c1.a1*this.filter_osc1_y1-c1.a2*this.filter_osc1_y2; this.filter_osc1_x2=this.filter_osc1_x1;this.filter_osc1_x1=s1_e;this.filter_osc1_y2=this.filter_osc1_y1;this.filter_osc1_y1=s1_f; } else { this.filter_osc1_x1=0;this.filter_osc1_x2=0;this.filter_osc1_y1=0;this.filter_osc1_y2=0; }
     
@@ -798,7 +798,7 @@ for(let i=0;i<blockSize;i++){
     this.smoothedRes2 += (currentParams[29] - this.smoothedRes2) * 0.05; // Smooth Res
 
     // Pass BOTH smoothed values
-    this.updateFilterCoefficients(this.filterOsc2Coeffs, this.smoothedCutoff2, this.smoothedRes2);
+    this.updateDjFilterCoefficients(this.filterOsc2Coeffs, this.smoothedCutoff2, this.smoothedRes2);
     let s2_f=0; if (this.envStage2 !== 'off'){ const c2=this.filterOsc2Coeffs; s2_f=c2.b0*s2_e+c2.b1*this.filter_osc2_x1+c2.b2*this.filter_osc2_x2-c2.a1*this.filter_osc2_y1-c2.a2*this.filter_osc2_y2; this.filter_osc2_x2=this.filter_osc2_x1;this.filter_osc2_x1=s2_e;this.filter_osc2_y2=this.filter_osc2_y1;this.filter_osc2_y1=s2_f; } else { this.filter_osc2_x1=0;this.filter_osc2_x2=0;this.filter_osc2_y1=0;this.filter_osc2_y2=0; }
     
     s1_f *= currentParams[26] * 2.0; s2_f *= currentParams[27] * 2.0;
