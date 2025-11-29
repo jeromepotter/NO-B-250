@@ -2636,12 +2636,17 @@ function sendMidiMessage(message) {
                    const step = Math.min(3, Math.floor(d.value * 4)); state.arpOctaveRange = step; if (state.dom.octsDisplay) state.dom.octsDisplay.textContent = step;
               } else if (id === 22 || id === 23) {
                    const pIndex = Math.min(NUM_FEEL_PATTERNS - 1, Math.floor(d.value * NUM_FEEL_PATTERNS));
-                   state.feelKnobValue = d.value; 
-                   
-                   // 1. The "Smart Reset" Logic
-                   if (state.currentFeelPattern !== EUCLIDEAN_PATTERNS[pIndex]) {
-                       state.currentFeelPattern = EUCLIDEAN_PATTERNS[pIndex];
-                       state.euclideanStepCounter = 0;
+                   state.feelKnobValue = d.value;
+
+                   // Preserve the current step position when switching patterns
+                   const newPattern = EUCLIDEAN_PATTERNS[pIndex];
+                   if (state.currentFeelPattern !== newPattern) {
+                       const prevCounter = state.euclideanStepCounter;
+                       state.currentFeelPattern = newPattern;
+                       const patternLen = Array.isArray(newPattern) && newPattern.length ? newPattern.length : null;
+                       if (patternLen) {
+                           state.euclideanStepCounter = prevCounter % patternLen;
+                       }
                    }
 
                    if (state.dom.feelDisplay) state.dom.feelDisplay.textContent = pIndex + 1;
