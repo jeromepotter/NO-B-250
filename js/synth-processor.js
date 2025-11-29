@@ -1,4 +1,4 @@
-// --- ZitaReverb Engine (Integrated Helper Class) ---
+// --- ZitaReverb Engine (Optimized) ---
 class ZitaReverbEngine {
     constructor(sr) {
         this.sampleRate = sr;
@@ -48,6 +48,10 @@ class ZitaReverbEngine {
         for (let i = 0; i < 8; i++) {
             this.filterStates.push({ damping: [0, 0], lowpass: [0, 0], combOut: [0, 0], rec: [0, 0, 0] });
         }
+        
+        // FIX: Pre-allocate this array once to prevent garbage collection stutter
+        this.combOuts = new Float32Array(8); 
+        
         this.lfCoeff = { scale: 0, feedback: 0 }; 
         this.coeffs = [];
         this.IOTA = 0;
@@ -95,13 +99,9 @@ class ZitaReverbEngine {
             const delayedR = this.inputR[(this.IOTA - this.preDelaySamples) & 16383];
             const fTemp0 = 0.3 * delayedL;
             const fTemp2 = 0.3 * delayedR;
-            const combOuts = new Array(8);
-
-            for(let j=0; j<8; j++) {
-                // Determine feedback inputs based on the matrix
-                let feedbackInput = 0; 
-                // We'll calculate the matrix mix in the specialized blocks below to match the C++ exactly
-            }
+            
+            // FIX: Use pre-allocated member variable instead of new Array(8)
+            const combOuts = this.combOuts;
 
             // Unrolled loop for the 8 filters matching the Faust structure
             // Filter 0
@@ -1005,5 +1005,6 @@ return true;
 }
 }
 registerProcessor('synth-processor', SynthProcessor);
+
 
 
