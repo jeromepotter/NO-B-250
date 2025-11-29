@@ -95,6 +95,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakStartTimeoutId = null;
         let breakBufferLoaded = false;
         let breakSampleLoadingPromise = null;
+        let breakSampleLength = 0;
         let breakPlaybackRate = 1;
         let breakSlipBaseDivision = 4;
         let breakSlipActiveDivision = 4;
@@ -497,7 +498,19 @@ let liveLfoOutputs = [0, 0, 0, 0];
             if (!Number.isFinite(nextWindow)) return;
             if (Math.abs(nextWindow - breakSlipWindowSeconds) < 1e-5) return;
             breakSlipWindowSeconds = nextWindow;
-            synthNode.port.postMessage({ type: 'setBreakSlipWindow', data: { windowSeconds: breakSlipWindowSeconds } });
+            
+            let explicitAnchor = null;
+            if (breakSlipAnchorHoldEnabled && breakSampleLength > 0) {
+                explicitAnchor = breakSlipAnchorNormalized * breakSampleLength;
+            }
+            
+            synthNode.port.postMessage({ 
+                type: 'setBreakSlipWindow', 
+                data: { 
+                    windowSeconds: breakSlipWindowSeconds,
+                    explicitAnchor: explicitAnchor // Send it to processor
+                } 
+            });
             const shouldRefresh = breakSlipAnchorHoldEnabled
                 ? shouldRefreshBreakSlipAnchor(previousDivision, breakSlipActiveDivision)
                 : (isBreakSlipActive(previousDivision) || isBreakSlipActive(breakSlipActiveDivision));
@@ -756,6 +769,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
                     const mono = decoded.numberOfChannels > 0 ? decoded.getChannelData(0) : null;
                     if (!mono) return;
                     breakWaveformDuration = decoded.duration || 0;
+                    breakSampleLength = mono.length;
                     breakWaveformPeaks = buildBreakWaveformPeaks(mono);
                     const copy = new Float32Array(mono.length);
                     copy.set(mono);
@@ -833,6 +847,20 @@ let liveLfoOutputs = [0, 0, 0, 0];
             breakSlipWindowSeconds = Number.NaN; // Force re-send of current slip window
             sendBreakSlipWindow();
             refreshBreakSlipAnchor();
+               }
+
+            let startAnchor = null;
+            if (breakSlipAnchorHoldEnabled && breakSampleLength > 0) {
+                startAnchor = breakSlipAnchorNormalized * breakSampleLength;
+            }
+
+            synthNode?.port.postMessage({ 
+                type: 'startBreakLoop', 
+                data: { 
+                    playbackRate: breakPlaybackRate,
+                    explicitAnchor: startAnchor 
+                } 
+            });
             synthNode?.port.postMessage({ type: 'startBreakLoop', data: { playbackRate: breakPlaybackRate } });
             startBreakWaveformAnimation();
         }
@@ -5662,6 +5690,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
