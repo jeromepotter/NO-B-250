@@ -794,33 +794,28 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const nextRate = getBreakPlaybackRate();
             if (!Number.isFinite(nextRate)) return;
             
-            // Only update if rate actually changed significantly
             if (Math.abs(nextRate - breakPlaybackRate) < 0.001) return;
 
             const now = audioContext ? audioContext.currentTime : (performance.now() / 1000);
 
-            // 1. Calculate where we currently are in the loop (0% to 100%)
+            // 1. Calculate current loop phase (0% to 100%)
             const oldRate = Math.max(0.01, breakPlaybackRate);
             const oldEffectiveDuration = breakWaveformDuration / oldRate;
             const oldElapsed = Math.max(0, now - breakPlaybackStartTime);
             const currentPhase = oldEffectiveDuration > 0 ? (oldElapsed % oldEffectiveDuration) / oldEffectiveDuration : 0;
 
-            // 2. Update the Rate
+            // 2. Update Rate
             breakPlaybackRate = nextRate;
             synthNode.port.postMessage({ type: 'setBreakPlaybackRate', data: { playbackRate: breakPlaybackRate } });
 
-            // 3. Back-calculate the new start time so the visual playhead doesn't jump
-            // New Start = Now - (Percentage * New Total Duration)
+            // 3. Preserve Phase (Back-calculate start time)
             const newEffectiveDuration = breakWaveformDuration / breakPlaybackRate;
             breakPlaybackStartTime = now - (currentPhase * newEffectiveDuration);
 
-            // 4. Update the Loop Anchor (Red Box)
-            // CRITICAL: Only move the red box if we are NOT in Locked Mode.
+            // 4. Update Loop Anchor if NOT locked
             if (!breakSlipAnchorHoldEnabled) {
                 refreshBreakSlipAnchor();
             } else {
-                // If locked, we still need to update the cycle start time for the "Slip Head" animation
-                // to stay in sync, even if the anchor (red box) doesn't move.
                 breakSlipCycleStartTime = now; 
             }
         }
@@ -844,16 +839,23 @@ let liveLfoOutputs = [0, 0, 0, 0];
             breakRunning = true;
             breakPlaybackRate = getBreakPlaybackRate();
             breakPlaybackStartTime = audioContext ? audioContext.currentTime : (performance.now() / 1000);
-            breakSlipWindowSeconds = Number.NaN; // Force re-send of current slip window
+            breakSlipWindowSeconds = Number.NaN;
+            
+            // 1. Send Window
             sendBreakSlipWindow();
-            refreshBreakSlipAnchor();
-               }
+            
+            // 2. Refresh Anchor ONLY if free
+            if (!breakSlipAnchorHoldEnabled) {
+                refreshBreakSlipAnchor();
+            }
 
+            // 3. Calculate Start Anchor for Audio Engine
             let startAnchor = null;
-            if (breakSlipAnchorHoldEnabled && breakSampleLength > 0) {
+            if (breakSlipAnchorHoldEnabled && typeof breakSampleLength === 'number' && breakSampleLength > 0) {
                 startAnchor = breakSlipAnchorNormalized * breakSampleLength;
             }
 
+            // 4. Start Loop
             synthNode?.port.postMessage({ 
                 type: 'startBreakLoop', 
                 data: { 
@@ -861,7 +863,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
                     explicitAnchor: startAnchor 
                 } 
             });
-            synthNode?.port.postMessage({ type: 'startBreakLoop', data: { playbackRate: breakPlaybackRate } });
+            
             startBreakWaveformAnimation();
         }
 
@@ -5690,6 +5692,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
