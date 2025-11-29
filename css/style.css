@@ -606,7 +606,7 @@ animation: note-retrigger 0.08s ease-out;
   margin: 10px auto 0;
   max-width: 680px;
   background: transparent;
-  border-radius: 8px;
+  border-radius: 0;
   border: 1px solid currentColor;
   padding: 12px;
 }
