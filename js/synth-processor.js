@@ -465,7 +465,9 @@ case 'ping':
                    }
 
                    const Q = 0.707 + Math.pow(res, 2) * 24;
-                   const freqNorm = Math.pow(amount, 3);
+                   const freqNorm = centerOffset < 0
+                       ? 1 - Math.pow(amount, 3)
+                       : Math.pow(amount, 3);
                    const w = 2 * Math.PI * (40 + freqNorm * (sampleRate / 2.2 - 40)) / sampleRate;
                    const s = Math.sin(w);
                    const cosw = Math.cos(w);
