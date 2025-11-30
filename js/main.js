@@ -823,6 +823,59 @@ let liveLfoOutputs = [0, 0, 0, 0];
             sendBreakSlipWindow();
         }
 
+        function getArpStepIntervalMs(state) {
+            if (!state) return null;
+            if (tempoMode === TEMPO_MODE_BPM) {
+                return bpmToSixteenthMs(state.arpRateBpm);
+            }
+            return state.arpRateMs ?? DEFAULT_ARP_RATE_MS;
+        }
+
+        function getArpNextStepTime(state) {
+            const now = getNowMs();
+            const interval = getArpStepIntervalMs(state);
+            if (tempoMode === TEMPO_MODE_BPM) {
+                if (Number.isFinite(state?.nextArpStepTime) && state.nextArpStepTime > 0) {
+                    return state.nextArpStepTime;
+                }
+                return now + Math.max(MASTER_CLOCK_INTERVAL_MS, interval || 0);
+            }
+            const last = Number.isFinite(state?.lastArpStepTime) ? state.lastArpStepTime : now;
+            return last + Math.max(MASTER_CLOCK_INTERVAL_MS, interval || 0);
+        }
+
+        function getBreakAnchorArp() {
+            const running = knobState
+                .map((state, idx) => ({ state, idx }))
+                .filter(entry => entry.state?.arpRunning);
+            if (!running.length) return null;
+            running.sort((a, b) => {
+                const timeA = a.state.arpStartTimestamp ?? Infinity;
+                const timeB = b.state.arpStartTimestamp ?? Infinity;
+                if (timeA === timeB) return a.idx - b.idx;
+                return timeA - timeB;
+            });
+            return running[0].state;
+        }
+
+        function calculateBreakStartDelay(state) {
+            if (!state) return 0;
+            const patternLen = Math.max(1, state.currentFeelPattern?.length || 1);
+            const stepsRemaining = (patternLen - (state.euclideanStepCounter % patternLen)) % patternLen;
+            const interval = getArpStepIntervalMs(state);
+            if (!Number.isFinite(interval) || interval <= 0) return 0;
+
+            const now = getNowMs();
+            if (stepsRemaining === 0) {
+                return Math.max(0, getArpNextStepTime(state) - now);
+            }
+
+            const firstStepTime = getArpNextStepTime(state);
+            const baseDelay = Math.max(0, firstStepTime - now);
+            const extraSteps = Math.max(0, stepsRemaining - 1);
+            return baseDelay + (extraSteps * interval);
+        }
+
         function clearBreakStartTimer() {
             if (breakStartTimeoutId) {
                 clearTimeout(breakStartTimeoutId);
@@ -879,12 +932,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 return;
             }
 
-            const bpm = calculateMidiBpm();
-            const quarterIntervalMs = 60000 / Math.max(1, bpm);
-            const barIntervalMs = quarterIntervalMs * 4;
-            const now = getNowMs();
-            const startTime = quantizeToNextSixteenth(now, barIntervalMs);
-            const delayMs = Math.max(0, startTime - now);
+            const anchorArp = getBreakAnchorArp();
+            const delayMs = anchorArp ? calculateBreakStartDelay(anchorArp) : 0;
             clearBreakStartTimer();
             breakStartTimeoutId = setTimeout(beginBreakPlayback, delayMs);
         }
@@ -1353,10 +1402,10 @@ let liveLfoOutputs = [0, 0, 0, 0];
        // --- State for the two main knobs & Arps ---
      const knobState = [
     { id: 0, isNoteOn: false, isHeld: false, totalAngle: Math.random()*MAX_TOTAL_ANGLE, lastDragAngle: 0, currentOctave: 3, dom: {}, touchId: null, baseColor: [0,0,0],
-      isArpOn: false, isSweepMode: true, arpNotes: [], isArpHoldOn: false, arpRateBpm: DEFAULT_ARP_RATE_BPM, arpRateMs: DEFAULT_ARP_RATE_MS, arpOctaveRange: 0, feelKnobValue: 0.0, currentFeelPattern: EUCLIDEAN_PATTERNS[0], euclideanStepCounter: 0,
+      isArpOn: false, isSweepMode: true, arpNotes: [], isArpHoldOn: false, arpRateBpm: DEFAULT_ARP_RATE_BPM, arpRateMs: DEFAULT_ARP_RATE_MS, arpOctaveRange: 0, feelKnobValue: 0.0, currentFeelPattern: EUCLIDEAN_PATTERNS[0], euclideanStepCounter: 0, arpStartTimestamp: null,
       arpTranspose: 0, arpRunning: false, nextArpStepTime: 0, lastArpStepTime: 0, arpRafId: null, currentArpNoteIndex: 0, currentOctaveStep: 0, arpDirection: 1, arpUpDownState: 0, lastPlayedMidi: null, arpLastVisualIndex: -1, lastNoteOnTime: 0, lastVisualMidi: null },
     { id: 1, isNoteOn: false, isHeld: false, totalAngle: Math.random()*MAX_TOTAL_ANGLE, lastDragAngle: 0, currentOctave: 3, dom: {}, touchId: null, baseColor: [0,0,0],
-      isArpOn: false, isSweepMode: true, arpNotes: [], isArpHoldOn: false, arpRateBpm: DEFAULT_ARP_RATE_BPM, arpRateMs: DEFAULT_ARP_RATE_MS, arpOctaveRange: 0, feelKnobValue: 0.0, currentFeelPattern: EUCLIDEAN_PATTERNS[0], euclideanStepCounter: 0,
+      isArpOn: false, isSweepMode: true, arpNotes: [], isArpHoldOn: false, arpRateBpm: DEFAULT_ARP_RATE_BPM, arpRateMs: DEFAULT_ARP_RATE_MS, arpOctaveRange: 0, feelKnobValue: 0.0, currentFeelPattern: EUCLIDEAN_PATTERNS[0], euclideanStepCounter: 0, arpStartTimestamp: null,
       arpTranspose: 0, arpRunning: false, nextArpStepTime: 0, lastArpStepTime: 0, arpRafId: null, currentArpNoteIndex: 0, currentOctaveStep: 0, arpDirection: 1, arpUpDownState: 0, lastPlayedMidi: null, arpLastVisualIndex: -1, lastNoteOnTime: 0, lastVisualMidi: null }
 ];
       
@@ -3063,6 +3112,7 @@ else if(id===22||id===23){fxKnobData[id].value=0.0;} else if(id===24||id===25){f
        function startArpeggiator(knobId) {
           const state = knobState[knobId]; if(!state || !state.isArpOn || state.arpRunning || !synthNode) return;
           state.arpRunning = true;
+          state.arpStartTimestamp = getNowMs();
           const activeNotes = state.arpNotes.filter(n => n.active);
           if (!state.isSweepMode || activeNotes.length <= 1) { state.currentArpNoteIndex = (currentArpOrder === "Down" && activeNotes.length > 0) ? activeNotes.length - 1 : 0; state.arpUpDownState = 0; }
           state.currentOctaveStep = 0; state.euclideanStepCounter = 0; state.arpDirection = 1; state.lastPlayedMidi = null;
@@ -3107,12 +3157,13 @@ else if(id===22||id===23){fxKnobData[id].value=0.0;} else if(id===24||id===25){f
            // --- THE REAL FIX: Reset all internal arp state variables to their initial values ---
            state.currentArpNoteIndex = 0;
            state.currentOctaveStep = 0;
-           state.arpUpDownState = 0;
-           state.euclideanStepCounter = 0;
-           state.lastPlayedMidi = null;
-           state.nextArpStepTime = 0;
-           state.arpLastVisualIndex = -1;
-           // --- End of Fix ---
+          state.arpUpDownState = 0;
+          state.euclideanStepCounter = 0;
+          state.lastPlayedMidi = null;
+          state.nextArpStepTime = 0;
+          state.arpStartTimestamp = null;
+          state.arpLastVisualIndex = -1;
+          // --- End of Fix ---
 
            // Clear the visual indicators
            const displayContainer = document.getElementById(`arp-sequence-display-${knobId}`);
