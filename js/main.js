@@ -96,7 +96,6 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakRunning = false;
         let breakStartTimeoutId = null;
         let breakBufferLoaded = false;
-        let breakSampleLoadingPromise = null;
         let breakPlaybackRate = 1;
         let breakSlipBaseDivision = 4;
         let breakSlipActiveDivision = 4;
@@ -108,7 +107,12 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakWaveformDuration = 0;
         let currentSampleDuration = 0;
         let breakSpeedMultiplier = 1;
-        let breakUserSampleLoaded = false;
+        const BREAK_SAMPLE_MIN_INDEX = 1;
+        const BREAK_SAMPLE_MAX_INDEX = 10;
+        let breakSampleIndex = BREAK_SAMPLE_MIN_INDEX;
+        let activeBreakSampleIndex = BREAK_SAMPLE_MIN_INDEX;
+        const breakSampleCache = new Map();
+        const breakSampleLoadingPromises = new Map();
         let breakWaveformAnimationId = null;
         let breakPlaybackStartTime = 0;
         let breakWaveformDpr = 1;
@@ -118,11 +122,10 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakFxSendToGlobalFx = false;
         let breakSlipAnchorHoldEnabled = true;
         const BREAK_SLIP_DIVISIONS = [4, 1, 0.5, 0.25, 0.125, 0.0625, 0.03125];
-        let sampleUploadInput = null;
+        let breakSelectionDisplay = null;
         let breakSpeedControls = null;
         let breakSpeedHalfButton = null;
         let breakSpeedDoubleButton = null;
-        let breakSpeedResetButton = null;
         let breakSpeedDisplay = null;
 
         function getLfoDestChain(lfo) {
@@ -417,13 +420,45 @@ let liveLfoOutputs = [0, 0, 0, 0];
             return 1;
         }
 
-        function applyBreakSampleData({ samples, sampleRate, duration, isUserSample = false }) {
+        function breakValueToIndex(value) {
+            const clamped = clamp(value ?? 0, 0, 1);
+            const range = BREAK_SAMPLE_MAX_INDEX - BREAK_SAMPLE_MIN_INDEX;
+            return clamp(Math.round(clamped * range) + BREAK_SAMPLE_MIN_INDEX, BREAK_SAMPLE_MIN_INDEX, BREAK_SAMPLE_MAX_INDEX);
+        }
+
+        function breakIndexToValue(index) {
+            const clamped = clamp(index ?? BREAK_SAMPLE_MIN_INDEX, BREAK_SAMPLE_MIN_INDEX, BREAK_SAMPLE_MAX_INDEX);
+            const range = BREAK_SAMPLE_MAX_INDEX - BREAK_SAMPLE_MIN_INDEX;
+            return range > 0 ? (clamped - BREAK_SAMPLE_MIN_INDEX) / range : 0;
+        }
+
+        function updateBreakSelectionUi() {
+            if (breakSelectionDisplay) {
+                breakSelectionDisplay.textContent = breakSampleIndex;
+            }
+        }
+
+        function syncBreakSelectionKnob() {
+            const knob = fxKnobData[36];
+            if (!knob || !knob.indicator) return;
+            const snappedValue = breakIndexToValue(breakSampleIndex);
+            knob.value = snappedValue;
+            knob.angle = MIN_FX_ANGLE + (snappedValue * (MAX_FX_ANGLE - MIN_FX_ANGLE));
+            applyIndicatorTransform(knob.indicator, knob.angle);
+        }
+
+        function applyBreakSampleData({ samples, sampleRate, duration, breakIndex = breakSampleIndex }) {
             if (!samples || !samples.length || !Number.isFinite(sampleRate)) return;
+
+            const targetIndex = clamp(breakIndex ?? breakSampleIndex, BREAK_SAMPLE_MIN_INDEX, BREAK_SAMPLE_MAX_INDEX);
+            breakSampleIndex = targetIndex;
+            activeBreakSampleIndex = targetIndex;
+            updateBreakSelectionUi();
+            syncBreakSelectionKnob();
 
             const copy = new Float32Array(samples.length);
             copy.set(samples);
 
-            breakUserSampleLoaded = Boolean(isUserSample);
             breakSpeedMultiplier = 1;
             currentSampleDuration = duration || (samples.length / sampleRate) || 0;
             breakWaveformDuration = currentSampleDuration;
@@ -450,10 +485,6 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
         function updateBreakSpeedUi() {
             const displayMultiplier = breakSpeedMultiplier;
-
-            if (breakSpeedResetButton) {
-                breakSpeedResetButton.classList.toggle('hidden', !breakUserSampleLoaded);
-            }
 
             if (breakSpeedHalfButton) {
                 breakSpeedHalfButton.setAttribute('aria-pressed', 'false');
@@ -905,41 +936,67 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const duration = breakWaveformDuration > 0 ? breakWaveformDuration / rate : 0;
         }
 
-        async function ensureBreakSampleLoaded() {
-            if (breakBufferLoaded || !audioContext) return;
-            if (breakSampleLoadingPromise) return breakSampleLoadingPromise;
+        async function fetchBreakSampleData(index) {
+            if (!audioContext) return null;
 
-            breakSampleLoadingPromise = (async () => {
-                try {
-                    const res = await fetch('audio/break.wav');
-                    const buf = await res.arrayBuffer();
-                    const decoded = await audioContext.decodeAudioData(buf);
-                    const mono = decoded.numberOfChannels > 0 ? decoded.getChannelData(0) : null;
-                    if (!mono) return;
-                    applyBreakSampleData({ samples: mono, sampleRate: decoded.sampleRate, duration: decoded.duration, isUserSample: false });
-                } catch (err) {
-                    console.error('Failed to load break sample', err);
-                } finally {
-                    breakSampleLoadingPromise = null;
-                }
-            })();
+            const clampedIndex = clamp(index ?? breakSampleIndex, BREAK_SAMPLE_MIN_INDEX, BREAK_SAMPLE_MAX_INDEX);
 
-            return breakSampleLoadingPromise;
+            if (breakSampleCache.has(clampedIndex)) {
+                return breakSampleCache.get(clampedIndex);
+            }
+
+            let promise = breakSampleLoadingPromises.get(clampedIndex);
+            if (!promise) {
+                promise = (async () => {
+                    try {
+                        const res = await fetch(`audio/break${clampedIndex}.wav`);
+                        const buf = await res.arrayBuffer();
+                        const decoded = await audioContext.decodeAudioData(buf);
+                        const mono = decoded.numberOfChannels > 0 ? decoded.getChannelData(0) : null;
+                        if (!mono) return null;
+
+                        const samples = new Float32Array(mono.length);
+                        samples.set(mono);
+
+                        const data = { samples, sampleRate: decoded.sampleRate, duration: decoded.duration };
+                        breakSampleCache.set(clampedIndex, data);
+                        return data;
+                    } catch (err) {
+                        console.error('Failed to load break sample', err);
+                        return null;
+                    } finally {
+                        breakSampleLoadingPromises.delete(clampedIndex);
+                    }
+                })();
+
+                breakSampleLoadingPromises.set(clampedIndex, promise);
+            }
+
+            return promise;
         }
 
-        async function resetBreakToFactorySample() {
-            try {
-                if (!isPowerOn) await powerOn();
-                if (!audioContext) return;
+        async function ensureBreakSampleLoaded(index = breakSampleIndex) {
+            if (!audioContext) return;
 
-                const res = await fetch('audio/break.wav');
-                const buf = await res.arrayBuffer();
-                const decoded = await audioContext.decodeAudioData(buf);
-                const mono = decoded.numberOfChannels > 0 ? decoded.getChannelData(0) : null;
-                if (!mono) return;
-                applyBreakSampleData({ samples: mono, sampleRate: decoded.sampleRate, duration: decoded.duration, isUserSample: false });
-            } catch (err) {
-                console.error('Failed to reset break sample', err);
+            const clampedIndex = clamp(index ?? breakSampleIndex, BREAK_SAMPLE_MIN_INDEX, BREAK_SAMPLE_MAX_INDEX);
+            if (breakBufferLoaded && activeBreakSampleIndex === clampedIndex) return;
+
+            const data = await fetchBreakSampleData(clampedIndex);
+            if (data && data.samples) {
+                applyBreakSampleData({ ...data, breakIndex: clampedIndex });
+            }
+        }
+
+        function setBreakSampleIndex(index) {
+            const clamped = clamp(index ?? breakSampleIndex, BREAK_SAMPLE_MIN_INDEX, BREAK_SAMPLE_MAX_INDEX);
+            const changed = clamped !== breakSampleIndex || activeBreakSampleIndex !== clamped;
+
+            breakSampleIndex = clamped;
+            updateBreakSelectionUi();
+            syncBreakSelectionKnob();
+
+            if (changed) {
+                ensureBreakSampleLoaded(clamped);
             }
         }
 
@@ -2598,11 +2655,10 @@ for (const event of events) {
            if(!isPowerOn)return;
            if (isRecordingAudio && synthNode) { synthNode.port.postMessage({ type: 'stopRecording', data: {} }); }
            if (isRecordingMidi) { stopMidiRecording(); }
-           stopBreakPlaybackImmediate();
-           breakBufferLoaded = false;
-           breakSampleLoadingPromise = null;
-           breakWaveformPeaks = null;
-           breakWaveformDuration = 0;
+          stopBreakPlaybackImmediate();
+          breakBufferLoaded = false;
+          breakWaveformPeaks = null;
+          breakWaveformDuration = 0;
            isPowerOn=false;
            knobState.forEach(k=>{ stopNote(k.id, true); if (k.isArpOn) { k.isArpOn = false; k.dom.arpSwitch.classList.remove('on'); } k.isSweepMode = true; if (k.dom.arpModeSwitch) { k.dom.arpModeSwitch.classList.add('on'); } });
            isArpRateSynced = false; if(arpSyncSwitch) arpSyncSwitch.classList.remove('on');
@@ -2783,6 +2839,20 @@ function sendMidiMessage(message) {
 
            applyIndicatorTransform(d.indicator, d.angle);
 
+           if (id === 36) {
+               const nextIndex = breakValueToIndex(d.value);
+               const snappedValue = breakIndexToValue(nextIndex);
+               if (Math.abs(d.value - snappedValue) > 1e-5) {
+                   d.value = snappedValue;
+                   d.angle = MIN_FX_ANGLE + (snappedValue * (MAX_FX_ANGLE - MIN_FX_ANGLE));
+                   if (d.indicator) {
+                       applyIndicatorTransform(d.indicator, d.angle);
+                   }
+               }
+               setBreakSampleIndex(nextIndex);
+               return;
+           }
+
            if (id === 35) {
                const snappedDivision = normalizedToBreakSlipDivision(d.value);
                setBreakSlipDivision(snappedDivision, false);
@@ -2895,7 +2965,7 @@ function sendMidiMessage(message) {
                const d = fxKnobData[activeMouseFxKnobId]; if (!d || !d.isDragging) return;
                e.preventDefault(); const cY = e.clientY; let sensitivity = 1.5;
                if (activeMouseFxKnobId === 16 || activeMouseFxKnobId === 17) { sensitivity = 0.6; }
-               else if (activeMouseFxKnobId === 35) { sensitivity = 3.0; }
+               else if (activeMouseFxKnobId === 35 || activeMouseFxKnobId === 36) { sensitivity = 3.0; }
                const dY = (d.startY - cY) * sensitivity; d.startY = cY; updateFxKnob(activeMouseFxKnobId, dY);
            };
            const handleFxMouseUp = () => {
@@ -2932,7 +3002,7 @@ function sendMidiMessage(message) {
                    const cY = t.clientY;
                    let sensitivity = 1.5;
                    if (id === '16' || id === '17') { sensitivity = 0.6; }
-                   else if (id === '35') { sensitivity = 3.0; }
+                   else if (id === '35' || id === '36') { sensitivity = 3.0; }
                    const deltaX = d.touchStartX === null ? 0 : Math.abs(t.clientX - d.touchStartX);
                    const deltaYAbs = d.touchStartY === null ? 0 : Math.abs(t.clientY - d.touchStartY);
                    if (!d.touchMoved && (deltaX > 6 || deltaYAbs > 6)) {
@@ -2976,7 +3046,7 @@ function sendMidiMessage(message) {
                else if(id===9){fxKnobData[id].value=0.0995;} else if(id===10){fxKnobData[id].value=0.8;} else if(id===11){fxKnobData[id].value=0.2;}
                else if(id===13){fxKnobData[id].value=0.5;} else if(id===15){fxKnobData[id].value=0.25;} else if(id===16||id===17){fxKnobData[id].value=arpRateBpmToValue(DEFAULT_ARP_RATE_BPM);}
                else if(id===18||id===19){fxKnobData[id].value=0.0;} else if(id===20||id===21){fxKnobData[id].value=0.5;}
-else if(id===22||id===23){fxKnobData[id].value=0.0;} else if(id===24||id===25){fxKnobData[id].value=0.5;} else if(id===26||id===27){fxKnobData[id].value=0.5;} else if(id===28||id===29){fxKnobData[id].value=0.0;} else if(id===30||id===31){fxKnobData[id].value=0.0;} else if(id===32){fxKnobData[id].value=0.5;} else if(id===33){fxKnobData[id].value=0.0;} else if(id===34){fxKnobData[id].value=0.7;} else if(id===35){fxKnobData[id].value=breakSlipDivisionToNormalized(breakSlipBaseDivision);}
+else if(id===22||id===23){fxKnobData[id].value=0.0;} else if(id===24||id===25){fxKnobData[id].value=0.5;} else if(id===26||id===27){fxKnobData[id].value=0.5;} else if(id===28||id===29){fxKnobData[id].value=0.0;} else if(id===30||id===31){fxKnobData[id].value=0.0;} else if(id===32){fxKnobData[id].value=0.5;} else if(id===33){fxKnobData[id].value=0.0;} else if(id===34){fxKnobData[id].value=0.7;} else if(id===35){fxKnobData[id].value=breakSlipDivisionToNormalized(breakSlipBaseDivision);} else if(id===36){fxKnobData[id].value=breakIndexToValue(breakSampleIndex);}
                fxKnobData[id].angle = MIN_FX_ANGLE + (fxKnobData[id].value * (MAX_FX_ANGLE - MIN_FX_ANGLE));
                if (fxKnobData[id].indicator) { applyIndicatorTransform(fxKnobData[id].indicator, fxKnobData[id].angle); }
                if(id===30||id===31){ updateVoiceWaveDisplay(id === 30 ? 0 : 1, fxKnobData[id].value); }
@@ -4556,6 +4626,18 @@ function setFxValue(id, value, forceVisualUpdate = false) {
                 return;
             }
 
+            if (id === 36) {
+                const nextIndex = breakValueToIndex(value);
+                const snappedValue = breakIndexToValue(nextIndex);
+                d.value = snappedValue;
+                d.angle = MIN_FX_ANGLE + (snappedValue * (MAX_FX_ANGLE - MIN_FX_ANGLE));
+                if (d.indicator) {
+                    applyIndicatorTransform(d.indicator, d.angle);
+                }
+                setBreakSampleIndex(nextIndex);
+                return;
+            }
+
             d.value = Math.max(0, Math.min(1, value));
             d.angle = MIN_FX_ANGLE + (d.value * (MAX_FX_ANGLE - MIN_FX_ANGLE));
             if (d.indicator && (!isLfoMode || forceVisualUpdate)) {
@@ -4983,11 +5065,10 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
            breakGridArpSlot = document.getElementById('break-grid-arp-slot');
            breakWaveCanvas = document.getElementById('break-waveform');
            breakWaveCtx = breakWaveCanvas ? breakWaveCanvas.getContext('2d') : null;
-           sampleUploadInput = document.getElementById('sample-upload-input');
+           breakSelectionDisplay = document.getElementById('break-selection-display');
            breakSpeedControls = document.getElementById('break-speed-controls');
            breakSpeedHalfButton = document.getElementById('break-speed-half');
            breakSpeedDoubleButton = document.getElementById('break-speed-double');
-           breakSpeedResetButton = document.getElementById('break-speed-reset');
            breakSpeedDisplay = document.getElementById('break-speed-display');
            
            // --- 1. Audio Resume (Touch & Click) ---
@@ -5066,9 +5147,6 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                    toggleBreakMode();
                });
            }
-           if (breakWaveCanvas && sampleUploadInput) {
-               addTouchListener(breakWaveCanvas, () => sampleUploadInput.click());
-           }
            if (breakSpeedHalfButton) {
                addTouchListener(breakSpeedHalfButton, (e) => {
                    setBreakSpeedMultiplier(0.5, { accumulate: true });
@@ -5077,39 +5155,12 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
            }
            if (breakSpeedDoubleButton) {
                addTouchListener(breakSpeedDoubleButton, (e) => {
-                   setBreakSpeedMultiplier(2, { accumulate: true });
-                   e?.target?.blur?.();
-               });
-           }
-           if (breakSpeedResetButton) {
-               addTouchListener(breakSpeedResetButton, (e) => {
-                   resetBreakToFactorySample();
-                   e?.target?.blur?.();
-               });
-           }
-           if (sampleUploadInput) {
-               sampleUploadInput.addEventListener('change', async (event) => {
-                   const file = event.target?.files?.[0];
-                   if (!file) return;
-
-                   try {
-                       if (!isPowerOn) await powerOn();
-                       const arrayBuffer = await file.arrayBuffer();
-                       const decoded = await audioContext.decodeAudioData(arrayBuffer);
-                       const mono = decoded.numberOfChannels > 0 ? decoded.getChannelData(0) : null;
-                       if (!mono || !mono.length) return;
-
-                       applyBreakSampleData({ samples: mono, sampleRate: decoded.sampleRate, duration: decoded.duration, isUserSample: true });
-                       sendBreakPlaybackRate();
-                   } catch (err) {
-                       console.error('Failed to decode uploaded sample', err);
-                   } finally {
-                       if (event.target) {
-                           event.target.value = '';
-                       }
-                   }
-                });
-            }
+                setBreakSpeedMultiplier(2, { accumulate: true });
+                e?.target?.blur?.();
+            });
+        }
+           updateBreakSelectionUi();
+           syncBreakSelectionKnob();
            updateBreakSpeedUi();
            updateBreakSlipUi();
            updateBreakGridVisibility();
