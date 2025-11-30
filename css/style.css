@@ -192,6 +192,8 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
         line-height: 1;
         letter-spacing: 0.08em;
         transition: color 0.2s, opacity 0.2s, transform 0.1s;
+        outline: none;
+        -webkit-tap-highlight-color: transparent;
       }
       .rate-display-row {
         display: flex;
@@ -201,6 +203,16 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
         text-transform: uppercase;
         color: inherit;
         width: 100%;
+      }
+      .arp-time-display {
+        color: var(--color-accent-teal);
+        font-variant-numeric: tabular-nums;
+      }
+      .arp-speed-display {
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        text-align: center;
+        margin-top: 0.25rem;
       }
       .rate-bpm-display {
         font-weight: 700;
@@ -215,6 +227,11 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
       .arp-rate-button:hover {
         color: var(--color-accent-yellow);
         transform: translateY(-1px);
+      }
+
+      .arp-rate-button:focus {
+        outline: none;
+        box-shadow: none;
       }
 
       body.easter-egg-mode .arp-rate-button:hover {
@@ -607,7 +624,6 @@ animation: note-retrigger 0.08s ease-out;
   max-width: 680px;
   background: transparent;
   border-radius: 0;
-  border: 1px solid currentColor;
   padding: 12px;
 }
 
@@ -617,10 +633,6 @@ animation: note-retrigger 0.08s ease-out;
 
 .break-grid.visible {
   display: block;
-}
-
-body.easter-egg-mode .break-grid {
-  border-color: var(--color-text-dark, #000000);
 }
 
 .break-grid-header {
@@ -667,4 +679,9 @@ body.easter-egg-mode .break-grid {
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+}
+
+.break-play-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

@@ -89,6 +89,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakFxSwitch = null;
         let breakSlipModeSwitch = null;
         let breakModeSwitch = null;
+        let breakGridDefaultSlot = null;
+        let breakGridArpSlot = null;
         let oscillatorRow = null;
         let breakModeActive = false;
         let breakPlayRequested = false;
@@ -114,6 +116,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakFxSendToGlobalFx = false;
         let breakSlipAnchorHoldEnabled = true;
         const BREAK_SLIP_DIVISIONS = [4, 1, 0.5, 0.25, 0.125, 0.0625, 0.03125];
+        let arpTimeIntervalId = null;
 
         function getLfoDestChain(lfo) {
             if (lfo && Array.isArray(lfo.destChain) && lfo.destChain.length) return lfo.destChain;
@@ -246,6 +249,10 @@ let liveLfoOutputs = [0, 0, 0, 0];
         const MASTER_CLOCK_INTERVAL_MS = 2;
         const MASTER_CLOCK_TOLERANCE_MS = 1;
         const TEMPO_KNOB_DOUBLE_TAP_MS = 350;
+        const MIN_RATE_MULTIPLIER = 0.25;
+        const MAX_RATE_MULTIPLIER = 4;
+        const ARP_TIME_REFRESH_MS = 200;
+        const RATE_MULTIPLIER_STEPS = [0.25, 0.5, 1, 2, 4];
 
         function clamp(value, min, max) {
             return Math.min(max, Math.max(min, value));
@@ -340,6 +347,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             masterClockRunning = false;
             masterClockStartTime = null;
             updateMidiClockState();
+            stopArpTimeUpdaterIfIdle();
         }
 
         function quantizeToNextSixteenth(now, intervalMs) {
@@ -399,6 +407,51 @@ let liveLfoOutputs = [0, 0, 0, 0];
             return Math.max(0.1, bpm / BREAK_BASE_BPM);
         }
 
+        function updateArpSpeedDisplay(knobId) {
+            const state = knobState[knobId];
+            if (!state?.dom?.speedDisplay) return;
+            const label = formatRateMultiplierLabel(state.arpRateMultiplier ?? 1);
+            state.dom.speedDisplay.textContent = label;
+        }
+
+        function updateArpTimeDisplay(knobId) {
+            const state = knobState[knobId];
+            if (!state?.dom?.timeDisplay) return;
+            if (!state.arpRunning || !state.arpPlaybackStartTime) {
+                state.dom.timeDisplay.textContent = '0:00';
+                return;
+            }
+            const elapsedSeconds = getNowSeconds() - state.arpPlaybackStartTime;
+            state.dom.timeDisplay.textContent = formatPlaybackTimeLabel(elapsedSeconds);
+        }
+
+        function ensureArpTimeUpdater() {
+            if (arpTimeIntervalId) return;
+            arpTimeIntervalId = setInterval(() => {
+                knobState.forEach((_, idx) => updateArpTimeDisplay(idx));
+            }, ARP_TIME_REFRESH_MS);
+        }
+
+        function stopArpTimeUpdaterIfIdle() {
+            if (knobState.some(state => state?.arpRunning)) return;
+            if (arpTimeIntervalId) {
+                clearInterval(arpTimeIntervalId);
+                arpTimeIntervalId = null;
+            }
+            knobState.forEach((_, idx) => updateArpTimeDisplay(idx));
+        }
+
+        function forceImmediateArpTiming(state) {
+            if (!state?.arpRunning) return;
+            const now = getNowMs();
+            if (tempoMode === TEMPO_MODE_BPM) {
+                state.nextArpStepTime = now;
+            } else {
+                const interval = state.arpRateMs ?? DEFAULT_ARP_RATE_MS;
+                state.lastArpStepTime = now - interval;
+            }
+        }
+
         function normalizedToBreakSlipDivision(normalized) {
             const clamped = clamp(normalized, 0, 1);
             const index = Math.round(clamped * (BREAK_SLIP_DIVISIONS.length - 1));
@@ -424,6 +477,25 @@ let liveLfoOutputs = [0, 0, 0, 0];
             if (value >= 3.999) return 'OFF';
             if (value >= 1) return value.toString();
             return `1/${Math.round(1 / value)}`;
+        }
+
+        function formatPlaybackTimeLabel(seconds) {
+            const totalSeconds = Math.max(0, Math.floor(seconds ?? 0));
+            const mins = Math.floor(totalSeconds / 60);
+            const secs = totalSeconds % 60;
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function formatRateMultiplierLabel(multiplier) {
+            const normalized = clamp(multiplier ?? 1, MIN_RATE_MULTIPLIER, MAX_RATE_MULTIPLIER);
+            const closest = RATE_MULTIPLIER_STEPS.reduce((best, value) => {
+                const bestDiff = Math.abs(best - normalized);
+                const nextDiff = Math.abs(value - normalized);
+                return nextDiff < bestDiff ? value : best;
+            }, RATE_MULTIPLIER_STEPS[0]);
+
+            if (closest < 1) return `1/${Math.round(1 / closest)}x`;
+            return `${closest}x`;
         }
 
         function updateBreakFxSwitchUi() {
@@ -591,12 +663,40 @@ let liveLfoOutputs = [0, 0, 0, 0];
             }
         }
 
+        function isAnyArpRunning() {
+            return knobState.some(state => state?.arpRunning);
+        }
+
+        function updateBreakGridPlacement() {
+            if (!breakGridContainer) return;
+            const targetSlot = (breakModeActive && breakGridArpSlot)
+                ? breakGridArpSlot
+                : (breakGridDefaultSlot || breakGridContainer.parentElement);
+            if (targetSlot && breakGridContainer.parentElement !== targetSlot) {
+                targetSlot.appendChild(breakGridContainer);
+                resizeBreakWaveformCanvas();
+            }
+        }
+
+        function updateBreakPlaybackEligibility() {
+            const hasRunningArp = isAnyArpRunning();
+            if (!hasRunningArp && breakPlayRequested) {
+                stopBreakPlaybackImmediate();
+                stopMasterClockIfIdle();
+            }
+            if (breakPlayButton) {
+                breakPlayButton.disabled = !hasRunningArp;
+                breakPlayButton.setAttribute('aria-disabled', hasRunningArp ? 'false' : 'true');
+            }
+        }
+
         function updateBreakGridVisibility() {
             if (breakModeSwitch) {
                 breakModeSwitch.classList.toggle('on', breakModeActive);
                 breakModeSwitch.setAttribute('aria-checked', breakModeActive ? 'true' : 'false');
             }
             if (!breakGridContainer) return;
+            updateBreakGridPlacement();
             const shouldShow = breakModeActive;
             breakGridContainer.classList.toggle('visible', shouldShow);
             breakGridContainer.classList.toggle('hidden', !shouldShow);
@@ -826,6 +926,12 @@ let liveLfoOutputs = [0, 0, 0, 0];
         }
 
         async function toggleBreakPlayback() {
+            if (!isAnyArpRunning()) {
+                stopBreakPlaybackImmediate();
+                updateBreakPlaybackEligibility();
+                stopMasterClockIfIdle();
+                return;
+            }
             if (breakPlayRequested) {
                 stopBreakPlaybackImmediate();
                 stopMasterClockIfIdle();
@@ -845,8 +951,9 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
             const bpm = calculateMidiBpm();
             const quarterIntervalMs = 60000 / Math.max(1, bpm);
+            const barIntervalMs = quarterIntervalMs * 4;
             const now = getNowMs();
-            const startTime = quantizeToNextSixteenth(now, quarterIntervalMs);
+            const startTime = quantizeToNextSixteenth(now, barIntervalMs);
             const delayMs = Math.max(0, startTime - now);
             clearBreakStartTimer();
             breakStartTimeoutId = setTimeout(beginBreakPlayback, delayMs);
@@ -1228,9 +1335,15 @@ let liveLfoOutputs = [0, 0, 0, 0];
             state.nextArpStepTime = now + adjusted;
         }
 
-        function setArpRateFromBpm(knobId, rateBpm) {
+        function setArpRateFromBpm(knobId, rateBpm, options = {}) {
+            const { fromRateButton = false } = options;
             const state = knobState[knobId];
             if (!state) return;
+
+            if (!fromRateButton) {
+                state.arpRateMultiplier = 1;
+                updateArpSpeedDisplay(knobId);
+            }
 
             const clampedRate = normalizeArpRateBpm(rateBpm);
             const previousRateMs = state.arpRateMs;
@@ -1258,9 +1371,15 @@ let liveLfoOutputs = [0, 0, 0, 0];
             updateMidiClockState();
         }
 
-        function setArpRateFromMs(knobId, rateMs) {
+        function setArpRateFromMs(knobId, rateMs, options = {}) {
+            const { fromRateButton = false } = options;
             const state = knobState[knobId];
             if (!state) return;
+
+            if (!fromRateButton) {
+                state.arpRateMultiplier = 1;
+                updateArpSpeedDisplay(knobId);
+            }
 
             const clampedRate = normalizeArpRateMs(rateMs);
             const previousRateMs = state.arpRateMs;
@@ -1297,13 +1416,23 @@ let liveLfoOutputs = [0, 0, 0, 0];
             targets.forEach(targetId => {
                 const state = knobState[targetId];
                 if (!state) return;
+                const previousMultiplier = clamp(state.arpRateMultiplier ?? 1, MIN_RATE_MULTIPLIER, MAX_RATE_MULTIPLIER);
+                const nextMultiplier = clamp(previousMultiplier * multiplier, MIN_RATE_MULTIPLIER, MAX_RATE_MULTIPLIER);
+
                 if (tempoMode === TEMPO_MODE_BPM) {
-                    const newRate = state.arpRateBpm * multiplier;
-                    setArpRateFromBpm(targetId, newRate);
+                    const baseRateBpm = state.arpRateBpm / Math.max(previousMultiplier, MIN_RATE_MULTIPLIER);
+                    const newRate = baseRateBpm * nextMultiplier;
+                    state.arpRateMultiplier = nextMultiplier;
+                    setArpRateFromBpm(targetId, newRate, { fromRateButton: true });
                 } else {
-                    const newRateMs = state.arpRateMs / multiplier;
-                    setArpRateFromMs(targetId, newRateMs);
+                    const baseRateMs = state.arpRateMs * Math.max(previousMultiplier, MIN_RATE_MULTIPLIER);
+                    const newRateMs = baseRateMs / nextMultiplier;
+                    state.arpRateMultiplier = nextMultiplier;
+                    setArpRateFromMs(targetId, newRateMs, { fromRateButton: true });
                 }
+
+                updateArpSpeedDisplay(targetId);
+                forceImmediateArpTiming(state);
             });
         }
 
@@ -1317,10 +1446,10 @@ let liveLfoOutputs = [0, 0, 0, 0];
      const knobState = [
     { id: 0, isNoteOn: false, isHeld: false, totalAngle: Math.random()*MAX_TOTAL_ANGLE, lastDragAngle: 0, currentOctave: 3, dom: {}, touchId: null, baseColor: [0,0,0],
       isArpOn: false, isSweepMode: true, arpNotes: [], isArpHoldOn: false, arpRateBpm: DEFAULT_ARP_RATE_BPM, arpRateMs: DEFAULT_ARP_RATE_MS, arpOctaveRange: 0, feelKnobValue: 0.0, currentFeelPattern: EUCLIDEAN_PATTERNS[0], euclideanStepCounter: 0,
-      arpTranspose: 0, arpRunning: false, nextArpStepTime: 0, lastArpStepTime: 0, arpRafId: null, currentArpNoteIndex: 0, currentOctaveStep: 0, arpDirection: 1, arpUpDownState: 0, lastPlayedMidi: null, arpLastVisualIndex: -1, lastNoteOnTime: 0, lastVisualMidi: null },
+      arpTranspose: 0, arpRunning: false, nextArpStepTime: 0, lastArpStepTime: 0, arpRafId: null, currentArpNoteIndex: 0, currentOctaveStep: 0, arpDirection: 1, arpUpDownState: 0, lastPlayedMidi: null, arpLastVisualIndex: -1, lastNoteOnTime: 0, lastVisualMidi: null, arpRateMultiplier: 1, arpPlaybackStartTime: 0 },
     { id: 1, isNoteOn: false, isHeld: false, totalAngle: Math.random()*MAX_TOTAL_ANGLE, lastDragAngle: 0, currentOctave: 3, dom: {}, touchId: null, baseColor: [0,0,0],
       isArpOn: false, isSweepMode: true, arpNotes: [], isArpHoldOn: false, arpRateBpm: DEFAULT_ARP_RATE_BPM, arpRateMs: DEFAULT_ARP_RATE_MS, arpOctaveRange: 0, feelKnobValue: 0.0, currentFeelPattern: EUCLIDEAN_PATTERNS[0], euclideanStepCounter: 0,
-      arpTranspose: 0, arpRunning: false, nextArpStepTime: 0, lastArpStepTime: 0, arpRafId: null, currentArpNoteIndex: 0, currentOctaveStep: 0, arpDirection: 1, arpUpDownState: 0, lastPlayedMidi: null, arpLastVisualIndex: -1, lastNoteOnTime: 0, lastVisualMidi: null }
+      arpTranspose: 0, arpRunning: false, nextArpStepTime: 0, lastArpStepTime: 0, arpRafId: null, currentArpNoteIndex: 0, currentOctaveStep: 0, arpDirection: 1, arpUpDownState: 0, lastPlayedMidi: null, arpLastVisualIndex: -1, lastNoteOnTime: 0, lastVisualMidi: null, arpRateMultiplier: 1, arpPlaybackStartTime: 0 }
 ];
       
        // --- Global Arp State ---
@@ -3035,6 +3164,10 @@ else if(id===22||id===23){fxKnobData[id].value=0.0;} else if(id===24||id===25){f
               state.arpRafId = null;
           }
           startArpClockForState(knobId);
+          state.arpPlaybackStartTime = getNowSeconds();
+          updateArpTimeDisplay(knobId);
+          ensureArpTimeUpdater();
+          updateBreakPlaybackEligibility();
       }
       
        function stopArpeggiator(knobId) {
@@ -3051,6 +3184,10 @@ else if(id===22||id===23){fxKnobData[id].value=0.0;} else if(id===24||id===25){f
           }
           stopMasterClockIfIdle();
           updateMidiClockState();
+          updateBreakPlaybackEligibility();
+          state.arpPlaybackStartTime = 0;
+          updateArpTimeDisplay(knobId);
+          stopArpTimeUpdaterIfIdle();
           if (state.isNoteOn && state.lastPlayedMidi !== null) {
            // Stop the internal synth sound
            if (synthNode) {
@@ -4767,6 +4904,8 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
            breakFxSwitch = document.getElementById('break-fx-switch');
            breakSlipModeSwitch = document.getElementById('break-slip-mode-switch');
            breakModeSwitch = document.getElementById('break-mode-switch');
+           breakGridDefaultSlot = document.getElementById('break-grid-default-slot') || breakGridContainer?.parentElement;
+           breakGridArpSlot = document.getElementById('break-grid-arp-slot');
            breakWaveCanvas = document.getElementById('break-waveform');
            breakWaveCtx = breakWaveCanvas ? breakWaveCanvas.getContext('2d') : null;
            
@@ -4848,6 +4987,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
            }
            updateBreakSlipUi();
            updateBreakGridVisibility();
+           updateBreakPlaybackEligibility();
            resizeBreakWaveformCanvas();
            window.addEventListener('resize', resizeBreakWaveformCanvas);
 
@@ -5369,6 +5509,8 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                s.dom.feelPatternPreview = document.getElementById(`feel-pattern-preview-${id}`);
                s.dom.transposeDisplay = document.getElementById(`transpose-display-${id}`);
                s.dom.rateDisplay = document.getElementById(`rate-display-${id}`);
+               s.dom.timeDisplay = document.getElementById(`arp-time-display-${id}`);
+               s.dom.speedDisplay = document.getElementById(`arp-speed-display-${id}`);
       
                s.dom.knob?.addEventListener('mousedown', handleInteractionStart); s.dom.knob?.addEventListener('touchstart', handleInteractionStart, {passive: false});
       
@@ -5625,6 +5767,10 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                   knobState.forEach(k => updateStateFromTotalAngle(k.id));
               }
           }
+          knobState.forEach((_, idx) => {
+              updateArpSpeedDisplay(idx);
+              updateArpTimeDisplay(idx);
+          });
           updateRateButtonLockState();
       }
        init();
