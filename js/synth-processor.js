@@ -331,27 +331,29 @@ const LFO_DEST_NONE = -1;
                    this.breakBypassL = new Float32Array(128);
                    this.breakBypassR = new Float32Array(128);
 
-                   this.recomputeSlipWindow = () => {
-   // 1. Calculate how big the new loop should be
+                  this.recomputeSlipWindow = () => {
    if (this.slipWindowSeconds > 0 && this.samplerPlayback.rate > 0) {
        const newWindowSamples = this.slipWindowSeconds * this.samplerPlayback.rate * sampleRate;
 
-       // 2. THE FIX: Conditional Anchoring
-       // If we are NOT in Anchor Mode, OR if this is the first time we are catching (slip wasn't active),
-       // then we move the anchor to the current playback position.
-       //
-       // If we ARE in Anchor Mode and already active, we skip this block, 
-       // preserving the old 'this.slipAnchorStart' exactly where it was.
+       // THE FIX: Quantized Anchoring
+       // If we are engaging the effect (or in Catch mode), we calculate a new anchor.
        if (!this.slipAnchorMode || !this.slipActive) {
-           this.slipAnchorStart = Math.max(0, this.samplerPlayback.position - newWindowSamples);
+           // Instead of subtracting time (which inherits your timing imperfections),
+           // we use Math.floor to SNAP the start point to the grid of the current window size.
+           // This guarantees the loop starts exactly on the beat/kick.
+           this.slipAnchorStart = Math.floor(this.samplerPlayback.position / newWindowSamples) * newWindowSamples;
        }
 
-       // 3. Update the window size and activate
        this.slipWindowSamples = newWindowSamples;
-       this.slipRenderPhase = 0; // Restart loop from the beginning (or kept anchor)
+       
+       // Optional: Reset phase to 0 to ensure the loop triggers immediately from the start (the kick)
+       // preserving phase can be smoother for pitch effects, but for beat-repeats, resetting is often tighter.
+       if (!this.slipActive) {
+            this.slipRenderPhase = 0; 
+       }
+       
        this.slipActive = this.slipWindowSamples > 0;
    } else {
-       // Disable if window is 0
        this.slipWindowSamples = 0;
        this.slipRenderPhase = 0;
        this.slipAnchorStart = 0;
@@ -1023,6 +1025,7 @@ return true;
 }
 }
 registerProcessor('synth-processor', SynthProcessor);
+
 
 
 
