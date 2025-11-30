@@ -327,22 +327,43 @@ const LFO_DEST_NONE = -1;
                    this.slipAnchorStart = 0;
                    this.slipActive = false;
                    this.breakFxSend = false;
+                   this.slipAnchorMode = true;
                    this.breakBypassL = new Float32Array(128);
                    this.breakBypassR = new Float32Array(128);
 
-                   this.recomputeSlipWindow = () => {
-                       if (this.slipWindowSeconds > 0 && this.samplerPlayback.rate > 0) {
-                           this.slipWindowSamples = this.slipWindowSeconds * this.samplerPlayback.rate * sampleRate;
-                           this.slipAnchorStart = Math.max(0, this.samplerPlayback.position - this.slipWindowSamples);
-                           this.slipRenderPhase = 0;
-                           this.slipActive = this.slipWindowSamples > 0;
-                       } else {
-                           this.slipWindowSamples = 0;
-                           this.slipRenderPhase = 0;
-                           this.slipAnchorStart = 0;
-                           this.slipActive = false;
-                       }
-                   };
+                 this.recomputeSlipWindow = () => {
+   if (this.slipWindowSeconds > 0 && this.samplerPlayback.rate > 0) {
+       const newWindowSamples = this.slipWindowSeconds * this.samplerPlayback.rate * sampleRate;
+
+       // 1. Determine if we need to set a new anchor
+       // (If in Catch Mode, OR if this is the first activation)
+       if (!this.slipAnchorMode || !this.slipActive) {
+           // Snap to the exact grid line of the current audio position
+           this.slipAnchorStart = Math.floor(this.samplerPlayback.position / newWindowSamples) * newWindowSamples;
+           
+           // --- FIX: Tell the UI exactly where we snapped ---
+           if (this.sampleLength > 0) {
+               this.port.postMessage({
+                   type: 'reportBreakAnchor', 
+                   data: this.slipAnchorStart / this.sampleLength
+               });
+           }
+       }
+
+       this.slipWindowSamples = newWindowSamples;
+       
+       if (!this.slipActive) {
+            this.slipRenderPhase = 0; 
+       }
+       
+       this.slipActive = this.slipWindowSamples > 0;
+   } else {
+       this.slipWindowSamples = 0;
+       this.slipRenderPhase = 0;
+       this.slipAnchorStart = 0;
+       this.slipActive = false;
+   }
+};
       
                    this.port.onmessage = ({ data: { type, data } }) => {
                        const { voice, freq, id, value, lfoId, param } = data || {};
@@ -368,6 +389,10 @@ const LFO_DEST_NONE = -1;
         this.envStage2 = 'release'; 
     } 
     break;
+                        case 'setBreakSlipMode':
+    this.slipAnchorMode = !!(data && data.enabled);
+    break;
+
                            case 'setFreq': if (voice === 0) { this.targetFrequency1 = freq; } else { this.targetFrequency2 = freq; } break;
                            case 'setFx':
                                if (id >= 0 && id < this.params.length) { this.params[id] = value; }
@@ -1005,6 +1030,10 @@ return true;
 }
 }
 registerProcessor('synth-processor', SynthProcessor);
+
+
+
+
 
 
 

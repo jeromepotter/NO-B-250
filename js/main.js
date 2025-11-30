@@ -440,16 +440,27 @@ let liveLfoOutputs = [0, 0, 0, 0];
             breakSlipModeSwitch.setAttribute('aria-checked', breakSlipAnchorHoldEnabled ? 'true' : 'false');
         }
 
-        function setBreakSlipAnchorHold(enabled) {
-            const next = !!enabled;
-            if (breakSlipAnchorHoldEnabled === next) return;
-            breakSlipAnchorHoldEnabled = next;
-            updateBreakSlipModeUi();
-            if (!breakSlipAnchorHoldEnabled && isBreakSlipActive()) {
-                refreshBreakSlipAnchor();
-                drawBreakWaveform(breakWaveformLastProgress);
-            }
-        }
+      function setBreakSlipAnchorHold(enabled) {
+    const next = !!enabled;
+    if (breakSlipAnchorHoldEnabled === next) return;
+    
+    breakSlipAnchorHoldEnabled = next;
+    updateBreakSlipModeUi();
+
+   
+    if (synthNode) {
+        synthNode.port.postMessage({ 
+            type: 'setBreakSlipMode', 
+            data: { enabled: breakSlipAnchorHoldEnabled } 
+        });
+    }
+
+    if (!breakSlipAnchorHoldEnabled && isBreakSlipActive()) {
+        refreshBreakSlipAnchor();
+        drawBreakWaveform(breakWaveformLastProgress);
+    }
+}
+        
 
         function setBreakFxRouting(enabled) {
             const next = !!enabled;
@@ -508,35 +519,43 @@ let liveLfoOutputs = [0, 0, 0, 0];
         }
 
         function refreshBreakSlipAnchor() {
-            const nowSeconds = getNowSeconds();
-            if (!breakRunning || !breakBufferLoaded || breakWaveformDuration <= 0 || breakSlipWindowSeconds <= 0) {
-                breakSlipAnchorNormalized = 0;
-                breakSlipCycleStartTime = nowSeconds;
-                return;
-            }
+    // FIX: If we are in Anchor Mode (Hold Enabled), DO NOT calculate the position here.
+    // We rely 100% on the 'reportBreakAnchor' message from the audio engine to avoid drift.
+    if (breakSlipAnchorHoldEnabled && breakRunning && breakSlipWindowSeconds > 0) {
+        return;
+    }
 
-            const rate = Math.max(0.01, breakPlaybackRate);
-            const effectiveDuration = breakWaveformDuration / rate;
-            if (!Number.isFinite(effectiveDuration) || effectiveDuration <= 0) {
-                breakSlipAnchorNormalized = 0;
-                breakSlipCycleStartTime = nowSeconds;
-                return;
-            }
+    // ... (Keep the rest of the existing logic for Catch Mode / Initialization) ...
+    const nowSeconds = getNowSeconds();
+    if (!breakRunning || !breakBufferLoaded || breakWaveformDuration <= 0 || breakSlipWindowSeconds <= 0) {
+        breakSlipAnchorNormalized = 0;
+        breakSlipCycleStartTime = nowSeconds;
+        return;
+    }
 
-            const windowNorm = Math.max(0, Math.min(1, breakSlipWindowSeconds / effectiveDuration));
-            if (windowNorm <= 0) {
-                breakSlipAnchorNormalized = 0;
-                breakSlipCycleStartTime = nowSeconds;
-                return;
-            }
+    const rate = Math.max(0.01, breakPlaybackRate);
+    const effectiveDuration = breakWaveformDuration / rate;
+    // ... rest of the function logic ...
+    if (!Number.isFinite(effectiveDuration) || effectiveDuration <= 0) {
+        breakSlipAnchorNormalized = 0;
+        breakSlipCycleStartTime = nowSeconds;
+        return;
+    }
 
-            const elapsed = Math.max(0, nowSeconds - breakPlaybackStartTime);
-            const progressSec = effectiveDuration > 0 ? (elapsed % effectiveDuration) : 0;
-            const progressNorm = effectiveDuration > 0 ? progressSec / effectiveDuration : 0;
-            const bucketIndex = Math.max(0, Math.floor(progressNorm / windowNorm));
-            breakSlipAnchorNormalized = Math.min(1, bucketIndex * windowNorm);
-            breakSlipCycleStartTime = nowSeconds;
-        }
+    const windowNorm = Math.max(0, Math.min(1, breakSlipWindowSeconds / effectiveDuration));
+    if (windowNorm <= 0) {
+        breakSlipAnchorNormalized = 0;
+        breakSlipCycleStartTime = nowSeconds;
+        return;
+    }
+
+    const elapsed = Math.max(0, nowSeconds - breakPlaybackStartTime);
+    const progressSec = effectiveDuration > 0 ? (elapsed % effectiveDuration) : 0;
+    const progressNorm = effectiveDuration > 0 ? progressSec / effectiveDuration : 0;
+    const bucketIndex = Math.max(0, Math.floor(progressNorm / windowNorm));
+    breakSlipAnchorNormalized = Math.min(1, bucketIndex * windowNorm);
+    breakSlipCycleStartTime = nowSeconds;
+}
 
         function updateBreakSlipUi() {
             if (breakSlipDisplay) {
@@ -2381,18 +2400,32 @@ for (const event of events) {
                await audioContext.audioWorklet.addModule('./js/synth-processor.js');
                synthNode = new AudioWorkletNode(audioContext,'synth-processor', { numberOfOutputs: 1, outputChannelCount: [2] });
                synthNode.port.onmessage = ({ data }) => {
+    // 1. First, we unpack the message to get 'type' and 'payload'
     const { type, data: payload } = data || {};
+
+    // 2. Then we switch on the type
     switch (type) {
+        
+        // --- FIX: Add the new case INSIDE the switch block ---
+        case 'reportBreakAnchor':
+            // The audio engine is telling us the TRUE anchor position.
+            // Update the visual state immediately.
+            // IMPORTANT: Use 'payload', not 'data' (payload contains the number value)
+            breakSlipAnchorNormalized = payload; 
+            drawBreakWaveform(breakWaveformLastProgress);
+            break;
+        // ----------------------------------------------------
+
         case 'envUpdate':
             if (typeof updateKnobVolumeIndicator === 'function') { 
                 updateKnobVolumeIndicator(0, payload.v0); 
                 updateKnobVolumeIndicator(1, payload.v1); 
             } 
             break;
+
         case 'lfoUpdate':
-            liveLfoOutputs = payload; // Store data immediately
+            liveLfoOutputs = payload; 
             
-            // --- FIX: Throttle Visual Updates for Mobile Performance ---
             if (!visualUpdatePending) {
                 visualUpdatePending = true;
                 requestAnimationFrame(() => {
@@ -2402,11 +2435,15 @@ for (const event of events) {
                     visualUpdatePending = false;
                 });
             }
-            // -----------------------------------------------------------
             break;
-        case 'audio': { const pcm = float32ToPCM16(payload); pcmChunks.push(pcm); totalPcmBytes += pcm.byteLength; break; }
+
+        case 'audio': 
+            const pcm = float32ToPCM16(payload); 
+            pcmChunks.push(pcm); 
+            totalPcmBytes += pcm.byteLength; 
+            break;
+
         case 'recordingStopped': {
-            // ... existing recording stopped logic ...
             const header = makeWavHeader({ sampleRate: audioContext.sampleRate, numChannels: 2, bitsPerSample: 16, dataBytes: totalPcmBytes });
             const wavBlob = new Blob([header, ...pcmChunks], { type: 'audio/wav' });
             const name = generateRecordingFilename('wav'); const url = URL.createObjectURL(wavBlob);
@@ -5670,5 +5707,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
+
 
 
