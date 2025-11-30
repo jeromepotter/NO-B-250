@@ -388,6 +388,7 @@ const LFO_DEST_NONE = -1;
     } else { 
         this.envStage2 = 'release'; 
     } 
+    break;
                         case 'setBreakSlipMode':
     this.slipAnchorMode = !!(data && data.enabled);
     break;
@@ -1029,6 +1030,7 @@ return true;
 }
 }
 registerProcessor('synth-processor', SynthProcessor);
+
 
 
 
