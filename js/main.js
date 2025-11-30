@@ -3112,7 +3112,7 @@ else if(id===22||id===23){fxKnobData[id].value=0.0;} else if(id===24||id===25){f
           updateBreakPlaybackEligibility();
       }
       
-       function stopArpeggiator(knobId) {
+       function stopArpeggiator(knobId, preserveDrums = false) {
            const state = knobState[knobId];
            if (!state) return;
 
@@ -3126,22 +3126,21 @@ else if(id===22||id===23){fxKnobData[id].value=0.0;} else if(id===24||id===25){f
           }
           stopMasterClockIfIdle();
           updateMidiClockState();
-          updateBreakPlaybackEligibility();
-          if (state.isNoteOn && state.lastPlayedMidi !== null) {
-           // Stop the internal synth sound
-           if (synthNode) {
-               synthNode.port.postMessage({ type: 'noteOff', data: { voice: knobId } });
-           }
-           // Capture the event for MIDI recording
-           captureMidiEvent(knobId, 'noteOff', state.lastPlayedMidi, 0);
-           
-           // *** THE FIX: Send the MIDI Note Off message to the external synth ***
-           sendMidiMessage([0x80 + knobId, state.lastPlayedMidi, 0]); 
-           
-           state.isNoteOn = false;
-       }
+          
+          // FIX: Only kill drums if we AREN'T preserving them (e.g. during a locked preset change)
+          if (!preserveDrums) {
+              updateBreakPlaybackEligibility();
+          }
 
-           // --- THE REAL FIX: Reset all internal arp state variables to their initial values ---
+          if (state.isNoteOn && state.lastPlayedMidi !== null) {
+               if (synthNode) {
+                   synthNode.port.postMessage({ type: 'noteOff', data: { voice: knobId } });
+               }
+               captureMidiEvent(knobId, 'noteOff', state.lastPlayedMidi, 0);
+               sendMidiMessage([0x80 + knobId, state.lastPlayedMidi, 0]); 
+               state.isNoteOn = false;
+           }
+
            state.currentArpNoteIndex = 0;
            state.currentOctaveStep = 0;
            state.arpUpDownState = 0;
@@ -3149,9 +3148,7 @@ else if(id===22||id===23){fxKnobData[id].value=0.0;} else if(id===24||id===25){f
            state.lastPlayedMidi = null;
            state.nextArpStepTime = 0;
            state.arpLastVisualIndex = -1;
-           // --- End of Fix ---
 
-           // Clear the visual indicators
            const displayContainer = document.getElementById(`arp-sequence-display-${knobId}`);
            if (displayContainer) {
                const currentPlayhead = displayContainer.querySelector('.playhead');
@@ -4140,8 +4137,8 @@ function applyPreset(p, isArpCategoryPreset = false, options = {}) {
            if (!skipPowerOn && !isPowerOn) powerOn();
 
            // --- 1. STOP old arps completely FIRST ---
-           stopArpeggiator(0);
-           stopArpeggiator(1);
+           stopArpeggiator(0, arpLockActive); 
+           stopArpeggiator(1, arpLockActive);
 
            // --- 2. WIPE all knobs to a clean state ---
            resetAllFxToDefaults({ skipArpKnobs: arpLockActive, skipLfoKnobs: lfoLockActive });
@@ -4496,7 +4493,7 @@ function resetAllFxToDefaults({ skipArpKnobs = false, skipLfoKnobs = false } = {
            }
            Object.keys(fxKnobData).forEach(idStr => {
                const id = parseInt(idStr, 10);
-               if (skipArpKnobs && [16, 17, 18, 19, 22, 23, 24, 25].includes(id)) return;
+               if (skipArpKnobs && [16, 17, 18, 19, 22, 23, 24, 25, 35].includes(id)) return;
                if (skipLfoKnobs && LFO_FX_IDS.includes(id)) return;
                let defaultValue = 0.0;
                if (id === 2) defaultValue = 1.0;
@@ -5719,6 +5716,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
