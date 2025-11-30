@@ -89,6 +89,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakFxSwitch = null;
         let breakSlipModeSwitch = null;
         let breakModeSwitch = null;
+        let breakGridDefaultSlot = null;
+        let breakGridArpSlot = null;
         let oscillatorRow = null;
         let breakModeActive = false;
         let breakPlayRequested = false;
@@ -591,12 +593,40 @@ let liveLfoOutputs = [0, 0, 0, 0];
             }
         }
 
+        function isAnyArpRunning() {
+            return knobState.some(state => state?.arpRunning);
+        }
+
+        function updateBreakGridPlacement() {
+            if (!breakGridContainer) return;
+            const targetSlot = (breakModeActive && breakGridArpSlot)
+                ? breakGridArpSlot
+                : (breakGridDefaultSlot || breakGridContainer.parentElement);
+            if (targetSlot && breakGridContainer.parentElement !== targetSlot) {
+                targetSlot.appendChild(breakGridContainer);
+                resizeBreakWaveformCanvas();
+            }
+        }
+
+        function updateBreakPlaybackEligibility() {
+            const hasRunningArp = isAnyArpRunning();
+            if (!hasRunningArp && breakPlayRequested) {
+                stopBreakPlaybackImmediate();
+                stopMasterClockIfIdle();
+            }
+            if (breakPlayButton) {
+                breakPlayButton.disabled = !hasRunningArp;
+                breakPlayButton.setAttribute('aria-disabled', hasRunningArp ? 'false' : 'true');
+            }
+        }
+
         function updateBreakGridVisibility() {
             if (breakModeSwitch) {
                 breakModeSwitch.classList.toggle('on', breakModeActive);
                 breakModeSwitch.setAttribute('aria-checked', breakModeActive ? 'true' : 'false');
             }
             if (!breakGridContainer) return;
+            updateBreakGridPlacement();
             const shouldShow = breakModeActive;
             breakGridContainer.classList.toggle('visible', shouldShow);
             breakGridContainer.classList.toggle('hidden', !shouldShow);
@@ -826,6 +856,12 @@ let liveLfoOutputs = [0, 0, 0, 0];
         }
 
         async function toggleBreakPlayback() {
+            if (!isAnyArpRunning()) {
+                stopBreakPlaybackImmediate();
+                updateBreakPlaybackEligibility();
+                stopMasterClockIfIdle();
+                return;
+            }
             if (breakPlayRequested) {
                 stopBreakPlaybackImmediate();
                 stopMasterClockIfIdle();
@@ -845,8 +881,9 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
             const bpm = calculateMidiBpm();
             const quarterIntervalMs = 60000 / Math.max(1, bpm);
+            const barIntervalMs = quarterIntervalMs * 4;
             const now = getNowMs();
-            const startTime = quantizeToNextSixteenth(now, quarterIntervalMs);
+            const startTime = quantizeToNextSixteenth(now, barIntervalMs);
             const delayMs = Math.max(0, startTime - now);
             clearBreakStartTimer();
             breakStartTimeoutId = setTimeout(beginBreakPlayback, delayMs);
@@ -3035,6 +3072,7 @@ else if(id===22||id===23){fxKnobData[id].value=0.0;} else if(id===24||id===25){f
               state.arpRafId = null;
           }
           startArpClockForState(knobId);
+          updateBreakPlaybackEligibility();
       }
       
        function stopArpeggiator(knobId) {
@@ -3051,6 +3089,7 @@ else if(id===22||id===23){fxKnobData[id].value=0.0;} else if(id===24||id===25){f
           }
           stopMasterClockIfIdle();
           updateMidiClockState();
+          updateBreakPlaybackEligibility();
           if (state.isNoteOn && state.lastPlayedMidi !== null) {
            // Stop the internal synth sound
            if (synthNode) {
@@ -4767,6 +4806,8 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
            breakFxSwitch = document.getElementById('break-fx-switch');
            breakSlipModeSwitch = document.getElementById('break-slip-mode-switch');
            breakModeSwitch = document.getElementById('break-mode-switch');
+           breakGridDefaultSlot = document.getElementById('break-grid-default-slot') || breakGridContainer?.parentElement;
+           breakGridArpSlot = document.getElementById('break-grid-arp-slot');
            breakWaveCanvas = document.getElementById('break-waveform');
            breakWaveCtx = breakWaveCanvas ? breakWaveCanvas.getContext('2d') : null;
            
@@ -4848,6 +4889,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
            }
            updateBreakSlipUi();
            updateBreakGridVisibility();
+           updateBreakPlaybackEligibility();
            resizeBreakWaveformCanvas();
            window.addEventListener('resize', resizeBreakWaveformCanvas);
 

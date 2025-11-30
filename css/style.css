@@ -668,3 +668,8 @@ body.easter-egg-mode .break-grid {
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
+
+.break-play-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
