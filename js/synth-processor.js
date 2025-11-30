@@ -331,23 +331,27 @@ const LFO_DEST_NONE = -1;
                    this.breakBypassL = new Float32Array(128);
                    this.breakBypassR = new Float32Array(128);
 
-                  this.recomputeSlipWindow = () => {
+                 this.recomputeSlipWindow = () => {
    if (this.slipWindowSeconds > 0 && this.samplerPlayback.rate > 0) {
        const newWindowSamples = this.slipWindowSeconds * this.samplerPlayback.rate * sampleRate;
 
-       // THE FIX: Quantized Anchoring
-       // If we are engaging the effect (or in Catch mode), we calculate a new anchor.
+       // 1. Determine if we need to set a new anchor
+       // (If in Catch Mode, OR if this is the first activation)
        if (!this.slipAnchorMode || !this.slipActive) {
-           // Instead of subtracting time (which inherits your timing imperfections),
-           // we use Math.floor to SNAP the start point to the grid of the current window size.
-           // This guarantees the loop starts exactly on the beat/kick.
+           // Snap to the exact grid line of the current audio position
            this.slipAnchorStart = Math.floor(this.samplerPlayback.position / newWindowSamples) * newWindowSamples;
+           
+           // --- FIX: Tell the UI exactly where we snapped ---
+           if (this.sampleLength > 0) {
+               this.port.postMessage({
+                   type: 'reportBreakAnchor', 
+                   data: this.slipAnchorStart / this.sampleLength
+               });
+           }
        }
 
        this.slipWindowSamples = newWindowSamples;
        
-       // Optional: Reset phase to 0 to ensure the loop triggers immediately from the start (the kick)
-       // preserving phase can be smoother for pitch effects, but for beat-repeats, resetting is often tighter.
        if (!this.slipActive) {
             this.slipRenderPhase = 0; 
        }
@@ -1025,6 +1029,7 @@ return true;
 }
 }
 registerProcessor('synth-processor', SynthProcessor);
+
 
 
 
