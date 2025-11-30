@@ -4137,13 +4137,19 @@ function applyPreset(p, isArpCategoryPreset = false, options = {}) {
            const arpLockActive = ignoreLocks ? false : isArpLockEnabled;
            const lfoLockActive = ignoreLocks ? false : isLfoLockEnabled;
 
-           if (!skipPowerOn && !isPowerOn) powerOn();
+          if (!skipPowerOn && !isPowerOn) powerOn();
 
            // --- 1. STOP old arps completely FIRST ---
-           stopArpeggiator(0, arpLockActive); 
-           stopArpeggiator(1, arpLockActive);
+           
+           // FIX: Only stop the arps if we are NOT locking the sequence.
+           // If SEQ LOCK is On, we leave the engines running and just hot-swap the sounds below.
+           if (!arpLockActive) {
+               stopArpeggiator(0);
+               stopArpeggiator(1);
+           }
 
            // --- 2. WIPE all knobs to a clean state ---
+           // (This logic remains the same, it cleans up the sound params)
            resetAllFxToDefaults({ skipArpKnobs: arpLockActive, skipLfoKnobs: lfoLockActive });
 
           // --- 3. RESTORE tempo mode (Pattern/Timing) ---
@@ -5719,6 +5725,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
