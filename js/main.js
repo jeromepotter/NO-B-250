@@ -108,11 +108,9 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakWaveformDuration = 0;
         let currentSampleDuration = 0;
         let breakSpeedMultiplier = 1;
-        let breakPendingSpeedMultiplier = null;
         let breakUserSampleLoaded = false;
         let breakWaveformAnimationId = null;
         let breakPlaybackStartTime = 0;
-        let breakSpeedChangeTimeoutId = null;
         let breakWaveformDpr = 1;
         let breakWaveformColors = null;
         let breakWaveformLastProgress = 0;
@@ -125,6 +123,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakSpeedHalfButton = null;
         let breakSpeedDoubleButton = null;
         let breakSpeedResetButton = null;
+        let breakSpeedDisplay = null;
+        let breakCurrentTimeDisplay = null;
 
         function getLfoDestChain(lfo) {
             if (lfo && Array.isArray(lfo.destChain) && lfo.destChain.length) return lfo.destChain;
@@ -434,12 +434,12 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const waveformSamples = samples.subarray(0, displaySampleCount);
 
             breakUserSampleLoaded = Boolean(isUserSample);
-            clearPendingBreakSpeedChange();
             breakSpeedMultiplier = 1;
             currentSampleDuration = duration || (samples.length / sampleRate) || 0;
             breakWaveformDuration = currentSampleDuration;
             breakWaveformPeaks = buildBreakWaveformPeaks(waveformSamples);
             updateBreakSpeedUi();
+            updateBreakCurrentTimeDisplay(0);
 
             breakBufferLoaded = true;
 
@@ -460,38 +460,45 @@ let liveLfoOutputs = [0, 0, 0, 0];
         }
 
         function updateBreakSpeedUi() {
-            const displayMultiplier = breakPendingSpeedMultiplier ?? breakSpeedMultiplier;
-            const isHalf = displayMultiplier < 1;
-            const isDouble = displayMultiplier > 1;
+            const displayMultiplier = breakSpeedMultiplier;
 
             if (breakSpeedResetButton) {
                 breakSpeedResetButton.classList.toggle('hidden', !breakUserSampleLoaded);
             }
 
             if (breakSpeedHalfButton) {
-                breakSpeedHalfButton.setAttribute('aria-pressed', isHalf ? 'true' : 'false');
-                breakSpeedHalfButton.classList.toggle('bg-blue-500', isHalf);
-                breakSpeedHalfButton.classList.toggle('text-white', isHalf);
+                breakSpeedHalfButton.setAttribute('aria-pressed', 'false');
             }
 
             if (breakSpeedDoubleButton) {
-                breakSpeedDoubleButton.setAttribute('aria-pressed', isDouble ? 'true' : 'false');
-                breakSpeedDoubleButton.classList.toggle('bg-blue-500', isDouble);
-                breakSpeedDoubleButton.classList.toggle('text-white', isDouble);
+                breakSpeedDoubleButton.setAttribute('aria-pressed', 'false');
+            }
+
+            if (breakSpeedDisplay) {
+                breakSpeedDisplay.textContent = formatBreakSpeedMultiplier(displayMultiplier);
             }
         }
 
-        function clearPendingBreakSpeedChange() {
-            if (breakSpeedChangeTimeoutId) {
-                clearTimeout(breakSpeedChangeTimeoutId);
-                breakSpeedChangeTimeoutId = null;
+        function formatBreakSpeedMultiplier(multiplier) {
+            if (!Number.isFinite(multiplier) || multiplier <= 0) return '1x';
+            if (multiplier >= 1) {
+                return `${multiplier}x`;
             }
-            breakPendingSpeedMultiplier = null;
+            const denom = 1 / multiplier;
+            if (Number.isInteger(denom)) {
+                return `1/${denom}x`;
+            }
+            return `${multiplier.toFixed(2)}x`;
+        }
+
+        function updateBreakCurrentTimeDisplay(seconds = 0) {
+            if (!breakCurrentTimeDisplay) return;
+            const safeSeconds = Math.max(0, Number.isFinite(seconds) ? seconds : 0);
+            breakCurrentTimeDisplay.textContent = `${safeSeconds.toFixed(2)}s`;
         }
 
         function applyBreakSpeedMultiplier(nextMultiplier) {
             breakSpeedMultiplier = nextMultiplier;
-            clearPendingBreakSpeedChange();
             updateBreakSpeedUi();
 
             const nextRate = getBreakPlaybackRate();
@@ -504,61 +511,20 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 refreshBreakSlipAnchor();
             }
 
+            const rate = Math.max(0.01, breakPlaybackRate);
+            const duration = breakWaveformDuration > 0 ? breakWaveformDuration / rate : 0;
+            updateBreakCurrentTimeDisplay(duration * breakWaveformLastProgress);
             drawBreakWaveform();
         }
 
-        function applyPendingBreakSpeedMultiplier() {
-            breakSpeedChangeTimeoutId = null;
-            if (!breakRunning || !breakBufferLoaded) {
-                breakPendingSpeedMultiplier = null;
-                return;
-            }
-            const nextMultiplier = breakPendingSpeedMultiplier;
-            if (!Number.isFinite(nextMultiplier) || nextMultiplier <= 0) {
-                clearPendingBreakSpeedChange();
-                return;
-            }
-            applyBreakSpeedMultiplier(nextMultiplier);
-        }
-
-        function schedulePendingBreakSpeedChange() {
-            if (!breakRunning || !breakBufferLoaded || breakWaveformDuration <= 0) {
-                applyPendingBreakSpeedMultiplier();
-                return;
-            }
-
-            const rate = Math.max(0.01, breakPlaybackRate);
-            const effectiveDuration = breakWaveformDuration / rate;
-            if (!Number.isFinite(effectiveDuration) || effectiveDuration <= 0) {
-                applyPendingBreakSpeedMultiplier();
-                return;
-            }
-
-            const nowSeconds = getNowSeconds();
-            const elapsed = Math.max(0, nowSeconds - breakPlaybackStartTime);
-            const timeRemaining = effectiveDuration - (elapsed % effectiveDuration);
-            const delayMs = Math.max(0, timeRemaining * 1000);
-
-            if (breakSpeedChangeTimeoutId) {
-                clearTimeout(breakSpeedChangeTimeoutId);
-            }
-            breakSpeedChangeTimeoutId = setTimeout(applyPendingBreakSpeedMultiplier, delayMs);
-        }
 
         function setBreakSpeedMultiplier(multiplier, { accumulate = false } = {}) {
             if (!Number.isFinite(multiplier) || multiplier <= 0) return;
-            const baseMultiplier = accumulate ? (breakPendingSpeedMultiplier ?? breakSpeedMultiplier) : 1;
+            const baseMultiplier = accumulate ? breakSpeedMultiplier : 1;
             const nextMultiplier = accumulate ? baseMultiplier * multiplier : multiplier;
             if (!Number.isFinite(nextMultiplier) || nextMultiplier <= 0) return;
 
-            if (!breakRunning) {
-                applyBreakSpeedMultiplier(nextMultiplier);
-                return;
-            }
-
-            breakPendingSpeedMultiplier = nextMultiplier;
-            updateBreakSpeedUi();
-            schedulePendingBreakSpeedChange();
+            applyBreakSpeedMultiplier(nextMultiplier);
         }
 
         function normalizedToBreakSlipDivision(normalized) {
@@ -939,8 +905,10 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 if (!Number.isFinite(effectiveDuration) || effectiveDuration <= 0) return;
                 const now = audioContext ? audioContext.currentTime : (performance.now() / 1000);
                 const elapsed = now - breakPlaybackStartTime;
-                const progress = ((elapsed % effectiveDuration) / effectiveDuration + 1) % 1;
+                const loopPositionSeconds = elapsed % effectiveDuration;
+                const progress = ((loopPositionSeconds) / effectiveDuration + 1) % 1;
                 drawBreakWaveform(progress);
+                updateBreakCurrentTimeDisplay(loopPositionSeconds);
                 breakWaveformAnimationId = requestAnimationFrame(tick);
             };
             breakWaveformAnimationId = requestAnimationFrame(tick);
@@ -952,6 +920,9 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 breakWaveformAnimationId = null;
             }
             drawBreakWaveform(progress);
+            const rate = Math.max(0.01, breakPlaybackRate);
+            const duration = breakWaveformDuration > 0 ? breakWaveformDuration / rate : 0;
+            updateBreakCurrentTimeDisplay(duration * progress);
         }
 
         async function ensureBreakSampleLoaded() {
@@ -1031,7 +1002,6 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
         function stopBreakPlaybackImmediate() {
             clearBreakStartTimer();
-            clearPendingBreakSpeedChange();
             if (breakRunning) {
                 synthNode?.port.postMessage({ type: 'stopBreakLoop' });
             }
@@ -5038,6 +5008,8 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
            breakSpeedHalfButton = document.getElementById('break-speed-half');
            breakSpeedDoubleButton = document.getElementById('break-speed-double');
            breakSpeedResetButton = document.getElementById('break-speed-reset');
+           breakSpeedDisplay = document.getElementById('break-speed-display');
+           breakCurrentTimeDisplay = document.getElementById('break-current-time');
            
            // --- 1. Audio Resume (Touch & Click) ---
            const resumeAudio = () => {

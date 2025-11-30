@@ -648,9 +648,11 @@
               </div>
             </div>
             <input type="file" id="sample-upload-input" class="hidden" accept="audio/*">
-            <div id="break-speed-controls" class="flex items-center space-x-2 mt-2">
+            <div id="break-speed-controls" class="flex items-center space-x-3 mt-2">
               <button id="break-speed-half" class="retro-button text-[10px] sm:text-xs font-bold px-2 focus:outline-none focus:ring-0" aria-pressed="false">1/2 SPEED</button>
+              <span id="break-current-time" class="text-[10px] sm:text-xs font-bold text-pink-300">0.00s</span>
               <button id="break-speed-double" class="retro-button text-[10px] sm:text-xs font-bold px-2 focus:outline-none focus:ring-0" aria-pressed="false">2x SPEED</button>
+              <span id="break-speed-display" class="text-[10px] sm:text-xs font-bold text-cyan-300">1x</span>
               <button id="break-speed-reset" class="retro-button text-[10px] sm:text-xs font-bold px-2 hidden">RESET</button>
             </div>
           </div>
