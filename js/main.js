@@ -2285,9 +2285,12 @@ async function setupMidiOutput() {
 
     let targetRateBpm = null;
 
-    if ((arp1.isArpOn && isArpRateSynced) || (arp1.isArpOn && !arp2.isArpOn)) {
+    // 1. If Arp 1 is ON, it is ALWAYS the master (whether synced or not)
+    if (arp1.isArpOn) {
         targetRateBpm = arp1.arpRateBpm;
-    } else if (arp2.isArpOn && !arp1.isArpOn) {
+    } 
+    // 2. If Arp 1 is OFF but Arp 2 is ON, follow Arp 2
+    else if (arp2.isArpOn) {
         targetRateBpm = arp2.arpRateBpm;
     }
 
@@ -5716,6 +5719,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
