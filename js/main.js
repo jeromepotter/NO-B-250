@@ -440,16 +440,27 @@ let liveLfoOutputs = [0, 0, 0, 0];
             breakSlipModeSwitch.setAttribute('aria-checked', breakSlipAnchorHoldEnabled ? 'true' : 'false');
         }
 
-        function setBreakSlipAnchorHold(enabled) {
-            const next = !!enabled;
-            if (breakSlipAnchorHoldEnabled === next) return;
-            breakSlipAnchorHoldEnabled = next;
-            updateBreakSlipModeUi();
-            if (!breakSlipAnchorHoldEnabled && isBreakSlipActive()) {
-                refreshBreakSlipAnchor();
-                drawBreakWaveform(breakWaveformLastProgress);
-            }
-        }
+      function setBreakSlipAnchorHold(enabled) {
+    const next = !!enabled;
+    if (breakSlipAnchorHoldEnabled === next) return;
+    
+    breakSlipAnchorHoldEnabled = next;
+    updateBreakSlipModeUi();
+
+   
+    if (synthNode) {
+        synthNode.port.postMessage({ 
+            type: 'setBreakSlipMode', 
+            data: { enabled: breakSlipAnchorHoldEnabled } 
+        });
+    }
+
+    if (!breakSlipAnchorHoldEnabled && isBreakSlipActive()) {
+        refreshBreakSlipAnchor();
+        drawBreakWaveform(breakWaveformLastProgress);
+    }
+}
+        
 
         function setBreakFxRouting(enabled) {
             const next = !!enabled;
@@ -5670,5 +5681,6 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
