@@ -107,6 +107,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakWaveformPeaks = null;
         let breakWaveformDuration = 0;
         let currentSampleDuration = 0;
+        let breakSpeedMultiplier = 1;
+        let breakUserSampleLoaded = false;
         let breakWaveformAnimationId = null;
         let breakPlaybackStartTime = 0;
         let breakWaveformDpr = 1;
@@ -117,6 +119,9 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakSlipAnchorHoldEnabled = true;
         const BREAK_SLIP_DIVISIONS = [4, 1, 0.5, 0.25, 0.125, 0.0625, 0.03125];
         let sampleUploadInput = null;
+        let breakSpeedControls = null;
+        let breakSpeedHalfButton = null;
+        let breakSpeedDoubleButton = null;
 
         function getLfoDestChain(lfo) {
             if (lfo && Array.isArray(lfo.destChain) && lfo.destChain.length) return lfo.destChain;
@@ -405,9 +410,46 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const secondsPerBar = secondsPerBeat * 4;
 
             if (breakWaveformDuration > 0) {
-                return breakWaveformDuration / secondsPerBar;
+                return (breakWaveformDuration / secondsPerBar) * breakSpeedMultiplier;
             }
             return 1;
+        }
+
+        function updateBreakSpeedUi() {
+            if (breakSpeedControls) {
+                breakSpeedControls.classList.toggle('hidden', !breakUserSampleLoaded);
+            }
+
+            const isHalf = breakSpeedMultiplier === 0.5;
+            const isDouble = breakSpeedMultiplier === 2;
+
+            if (breakSpeedHalfButton) {
+                breakSpeedHalfButton.setAttribute('aria-pressed', isHalf ? 'true' : 'false');
+                breakSpeedHalfButton.classList.toggle('bg-blue-500', isHalf);
+                breakSpeedHalfButton.classList.toggle('text-white', isHalf);
+            }
+
+            if (breakSpeedDoubleButton) {
+                breakSpeedDoubleButton.setAttribute('aria-pressed', isDouble ? 'true' : 'false');
+                breakSpeedDoubleButton.classList.toggle('bg-blue-500', isDouble);
+                breakSpeedDoubleButton.classList.toggle('text-white', isDouble);
+            }
+        }
+
+        function setBreakSpeedMultiplier(multiplier) {
+            if (!Number.isFinite(multiplier) || multiplier <= 0) return;
+            breakSpeedMultiplier = multiplier;
+            updateBreakSpeedUi();
+
+            const nextRate = getBreakPlaybackRate();
+            if (!Number.isFinite(nextRate)) return;
+            breakPlaybackRate = nextRate;
+            breakPlaybackStartTime = audioContext ? audioContext.currentTime : (performance.now() / 1000);
+
+            if (breakRunning && breakBufferLoaded && synthNode) {
+                synthNode.port.postMessage({ type: 'setBreakPlaybackRate', data: { playbackRate: breakPlaybackRate } });
+                refreshBreakSlipAnchor();
+            }
         }
 
         function normalizedToBreakSlipDivision(normalized) {
@@ -817,6 +859,9 @@ let liveLfoOutputs = [0, 0, 0, 0];
                     currentSampleDuration = decoded.duration || 0;
                     breakWaveformDuration = currentSampleDuration;
                     breakWaveformPeaks = buildBreakWaveformPeaks(mono);
+                    breakSpeedMultiplier = 1;
+                    breakUserSampleLoaded = false;
+                    updateBreakSpeedUi();
                     const copy = new Float32Array(mono.length);
                     copy.set(mono);
                     if (synthNode) {
@@ -4877,6 +4922,9 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
            breakWaveCanvas = document.getElementById('break-waveform');
            breakWaveCtx = breakWaveCanvas ? breakWaveCanvas.getContext('2d') : null;
            sampleUploadInput = document.getElementById('sample-upload-input');
+           breakSpeedControls = document.getElementById('break-speed-controls');
+           breakSpeedHalfButton = document.getElementById('break-speed-half');
+           breakSpeedDoubleButton = document.getElementById('break-speed-double');
            
            // --- 1. Audio Resume (Touch & Click) ---
            const resumeAudio = () => {
@@ -4957,6 +5005,12 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
            if (breakWaveCanvas && sampleUploadInput) {
                addTouchListener(breakWaveCanvas, () => sampleUploadInput.click());
            }
+           if (breakSpeedHalfButton) {
+               addTouchListener(breakSpeedHalfButton, () => setBreakSpeedMultiplier(0.5));
+           }
+           if (breakSpeedDoubleButton) {
+               addTouchListener(breakSpeedDoubleButton, () => setBreakSpeedMultiplier(2));
+           }
            if (sampleUploadInput) {
                sampleUploadInput.addEventListener('change', async (event) => {
                    const file = event.target?.files?.[0];
@@ -4969,9 +5023,12 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                        const mono = decoded.numberOfChannels > 0 ? decoded.getChannelData(0) : null;
                        if (!mono || !mono.length) return;
 
+                       breakUserSampleLoaded = true;
+                       breakSpeedMultiplier = 1;
                        currentSampleDuration = decoded.duration || 0;
                        breakWaveformDuration = currentSampleDuration;
                        breakWaveformPeaks = buildBreakWaveformPeaks(mono);
+                       updateBreakSpeedUi();
 
                        const copy = new Float32Array(mono.length);
                        copy.set(mono);
@@ -4990,8 +5047,9 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                            event.target.value = '';
                        }
                    }
-               });
-           }
+                });
+            }
+           updateBreakSpeedUi();
            updateBreakSlipUi();
            updateBreakGridVisibility();
            updateBreakPlaybackEligibility();
