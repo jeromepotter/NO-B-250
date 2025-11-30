@@ -424,12 +424,21 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const copy = new Float32Array(samples.length);
             copy.set(samples);
 
+            const bpm = calculateMidiBpm();
+            const secondsPerBeat = Number.isFinite(bpm) && bpm > 0 ? 60 / bpm : null;
+            const secondsPerBar = secondsPerBeat ? secondsPerBeat * 4 : null;
+            const shouldLimitToBar = Number.isFinite(secondsPerBar) && secondsPerBar > 0 && duration > secondsPerBar;
+            const displaySampleCount = shouldLimitToBar
+                ? Math.max(1, Math.min(samples.length, Math.floor(secondsPerBar * sampleRate)))
+                : samples.length;
+            const waveformSamples = samples.subarray(0, displaySampleCount);
+
             breakUserSampleLoaded = Boolean(isUserSample);
             clearPendingBreakSpeedChange();
             breakSpeedMultiplier = 1;
             currentSampleDuration = duration || (samples.length / sampleRate) || 0;
             breakWaveformDuration = currentSampleDuration;
-            breakWaveformPeaks = buildBreakWaveformPeaks(samples);
+            breakWaveformPeaks = buildBreakWaveformPeaks(waveformSamples);
             updateBreakSpeedUi();
 
             breakBufferLoaded = true;
