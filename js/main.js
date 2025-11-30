@@ -4332,7 +4332,7 @@ function applyPreset(p, isArpCategoryPreset = false, options = {}) {
 
            if (p.fxSettings) {
                p.fxSettings.forEach(fx => {
-                   if (arpLockActive && [16, 17, 18, 19, 22, 23, 24, 25, 35].includes(fx.id)) return;
+                   if (arpLockActive && [16, 17, 18, 19, 22, 23, 24, 25, 35, 32, 33, 34].includes(fx.id)) return;
                    if (lfoLockActive && LFO_FX_IDS.includes(fx.id)) return;
                    setFxValue(fx.id, fx.value ?? 0);
                });
@@ -4493,7 +4493,7 @@ function resetAllFxToDefaults({ skipArpKnobs = false, skipLfoKnobs = false } = {
            }
            Object.keys(fxKnobData).forEach(idStr => {
                const id = parseInt(idStr, 10);
-               if (skipArpKnobs && [16, 17, 18, 19, 22, 23, 24, 25, 35].includes(id)) return;
+               if (skipArpKnobs && [16, 17, 18, 19, 22, 23, 24, 25, 35, 32, 33, 34].includes(id)) return;
                if (skipLfoKnobs && LFO_FX_IDS.includes(id)) return;
                let defaultValue = 0.0;
                if (id === 2) defaultValue = 1.0;
@@ -5716,6 +5716,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
