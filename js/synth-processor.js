@@ -327,22 +327,37 @@ const LFO_DEST_NONE = -1;
                    this.slipAnchorStart = 0;
                    this.slipActive = false;
                    this.breakFxSend = false;
+                   this.slipAnchorMode = true;
                    this.breakBypassL = new Float32Array(128);
                    this.breakBypassR = new Float32Array(128);
 
                    this.recomputeSlipWindow = () => {
-                       if (this.slipWindowSeconds > 0 && this.samplerPlayback.rate > 0) {
-                           this.slipWindowSamples = this.slipWindowSeconds * this.samplerPlayback.rate * sampleRate;
-                           this.slipAnchorStart = Math.max(0, this.samplerPlayback.position - this.slipWindowSamples);
-                           this.slipRenderPhase = 0;
-                           this.slipActive = this.slipWindowSamples > 0;
-                       } else {
-                           this.slipWindowSamples = 0;
-                           this.slipRenderPhase = 0;
-                           this.slipAnchorStart = 0;
-                           this.slipActive = false;
-                       }
-                   };
+   // 1. Calculate how big the new loop should be
+   if (this.slipWindowSeconds > 0 && this.samplerPlayback.rate > 0) {
+       const newWindowSamples = this.slipWindowSeconds * this.samplerPlayback.rate * sampleRate;
+
+       // 2. THE FIX: Conditional Anchoring
+       // If we are NOT in Anchor Mode, OR if this is the first time we are catching (slip wasn't active),
+       // then we move the anchor to the current playback position.
+       //
+       // If we ARE in Anchor Mode and already active, we skip this block, 
+       // preserving the old 'this.slipAnchorStart' exactly where it was.
+       if (!this.slipAnchorMode || !this.slipActive) {
+           this.slipAnchorStart = Math.max(0, this.samplerPlayback.position - newWindowSamples);
+       }
+
+       // 3. Update the window size and activate
+       this.slipWindowSamples = newWindowSamples;
+       this.slipRenderPhase = 0; // Restart loop from the beginning (or kept anchor)
+       this.slipActive = this.slipWindowSamples > 0;
+   } else {
+       // Disable if window is 0
+       this.slipWindowSamples = 0;
+       this.slipRenderPhase = 0;
+       this.slipAnchorStart = 0;
+       this.slipActive = false;
+   }
+};
       
                    this.port.onmessage = ({ data: { type, data } }) => {
                        const { voice, freq, id, value, lfoId, param } = data || {};
@@ -367,7 +382,10 @@ const LFO_DEST_NONE = -1;
     } else { 
         this.envStage2 = 'release'; 
     } 
+                        case 'setBreakSlipMode':
+    this.slipAnchorMode = !!(data && data.enabled);
     break;
+
                            case 'setFreq': if (voice === 0) { this.targetFrequency1 = freq; } else { this.targetFrequency2 = freq; } break;
                            case 'setFx':
                                if (id >= 0 && id < this.params.length) { this.params[id] = value; }
@@ -1005,6 +1023,7 @@ return true;
 }
 }
 registerProcessor('synth-processor', SynthProcessor);
+
 
 
 
