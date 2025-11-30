@@ -4144,7 +4144,7 @@ function applyPreset(p, isArpCategoryPreset = false, options = {}) {
            stopArpeggiator(1);
 
            // --- 2. WIPE all knobs to a clean state ---
-           resetAllFxToDefaults({ skipArpKnobs: arpLockActive, skipLfoKnobs: lfoLockActive });
+           resetAllFxToDefaults({ skipArpKnobs: arpLockActive, skipLfoKnobs: lfoLockActive, skipBreakKnobs: arpLockActive });
 
            // --- 3. RESTORE tempo mode before applying rate-dependent settings ---
            const presetTempoMode = p.tempoMode ?? TEMPO_MODE_BPM;
@@ -4164,27 +4164,29 @@ function applyPreset(p, isArpCategoryPreset = false, options = {}) {
            }
            document.body.classList.toggle('easter-egg-mode', allowDuplicateNotesMode);
            updateBreakGridVisibility();
-           if (p.breakModeActive !== undefined) {
-               const targetBreakMode = !!p.breakModeActive;
-               if (targetBreakMode !== breakModeActive) {
-                   toggleBreakMode();
-               } else {
-                   updateBreakGridVisibility();
+           if (!arpLockActive) {
+               if (p.breakModeActive !== undefined) {
+                   const targetBreakMode = !!p.breakModeActive;
+                   if (targetBreakMode !== breakModeActive) {
+                       toggleBreakMode();
+                   } else {
+                       updateBreakGridVisibility();
+                   }
                }
-           }
-           if (p.breakFxSendToGlobalFx !== undefined) {
-               setBreakFxRouting(!!p.breakFxSendToGlobalFx);
-           }
-           if (p.breakSlipAnchorHoldEnabled !== undefined) {
-               setBreakSlipAnchorHold(!!p.breakSlipAnchorHoldEnabled);
-           }
-           if (p.breakPlayActive !== undefined) {
-               const shouldPlayBreak = !!p.breakPlayActive;
-               if (shouldPlayBreak && !breakPlayRequested) {
-                   toggleBreakPlayback();
-               } else if (!shouldPlayBreak && breakPlayRequested) {
-                   stopBreakPlaybackImmediate();
-                   stopMasterClockIfIdle();
+               if (p.breakFxSendToGlobalFx !== undefined) {
+                   setBreakFxRouting(!!p.breakFxSendToGlobalFx);
+               }
+               if (p.breakSlipAnchorHoldEnabled !== undefined) {
+                   setBreakSlipAnchorHold(!!p.breakSlipAnchorHoldEnabled);
+               }
+               if (p.breakPlayActive !== undefined) {
+                   const shouldPlayBreak = !!p.breakPlayActive;
+                   if (shouldPlayBreak && !breakPlayRequested) {
+                       toggleBreakPlayback();
+                   } else if (!shouldPlayBreak && breakPlayRequested) {
+                       stopBreakPlaybackImmediate();
+                       stopMasterClockIfIdle();
+                   }
                }
            }
            if (!arpLockActive && p.scale === 'Custom') {
@@ -4316,7 +4318,7 @@ function applyPreset(p, isArpCategoryPreset = false, options = {}) {
            if (p.knobSettings) { p.knobSettings.forEach(kD => { const s = knobState.find(k => k.id === kD.id); if (s) s.totalAngle = kD.totalAngle ?? 0; }); }
 
            const hasBreakSlipFxSetting = Array.isArray(p.fxSettings) && p.fxSettings.some(fx => fx.id === 35);
-           if (!hasBreakSlipFxSetting && p.breakSlipBaseDivision !== undefined) {
+           if (!arpLockActive && !hasBreakSlipFxSetting && p.breakSlipBaseDivision !== undefined) {
                const normalizedSlip = breakSlipDivisionToNormalized(p.breakSlipBaseDivision);
                setFxValue(35, normalizedSlip, true);
            }
@@ -4324,6 +4326,7 @@ function applyPreset(p, isArpCategoryPreset = false, options = {}) {
            if (p.fxSettings) {
                p.fxSettings.forEach(fx => {
                    if (arpLockActive && [16, 17, 18, 19, 22, 23, 24, 25].includes(fx.id)) return;
+                   if (arpLockActive && [32, 33, 34, 35].includes(fx.id)) return;
                    if (lfoLockActive && LFO_FX_IDS.includes(fx.id)) return;
                    setFxValue(fx.id, fx.value ?? 0);
                });
@@ -4478,7 +4481,7 @@ function setFxValue(id, value, forceVisualUpdate = false) {
             }
         }
 
-function resetAllFxToDefaults({ skipArpKnobs = false, skipLfoKnobs = false } = {}) {
+function resetAllFxToDefaults({ skipArpKnobs = false, skipLfoKnobs = false, skipBreakKnobs = false } = {}) {
            if (!skipLfoKnobs) {
                resetLfoTempoSyncState();
            }
@@ -4486,6 +4489,7 @@ function resetAllFxToDefaults({ skipArpKnobs = false, skipLfoKnobs = false } = {
                const id = parseInt(idStr, 10);
                if (skipArpKnobs && [16, 17, 18, 19, 22, 23, 24, 25].includes(id)) return;
                if (skipLfoKnobs && LFO_FX_IDS.includes(id)) return;
+               if (skipBreakKnobs && [32, 33, 34, 35].includes(id)) return;
                let defaultValue = 0.0;
                if (id === 2) defaultValue = 1.0;
                if (id === 7) defaultValue = 0.7;
