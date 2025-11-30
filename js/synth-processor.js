@@ -325,6 +325,7 @@ const LFO_DEST_NONE = -1;
                    this.slipWindowSamples = 0;
                    this.slipRenderPhase = 0;
                    this.slipAnchorStart = 0;
+                   this.slipAnchorNormalized = null;
                    this.slipActive = false;
                    this.breakFxSend = false;
                    this.breakBypassL = new Float32Array(128);
@@ -333,9 +334,19 @@ const LFO_DEST_NONE = -1;
                    this.recomputeSlipWindow = () => {
                        if (this.slipWindowSeconds > 0 && this.samplerPlayback.rate > 0) {
                            this.slipWindowSamples = this.slipWindowSeconds * this.samplerPlayback.rate * sampleRate;
-                           this.slipAnchorStart = Math.max(0, this.samplerPlayback.position - this.slipWindowSamples);
                            this.slipRenderPhase = 0;
                            this.slipActive = this.slipWindowSamples > 0;
+
+                           const anchorNorm = Number.isFinite(this.slipAnchorNormalized)
+                               ? Math.max(0, Math.min(1, this.slipAnchorNormalized))
+                               : null;
+                           if (anchorNorm !== null && this.sampleLength > 0) {
+                               const maxStart = Math.max(0, this.sampleLength - this.slipWindowSamples);
+                               const anchorSamples = anchorNorm * this.sampleLength;
+                               this.slipAnchorStart = Math.min(maxStart, Math.max(0, anchorSamples));
+                           } else {
+                               this.slipAnchorStart = Math.max(0, this.samplerPlayback.position - this.slipWindowSamples);
+                           }
                        } else {
                            this.slipWindowSamples = 0;
                            this.slipRenderPhase = 0;
@@ -418,6 +429,9 @@ const LFO_DEST_NONE = -1;
                                break;
                            case 'setBreakSlipWindow':
                                this.slipWindowSeconds = Math.max(0, data?.windowSeconds || 0);
+                               this.slipAnchorNormalized = Number.isFinite(data?.anchorNormalized)
+                                   ? Math.max(0, Math.min(1, data.anchorNormalized))
+                                   : null;
                                this.recomputeSlipWindow();
                                break;
                            case 'setBreakFxSend':
