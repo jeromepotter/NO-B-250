@@ -448,12 +448,12 @@ let liveLfoOutputs = [0, 0, 0, 0];
         }
 
         function updateBreakSpeedUi() {
-            if (breakSpeedControls) {
-                breakSpeedControls.classList.toggle('hidden', !breakUserSampleLoaded);
-            }
-
             const isHalf = breakSpeedMultiplier < 1;
             const isDouble = breakSpeedMultiplier > 1;
+
+            if (breakSpeedResetButton) {
+                breakSpeedResetButton.classList.toggle('hidden', !breakUserSampleLoaded);
+            }
 
             if (breakSpeedHalfButton) {
                 breakSpeedHalfButton.setAttribute('aria-pressed', isHalf ? 'true' : 'false');
@@ -5046,13 +5046,22 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                addTouchListener(breakWaveCanvas, () => sampleUploadInput.click());
            }
            if (breakSpeedHalfButton) {
-               addTouchListener(breakSpeedHalfButton, () => setBreakSpeedMultiplier(0.5, { accumulate: true }));
+               addTouchListener(breakSpeedHalfButton, (e) => {
+                   setBreakSpeedMultiplier(0.5, { accumulate: true });
+                   e?.target?.blur?.();
+               });
            }
            if (breakSpeedDoubleButton) {
-               addTouchListener(breakSpeedDoubleButton, () => setBreakSpeedMultiplier(2, { accumulate: true }));
+               addTouchListener(breakSpeedDoubleButton, (e) => {
+                   setBreakSpeedMultiplier(2, { accumulate: true });
+                   e?.target?.blur?.();
+               });
            }
            if (breakSpeedResetButton) {
-               addTouchListener(breakSpeedResetButton, () => resetBreakToFactorySample());
+               addTouchListener(breakSpeedResetButton, (e) => {
+                   resetBreakToFactorySample();
+                   e?.target?.blur?.();
+               });
            }
            if (sampleUploadInput) {
                sampleUploadInput.addEventListener('change', async (event) => {
