@@ -4146,51 +4146,63 @@ function applyPreset(p, isArpCategoryPreset = false, options = {}) {
            // --- 2. WIPE all knobs to a clean state ---
            resetAllFxToDefaults({ skipArpKnobs: arpLockActive, skipLfoKnobs: lfoLockActive });
 
-           // --- 3. RESTORE tempo mode before applying rate-dependent settings ---
-           const presetTempoMode = p.tempoMode ?? TEMPO_MODE_BPM;
-           if (!arpLockActive) {
-               setTempoMode(presetTempoMode);
-           }
+          // --- 3. RESTORE tempo mode (Pattern/Timing) ---
+            const presetTempoMode = p.tempoMode ?? TEMPO_MODE_BPM;
+            if (!arpLockActive) {
+                setTempoMode(presetTempoMode);
+            }
 
-           // --- 4. APPLY all new settings from the preset ---
-           if (!arpLockActive) {
-               scaleSelector.value = p.scale ?? 'Major';
-               scaleSelector.dispatchEvent(new Event('change'));
-               keySelector.value = p.key ?? 'C';
-           }
+            // --- 4. APPLY all new settings from the preset ---
+            
+            // WRAP ALL PATTERN/SEQUENCE LOGIC IN THE LOCK CHECK
+            if (!arpLockActive) {
+                // A. Key & Scale
+                scaleSelector.value = p.scale ?? 'Major';
+                scaleSelector.dispatchEvent(new Event('change'));
+                keySelector.value = p.key ?? 'C';
 
-           if (p.allowDuplicateNotesMode !== undefined) {
-               allowDuplicateNotesMode = p.allowDuplicateNotesMode;
-           }
-           document.body.classList.toggle('easter-egg-mode', allowDuplicateNotesMode);
-           updateBreakGridVisibility();
-           if (p.breakModeActive !== undefined) {
-               const targetBreakMode = !!p.breakModeActive;
-               if (targetBreakMode !== breakModeActive) {
-                   toggleBreakMode();
-               } else {
-                   updateBreakGridVisibility();
-               }
-           }
-           if (p.breakFxSendToGlobalFx !== undefined) {
-               setBreakFxRouting(!!p.breakFxSendToGlobalFx);
-           }
-           if (p.breakSlipAnchorHoldEnabled !== undefined) {
-               setBreakSlipAnchorHold(!!p.breakSlipAnchorHoldEnabled);
-           }
-           if (p.breakPlayActive !== undefined) {
-               const shouldPlayBreak = !!p.breakPlayActive;
-               if (shouldPlayBreak && !breakPlayRequested) {
-                   toggleBreakPlayback();
-               } else if (!shouldPlayBreak && breakPlayRequested) {
-                   stopBreakPlaybackImmediate();
-                   stopMasterClockIfIdle();
-               }
-           }
-           if (!arpLockActive && p.scale === 'Custom') {
-               customScale = p.customScale || [];
-               document.querySelectorAll('#custom-scale-builder .key').forEach(k => { const n = parseInt(k.dataset.note); k.classList.toggle('selected', customScale.includes(n)); });
-           }
+                if (p.scale === 'Custom') {
+                    customScale = p.customScale || [];
+                    document.querySelectorAll('#custom-scale-builder .key').forEach(k => { 
+                        const n = parseInt(k.dataset.note); 
+                        k.classList.toggle('selected', customScale.includes(n)); 
+                    });
+                }
+
+                // B. Duplicate Note Mode (This is part of the pattern logic!)
+                if (p.allowDuplicateNotesMode !== undefined) {
+                    allowDuplicateNotesMode = p.allowDuplicateNotesMode;
+                    document.body.classList.toggle('easter-egg-mode', allowDuplicateNotesMode);
+                }
+
+                // C. Break Mode Logic (The Drums)
+                if (p.breakModeActive !== undefined) {
+                    const targetBreakMode = !!p.breakModeActive;
+                    if (targetBreakMode !== breakModeActive) {
+                        toggleBreakMode();
+                    } else {
+                        updateBreakGridVisibility();
+                    }
+                }
+
+                if (p.breakFxSendToGlobalFx !== undefined) {
+                    setBreakFxRouting(!!p.breakFxSendToGlobalFx);
+                }
+
+                if (p.breakSlipAnchorHoldEnabled !== undefined) {
+                    setBreakSlipAnchorHold(!!p.breakSlipAnchorHoldEnabled);
+                }
+
+                if (p.breakPlayActive !== undefined) {
+                    const shouldPlayBreak = !!p.breakPlayActive;
+                    if (shouldPlayBreak && !breakPlayRequested) {
+                        toggleBreakPlayback();
+                    } else if (!shouldPlayBreak && breakPlayRequested) {
+                        stopBreakPlaybackImmediate();
+                        stopMasterClockIfIdle();
+                    }
+                }
+            }
            
            // --- 4. APPLY LFO STATE (IMPORTANT: Do this before FX settings) ---
            const presetTempoSyncTargets = [];
@@ -4323,7 +4335,7 @@ function applyPreset(p, isArpCategoryPreset = false, options = {}) {
 
            if (p.fxSettings) {
                p.fxSettings.forEach(fx => {
-                   if (arpLockActive && [16, 17, 18, 19, 22, 23, 24, 25].includes(fx.id)) return;
+                   if (arpLockActive && [16, 17, 18, 19, 22, 23, 24, 25, 35].includes(fx.id)) return;
                    if (lfoLockActive && LFO_FX_IDS.includes(fx.id)) return;
                    setFxValue(fx.id, fx.value ?? 0);
                });
