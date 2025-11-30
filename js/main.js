@@ -124,7 +124,6 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakSpeedDoubleButton = null;
         let breakSpeedResetButton = null;
         let breakSpeedDisplay = null;
-        let breakCurrentTimeDisplay = null;
 
         function getLfoDestChain(lfo) {
             if (lfo && Array.isArray(lfo.destChain) && lfo.destChain.length) return lfo.destChain;
@@ -424,22 +423,12 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const copy = new Float32Array(samples.length);
             copy.set(samples);
 
-            const bpm = calculateMidiBpm();
-            const secondsPerBeat = Number.isFinite(bpm) && bpm > 0 ? 60 / bpm : null;
-            const secondsPerBar = secondsPerBeat ? secondsPerBeat * 4 : null;
-            const shouldLimitToBar = Number.isFinite(secondsPerBar) && secondsPerBar > 0 && duration > secondsPerBar;
-            const displaySampleCount = shouldLimitToBar
-                ? Math.max(1, Math.min(samples.length, Math.floor(secondsPerBar * sampleRate)))
-                : samples.length;
-            const waveformSamples = samples.subarray(0, displaySampleCount);
-
             breakUserSampleLoaded = Boolean(isUserSample);
             breakSpeedMultiplier = 1;
             currentSampleDuration = duration || (samples.length / sampleRate) || 0;
             breakWaveformDuration = currentSampleDuration;
-            breakWaveformPeaks = buildBreakWaveformPeaks(waveformSamples);
+            breakWaveformPeaks = buildBreakWaveformPeaks(samples);
             updateBreakSpeedUi();
-            updateBreakCurrentTimeDisplay(0);
 
             breakBufferLoaded = true;
 
@@ -491,12 +480,6 @@ let liveLfoOutputs = [0, 0, 0, 0];
             return `${multiplier.toFixed(2)}x`;
         }
 
-        function updateBreakCurrentTimeDisplay(seconds = 0) {
-            if (!breakCurrentTimeDisplay) return;
-            const safeSeconds = Math.max(0, Number.isFinite(seconds) ? seconds : 0);
-            breakCurrentTimeDisplay.textContent = `${safeSeconds.toFixed(2)}s`;
-        }
-
         function applyBreakSpeedMultiplier(nextMultiplier) {
             breakSpeedMultiplier = nextMultiplier;
             updateBreakSpeedUi();
@@ -513,7 +496,6 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
             const rate = Math.max(0.01, breakPlaybackRate);
             const duration = breakWaveformDuration > 0 ? breakWaveformDuration / rate : 0;
-            updateBreakCurrentTimeDisplay(duration * breakWaveformLastProgress);
             drawBreakWaveform();
         }
 
@@ -908,7 +890,6 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 const loopPositionSeconds = elapsed % effectiveDuration;
                 const progress = ((loopPositionSeconds) / effectiveDuration + 1) % 1;
                 drawBreakWaveform(progress);
-                updateBreakCurrentTimeDisplay(loopPositionSeconds);
                 breakWaveformAnimationId = requestAnimationFrame(tick);
             };
             breakWaveformAnimationId = requestAnimationFrame(tick);
@@ -922,7 +903,6 @@ let liveLfoOutputs = [0, 0, 0, 0];
             drawBreakWaveform(progress);
             const rate = Math.max(0.01, breakPlaybackRate);
             const duration = breakWaveformDuration > 0 ? breakWaveformDuration / rate : 0;
-            updateBreakCurrentTimeDisplay(duration * progress);
         }
 
         async function ensureBreakSampleLoaded() {
@@ -5009,7 +4989,6 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
            breakSpeedDoubleButton = document.getElementById('break-speed-double');
            breakSpeedResetButton = document.getElementById('break-speed-reset');
            breakSpeedDisplay = document.getElementById('break-speed-display');
-           breakCurrentTimeDisplay = document.getElementById('break-current-time');
            
            // --- 1. Audio Resume (Touch & Click) ---
            const resumeAudio = () => {
