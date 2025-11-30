@@ -420,8 +420,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 breakSpeedControls.classList.toggle('hidden', !breakUserSampleLoaded);
             }
 
-            const isHalf = breakSpeedMultiplier === 0.5;
-            const isDouble = breakSpeedMultiplier === 2;
+            const isHalf = breakSpeedMultiplier < 1;
+            const isDouble = breakSpeedMultiplier > 1;
 
             if (breakSpeedHalfButton) {
                 breakSpeedHalfButton.setAttribute('aria-pressed', isHalf ? 'true' : 'false');
@@ -436,9 +436,12 @@ let liveLfoOutputs = [0, 0, 0, 0];
             }
         }
 
-        function setBreakSpeedMultiplier(multiplier) {
+        function setBreakSpeedMultiplier(multiplier, { accumulate = false } = {}) {
             if (!Number.isFinite(multiplier) || multiplier <= 0) return;
-            breakSpeedMultiplier = multiplier;
+            const nextMultiplier = accumulate ? breakSpeedMultiplier * multiplier : multiplier;
+            if (!Number.isFinite(nextMultiplier) || nextMultiplier <= 0) return;
+
+            breakSpeedMultiplier = nextMultiplier;
             updateBreakSpeedUi();
 
             const nextRate = getBreakPlaybackRate();
@@ -450,6 +453,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 synthNode.port.postMessage({ type: 'setBreakPlaybackRate', data: { playbackRate: breakPlaybackRate } });
                 refreshBreakSlipAnchor();
             }
+
+            drawBreakWaveform();
         }
 
         function normalizedToBreakSlipDivision(normalized) {
@@ -5006,10 +5011,10 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                addTouchListener(breakWaveCanvas, () => sampleUploadInput.click());
            }
            if (breakSpeedHalfButton) {
-               addTouchListener(breakSpeedHalfButton, () => setBreakSpeedMultiplier(0.5));
+               addTouchListener(breakSpeedHalfButton, () => setBreakSpeedMultiplier(0.5, { accumulate: true }));
            }
            if (breakSpeedDoubleButton) {
-               addTouchListener(breakSpeedDoubleButton, () => setBreakSpeedMultiplier(2));
+               addTouchListener(breakSpeedDoubleButton, () => setBreakSpeedMultiplier(2, { accumulate: true }));
            }
            if (sampleUploadInput) {
                sampleUploadInput.addEventListener('change', async (event) => {
