@@ -35,7 +35,6 @@
         const LFO_DEST_NONE = -1;
         const LFO_CABLE_COLORS = ['#fa9c2d', '#35a5fb', '#d85b7e', '#98ce57'];
         const LFO_CABLE_TARGET_COLORS = ['#ae332c', '#ffffff', '#843b9a', '#a44a00'];
-        const BREAK_BASE_BPM = 165;
         const lfoState = [
     { id: 0, rate: 0.5, depth: 0, wave: 0, dest: LFO_DEST_NONE, destChain: [], phase: 0, lastRandom: 0, output: 0 },
     { id: 1, rate: 0.5, depth: 0, wave: 0, dest: LFO_DEST_NONE, destChain: [], phase: 0, lastRandom: 0, output: 0 },
@@ -107,6 +106,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakWaveCtx = null;
         let breakWaveformPeaks = null;
         let breakWaveformDuration = 0;
+        let currentSampleDuration = 0;
         let breakWaveformAnimationId = null;
         let breakPlaybackStartTime = 0;
         let breakWaveformDpr = 1;
@@ -116,6 +116,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakFxSendToGlobalFx = false;
         let breakSlipAnchorHoldEnabled = true;
         const BREAK_SLIP_DIVISIONS = [4, 1, 0.5, 0.25, 0.125, 0.0625, 0.03125];
+        let sampleUploadInput = null;
 
         function getLfoDestChain(lfo) {
             if (lfo && Array.isArray(lfo.destChain) && lfo.destChain.length) return lfo.destChain;
@@ -398,7 +399,15 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
         function getBreakPlaybackRate() {
             const bpm = calculateMidiBpm();
-            return Math.max(0.1, bpm / BREAK_BASE_BPM);
+            if (bpm <= 0) return 1;
+
+            const secondsPerBeat = 60 / bpm;
+            const secondsPerBar = secondsPerBeat * 4;
+
+            if (breakWaveformDuration > 0) {
+                return breakWaveformDuration / secondsPerBar;
+            }
+            return 1;
         }
 
         function normalizedToBreakSlipDivision(normalized) {
@@ -805,7 +814,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
                     const decoded = await audioContext.decodeAudioData(buf);
                     const mono = decoded.numberOfChannels > 0 ? decoded.getChannelData(0) : null;
                     if (!mono) return;
-                    breakWaveformDuration = decoded.duration || 0;
+                    currentSampleDuration = decoded.duration || 0;
+                    breakWaveformDuration = currentSampleDuration;
                     breakWaveformPeaks = buildBreakWaveformPeaks(mono);
                     const copy = new Float32Array(mono.length);
                     copy.set(mono);
@@ -814,6 +824,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
                         breakBufferLoaded = true;
                         resizeBreakWaveformCanvas();
                         drawBreakWaveform();
+                        breakPlaybackRate = getBreakPlaybackRate();
                     }
                 } catch (err) {
                     console.error('Failed to load break sample', err);
@@ -4865,6 +4876,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
            breakGridArpSlot = document.getElementById('break-grid-arp-slot');
            breakWaveCanvas = document.getElementById('break-waveform');
            breakWaveCtx = breakWaveCanvas ? breakWaveCanvas.getContext('2d') : null;
+           sampleUploadInput = document.getElementById('sample-upload-input');
            
            // --- 1. Audio Resume (Touch & Click) ---
            const resumeAudio = () => {
@@ -4940,6 +4952,44 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                addTouchListener(breakModeSwitch, async () => {
                    if (!isPowerOn) await powerOn();
                    toggleBreakMode();
+               });
+           }
+           if (breakWaveCanvas && sampleUploadInput) {
+               addTouchListener(breakWaveCanvas, () => sampleUploadInput.click());
+           }
+           if (sampleUploadInput) {
+               sampleUploadInput.addEventListener('change', async (event) => {
+                   const file = event.target?.files?.[0];
+                   if (!file) return;
+
+                   try {
+                       if (!isPowerOn) await powerOn();
+                       const arrayBuffer = await file.arrayBuffer();
+                       const decoded = await audioContext.decodeAudioData(arrayBuffer);
+                       const mono = decoded.numberOfChannels > 0 ? decoded.getChannelData(0) : null;
+                       if (!mono || !mono.length) return;
+
+                       currentSampleDuration = decoded.duration || 0;
+                       breakWaveformDuration = currentSampleDuration;
+                       breakWaveformPeaks = buildBreakWaveformPeaks(mono);
+
+                       const copy = new Float32Array(mono.length);
+                       copy.set(mono);
+                       if (synthNode) {
+                           synthNode.port.postMessage({ type: 'setSampleBuffer', data: { samples: copy, sampleRate: decoded.sampleRate } }, [copy.buffer]);
+                           breakBufferLoaded = true;
+                           resizeBreakWaveformCanvas();
+                           drawBreakWaveform();
+                           breakPlaybackRate = getBreakPlaybackRate();
+                           sendBreakPlaybackRate();
+                       }
+                   } catch (err) {
+                       console.error('Failed to decode uploaded sample', err);
+                   } finally {
+                       if (event.target) {
+                           event.target.value = '';
+                       }
+                   }
                });
            }
            updateBreakSlipUi();
