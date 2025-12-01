@@ -384,14 +384,28 @@ let liveLfoOutputs = [0, 0, 0, 0];
             updateMidiClockState();
         }
 
-        function quantizeToNextSixteenth(now, intervalMs) {
+        function quantizeToGrid(now, intervalMs, steps = 1) {
             if (intervalMs <= 0) return now;
             if (masterClockStartTime === null) masterClockStartTime = now;
             const elapsed = now - masterClockStartTime;
             const ticksSinceOrigin = Math.ceil(elapsed / intervalMs);
-            let nextTime = masterClockStartTime + ticksSinceOrigin * intervalMs;
-            if (nextTime <= now) nextTime += intervalMs;
+            
+            // Find the next tick that aligns with the grid step size
+            let nextTick = ticksSinceOrigin;
+            if (steps > 1) {
+                const remainder = nextTick % steps;
+                if (remainder !== 0) {
+                    nextTick += (steps - remainder);
+                }
+            }
+
+            let nextTime = masterClockStartTime + nextTick * intervalMs;
+            if (nextTime <= now) nextTime += (steps * intervalMs);
             return nextTime;
+        }
+
+        function quantizeToNextSixteenth(now, intervalMs) {
+            return quantizeToGrid(now, intervalMs, 1);
         }
 
         function startArpClockForState(knobId) {
@@ -401,7 +415,16 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const now = getNowMs();
             if (tempoMode === TEMPO_MODE_BPM) {
                 const intervalMs = bpmToSixteenthMs(state.arpRateBpm);
-                state.nextArpStepTime = quantizeToNextSixteenth(now, intervalMs);
+                
+                // Check if the other arp is already running
+                const otherId = knobId === 0 ? 1 : 0;
+                const isOtherArpRunning = knobState[otherId]?.arpRunning;
+                
+                // If the other arp is running, wait 4 steps (1 beat) to sync up musically. 
+                // Otherwise start immediately on the next 16th note (1 step).
+                const quantizeSteps = isOtherArpRunning ? 4 : 1;
+                
+                state.nextArpStepTime = quantizeToGrid(now, intervalMs, quantizeSteps);
                 state.lastArpStepTime = 0;
             } else {
                 state.lastArpStepTime = now - normalizeArpRateMs(state.arpRateMs ?? DEFAULT_ARP_RATE_MS);
@@ -5973,6 +5996,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
