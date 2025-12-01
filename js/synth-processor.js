@@ -338,13 +338,16 @@ const LFO_DEST_NONE = -1;
        // 1. Determine if we need to set a new anchor
        // (If in Catch Mode, OR if this is the first activation)
        if (!this.slipAnchorMode || !this.slipActive) {
-           // Snap to the exact grid line of the current audio position
-           this.slipAnchorStart = Math.floor(this.samplerPlayback.position / newWindowSamples) * newWindowSamples;
-           
-           // --- FIX: Tell the UI exactly where we snapped ---
+           // Latch to the *current* playhead position instead of rewinding to a previous bucket
+           const currentPos = Math.max(0, this.samplerPlayback.position);
+           this.slipAnchorStart = this.sampleLength > 0
+               ? (currentPos % this.sampleLength)
+               : currentPos;
+
+           // --- FIX: Tell the UI exactly where we latched ---
            if (this.sampleLength > 0) {
                this.port.postMessage({
-                   type: 'reportBreakAnchor', 
+                   type: 'reportBreakAnchor',
                    data: this.slipAnchorStart / this.sampleLength
                });
            }
