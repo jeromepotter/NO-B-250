@@ -511,7 +511,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             applyIndicatorTransform(knob.indicator, knob.angle);
         }
 
-        function applyBreakSampleData({ samples, sampleRate, duration, breakIndex = breakSampleIndex, progressNormalized = 0 }) {
+       function applyBreakSampleData({ samples, sampleRate, duration, breakIndex = breakSampleIndex, progressNormalized = 0 }) {
     if (!samples || !samples.length || !Number.isFinite(sampleRate)) return;
 
     const targetIndex = clamp(breakIndex ?? breakSampleIndex, BREAK_SAMPLE_MIN_INDEX, BREAK_SAMPLE_MAX_INDEX);
@@ -523,18 +523,14 @@ let liveLfoOutputs = [0, 0, 0, 0];
     const copy = new Float32Array(samples.length);
     copy.set(samples);
 
-    // --- FIX: Always start at 0 ---
-    // Since this function is now triggered by the Quantizer on the "1", 
-    // we always want the loop to start at the beginning.
+    // Always start at phase 0 (the "1") for tight sync
     const gridPhase = 0; 
-    // -----------------------------
-
-    // breakSpeedMultiplier = 1; // Keep this removed
 
     currentSampleDuration = duration || (samples.length / sampleRate) || 0;
     breakWaveformDuration = currentSampleDuration;
     breakWaveformPeaks = buildBreakWaveformPeaks(samples);
-    updateBreakSpeedUi();
+    
+    // REMOVED: updateBreakSpeedUi();
 
     breakBufferLoaded = true;
 
@@ -544,7 +540,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             data: { 
                 samples: copy, 
                 sampleRate: sampleRate,
-                phase: gridPhase // Reset to start of loop
+                phase: gridPhase
             } 
         }, [copy.buffer]);
     }
@@ -554,7 +550,6 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
     breakPlaybackRate = getBreakPlaybackRate();
     
-    // Reset visual timer to "Now" since we just restarted the loop
     const nowSeconds = getNowSeconds();
     breakPlaybackStartTime = nowSeconds;
 
@@ -1071,24 +1066,20 @@ let liveLfoOutputs = [0, 0, 0, 0];
         function setBreakSampleIndex(index, { progressNormalized = 0, normalizedValue, forceImmediate = false } = {}) {
     const clamped = clamp(index ?? breakSampleIndex, BREAK_SAMPLE_MIN_INDEX, BREAK_SAMPLE_MAX_INDEX);
     
-    // Update UI immediately so it feels responsive
     if (Number.isFinite(normalizedValue)) {
         breakSelectionNormalized = Math.max(0, Math.min(1, normalizedValue));
     } else {
         breakSelectionNormalized = breakIndexToValue(clamped);
     }
     syncBreakSelectionKnob();
-    updateBreakSelectionUi(); // Shows the new number immediately
+    updateBreakSelectionUi();
 
-    // --- FIX: Queue Logic ---
     if (breakRunning && !forceImmediate) {
-        // If playing, queue it for the next "1"
+        // Queue the change for the next "1"
         pendingBreakIndex = clamped;
-        
-        // Optional: Pre-fetch the audio so it's ready in memory
-        fetchBreakSampleData(clamped); 
+        fetchBreakSampleData(clamped);
     } else {
-        // If stopped, load immediately (preview mode)
+        // Immediate load (preview mode)
         breakSampleIndex = clamped;
         activeBreakSampleIndex = clamped;
         ensureBreakSampleLoaded(clamped, 0);
@@ -1144,29 +1135,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             updateBreakPlayUi();
         }
 
-        async function toggleBreakPlayback() {
-            if (!isAnyArpRunning()) {
-                stopBreakPlaybackImmediate();
-                updateBreakPlaybackEligibility();
-                stopMasterClockIfIdle();
-                return;
-            }
-            if (breakPlayRequested) {
-                stopBreakPlaybackImmediate();
-                stopMasterClockIfIdle();
-                return;
-            }
-
-            breakPlayRequested = true;
-            updateBreakPlayUi();
-            ensureMasterClock();
-            await ensureBreakSampleLoaded();
-            if (!breakBufferLoaded) {
-                breakPlayRequested = false;
-                stopMasterClockIfIdle();
-                updateBreakPlayUi();
-                return;
-            }
+       
 
 async function toggleBreakPlayback() {
     if (!isAnyArpRunning()) {
