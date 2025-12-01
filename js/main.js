@@ -425,16 +425,41 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const now = getNowMs();
             if (tempoMode === TEMPO_MODE_BPM) {
                 const intervalMs = bpmToSixteenthMs(state.arpRateBpm);
-                
+
                 // Check if the other arp is already running
                 const otherId = knobId === 0 ? 1 : 0;
-                const isOtherArpRunning = knobState[otherId]?.arpRunning;
-                
-                // If the other arp is running, wait 4 steps (1 beat) to sync up musically. 
+                const otherState = knobState[otherId];
+                const isOtherArpRunning = otherState?.arpRunning;
+
+                // If the other arp is nearing the end of its bar (steps 13-16),
+                // start exactly on its next downbeat so both sequences line up.
+                if (isOtherArpRunning) {
+                    const patternLen = 16;
+                    const otherStepInCycle = otherState.euclideanStepCounter % patternLen;
+                    const isNearBarEnd = otherStepInCycle >= (patternLen - 4);
+                    const otherIntervalMs = bpmToSixteenthMs(otherState.arpRateBpm);
+                    const hasTimingInfo = Number.isFinite(otherState.nextArpStepTime) && otherIntervalMs > 0;
+
+                    if (isNearBarEnd && hasTimingInfo) {
+                        const stepsUntilDownbeat = (patternLen - ((otherStepInCycle + 1) % patternLen)) % patternLen;
+                        const adjustedSteps = stepsUntilDownbeat === 0 ? 1 : stepsUntilDownbeat;
+                        const alignedStart = otherState.nextArpStepTime + (adjustedSteps * otherIntervalMs);
+
+                        // Avoid scheduling in the past if the other arp jumped forward.
+                        state.nextArpStepTime = Math.max(alignedStart, quantizeToNextSixteenth(now, intervalMs));
+                        state.lastArpStepTime = 0;
+                        ensureMasterClock();
+                        updateMidiClockState();
+                        return;
+                    }
+                }
+
+                // If the other arp is running, wait 4 steps (1 beat) to sync up musically.
                 // Otherwise start immediately on the next 16th note (1 step).
                 const quantizeSteps = isOtherArpRunning ? 4 : 1;
-                
-                state.nextArpStepTime = quantizeToGrid(now, intervalMs, quantizeSteps);
+
+                const baseGrid = quantizeToGrid(now, intervalMs, quantizeSteps);
+                state.nextArpStepTime = baseGrid;
                 state.lastArpStepTime = 0;
             } else {
                 state.lastArpStepTime = now - normalizeArpRateMs(state.arpRateMs ?? DEFAULT_ARP_RATE_MS);
