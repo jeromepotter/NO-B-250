@@ -125,6 +125,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakSlipAnchorHoldEnabled = true;
         const BREAK_SLIP_DIVISIONS = [4, 1, 0.5, 0.25, 0.125, 0.0625, 0.03125];
         let breakSelectionDisplay = null;
+        let breakQueueTargetCycle = null;
 
         function getLfoDestChain(lfo) {
             if (lfo && Array.isArray(lfo.destChain) && lfo.destChain.length) return lfo.destChain;
@@ -328,8 +329,10 @@ let liveLfoOutputs = [0, 0, 0, 0];
             // This ensures we catch "Step 0" (The Downbeat) immediately.
             const source = getTempoSourceState();
             if (source && source.arpRunning) {
-                // If we are at the start of a bar (Step 0)
-                if (source.euclideanStepCounter % 16 === 0) {
+                const patternLen = 16;
+                const currentCycle = Math.floor(source.euclideanStepCounter / patternLen);
+                const targetReached = breakQueueTargetCycle === null || currentCycle >= breakQueueTargetCycle;
+                if (source.euclideanStepCounter % patternLen === 0 && targetReached) {
                     if (pendingBreakIndex !== null) {
                         ensureBreakSampleLoaded(pendingBreakIndex, 0);
                         pendingBreakIndex = null;
@@ -337,6 +340,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
                     if (breakPlayQueued) {
                         beginBreakPlayback();
                         breakPlayQueued = false;
+                        breakQueueTargetCycle = null;
                     }
                 }
             } else {
@@ -348,6 +352,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 if (breakPlayQueued) {
                     beginBreakPlayback();
                     breakPlayQueued = false;
+                    breakQueueTargetCycle = null;
                 }
             }
 
@@ -1128,6 +1133,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             refreshBreakSlipAnchor();
             synthNode?.port.postMessage({ type: 'startBreakLoop', data: { playbackRate: breakPlaybackRate } });
             startBreakWaveformAnimation();
+            breakQueueTargetCycle = null;
         }
 
         function stopBreakPlaybackImmediate() {
@@ -1137,6 +1143,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             }
             breakRunning = false;
             breakPlayRequested = false;
+            breakQueueTargetCycle = null;
             breakSlipAnchorNormalized = 0;
             stopBreakWaveformAnimation(0);
             updateBreakPlayUi();
@@ -1166,19 +1173,17 @@ async function toggleBreakPlayback(options = {}) {
     // --- FIX: Queue Start ---
     breakPlayRequested = true;
     updateBreakPlayUi();
+    breakQueueTargetCycle = null;
 
-    // In BPM mode, make sure the drums latch to the very start of the Euclidean
-    // cycle (step 1) instead of drifting to the tail end of the bar. By
-    // snapping the playhead to the nearest downbeat before queuing, the
-    // existing master-clock trigger (euclideanStepCounter % 16 === 0) will fire
-    // immediately on the next tick, keeping the drum loop aligned. MS mode
-    // stays free-running.
+    // In BPM mode, queue the break to launch on the NEXT bar downbeat so it
+    // lines up with the Euclidean playhead instead of firing immediately. MS
+    // mode stays free-running.
     if (!isFreeTiming) {
         const tempoSource = getTempoSourceState();
         if (tempoSource) {
             const patternLen = 16;
-            const cyclesCompleted = Math.floor(tempoSource.euclideanStepCounter / patternLen);
-            tempoSource.euclideanStepCounter = cyclesCompleted * patternLen;
+            const currentCycle = Math.floor(tempoSource.euclideanStepCounter / patternLen);
+            breakQueueTargetCycle = currentCycle + 1;
         }
     }
 
