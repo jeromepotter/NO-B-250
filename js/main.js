@@ -1167,6 +1167,21 @@ async function toggleBreakPlayback(options = {}) {
     breakPlayRequested = true;
     updateBreakPlayUi();
 
+    // In BPM mode, make sure the drums latch to the very start of the Euclidean
+    // cycle (step 1) instead of drifting to the tail end of the bar. By
+    // snapping the playhead to the nearest downbeat before queuing, the
+    // existing master-clock trigger (euclideanStepCounter % 16 === 0) will fire
+    // immediately on the next tick, keeping the drum loop aligned. MS mode
+    // stays free-running.
+    if (!isFreeTiming) {
+        const tempoSource = getTempoSourceState();
+        if (tempoSource) {
+            const patternLen = 16;
+            const cyclesCompleted = Math.floor(tempoSource.euclideanStepCounter / patternLen);
+            tempoSource.euclideanStepCounter = cyclesCompleted * patternLen;
+        }
+    }
+
     if (isFreeTiming) {
         breakPlayQueued = false;
         await ensureBreakSampleLoaded();
