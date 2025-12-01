@@ -422,6 +422,13 @@ const LFO_DEST_NONE = -1;
                                    this.sliceLength = this.sampleLength / 16;
                                }
                                break;
+                           case 'setBreakPosition':
+                               if (this.samplerPlayback && this.samplerPlayback.active && this.sampleBuffer) {
+                                   const target = Math.max(0, Math.min(this.sampleLength, data?.position || 0));
+                                   this.samplerPlayback.position = target;
+                                   this.slipRenderPhase = target;
+                               }
+                               break;
                            case 'startBreakLoop':
                                if (this.sampleBuffer && this.sampleLength > 0) {
                                    const playbackRate = Math.max(0.01, data?.playbackRate || 1);
