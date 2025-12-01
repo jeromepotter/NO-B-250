@@ -106,7 +106,6 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakWaveformPeaks = null;
         let breakWaveformDuration = 0;
         let currentSampleDuration = 0;
-        let breakSpeedMultiplier = 1;
         const BREAK_SAMPLE_MIN_INDEX = 1;
         const BREAK_SAMPLE_MAX_INDEX = 10;
         let breakSampleIndex = BREAK_SAMPLE_MIN_INDEX;
@@ -509,8 +508,6 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
             if (breakRunning && breakBufferLoaded && synthNode) {
                 synthNode.port.postMessage({ type: 'setBreakPlaybackRate', data: { playbackRate: breakPlaybackRate } });
-                const positionSamples = Math.max(0, Math.min(samples.length, clampedProgress * samples.length));
-                synthNode.port.postMessage({ type: 'setBreakPosition', data: { position: positionSamples } });
                 refreshBreakSlipAnchor();
             }
         }
@@ -5982,6 +5979,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
