@@ -1112,8 +1112,11 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
        
 
-async function toggleBreakPlayback() {
-    if (!isAnyArpRunning()) {
+async function toggleBreakPlayback(options = {}) {
+    const { allowArplessStart = false } = options;
+    const hasRunningArp = isAnyArpRunning();
+
+    if (!allowArplessStart && !hasRunningArp) {
         stopBreakPlaybackImmediate();
         updateBreakPlaybackEligibility();
         stopMasterClockIfIdle();
@@ -1131,7 +1134,7 @@ async function toggleBreakPlayback() {
     breakPlayRequested = true;
     updateBreakPlayUi();
     ensureMasterClock(); // Ensure the clock is ticking so it can trigger us!
-    
+
     // Queue the command
     breakPlayQueued = true;
     
@@ -4352,6 +4355,9 @@ function applyPreset(p, isArpCategoryPreset = false, options = {}) {
 
            const { skipPowerOn = false } = options;
 
+           // Capture drum autoplay intent before we potentially reset anything
+           const presetBreakShouldPlay = p.breakPlayActive !== undefined ? !!p.breakPlayActive : null;
+
            const ignoreLocks = !!isArpCategoryPreset;
            const arpLockActive = ignoreLocks ? false : isArpLockEnabled;
            const lfoLockActive = ignoreLocks ? false : isLfoLockEnabled;
@@ -4425,14 +4431,9 @@ function applyPreset(p, isArpCategoryPreset = false, options = {}) {
                     setBreakSampleIndex(targetIndex, { normalizedValue, forceImmediate: true });
                 }
 
-                if (p.breakPlayActive !== undefined) {
-                    const shouldPlayBreak = !!p.breakPlayActive;
-                    if (shouldPlayBreak && !breakPlayRequested) {
-                        toggleBreakPlayback();
-                    } else if (!shouldPlayBreak && breakPlayRequested) {
-                        stopBreakPlaybackImmediate();
-                        stopMasterClockIfIdle();
-                    }
+                if (presetBreakShouldPlay === false && breakPlayRequested) {
+                    stopBreakPlaybackImmediate();
+                    stopMasterClockIfIdle();
                 }
             }
            
@@ -4642,8 +4643,13 @@ function applyPreset(p, isArpCategoryPreset = false, options = {}) {
                     }
                 }
                }
-               }
+              }
            });
+
+           // Trigger drum autoplay after arps are running so the queue check passes
+           if (presetBreakShouldPlay && !breakPlayRequested) {
+               toggleBreakPlayback({ allowArplessStart: true });
+           }
        }
 
 function setFxValue(id, value, forceVisualUpdate = false) {
