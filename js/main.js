@@ -1107,8 +1107,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
         updateBreakSelectionUi(clamped);
         fetchBreakSampleData(clamped);
 
-        // Align the swap with the same queued offset as playback start so the
-        // new loop enters one step after the next bar downbeat in BPM mode.
+         // Align the swap with the same queued offset as playback start so the
+         // new loop enters on the next bar downbeat in BPM mode.
         const tempoSource = getTempoSourceState();
         if (tempoSource) {
             const patternLen = 16;
@@ -1117,8 +1117,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const barsPerLoop = getBreakBarsPerLoop();
             const barsRemaining = Math.max(0, (1 - loopProgress) * barsPerLoop);
             const cyclesToWait = Math.max(1, Math.ceil(barsRemaining));
-            breakQueueTargetCycle = currentCycle + cyclesToWait;
-            breakQueueTargetStep = 1;
+             breakQueueTargetCycle = currentCycle + cyclesToWait;
+             breakQueueTargetStep = 0;
         }
     } else {
         // Immediate load (preview mode)
@@ -1231,8 +1231,8 @@ async function toggleBreakPlayback(options = {}) {
         if (tempoSource) {
             const patternLen = 16;
             const currentCycle = Math.floor(tempoSource.euclideanStepCounter / patternLen);
-            breakQueueTargetCycle = currentCycle + 1;
-            breakQueueTargetStep = 1; // Launch one note after the bar downbeat
+             breakQueueTargetCycle = currentCycle + 1;
+             breakQueueTargetStep = 0; // Launch on the bar downbeat
         }
     }
 
