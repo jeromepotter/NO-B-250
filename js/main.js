@@ -433,11 +433,6 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
                 // If the other arp is nearing the end of its bar (steps 13-16),
                 // start exactly on its next downbeat so both sequences line up.
-                const shiftStartBackOneStep = (targetTime) => {
-                    const shifted = targetTime - intervalMs;
-                    return shifted > now ? shifted : targetTime;
-                };
-
                 if (isOtherArpRunning) {
                     const patternLen = 16;
                     const otherStepInCycle = otherState.euclideanStepCounter % patternLen;
@@ -463,7 +458,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 const quantizeSteps = isOtherArpRunning ? 4 : 1;
 
                 const baseGrid = quantizeToGrid(now, intervalMs, quantizeSteps);
-                state.nextArpStepTime = isOtherArpRunning ? shiftStartBackOneStep(baseGrid) : baseGrid;
+                state.nextArpStepTime = baseGrid;
                 state.lastArpStepTime = 0;
             } else {
                 state.lastArpStepTime = now - normalizeArpRateMs(state.arpRateMs ?? DEFAULT_ARP_RATE_MS);
