@@ -426,15 +426,12 @@ let liveLfoOutputs = [0, 0, 0, 0];
             if (tempoMode === TEMPO_MODE_BPM) {
                 const intervalMs = bpmToSixteenthMs(state.arpRateBpm);
                 
-                // --- FIX: Ensure IDs are integers for correct "other" detection ---
+                // --- ROBUST FIX: Scan for ANY other running ARP ---
                 const currentId = parseInt(knobId, 10);
-                const otherId = currentId === 0 ? 1 : 0;
+                const isOtherArpRunning = knobState.some(k => k.id !== currentId && k.arpRunning);
                 
-                // Check if the other arp is actually running
-                const isOtherArpRunning = knobState[otherId]?.arpRunning;
-                
-                // If the other arp is running, wait 4 steps (1 beat) to sync to the grid.
-                // If it's NOT running (first arp), start immediately (next 16th).
+                // If another arp is running, wait 4 steps (1 beat) to sync up. 
+                // If this is the FIRST arp, start immediately (1 step).
                 const quantizeSteps = isOtherArpRunning ? 4 : 1;
                 
                 state.nextArpStepTime = quantizeToGrid(now, intervalMs, quantizeSteps);
@@ -6055,6 +6052,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
