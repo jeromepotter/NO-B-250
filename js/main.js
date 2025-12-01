@@ -492,9 +492,14 @@ let liveLfoOutputs = [0, 0, 0, 0];
             return ((loopPositionSeconds / effectiveDuration) + 1) % 1;
         }
 
-        function updateBreakSelectionUi() {
+        function updateBreakSelectionUi(displayIndex) {
+            const visibleIndex = clamp(
+                displayIndex ?? (pendingBreakIndex ?? breakSampleIndex),
+                BREAK_SAMPLE_MIN_INDEX,
+                BREAK_SAMPLE_MAX_INDEX,
+            );
             if (breakSelectionDisplay) {
-                breakSelectionDisplay.textContent = breakSampleIndex;
+                breakSelectionDisplay.textContent = visibleIndex;
             }
         }
 
@@ -524,7 +529,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
     const targetIndex = clamp(breakIndex ?? breakSampleIndex, BREAK_SAMPLE_MIN_INDEX, BREAK_SAMPLE_MAX_INDEX);
     breakSampleIndex = targetIndex;
     activeBreakSampleIndex = targetIndex;
-    updateBreakSelectionUi();
+    updateBreakSelectionUi(targetIndex);
     syncBreakSelectionKnob();
 
     const copy = new Float32Array(samples.length);
@@ -1027,15 +1032,16 @@ let liveLfoOutputs = [0, 0, 0, 0];
         breakSelectionNormalized = breakIndexToValue(clamped);
     }
     syncBreakSelectionKnob();
-    updateBreakSelectionUi();
 
     if (breakRunning && !forceImmediate) {
         // Queue the change for the next "1"
         pendingBreakIndex = clamped;
+        updateBreakSelectionUi(clamped);
         fetchBreakSampleData(clamped);
     } else {
         // Immediate load (preview mode)
         breakSampleIndex = clamped;
+        updateBreakSelectionUi(clamped);
 
         const loadPromise = ensureBreakSampleLoaded(clamped, progressNormalized);
 
