@@ -1112,8 +1112,11 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
        
 
-async function toggleBreakPlayback() {
-    if (!isAnyArpRunning()) {
+async function toggleBreakPlayback(options = {}) {
+    const { allowArplessStart = false } = options;
+    const hasRunningArp = isAnyArpRunning();
+
+    if (!allowArplessStart && !hasRunningArp) {
         stopBreakPlaybackImmediate();
         updateBreakPlaybackEligibility();
         stopMasterClockIfIdle();
@@ -1131,7 +1134,7 @@ async function toggleBreakPlayback() {
     breakPlayRequested = true;
     updateBreakPlayUi();
     ensureMasterClock(); // Ensure the clock is ticking so it can trigger us!
-    
+
     // Queue the command
     breakPlayQueued = true;
     
@@ -1740,6 +1743,8 @@ function generateComplexRandomLfoState(includeArpTargets = true) {
                breakSlipAnchorHoldEnabled: breakSlipAnchorHoldEnabled,
                breakPlayActive: breakPlayRequested || breakRunning,
                breakSlipBaseDivision: breakSlipBaseDivision,
+               breakSampleIndex: breakSampleIndex,
+               breakSelectionNormalized: trim(breakSelectionNormalized),
              lfoState: lfoState.map(lfo => {
             const obj = {};
             // Only save values if they differ from defaults
@@ -1763,12 +1768,12 @@ function generateComplexRandomLfoState(includeArpTargets = true) {
                knobSettings: knobState.map(k => ({ id: k.id, totalAngle: trim(k.totalAngle) })),
               // FILTERED FX SETTINGS: 
                // Only save if value > 0 OR if it's a special knob where 0 is meaningful (non-default).
-               // IDs to keep even at 0: 
-               // 2 (Master Filter), 7 (Master Vol), 10 (Sustain), 
+               // IDs to keep even at 0:
+               // 2 (Master Filter), 7 (Master Vol), 10 (Sustain),
                // 16/17 (Rates), 20/21 (Osc Filters), 24/25 (Transpose), 26/27 (Osc Vol)
                fxSettings: Object.values(fxKnobData)
                    .map(k => ({ id: k.id, value: trim(k.value) }))
-                   .filter(s => s.value > 0 || [2, 7, 10, 16, 17, 20, 21, 24, 25, 26, 27].includes(s.id)),
+                   .filter(s => s.value > 0 || [2, 7, 10, 16, 17, 20, 21, 24, 25, 26, 27, 36].includes(s.id)),
                arpSettings: { 
                    isArpRateSynced: isArpRateSynced, 
                    currentArpOrder: currentArpOrder, 
@@ -4350,6 +4355,9 @@ function applyPreset(p, isArpCategoryPreset = false, options = {}) {
 
            const { skipPowerOn = false } = options;
 
+           // Capture drum autoplay intent before we potentially reset anything
+           const presetBreakShouldPlay = p.breakPlayActive !== undefined ? !!p.breakPlayActive : null;
+
            const ignoreLocks = !!isArpCategoryPreset;
            const arpLockActive = ignoreLocks ? false : isArpLockEnabled;
            const lfoLockActive = ignoreLocks ? false : isLfoLockEnabled;
@@ -4416,14 +4424,16 @@ function applyPreset(p, isArpCategoryPreset = false, options = {}) {
                     setBreakSlipAnchorHold(!!p.breakSlipAnchorHoldEnabled);
                 }
 
-                if (p.breakPlayActive !== undefined) {
-                    const shouldPlayBreak = !!p.breakPlayActive;
-                    if (shouldPlayBreak && !breakPlayRequested) {
-                        toggleBreakPlayback();
-                    } else if (!shouldPlayBreak && breakPlayRequested) {
-                        stopBreakPlaybackImmediate();
-                        stopMasterClockIfIdle();
-                    }
+                const hasBreakSelection = p.breakSampleIndex !== undefined || p.breakSelectionNormalized !== undefined;
+                if (hasBreakSelection) {
+                    const targetIndex = p.breakSampleIndex ?? breakValueToIndex(p.breakSelectionNormalized);
+                    const normalizedValue = p.breakSelectionNormalized ?? breakIndexToValue(targetIndex);
+                    setBreakSampleIndex(targetIndex, { normalizedValue, forceImmediate: true });
+                }
+
+                if (presetBreakShouldPlay === false && breakPlayRequested) {
+                    stopBreakPlaybackImmediate();
+                    stopMasterClockIfIdle();
                 }
             }
            
@@ -4558,7 +4568,7 @@ function applyPreset(p, isArpCategoryPreset = false, options = {}) {
 
            if (p.fxSettings) {
                p.fxSettings.forEach(fx => {
-                   if (arpLockActive && [16, 17, 18, 19, 22, 23, 24, 25, 35, 32, 33, 34].includes(fx.id)) return;
+                   if (arpLockActive && [16, 17, 18, 19, 22, 23, 24, 25, 35, 36, 32, 33, 34].includes(fx.id)) return;
                    if (lfoLockActive && LFO_FX_IDS.includes(fx.id)) return;
                    setFxValue(fx.id, fx.value ?? 0);
                });
@@ -4633,8 +4643,13 @@ function applyPreset(p, isArpCategoryPreset = false, options = {}) {
                     }
                 }
                }
-               }
+              }
            });
+
+           // Trigger drum autoplay after arps are running so the queue check passes
+           if (presetBreakShouldPlay && !breakPlayRequested) {
+               toggleBreakPlayback({ allowArplessStart: true });
+           }
        }
 
 function setFxValue(id, value, forceVisualUpdate = false) {
@@ -4732,7 +4747,7 @@ function resetAllFxToDefaults({ skipArpKnobs = false, skipLfoKnobs = false } = {
            }
            Object.keys(fxKnobData).forEach(idStr => {
                const id = parseInt(idStr, 10);
-               if (skipArpKnobs && [16, 17, 18, 19, 22, 23, 24, 25, 35, 32, 33, 34].includes(id)) return;
+               if (skipArpKnobs && [16, 17, 18, 19, 22, 23, 24, 25, 35, 36, 32, 33, 34].includes(id)) return;
                if (skipLfoKnobs && LFO_FX_IDS.includes(id)) return;
                let defaultValue = 0.0;
                if (id === 2) defaultValue = 1.0;
