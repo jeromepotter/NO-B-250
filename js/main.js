@@ -727,8 +727,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
     const elapsed = Math.max(0, nowSeconds - breakPlaybackStartTime);
     const progressSec = effectiveDuration > 0 ? (elapsed % effectiveDuration) : 0;
     const progressNorm = effectiveDuration > 0 ? progressSec / effectiveDuration : 0;
-    const bucketIndex = Math.max(0, Math.floor(progressNorm / windowNorm));
-    breakSlipAnchorNormalized = Math.min(1, bucketIndex * windowNorm);
+    // Latch directly to the live playhead position instead of snapping back to the start of the window
+    breakSlipAnchorNormalized = Math.max(0, Math.min(1, progressNorm));
     breakSlipCycleStartTime = nowSeconds;
 }
 
