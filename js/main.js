@@ -473,44 +473,81 @@ let liveLfoOutputs = [0, 0, 0, 0];
         }
 
         function applyBreakSampleData({ samples, sampleRate, duration, breakIndex = breakSampleIndex, progressNormalized = 0 }) {
-            if (!samples || !samples.length || !Number.isFinite(sampleRate)) return;
+    if (!samples || !samples.length || !Number.isFinite(sampleRate)) return;
 
-            const targetIndex = clamp(breakIndex ?? breakSampleIndex, BREAK_SAMPLE_MIN_INDEX, BREAK_SAMPLE_MAX_INDEX);
-            breakSampleIndex = targetIndex;
-            activeBreakSampleIndex = targetIndex;
-            updateBreakSelectionUi();
-            syncBreakSelectionKnob();
+    const targetIndex = clamp(breakIndex ?? breakSampleIndex, BREAK_SAMPLE_MIN_INDEX, BREAK_SAMPLE_MAX_INDEX);
+    breakSampleIndex = targetIndex;
+    activeBreakSampleIndex = targetIndex;
+    updateBreakSelectionUi();
+    syncBreakSelectionKnob();
 
-            const copy = new Float32Array(samples.length);
-            copy.set(samples);
+    const copy = new Float32Array(samples.length);
+    copy.set(samples);
 
-            currentSampleDuration = duration || (samples.length / sampleRate) || 0;
-            breakWaveformDuration = currentSampleDuration;
-            breakWaveformPeaks = buildBreakWaveformPeaks(samples);
-            updateBreakSpeedUi();
+    // --- FIX: Calculate Phase locked to the Master Clock Grid ---
+    let gridPhase = 0;
+    
+    // If we are in BPM mode and the clock is running, snap to the bar!
+    if (isAnyArpRunning() && tempoMode === 'BPM' && masterClockStartTime !== null) {
+        const bpm = calculateMidiBpm();
+        const msPerBeat = 60000 / bpm;
+        const msPerBar = msPerBeat * 4; // Assume 4/4 time
+        const now = performance.now();
+        const elapsed = now - masterClockStartTime;
+        
+        // This is the exact percentage (0.0 to 1.0) through the current bar
+        gridPhase = (elapsed % msPerBar) / msPerBar;
+        
+        // Adjust for speed multiplier (e.g. if 2x speed, we might be at start of 2nd loop)
+        gridPhase = (gridPhase * breakSpeedMultiplier) % 1;
+        
+        // Update visual trackers to match this new hard-sync
+        progressNormalized = gridPhase;
+    } else {
+        // Fallback for free-running/MS mode: use the relative position of the previous loop
+        gridPhase = getBreakLoopProgressNormalized();
+    }
+    // ------------------------------------------------------------
 
-            breakBufferLoaded = true;
+    // Keep user speed setting (do NOT reset to 1)
+    // breakSpeedMultiplier = 1; <--- This stays removed/commented out
 
-            if (synthNode) {
-                synthNode.port.postMessage({ type: 'setSampleBuffer', data: { samples: copy, sampleRate } }, [copy.buffer]);
-            }
+    currentSampleDuration = duration || (samples.length / sampleRate) || 0;
+    breakWaveformDuration = currentSampleDuration;
+    breakWaveformPeaks = buildBreakWaveformPeaks(samples);
+    updateBreakSpeedUi();
 
-            resizeBreakWaveformCanvas();
-            drawBreakWaveform(progressNormalized);
+    breakBufferLoaded = true;
 
-            breakPlaybackRate = getBreakPlaybackRate();
-            const nowSeconds = getNowSeconds();
-            const rate = Math.max(0.01, breakPlaybackRate);
-            const effectiveDuration = breakWaveformDuration > 0 ? breakWaveformDuration / rate : 0;
-            const clampedProgress = Math.max(0, Math.min(1, progressNormalized));
-            const offsetSeconds = Number.isFinite(effectiveDuration) ? (clampedProgress * effectiveDuration) : 0;
-            breakPlaybackStartTime = nowSeconds - offsetSeconds;
+    if (synthNode) {
+        // Send the samples AND the calculated Grid Phase
+        synthNode.port.postMessage({ 
+            type: 'setSampleBuffer', 
+            data: { 
+                samples: copy, 
+                sampleRate: sampleRate,
+                phase: gridPhase // <--- Send the sync value
+            } 
+        }, [copy.buffer]);
+    }
 
-            if (breakRunning && breakBufferLoaded && synthNode) {
-                synthNode.port.postMessage({ type: 'setBreakPlaybackRate', data: { playbackRate: breakPlaybackRate } });
-                refreshBreakSlipAnchor();
-            }
-        }
+    resizeBreakWaveformCanvas();
+    drawBreakWaveform(progressNormalized);
+
+    breakPlaybackRate = getBreakPlaybackRate();
+    
+    // Recalculate start time so visuals match the new Grid Phase
+    const nowSeconds = getNowSeconds();
+    const rate = Math.max(0.01, breakPlaybackRate);
+    const effectiveDuration = breakWaveformDuration > 0 ? breakWaveformDuration / rate : 0;
+    const offsetSeconds = Number.isFinite(effectiveDuration) ? (gridPhase * effectiveDuration) : 0;
+    breakPlaybackStartTime = nowSeconds - offsetSeconds;
+
+    if (breakRunning && breakBufferLoaded && synthNode) {
+        synthNode.port.postMessage({ type: 'setBreakPlaybackRate', data: { playbackRate: breakPlaybackRate } });
+        refreshBreakSlipAnchor();
+    }
+}
 
         function updateBreakSpeedUi() {
             const displayMultiplier = breakSpeedMultiplier;
@@ -5979,6 +6016,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
