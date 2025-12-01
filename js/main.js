@@ -558,10 +558,10 @@ let liveLfoOutputs = [0, 0, 0, 0];
     const copy = new Float32Array(samples.length);
     copy.set(samples);
 
-    // --- FIX: Always align to the "1" ---
-    // Since we are now triggered exactly on the beat by the Clock Worker,
-    // we can simply start the loop from the beginning (0).
-    const gridPhase = 0; 
+    const shouldUseFreePhase = tempoMode === TEMPO_MODE_MS && Number.isFinite(progressNormalized);
+    const gridPhase = shouldUseFreePhase
+        ? Math.max(0, Math.min(1, progressNormalized))
+        : 0;
 
     currentSampleDuration = duration || (samples.length / sampleRate) || 0;
     breakWaveformDuration = currentSampleDuration;
@@ -591,7 +591,14 @@ let liveLfoOutputs = [0, 0, 0, 0];
     
     // Reset visuals to start
     const nowSeconds = getNowSeconds();
-    breakPlaybackStartTime = nowSeconds;
+    const effectiveDuration = breakWaveformDuration > 0
+        ? breakWaveformDuration / Math.max(0.01, breakPlaybackRate)
+        : 0;
+    if (shouldUseFreePhase && effectiveDuration > 0) {
+        breakPlaybackStartTime = nowSeconds - (initialProgress * effectiveDuration);
+    } else {
+        breakPlaybackStartTime = nowSeconds;
+    }
 
     if (breakRunning && breakBufferLoaded && synthNode) {
         synthNode.port.postMessage({ type: 'setBreakPlaybackRate', data: { playbackRate: breakPlaybackRate } });
@@ -1056,7 +1063,9 @@ let liveLfoOutputs = [0, 0, 0, 0];
     }
     syncBreakSelectionKnob();
 
-    if (breakRunning && !forceImmediate) {
+    const shouldQueueChange = breakRunning && !forceImmediate && tempoMode !== TEMPO_MODE_MS;
+
+    if (shouldQueueChange) {
         // Queue the change for the next "1"
         pendingBreakIndex = clamped;
         updateBreakSelectionUi(clamped);
@@ -1138,8 +1147,9 @@ let liveLfoOutputs = [0, 0, 0, 0];
 async function toggleBreakPlayback(options = {}) {
     const { allowArplessStart = false } = options;
     const hasRunningArp = isAnyArpRunning();
+    const isFreeTiming = tempoMode === TEMPO_MODE_MS;
 
-    if (!allowArplessStart && !hasRunningArp) {
+    if (!allowArplessStart && !isFreeTiming && !hasRunningArp) {
         stopBreakPlaybackImmediate();
         updateBreakPlaybackEligibility();
         stopMasterClockIfIdle();
@@ -1156,11 +1166,19 @@ async function toggleBreakPlayback(options = {}) {
     // --- FIX: Queue Start ---
     breakPlayRequested = true;
     updateBreakPlayUi();
+
+    if (isFreeTiming) {
+        breakPlayQueued = false;
+        await ensureBreakSampleLoaded();
+        beginBreakPlayback();
+        return;
+    }
+
     ensureMasterClock(); // Ensure the clock is ticking so it can trigger us!
 
     // Queue the command
     breakPlayQueued = true;
-    
+
     await ensureBreakSampleLoaded();
 }
 
