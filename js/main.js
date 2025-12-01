@@ -535,7 +535,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const targetIndex = breakValueToIndex(modulatedValue);
 
             const progressNormalized = getBreakLoopProgressNormalized();
-            setBreakSampleIndex(targetIndex, { progressNormalized, normalizedValue: baseValue });
+            setBreakSampleIndex(targetIndex, { progressNormalized, normalizedValue: baseValue, forceImmediate: true });
         }
 
         function syncBreakSelectionKnob() {
@@ -558,10 +558,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
     const copy = new Float32Array(samples.length);
     copy.set(samples);
 
-    // --- FIX: Always align to the "1" ---
-    // Since we are now triggered exactly on the beat by the Clock Worker,
-    // we can simply start the loop from the beginning (0).
-    const gridPhase = 0; 
+    // Preserve the current loop position when swapping samples so the break stays in phase
+    const gridPhase = Math.max(0, Math.min(1, Number.isFinite(progressNormalized) ? progressNormalized : 0));
 
     currentSampleDuration = duration || (samples.length / sampleRate) || 0;
     breakWaveformDuration = currentSampleDuration;
@@ -2901,7 +2899,7 @@ function sendMidiMessage(message) {
             if (id === 36) {
                const nextIndex = breakValueToIndex(d.value);
                const progressNormalized = getBreakLoopProgressNormalized();
-               setBreakSampleIndex(nextIndex, { progressNormalized, normalizedValue: d.value });
+               setBreakSampleIndex(nextIndex, { progressNormalized, normalizedValue: d.value, forceImmediate: true });
                return;
             }
 
@@ -4702,7 +4700,7 @@ function setFxValue(id, value, forceVisualUpdate = false) {
                 }
                 const nextIndex = breakValueToIndex(clampedValue);
                 const progressNormalized = getBreakLoopProgressNormalized();
-                setBreakSampleIndex(nextIndex, { progressNormalized, normalizedValue: clampedValue });
+                setBreakSampleIndex(nextIndex, { progressNormalized, normalizedValue: clampedValue, forceImmediate: true });
                 return;
             }
 
