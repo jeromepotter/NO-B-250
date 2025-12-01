@@ -106,9 +106,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakWaveformPeaks = null;
         let breakWaveformDuration = 0;
         let currentSampleDuration = 0;
-        let breakSpeedMultiplier = 1;
         const BREAK_SAMPLE_MIN_INDEX = 1;
-        let pendingBreakIndex = null;   
+        let pendingBreakIndex = null;
         let breakPlayQueued = false;
         const BREAK_SAMPLE_MAX_INDEX = 10;
         let breakSampleIndex = BREAK_SAMPLE_MIN_INDEX;
@@ -126,10 +125,6 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakSlipAnchorHoldEnabled = true;
         const BREAK_SLIP_DIVISIONS = [4, 1, 0.5, 0.25, 0.125, 0.0625, 0.03125];
         let breakSelectionDisplay = null;
-        let breakSpeedControls = null;
-        let breakSpeedHalfButton = null;
-        let breakSpeedDoubleButton = null;
-        let breakSpeedDisplay = null;
 
         function getLfoDestChain(lfo) {
             if (lfo && Array.isArray(lfo.destChain) && lfo.destChain.length) return lfo.destChain;
@@ -399,6 +394,24 @@ let liveLfoOutputs = [0, 0, 0, 0];
             return nextTime;
         }
 
+        function startArpClockForState(knobId) {
+            const state = knobState[knobId];
+            if (!state) return;
+
+            const now = getNowMs();
+            if (tempoMode === TEMPO_MODE_BPM) {
+                const intervalMs = bpmToSixteenthMs(state.arpRateBpm);
+                state.nextArpStepTime = quantizeToNextSixteenth(now, intervalMs);
+                state.lastArpStepTime = 0;
+            } else {
+                state.lastArpStepTime = now - normalizeArpRateMs(state.arpRateMs ?? DEFAULT_ARP_RATE_MS);
+                state.nextArpStepTime = 0;
+            }
+
+            ensureMasterClock();
+            updateMidiClockState();
+        }
+
         function getMidiClockBpm() {
             midiClockBpm = calculateMidiBpm();
             return midiClockBpm;
@@ -449,7 +462,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const secondsPerBar = secondsPerBeat * 4;
 
             if (breakWaveformDuration > 0) {
-                return (breakWaveformDuration / secondsPerBar) * breakSpeedMultiplier;
+                return breakWaveformDuration / secondsPerBar;
             }
             return 1;
         }
@@ -526,8 +539,6 @@ let liveLfoOutputs = [0, 0, 0, 0];
     breakWaveformDuration = currentSampleDuration;
     breakWaveformPeaks = buildBreakWaveformPeaks(samples);
     
-    // Removed: updateBreakSpeedUi();
-
     breakBufferLoaded = true;
 
     if (synthNode) {
@@ -555,63 +566,6 @@ let liveLfoOutputs = [0, 0, 0, 0];
         refreshBreakSlipAnchor();
     }
 }
-
-        function updateBreakSpeedUi() {
-            const displayMultiplier = breakSpeedMultiplier;
-
-            if (breakSpeedHalfButton) {
-                breakSpeedHalfButton.setAttribute('aria-pressed', 'false');
-            }
-
-            if (breakSpeedDoubleButton) {
-                breakSpeedDoubleButton.setAttribute('aria-pressed', 'false');
-            }
-
-            if (breakSpeedDisplay) {
-                breakSpeedDisplay.textContent = formatBreakSpeedMultiplier(displayMultiplier);
-            }
-        }
-
-        function formatBreakSpeedMultiplier(multiplier) {
-            if (!Number.isFinite(multiplier) || multiplier <= 0) return '1x';
-            if (multiplier >= 1) {
-                return `${multiplier}x`;
-            }
-            const denom = 1 / multiplier;
-            if (Number.isInteger(denom)) {
-                return `1/${denom}x`;
-            }
-            return `${multiplier.toFixed(2)}x`;
-        }
-
-        function applyBreakSpeedMultiplier(nextMultiplier) {
-            breakSpeedMultiplier = nextMultiplier;
-            updateBreakSpeedUi();
-
-            const nextRate = getBreakPlaybackRate();
-            if (!Number.isFinite(nextRate)) return;
-            breakPlaybackRate = nextRate;
-            breakPlaybackStartTime = audioContext ? audioContext.currentTime : (performance.now() / 1000);
-
-            if (breakRunning && breakBufferLoaded && synthNode) {
-                synthNode.port.postMessage({ type: 'setBreakPlaybackRate', data: { playbackRate: breakPlaybackRate } });
-                refreshBreakSlipAnchor();
-            }
-
-            const rate = Math.max(0.01, breakPlaybackRate);
-            const duration = breakWaveformDuration > 0 ? breakWaveformDuration / rate : 0;
-            drawBreakWaveform();
-        }
-
-
-        function setBreakSpeedMultiplier(multiplier, { accumulate = false } = {}) {
-            if (!Number.isFinite(multiplier) || multiplier <= 0) return;
-            const baseMultiplier = accumulate ? breakSpeedMultiplier : 1;
-            const nextMultiplier = accumulate ? baseMultiplier * multiplier : multiplier;
-            if (!Number.isFinite(nextMultiplier) || nextMultiplier <= 0) return;
-
-            applyBreakSpeedMultiplier(nextMultiplier);
-        }
 
         function normalizedToBreakSlipDivision(normalized) {
             const clamped = clamp(normalized, 0, 1);
@@ -5118,10 +5072,6 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
            breakWaveCanvas = document.getElementById('break-waveform');
            breakWaveCtx = breakWaveCanvas ? breakWaveCanvas.getContext('2d') : null;
            breakSelectionDisplay = document.getElementById('break-selection-display');
-           breakSpeedControls = document.getElementById('break-speed-controls');
-           breakSpeedHalfButton = document.getElementById('break-speed-half');
-           breakSpeedDoubleButton = document.getElementById('break-speed-double');
-           breakSpeedDisplay = document.getElementById('break-speed-display');
            
            // --- 1. Audio Resume (Touch & Click) ---
            const resumeAudio = () => {
@@ -5199,21 +5149,8 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                    toggleBreakMode();
                });
            }
-           if (breakSpeedHalfButton) {
-               addTouchListener(breakSpeedHalfButton, (e) => {
-                   setBreakSpeedMultiplier(0.5, { accumulate: true });
-                   e?.target?.blur?.();
-               });
-           }
-           if (breakSpeedDoubleButton) {
-               addTouchListener(breakSpeedDoubleButton, (e) => {
-                setBreakSpeedMultiplier(2, { accumulate: true });
-                e?.target?.blur?.();
-            });
-        }
            updateBreakSelectionUi();
            syncBreakSelectionKnob();
-           updateBreakSpeedUi();
            updateBreakSlipUi();
            updateBreakGridVisibility();
            updateBreakPlaybackEligibility();

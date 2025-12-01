@@ -144,8 +144,6 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
       .retro-button { transition: color 0.2s; }
       .retro-button:hover { color: var(--color-accent-yellow); }
       .retro-button.active { color: var(--color-accent-yellow); text-decoration: underline; }
-      #break-speed-controls button:focus,
-      #break-speed-controls button:focus-visible { outline: none; box-shadow: none; }
       .preset-save-button { color: var(--color-accent-blue); }
       .preset-load-button { color: var(--color-accent-teal); }
       .preset-category-button {
