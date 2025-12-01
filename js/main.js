@@ -1101,7 +1101,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
     const shouldQueueChange = breakRunning && !forceImmediate && tempoMode !== TEMPO_MODE_MS;
 
     if (shouldQueueChange) {
-        // Queue the change for the next "1"
+        // Queue the change so it happens after the current loop finishes.
+        // This preserves BPM quantization while preventing mid-loop swaps.
         pendingBreakIndex = clamped;
         updateBreakSelectionUi(clamped);
         fetchBreakSampleData(clamped);
@@ -1111,7 +1112,12 @@ let liveLfoOutputs = [0, 0, 0, 0];
         const tempoSource = getTempoSourceState();
         if (tempoSource) {
             const patternLen = 16;
-            breakQueueTargetCycle = Math.floor(tempoSource.euclideanStepCounter / patternLen) + 1;
+            const currentCycle = Math.floor(tempoSource.euclideanStepCounter / patternLen);
+            const loopProgress = getBreakLoopProgressNormalized();
+            const barsPerLoop = getBreakBarsPerLoop();
+            const barsRemaining = Math.max(0, (1 - loopProgress) * barsPerLoop);
+            const cyclesToWait = Math.max(1, Math.ceil(barsRemaining));
+            breakQueueTargetCycle = currentCycle + cyclesToWait;
             breakQueueTargetStep = 1;
         }
     } else {
