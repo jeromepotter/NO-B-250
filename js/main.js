@@ -442,7 +442,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
                     if (isNearBarEnd && hasTimingInfo) {
                         const stepsUntilDownbeat = (patternLen - ((otherStepInCycle + 1) % patternLen)) % patternLen;
-                        const alignedStart = otherState.nextArpStepTime + (stepsUntilDownbeat * otherIntervalMs);
+                        const adjustedSteps = stepsUntilDownbeat === 0 ? 1 : stepsUntilDownbeat;
+                        const alignedStart = otherState.nextArpStepTime + (adjustedSteps * otherIntervalMs);
 
                         // Avoid scheduling in the past if the other arp jumped forward.
                         state.nextArpStepTime = Math.max(alignedStart, quantizeToNextSixteenth(now, intervalMs));
