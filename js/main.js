@@ -106,6 +106,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakWaveformPeaks = null;
         let breakWaveformDuration = 0;
         let currentSampleDuration = 0;
+        let breakSpeedMultiplier = 1;
         const BREAK_SAMPLE_MIN_INDEX = 1;
         const BREAK_SAMPLE_MAX_INDEX = 10;
         let breakSampleIndex = BREAK_SAMPLE_MIN_INDEX;
@@ -483,7 +484,6 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const copy = new Float32Array(samples.length);
             copy.set(samples);
 
-            breakSpeedMultiplier = 1;
             currentSampleDuration = duration || (samples.length / sampleRate) || 0;
             breakWaveformDuration = currentSampleDuration;
             breakWaveformPeaks = buildBreakWaveformPeaks(samples);
@@ -5979,6 +5979,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
