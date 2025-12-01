@@ -414,14 +414,31 @@ const LFO_DEST_NONE = -1;
                                else if(id===21 || id===29){ this.updateDjFilterCoefficients(this.filterOsc2Coeffs, this.params[21], this.params[29]); }
                                else if(id===32 || id===33){ this.updateDjFilterCoefficients(this.breakFilterCoeffs, this.params[32], this.params[33]); }
                                break;
-                           case 'setSampleBuffer':
-                               if (data?.samples) {
-                                   this.sampleBuffer = data.samples;
-                                   this.sampleSourceRate = data.sampleRate || sampleRate;
-                                   this.sampleLength = this.sampleBuffer.length;
-                                   this.sliceLength = this.sampleLength / 16;
-                               }
-                               break;
+                          case 'setSampleBuffer':
+    if (data?.samples) {
+        // 1. Capture current phase BEFORE swapping
+        let currentPhase = 0;
+        if (this.sampleLength > 0 && this.samplerPlayback.position > 0) {
+            currentPhase = this.samplerPlayback.position / this.sampleLength;
+        }
+
+        // 2. Swap the Buffer
+        this.sampleBuffer = data.samples;
+        this.sampleSourceRate = data.sampleRate || sampleRate;
+        this.sampleLength = this.sampleBuffer.length;
+        this.sliceLength = this.sampleLength / 16;
+
+        // 3. Apply phase to new buffer immediately (Atomic Phase Swap)
+        // This prevents the playhead from resetting or drifting due to message latency
+        if (this.samplerPlayback.active && this.sampleLength > 0) {
+            this.samplerPlayback.position = currentPhase * this.sampleLength;
+            // Also scale the slip render phase so effects don't glitch
+            if (this.slipRenderPhase > 0) {
+                 this.slipRenderPhase = currentPhase * this.sampleLength;
+            }
+        }
+    }
+    break;
                            case 'setBreakPosition':
                                if (this.samplerPlayback && this.samplerPlayback.active && this.sampleBuffer) {
                                    const target = Math.max(0, Math.min(this.sampleLength, data?.position || 0));
@@ -1037,6 +1054,7 @@ return true;
 }
 }
 registerProcessor('synth-processor', SynthProcessor);
+
 
 
 
