@@ -433,6 +433,14 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
                 // If the other arp is nearing the end of its bar (steps 13-16),
                 // start exactly on its next downbeat so both sequences line up.
+                const shiftStartBackOneStep = (targetTime) => {
+                    const shifted = targetTime - (intervalMs * 3);
+                    if (shifted <= now) {
+                        return targetTime + (intervalMs * 4);
+                    }
+                    return shifted;
+                };
+
                 if (isOtherArpRunning) {
                     const patternLen = 16;
                     const otherStepInCycle = otherState.euclideanStepCounter % patternLen;
@@ -443,9 +451,10 @@ let liveLfoOutputs = [0, 0, 0, 0];
                     if (isNearBarEnd && hasTimingInfo) {
                         const stepsUntilDownbeat = (patternLen - ((otherStepInCycle + 1) % patternLen)) % patternLen;
                         const alignedStart = otherState.nextArpStepTime + (stepsUntilDownbeat * otherIntervalMs);
+                        const shiftedStart = shiftStartBackOneStep(alignedStart);
 
                         // Avoid scheduling in the past if the other arp jumped forward.
-                        state.nextArpStepTime = Math.max(alignedStart, quantizeToNextSixteenth(now, intervalMs));
+                        state.nextArpStepTime = Math.max(shiftedStart, quantizeToNextSixteenth(now, intervalMs));
                         state.lastArpStepTime = 0;
                         ensureMasterClock();
                         updateMidiClockState();
@@ -457,7 +466,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 // Otherwise start immediately on the next 16th note (1 step).
                 const quantizeSteps = isOtherArpRunning ? 4 : 1;
 
-                state.nextArpStepTime = quantizeToGrid(now, intervalMs, quantizeSteps);
+                const baseGrid = quantizeToGrid(now, intervalMs, quantizeSteps);
+                state.nextArpStepTime = isOtherArpRunning ? shiftStartBackOneStep(baseGrid) : baseGrid;
                 state.lastArpStepTime = 0;
             } else {
                 state.lastArpStepTime = now - normalizeArpRateMs(state.arpRateMs ?? DEFAULT_ARP_RATE_MS);
