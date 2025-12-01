@@ -416,10 +416,16 @@ const LFO_DEST_NONE = -1;
                                break;
                           case 'setSampleBuffer':
     if (data?.samples) {
-        // 1. Capture current phase BEFORE swapping
-        let currentPhase = 0;
-        if (this.sampleLength > 0 && this.samplerPlayback.position > 0) {
-            currentPhase = this.samplerPlayback.position / this.sampleLength;
+        // 1. Determine Phase: Prefer the "Grid Phase" sent from Main Thread
+        let nextPositionPhase = 0;
+        
+        if (typeof data.phase === 'number') {
+            // Hard Sync: Use the exact bar position calculated by the UI
+            nextPositionPhase = data.phase;
+        } 
+        else if (this.sampleLength > 0 && this.samplerPlayback.position > 0) {
+            // Soft Sync (Fallback): Preserve relative progress of previous loop
+            nextPositionPhase = this.samplerPlayback.position / this.sampleLength;
         }
 
         // 2. Swap the Buffer
@@ -428,13 +434,13 @@ const LFO_DEST_NONE = -1;
         this.sampleLength = this.sampleBuffer.length;
         this.sliceLength = this.sampleLength / 16;
 
-        // 3. Apply phase to new buffer immediately (Atomic Phase Swap)
-        // This prevents the playhead from resetting or drifting due to message latency
+        // 3. Apply Phase immediately
         if (this.samplerPlayback.active && this.sampleLength > 0) {
-            this.samplerPlayback.position = currentPhase * this.sampleLength;
-            // Also scale the slip render phase so effects don't glitch
+            this.samplerPlayback.position = nextPositionPhase * this.sampleLength;
+            
+            // Also snap the slip phase to prevent glitching artifacts
             if (this.slipRenderPhase > 0) {
-                 this.slipRenderPhase = currentPhase * this.sampleLength;
+                 this.slipRenderPhase = nextPositionPhase * this.sampleLength;
             }
         }
     }
@@ -1054,6 +1060,7 @@ return true;
 }
 }
 registerProcessor('synth-processor', SynthProcessor);
+
 
 
 
