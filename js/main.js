@@ -320,61 +320,55 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let midiClockBpm = DEFAULT_ARP_RATE_BPM;
         let tempoMode = TEMPO_MODE_BPM;
 
-        function initMasterClockWorker() {
-            if (masterClockWorker) return;
-            masterClockWorker = new Worker(new URL('./clock-worker.js', import.meta.url), { type: 'module' });
-            masterClockWorker.onmessage = (event) => {
-    const { type } = event.data || {};
-    if (type === 'tick') {
-        const timestamp = getNowMs();
-        
-        // 1. Update Arps (Existing Code)
-        knobState.forEach((state, idx) => {
-            if (state?.arpRunning) {
-                updateArpeggiator(idx, timestamp);
-            }
-        });
+       function initMasterClockWorker() {
+    if (masterClockWorker) return;
+    masterClockWorker = new Worker(new URL('./clock-worker.js', import.meta.url), { type: 'module' });
+    masterClockWorker.onmessage = (event) => {
+        const { type } = event.data || {};
+        if (type === 'tick') {
+            const timestamp = getNowMs();
 
-        // 2. --- FIX: Quantized Trigger Logic ---
-        // Check if we are exactly at the start of a bar (Step 0 of 16)
-        const source = getTempoSourceState();
-        if (source && source.arpRunning) {
-            // euclideanStepCounter increments in updateArpeggiator. 
-            // If modulo 16 is 0, we just hit the "1".
-            if (source.euclideanStepCounter % 16 === 0) {
-                
-                // A. Trigger Waiting Loop Switch
+            // 1. --- FIX: CHECK TRIGGERS FIRST ---
+            // We check the state *before* the arp steps forward.
+            // This ensures we catch "Step 0" (The Downbeat) immediately.
+            const source = getTempoSourceState();
+            if (source && source.arpRunning) {
+                // If we are at the start of a bar (Step 0)
+                if (source.euclideanStepCounter % 16 === 0) {
+                    if (pendingBreakIndex !== null) {
+                        ensureBreakSampleLoaded(pendingBreakIndex, 0);
+                        pendingBreakIndex = null;
+                    }
+                    if (breakPlayQueued) {
+                        beginBreakPlayback();
+                        breakPlayQueued = false;
+                    }
+                }
+            } else {
+                // Fallback if no arp is running (play immediately)
                 if (pendingBreakIndex !== null) {
-                    // Load the new loop immediately. 
-                    // We send phase: 0 so it starts fresh at the beginning.
                     ensureBreakSampleLoaded(pendingBreakIndex, 0);
                     pendingBreakIndex = null;
                 }
-
-                // B. Trigger Waiting Playback Start
                 if (breakPlayQueued) {
                     beginBreakPlayback();
                     breakPlayQueued = false;
                 }
             }
-        } 
-        // Fallback: If no arp is running, execute immediately (or waiting feels broken)
-        else {
-            if (pendingBreakIndex !== null) {
-                ensureBreakSampleLoaded(pendingBreakIndex, 0);
-                pendingBreakIndex = null;
-            }
-            if (breakPlayQueued) {
-                beginBreakPlayback();
-                breakPlayQueued = false;
-            }
-        }
-                    handleBreakLoopTick();
-                } else if (type === 'midiTick' && midiClockEnabled && midiClockRunning) {
-                    sendMidiMessage([0xF8]);
+
+            // 2. Update Arps
+            knobState.forEach((state, idx) => {
+                if (state?.arpRunning) {
+                    updateArpeggiator(idx, timestamp);
                 }
-            };
+            });
+
+            handleBreakLoopTick();
+        } else if (type === 'midiTick' && midiClockEnabled && midiClockRunning) {
+            sendMidiMessage([0xF8]);
         }
+    };
+}
 
         function ensureMasterClock() {
             initMasterClockWorker();
@@ -511,7 +505,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             applyIndicatorTransform(knob.indicator, knob.angle);
         }
 
-       function applyBreakSampleData({ samples, sampleRate, duration, breakIndex = breakSampleIndex, progressNormalized = 0 }) {
+      function applyBreakSampleData({ samples, sampleRate, duration, breakIndex = breakSampleIndex, progressNormalized = 0 }) {
     if (!samples || !samples.length || !Number.isFinite(sampleRate)) return;
 
     const targetIndex = clamp(breakIndex ?? breakSampleIndex, BREAK_SAMPLE_MIN_INDEX, BREAK_SAMPLE_MAX_INDEX);
@@ -523,14 +517,16 @@ let liveLfoOutputs = [0, 0, 0, 0];
     const copy = new Float32Array(samples.length);
     copy.set(samples);
 
-    // Always start at phase 0 (the "1") for tight sync
+    // --- FIX: Always align to the "1" ---
+    // Since we are now triggered exactly on the beat by the Clock Worker,
+    // we can simply start the loop from the beginning (0).
     const gridPhase = 0; 
 
     currentSampleDuration = duration || (samples.length / sampleRate) || 0;
     breakWaveformDuration = currentSampleDuration;
     breakWaveformPeaks = buildBreakWaveformPeaks(samples);
     
-    // REMOVED: updateBreakSpeedUi();
+    // Removed: updateBreakSpeedUi();
 
     breakBufferLoaded = true;
 
@@ -550,6 +546,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
     breakPlaybackRate = getBreakPlaybackRate();
     
+    // Reset visuals to start
     const nowSeconds = getNowSeconds();
     breakPlaybackStartTime = nowSeconds;
 
@@ -1152,18 +1149,14 @@ async function toggleBreakPlayback() {
         return;
     }
 
-    // --- FIX: Quantized Start ---
-    // We no longer calculate BPM or set timeouts here.
-    // We simply tell the system "I want to play" and let the Clock Worker
-    // pull the trigger exactly when the sequencer hits Step 1.
+    // --- FIX: Queue Start ---
     breakPlayRequested = true;
-    updateBreakPlayUi(); 
-    ensureMasterClock();
+    updateBreakPlayUi();
+    ensureMasterClock(); // Ensure the clock is ticking so it can trigger us!
     
-    // Set the flag that the Clock Worker looks for
+    // Queue the command
     breakPlayQueued = true;
     
-    // Pre-load sample if needed so it's ready when the clock hits
     await ensureBreakSampleLoaded();
 }
 
@@ -6004,6 +5997,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
