@@ -108,6 +108,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let currentSampleDuration = 0;
         let breakSpeedMultiplier = 1;
         const BREAK_SAMPLE_MIN_INDEX = 1;
+        let pendingBreakIndex = null;   
+        let breakPlayQueued = false;
         const BREAK_SAMPLE_MAX_INDEX = 10;
         let breakSampleIndex = BREAK_SAMPLE_MIN_INDEX;
         let activeBreakSampleIndex = BREAK_SAMPLE_MIN_INDEX;
@@ -322,14 +324,51 @@ let liveLfoOutputs = [0, 0, 0, 0];
             if (masterClockWorker) return;
             masterClockWorker = new Worker(new URL('./clock-worker.js', import.meta.url), { type: 'module' });
             masterClockWorker.onmessage = (event) => {
-                const { type } = event.data || {};
-                if (type === 'tick') {
-                    const timestamp = getNowMs();
-                    knobState.forEach((state, idx) => {
-                        if (state?.arpRunning) {
-                            updateArpeggiator(idx, timestamp);
-                        }
-                    });
+    const { type } = event.data || {};
+    if (type === 'tick') {
+        const timestamp = getNowMs();
+        
+        // 1. Update Arps (Existing Code)
+        knobState.forEach((state, idx) => {
+            if (state?.arpRunning) {
+                updateArpeggiator(idx, timestamp);
+            }
+        });
+
+        // 2. --- FIX: Quantized Trigger Logic ---
+        // Check if we are exactly at the start of a bar (Step 0 of 16)
+        const source = getTempoSourceState();
+        if (source && source.arpRunning) {
+            // euclideanStepCounter increments in updateArpeggiator. 
+            // If modulo 16 is 0, we just hit the "1".
+            if (source.euclideanStepCounter % 16 === 0) {
+                
+                // A. Trigger Waiting Loop Switch
+                if (pendingBreakIndex !== null) {
+                    // Load the new loop immediately. 
+                    // We send phase: 0 so it starts fresh at the beginning.
+                    ensureBreakSampleLoaded(pendingBreakIndex, 0);
+                    pendingBreakIndex = null;
+                }
+
+                // B. Trigger Waiting Playback Start
+                if (breakPlayQueued) {
+                    beginBreakPlayback();
+                    breakPlayQueued = false;
+                }
+            }
+        } 
+        // Fallback: If no arp is running, execute immediately (or waiting feels broken)
+        else {
+            if (pendingBreakIndex !== null) {
+                ensureBreakSampleLoaded(pendingBreakIndex, 0);
+                pendingBreakIndex = null;
+            }
+            if (breakPlayQueued) {
+                beginBreakPlayback();
+                breakPlayQueued = false;
+            }
+        }
                     handleBreakLoopTick();
                 } else if (type === 'midiTick' && midiClockEnabled && midiClockRunning) {
                     sendMidiMessage([0xF8]);
@@ -484,33 +523,13 @@ let liveLfoOutputs = [0, 0, 0, 0];
     const copy = new Float32Array(samples.length);
     copy.set(samples);
 
-    // --- FIX: Calculate Phase locked to the Master Clock Grid ---
-    let gridPhase = 0;
-    
-    // If we are in BPM mode and the clock is running, snap to the bar!
-    if (isAnyArpRunning() && tempoMode === 'BPM' && masterClockStartTime !== null) {
-        const bpm = calculateMidiBpm();
-        const msPerBeat = 60000 / bpm;
-        const msPerBar = msPerBeat * 4; // Assume 4/4 time
-        const now = performance.now();
-        const elapsed = now - masterClockStartTime;
-        
-        // This is the exact percentage (0.0 to 1.0) through the current bar
-        gridPhase = (elapsed % msPerBar) / msPerBar;
-        
-        // Adjust for speed multiplier (e.g. if 2x speed, we might be at start of 2nd loop)
-        gridPhase = (gridPhase * breakSpeedMultiplier) % 1;
-        
-        // Update visual trackers to match this new hard-sync
-        progressNormalized = gridPhase;
-    } else {
-        // Fallback for free-running/MS mode: use the relative position of the previous loop
-        gridPhase = getBreakLoopProgressNormalized();
-    }
-    // ------------------------------------------------------------
+    // --- FIX: Always start at 0 ---
+    // Since this function is now triggered by the Quantizer on the "1", 
+    // we always want the loop to start at the beginning.
+    const gridPhase = 0; 
+    // -----------------------------
 
-    // Keep user speed setting (do NOT reset to 1)
-    // breakSpeedMultiplier = 1; <--- This stays removed/commented out
+    // breakSpeedMultiplier = 1; // Keep this removed
 
     currentSampleDuration = duration || (samples.length / sampleRate) || 0;
     breakWaveformDuration = currentSampleDuration;
@@ -520,28 +539,24 @@ let liveLfoOutputs = [0, 0, 0, 0];
     breakBufferLoaded = true;
 
     if (synthNode) {
-        // Send the samples AND the calculated Grid Phase
         synthNode.port.postMessage({ 
             type: 'setSampleBuffer', 
             data: { 
                 samples: copy, 
                 sampleRate: sampleRate,
-                phase: gridPhase // <--- Send the sync value
+                phase: gridPhase // Reset to start of loop
             } 
         }, [copy.buffer]);
     }
 
     resizeBreakWaveformCanvas();
-    drawBreakWaveform(progressNormalized);
+    drawBreakWaveform(gridPhase);
 
     breakPlaybackRate = getBreakPlaybackRate();
     
-    // Recalculate start time so visuals match the new Grid Phase
+    // Reset visual timer to "Now" since we just restarted the loop
     const nowSeconds = getNowSeconds();
-    const rate = Math.max(0.01, breakPlaybackRate);
-    const effectiveDuration = breakWaveformDuration > 0 ? breakWaveformDuration / rate : 0;
-    const offsetSeconds = Number.isFinite(effectiveDuration) ? (gridPhase * effectiveDuration) : 0;
-    breakPlaybackStartTime = nowSeconds - offsetSeconds;
+    breakPlaybackStartTime = nowSeconds;
 
     if (breakRunning && breakBufferLoaded && synthNode) {
         synthNode.port.postMessage({ type: 'setBreakPlaybackRate', data: { playbackRate: breakPlaybackRate } });
@@ -1053,24 +1068,32 @@ let liveLfoOutputs = [0, 0, 0, 0];
             }
         }
 
-        function setBreakSampleIndex(index, { progressNormalized = getBreakLoopProgressNormalized(), normalizedValue } = {}) {
-            const clamped = clamp(index ?? breakSampleIndex, BREAK_SAMPLE_MIN_INDEX, BREAK_SAMPLE_MAX_INDEX);
-            const changed = clamped !== breakSampleIndex || activeBreakSampleIndex !== clamped;
+        function setBreakSampleIndex(index, { progressNormalized = 0, normalizedValue, forceImmediate = false } = {}) {
+    const clamped = clamp(index ?? breakSampleIndex, BREAK_SAMPLE_MIN_INDEX, BREAK_SAMPLE_MAX_INDEX);
+    
+    // Update UI immediately so it feels responsive
+    if (Number.isFinite(normalizedValue)) {
+        breakSelectionNormalized = Math.max(0, Math.min(1, normalizedValue));
+    } else {
+        breakSelectionNormalized = breakIndexToValue(clamped);
+    }
+    syncBreakSelectionKnob();
+    updateBreakSelectionUi(); // Shows the new number immediately
 
-            if (Number.isFinite(normalizedValue)) {
-                breakSelectionNormalized = Math.max(0, Math.min(1, normalizedValue));
-            } else if (changed) {
-                breakSelectionNormalized = breakIndexToValue(clamped);
-            }
-
-            breakSampleIndex = clamped;
-            updateBreakSelectionUi();
-            syncBreakSelectionKnob();
-
-            if (changed) {
-                ensureBreakSampleLoaded(clamped, progressNormalized);
-            }
-        }
+    // --- FIX: Queue Logic ---
+    if (breakRunning && !forceImmediate) {
+        // If playing, queue it for the next "1"
+        pendingBreakIndex = clamped;
+        
+        // Optional: Pre-fetch the audio so it's ready in memory
+        fetchBreakSampleData(clamped); 
+    } else {
+        // If stopped, load immediately (preview mode)
+        breakSampleIndex = clamped;
+        activeBreakSampleIndex = clamped;
+        ensureBreakSampleLoaded(clamped, 0);
+    }
+}
 
         function sendBreakPlaybackRate() {
             if (!synthNode || !breakRunning || !breakBufferLoaded) return;
@@ -1145,39 +1168,35 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 return;
             }
 
-            const bpm = calculateMidiBpm();
-            const quarterIntervalMs = 60000 / Math.max(1, bpm);
-            const barIntervalMs = quarterIntervalMs * 4;
-            const now = getNowMs();
-            const startTime = quantizeToNextSixteenth(now, barIntervalMs);
-            const delayMs = Math.max(0, startTime - now);
-            clearBreakStartTimer();
-            breakStartTimeoutId = setTimeout(beginBreakPlayback, delayMs);
-        }
+async function toggleBreakPlayback() {
+    if (!isAnyArpRunning()) {
+        stopBreakPlaybackImmediate();
+        updateBreakPlaybackEligibility();
+        stopMasterClockIfIdle();
+        return;
+    }
+    
+    // If already playing, Stop is immediate
+    if (breakPlayRequested) {
+        stopBreakPlaybackImmediate();
+        stopMasterClockIfIdle();
+        return;
+    }
 
-        function startArpClockForState(knobId) {
-            const state = knobState[knobId];
-            if (!state || !state.arpRunning) return;
-            if (tempoMode === TEMPO_MODE_BPM) {
-                const interval = bpmToSixteenthMs(state.arpRateBpm);
-                const now = getNowMs();
-
-                // FIX: If this is the FIRST arp (clock is null), start IMMEDIATELY.
-                // If an arp is already playing, THEN snap to the next Quarter Note (interval * 4).
-                if (masterClockStartTime === null) {
-                    masterClockStartTime = now;
-                    state.nextArpStepTime = now;
-                } else {
-                    state.nextArpStepTime = quantizeToNextSixteenth(now, interval * 4);
-                }
-            } else {
-                const now = getNowMs();
-                const interval = state.arpRateMs ?? DEFAULT_ARP_RATE_MS;
-                state.lastArpStepTime = now - interval;
-            }
-            ensureMasterClock();
-            updateMidiClockState();
-        }
+    // --- FIX: Quantized Start ---
+    // We no longer calculate BPM or set timeouts here.
+    // We simply tell the system "I want to play" and let the Clock Worker
+    // pull the trigger exactly when the sequencer hits Step 1.
+    breakPlayRequested = true;
+    updateBreakPlayUi(); 
+    ensureMasterClock();
+    
+    // Set the flag that the Clock Worker looks for
+    breakPlayQueued = true;
+    
+    // Pre-load sample if needed so it's ready when the clock hits
+    await ensureBreakSampleLoaded();
+}
 
         function restartArpClocksForMode() {
             knobState.forEach((state, idx) => {
@@ -6016,6 +6035,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
