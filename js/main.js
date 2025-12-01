@@ -553,7 +553,11 @@ let liveLfoOutputs = [0, 0, 0, 0];
     }
 
     resizeBreakWaveformCanvas();
-    drawBreakWaveform(gridPhase);
+
+    const initialProgress = Number.isFinite(progressNormalized)
+        ? Math.max(0, Math.min(1, progressNormalized))
+        : gridPhase;
+    drawBreakWaveform(initialProgress);
 
     breakPlaybackRate = getBreakPlaybackRate();
     
@@ -1033,7 +1037,22 @@ let liveLfoOutputs = [0, 0, 0, 0];
         // Immediate load (preview mode)
         breakSampleIndex = clamped;
         activeBreakSampleIndex = clamped;
-        ensureBreakSampleLoaded(clamped, 0);
+
+        const loadPromise = ensureBreakSampleLoaded(clamped, progressNormalized);
+
+        if (!breakRunning) {
+            const applyPreview = () => {
+                if (!breakRunning && activeBreakSampleIndex === clamped && breakWaveformPeaks?.length) {
+                    drawBreakWaveform(progressNormalized);
+                }
+            };
+
+            if (loadPromise?.then) {
+                loadPromise.then(applyPreview);
+            } else {
+                applyPreview();
+            }
+        }
     }
 }
 
