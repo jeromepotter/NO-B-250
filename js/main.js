@@ -35,7 +35,6 @@
         const LFO_DEST_NONE = -1;
         const LFO_CABLE_COLORS = ['#fa9c2d', '#35a5fb', '#d85b7e', '#98ce57'];
         const LFO_CABLE_TARGET_COLORS = ['#ae332c', '#ffffff', '#843b9a', '#a44a00'];
-        const BREAK_BASE_BPM = 165;
         const lfoState = [
     { id: 0, rate: 0.5, depth: 0, wave: 0, dest: LFO_DEST_NONE, destChain: [], phase: 0, lastRandom: 0, output: 0 },
     { id: 1, rate: 0.5, depth: 0, wave: 0, dest: LFO_DEST_NONE, destChain: [], phase: 0, lastRandom: 0, output: 0 },
@@ -97,7 +96,6 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakRunning = false;
         let breakStartTimeoutId = null;
         let breakBufferLoaded = false;
-        let breakSampleLoadingPromise = null;
         let breakPlaybackRate = 1;
         let breakSlipBaseDivision = 4;
         let breakSlipActiveDivision = 4;
@@ -107,6 +105,15 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakWaveCtx = null;
         let breakWaveformPeaks = null;
         let breakWaveformDuration = 0;
+        let currentSampleDuration = 0;
+        let breakSpeedMultiplier = 1;
+        const BREAK_SAMPLE_MIN_INDEX = 1;
+        const BREAK_SAMPLE_MAX_INDEX = 10;
+        let breakSampleIndex = BREAK_SAMPLE_MIN_INDEX;
+        let activeBreakSampleIndex = BREAK_SAMPLE_MIN_INDEX;
+        let breakSelectionNormalized = breakIndexToValue(BREAK_SAMPLE_MIN_INDEX);
+        const breakSampleCache = new Map();
+        const breakSampleLoadingPromises = new Map();
         let breakWaveformAnimationId = null;
         let breakPlaybackStartTime = 0;
         let breakWaveformDpr = 1;
@@ -116,6 +123,11 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakFxSendToGlobalFx = false;
         let breakSlipAnchorHoldEnabled = true;
         const BREAK_SLIP_DIVISIONS = [4, 1, 0.5, 0.25, 0.125, 0.0625, 0.03125];
+        let breakSelectionDisplay = null;
+        let breakSpeedControls = null;
+        let breakSpeedHalfButton = null;
+        let breakSpeedDoubleButton = null;
+        let breakSpeedDisplay = null;
 
         function getLfoDestChain(lfo) {
             if (lfo && Array.isArray(lfo.destChain) && lfo.destChain.length) return lfo.destChain;
@@ -398,7 +410,166 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
         function getBreakPlaybackRate() {
             const bpm = calculateMidiBpm();
-            return Math.max(0.1, bpm / BREAK_BASE_BPM);
+            if (bpm <= 0) return 1;
+
+            const secondsPerBeat = 60 / bpm;
+            const secondsPerBar = secondsPerBeat * 4;
+
+            if (breakWaveformDuration > 0) {
+                return (breakWaveformDuration / secondsPerBar) * breakSpeedMultiplier;
+            }
+            return 1;
+        }
+
+        function breakValueToIndex(value) {
+            const clamped = clamp(value ?? 0, 0, 1);
+            const range = BREAK_SAMPLE_MAX_INDEX - BREAK_SAMPLE_MIN_INDEX;
+            return clamp(Math.round(clamped * range) + BREAK_SAMPLE_MIN_INDEX, BREAK_SAMPLE_MIN_INDEX, BREAK_SAMPLE_MAX_INDEX);
+        }
+
+        function breakIndexToValue(index) {
+            const clamped = clamp(index ?? BREAK_SAMPLE_MIN_INDEX, BREAK_SAMPLE_MIN_INDEX, BREAK_SAMPLE_MAX_INDEX);
+            const range = BREAK_SAMPLE_MAX_INDEX - BREAK_SAMPLE_MIN_INDEX;
+            return range > 0 ? (clamped - BREAK_SAMPLE_MIN_INDEX) / range : 0;
+        }
+
+        function getBreakLoopProgressNormalized() {
+            if (!breakRunning || !breakBufferLoaded || breakWaveformDuration <= 0) return 0;
+
+            const rate = Math.max(0.01, breakPlaybackRate);
+            const effectiveDuration = breakWaveformDuration / rate;
+            if (!Number.isFinite(effectiveDuration) || effectiveDuration <= 0) return 0;
+
+            const nowSeconds = getNowSeconds();
+            const elapsed = Math.max(0, nowSeconds - breakPlaybackStartTime);
+            const loopPositionSeconds = elapsed % effectiveDuration;
+            return ((loopPositionSeconds / effectiveDuration) + 1) % 1;
+        }
+
+        function updateBreakSelectionUi() {
+            if (breakSelectionDisplay) {
+                breakSelectionDisplay.textContent = breakSampleIndex;
+            }
+        }
+
+        function applyBreakSelectionModulation(modOffset = 0) {
+            const knob = fxKnobData[36];
+            if (!knob) return;
+
+            const baseValue = Math.max(0, Math.min(1, Number.isFinite(knob.value) ? knob.value : breakSelectionNormalized));
+            const modulatedValue = Math.max(0, Math.min(1, baseValue + modOffset));
+            const targetIndex = breakValueToIndex(modulatedValue);
+
+            const progressNormalized = getBreakLoopProgressNormalized();
+            setBreakSampleIndex(targetIndex, { progressNormalized, normalizedValue: baseValue });
+        }
+
+        function syncBreakSelectionKnob() {
+            const knob = fxKnobData[36];
+            if (!knob || !knob.indicator) return;
+            const renderValue = Math.max(0, Math.min(1, Number.isFinite(knob.value) ? knob.value : breakSelectionNormalized));
+            knob.angle = MIN_FX_ANGLE + (renderValue * (MAX_FX_ANGLE - MIN_FX_ANGLE));
+            applyIndicatorTransform(knob.indicator, knob.angle);
+        }
+
+        function applyBreakSampleData({ samples, sampleRate, duration, breakIndex = breakSampleIndex, progressNormalized = 0 }) {
+            if (!samples || !samples.length || !Number.isFinite(sampleRate)) return;
+
+            const targetIndex = clamp(breakIndex ?? breakSampleIndex, BREAK_SAMPLE_MIN_INDEX, BREAK_SAMPLE_MAX_INDEX);
+            breakSampleIndex = targetIndex;
+            activeBreakSampleIndex = targetIndex;
+            updateBreakSelectionUi();
+            syncBreakSelectionKnob();
+
+            const copy = new Float32Array(samples.length);
+            copy.set(samples);
+
+            breakSpeedMultiplier = 1;
+            currentSampleDuration = duration || (samples.length / sampleRate) || 0;
+            breakWaveformDuration = currentSampleDuration;
+            breakWaveformPeaks = buildBreakWaveformPeaks(samples);
+            updateBreakSpeedUi();
+
+            breakBufferLoaded = true;
+
+            if (synthNode) {
+                synthNode.port.postMessage({ type: 'setSampleBuffer', data: { samples: copy, sampleRate } }, [copy.buffer]);
+            }
+
+            resizeBreakWaveformCanvas();
+            drawBreakWaveform(progressNormalized);
+
+            breakPlaybackRate = getBreakPlaybackRate();
+            const nowSeconds = getNowSeconds();
+            const rate = Math.max(0.01, breakPlaybackRate);
+            const effectiveDuration = breakWaveformDuration > 0 ? breakWaveformDuration / rate : 0;
+            const clampedProgress = Math.max(0, Math.min(1, progressNormalized));
+            const offsetSeconds = Number.isFinite(effectiveDuration) ? (clampedProgress * effectiveDuration) : 0;
+            breakPlaybackStartTime = nowSeconds - offsetSeconds;
+
+            if (breakRunning && breakBufferLoaded && synthNode) {
+                synthNode.port.postMessage({ type: 'setBreakPlaybackRate', data: { playbackRate: breakPlaybackRate } });
+                const positionSamples = Math.max(0, Math.min(samples.length, clampedProgress * samples.length));
+                synthNode.port.postMessage({ type: 'setBreakPosition', data: { position: positionSamples } });
+                refreshBreakSlipAnchor();
+            }
+        }
+
+        function updateBreakSpeedUi() {
+            const displayMultiplier = breakSpeedMultiplier;
+
+            if (breakSpeedHalfButton) {
+                breakSpeedHalfButton.setAttribute('aria-pressed', 'false');
+            }
+
+            if (breakSpeedDoubleButton) {
+                breakSpeedDoubleButton.setAttribute('aria-pressed', 'false');
+            }
+
+            if (breakSpeedDisplay) {
+                breakSpeedDisplay.textContent = formatBreakSpeedMultiplier(displayMultiplier);
+            }
+        }
+
+        function formatBreakSpeedMultiplier(multiplier) {
+            if (!Number.isFinite(multiplier) || multiplier <= 0) return '1x';
+            if (multiplier >= 1) {
+                return `${multiplier}x`;
+            }
+            const denom = 1 / multiplier;
+            if (Number.isInteger(denom)) {
+                return `1/${denom}x`;
+            }
+            return `${multiplier.toFixed(2)}x`;
+        }
+
+        function applyBreakSpeedMultiplier(nextMultiplier) {
+            breakSpeedMultiplier = nextMultiplier;
+            updateBreakSpeedUi();
+
+            const nextRate = getBreakPlaybackRate();
+            if (!Number.isFinite(nextRate)) return;
+            breakPlaybackRate = nextRate;
+            breakPlaybackStartTime = audioContext ? audioContext.currentTime : (performance.now() / 1000);
+
+            if (breakRunning && breakBufferLoaded && synthNode) {
+                synthNode.port.postMessage({ type: 'setBreakPlaybackRate', data: { playbackRate: breakPlaybackRate } });
+                refreshBreakSlipAnchor();
+            }
+
+            const rate = Math.max(0.01, breakPlaybackRate);
+            const duration = breakWaveformDuration > 0 ? breakWaveformDuration / rate : 0;
+            drawBreakWaveform();
+        }
+
+
+        function setBreakSpeedMultiplier(multiplier, { accumulate = false } = {}) {
+            if (!Number.isFinite(multiplier) || multiplier <= 0) return;
+            const baseMultiplier = accumulate ? breakSpeedMultiplier : 1;
+            const nextMultiplier = accumulate ? baseMultiplier * multiplier : multiplier;
+            if (!Number.isFinite(nextMultiplier) || nextMultiplier <= 0) return;
+
+            applyBreakSpeedMultiplier(nextMultiplier);
         }
 
         function normalizedToBreakSlipDivision(normalized) {
@@ -779,7 +950,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 if (!Number.isFinite(effectiveDuration) || effectiveDuration <= 0) return;
                 const now = audioContext ? audioContext.currentTime : (performance.now() / 1000);
                 const elapsed = now - breakPlaybackStartTime;
-                const progress = ((elapsed % effectiveDuration) / effectiveDuration + 1) % 1;
+                const loopPositionSeconds = elapsed % effectiveDuration;
+                const progress = ((loopPositionSeconds) / effectiveDuration + 1) % 1;
                 drawBreakWaveform(progress);
                 breakWaveformAnimationId = requestAnimationFrame(tick);
             };
@@ -792,37 +964,78 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 breakWaveformAnimationId = null;
             }
             drawBreakWaveform(progress);
+            const rate = Math.max(0.01, breakPlaybackRate);
+            const duration = breakWaveformDuration > 0 ? breakWaveformDuration / rate : 0;
         }
 
-        async function ensureBreakSampleLoaded() {
-            if (breakBufferLoaded || !audioContext) return;
-            if (breakSampleLoadingPromise) return breakSampleLoadingPromise;
+        async function fetchBreakSampleData(index) {
+            if (!audioContext) return null;
 
-            breakSampleLoadingPromise = (async () => {
-                try {
-                    const res = await fetch('audio/break.wav');
-                    const buf = await res.arrayBuffer();
-                    const decoded = await audioContext.decodeAudioData(buf);
-                    const mono = decoded.numberOfChannels > 0 ? decoded.getChannelData(0) : null;
-                    if (!mono) return;
-                    breakWaveformDuration = decoded.duration || 0;
-                    breakWaveformPeaks = buildBreakWaveformPeaks(mono);
-                    const copy = new Float32Array(mono.length);
-                    copy.set(mono);
-                    if (synthNode) {
-                        synthNode.port.postMessage({ type: 'setSampleBuffer', data: { samples: copy, sampleRate: decoded.sampleRate } }, [copy.buffer]);
-                        breakBufferLoaded = true;
-                        resizeBreakWaveformCanvas();
-                        drawBreakWaveform();
+            const clampedIndex = clamp(index ?? breakSampleIndex, BREAK_SAMPLE_MIN_INDEX, BREAK_SAMPLE_MAX_INDEX);
+
+            if (breakSampleCache.has(clampedIndex)) {
+                return breakSampleCache.get(clampedIndex);
+            }
+
+            let promise = breakSampleLoadingPromises.get(clampedIndex);
+            if (!promise) {
+                promise = (async () => {
+                    try {
+                        const res = await fetch(`audio/loop${clampedIndex}.wav`);
+                        const buf = await res.arrayBuffer();
+                        const decoded = await audioContext.decodeAudioData(buf);
+                        const mono = decoded.numberOfChannels > 0 ? decoded.getChannelData(0) : null;
+                        if (!mono) return null;
+
+                        const samples = new Float32Array(mono.length);
+                        samples.set(mono);
+
+                        const data = { samples, sampleRate: decoded.sampleRate, duration: decoded.duration };
+                        breakSampleCache.set(clampedIndex, data);
+                        return data;
+                    } catch (err) {
+                        console.error('Failed to load break sample', err);
+                        return null;
+                    } finally {
+                        breakSampleLoadingPromises.delete(clampedIndex);
                     }
-                } catch (err) {
-                    console.error('Failed to load break sample', err);
-                } finally {
-                    breakSampleLoadingPromise = null;
-                }
-            })();
+                })();
 
-            return breakSampleLoadingPromise;
+                breakSampleLoadingPromises.set(clampedIndex, promise);
+            }
+
+            return promise;
+        }
+
+        async function ensureBreakSampleLoaded(index = breakSampleIndex, progressNormalized = 0) {
+            if (!audioContext) return;
+
+            const clampedIndex = clamp(index ?? breakSampleIndex, BREAK_SAMPLE_MIN_INDEX, BREAK_SAMPLE_MAX_INDEX);
+            if (breakBufferLoaded && activeBreakSampleIndex === clampedIndex) return;
+
+            const data = await fetchBreakSampleData(clampedIndex);
+            if (data && data.samples) {
+                applyBreakSampleData({ ...data, breakIndex: clampedIndex, progressNormalized });
+            }
+        }
+
+        function setBreakSampleIndex(index, { progressNormalized = getBreakLoopProgressNormalized(), normalizedValue } = {}) {
+            const clamped = clamp(index ?? breakSampleIndex, BREAK_SAMPLE_MIN_INDEX, BREAK_SAMPLE_MAX_INDEX);
+            const changed = clamped !== breakSampleIndex || activeBreakSampleIndex !== clamped;
+
+            if (Number.isFinite(normalizedValue)) {
+                breakSelectionNormalized = Math.max(0, Math.min(1, normalizedValue));
+            } else if (changed) {
+                breakSelectionNormalized = breakIndexToValue(clamped);
+            }
+
+            breakSampleIndex = clamped;
+            updateBreakSelectionUi();
+            syncBreakSelectionKnob();
+
+            if (changed) {
+                ensureBreakSampleLoaded(clamped, progressNormalized);
+            }
         }
 
         function sendBreakPlaybackRate() {
@@ -2480,11 +2693,10 @@ for (const event of events) {
            if(!isPowerOn)return;
            if (isRecordingAudio && synthNode) { synthNode.port.postMessage({ type: 'stopRecording', data: {} }); }
            if (isRecordingMidi) { stopMidiRecording(); }
-           stopBreakPlaybackImmediate();
-           breakBufferLoaded = false;
-           breakSampleLoadingPromise = null;
-           breakWaveformPeaks = null;
-           breakWaveformDuration = 0;
+          stopBreakPlaybackImmediate();
+          breakBufferLoaded = false;
+          breakWaveformPeaks = null;
+          breakWaveformDuration = 0;
            isPowerOn=false;
            knobState.forEach(k=>{ stopNote(k.id, true); if (k.isArpOn) { k.isArpOn = false; k.dom.arpSwitch.classList.remove('on'); } k.isSweepMode = true; if (k.dom.arpModeSwitch) { k.dom.arpModeSwitch.classList.add('on'); } });
            isArpRateSynced = false; if(arpSyncSwitch) arpSyncSwitch.classList.remove('on');
@@ -2663,7 +2875,14 @@ function sendMidiMessage(message) {
            d.angle = newAngle; 
            d.value = (d.angle - MIN_FX_ANGLE) / (MAX_FX_ANGLE - MIN_FX_ANGLE);
 
-           applyIndicatorTransform(d.indicator, d.angle);
+            applyIndicatorTransform(d.indicator, d.angle);
+
+            if (id === 36) {
+               const nextIndex = breakValueToIndex(d.value);
+               const progressNormalized = getBreakLoopProgressNormalized();
+               setBreakSampleIndex(nextIndex, { progressNormalized, normalizedValue: d.value });
+               return;
+            }
 
            if (id === 35) {
                const snappedDivision = normalizedToBreakSlipDivision(d.value);
@@ -2777,7 +2996,7 @@ function sendMidiMessage(message) {
                const d = fxKnobData[activeMouseFxKnobId]; if (!d || !d.isDragging) return;
                e.preventDefault(); const cY = e.clientY; let sensitivity = 1.5;
                if (activeMouseFxKnobId === 16 || activeMouseFxKnobId === 17) { sensitivity = 0.6; }
-               else if (activeMouseFxKnobId === 35) { sensitivity = 3.0; }
+               else if (activeMouseFxKnobId === 35 || activeMouseFxKnobId === 36) { sensitivity = 3.0; }
                const dY = (d.startY - cY) * sensitivity; d.startY = cY; updateFxKnob(activeMouseFxKnobId, dY);
            };
            const handleFxMouseUp = () => {
@@ -2814,7 +3033,7 @@ function sendMidiMessage(message) {
                    const cY = t.clientY;
                    let sensitivity = 1.5;
                    if (id === '16' || id === '17') { sensitivity = 0.6; }
-                   else if (id === '35') { sensitivity = 3.0; }
+                   else if (id === '35' || id === '36') { sensitivity = 3.0; }
                    const deltaX = d.touchStartX === null ? 0 : Math.abs(t.clientX - d.touchStartX);
                    const deltaYAbs = d.touchStartY === null ? 0 : Math.abs(t.clientY - d.touchStartY);
                    if (!d.touchMoved && (deltaX > 6 || deltaYAbs > 6)) {
@@ -2858,7 +3077,7 @@ function sendMidiMessage(message) {
                else if(id===9){fxKnobData[id].value=0.0995;} else if(id===10){fxKnobData[id].value=0.8;} else if(id===11){fxKnobData[id].value=0.2;}
                else if(id===13){fxKnobData[id].value=0.5;} else if(id===15){fxKnobData[id].value=0.25;} else if(id===16||id===17){fxKnobData[id].value=arpRateBpmToValue(DEFAULT_ARP_RATE_BPM);}
                else if(id===18||id===19){fxKnobData[id].value=0.0;} else if(id===20||id===21){fxKnobData[id].value=0.5;}
-else if(id===22||id===23){fxKnobData[id].value=0.0;} else if(id===24||id===25){fxKnobData[id].value=0.5;} else if(id===26||id===27){fxKnobData[id].value=0.5;} else if(id===28||id===29){fxKnobData[id].value=0.0;} else if(id===30||id===31){fxKnobData[id].value=0.0;} else if(id===32){fxKnobData[id].value=0.5;} else if(id===33){fxKnobData[id].value=0.0;} else if(id===34){fxKnobData[id].value=0.7;} else if(id===35){fxKnobData[id].value=breakSlipDivisionToNormalized(breakSlipBaseDivision);}
+else if(id===22||id===23){fxKnobData[id].value=0.0;} else if(id===24||id===25){fxKnobData[id].value=0.5;} else if(id===26||id===27){fxKnobData[id].value=0.5;} else if(id===28||id===29){fxKnobData[id].value=0.0;} else if(id===30||id===31){fxKnobData[id].value=0.0;} else if(id===32){fxKnobData[id].value=0.5;} else if(id===33){fxKnobData[id].value=0.0;} else if(id===34){fxKnobData[id].value=0.7;} else if(id===35){fxKnobData[id].value=breakSlipDivisionToNormalized(breakSlipBaseDivision);} else if(id===36){fxKnobData[id].value=breakIndexToValue(breakSampleIndex);}
                fxKnobData[id].angle = MIN_FX_ANGLE + (fxKnobData[id].value * (MAX_FX_ANGLE - MIN_FX_ANGLE));
                if (fxKnobData[id].indicator) { applyIndicatorTransform(fxKnobData[id].indicator, fxKnobData[id].angle); }
                if(id===30||id===31){ updateVoiceWaveDisplay(id === 30 ? 0 : 1, fxKnobData[id].value); }
@@ -3796,20 +4015,25 @@ lfoState.forEach((lfo, lfoIndex) => {
         }
     });
 
-    for (const knobIdStr in fxKnobData) {
-        const knobId = parseInt(knobIdStr, 10);
-        const knobData = fxKnobData[knobId];
-        let finalValue = knobData.value;
+        for (const knobIdStr in fxKnobData) {
+            const knobId = parseInt(knobIdStr, 10);
+            const knobData = fxKnobData[knobId];
+            let finalValue = knobData.value;
 
-        if (knobId === 35) {
-            const modOffset = modulatedValues[knobId] || 0;
-            applyBreakSlipModulation(modOffset);
-            continue;
-        }
+            if (knobId === 35) {
+                const modOffset = modulatedValues[knobId] || 0;
+                applyBreakSlipModulation(modOffset);
+                continue;
+            }
 
-        if (modulatedValues[knobId] !== undefined) {
-            finalValue += modulatedValues[knobId];
-        }
+            if (knobId === 36) {
+                const modOffset = modulatedValues[knobId] || 0;
+                applyBreakSelectionModulation(modOffset);
+            }
+
+            if (modulatedValues[knobId] !== undefined) {
+                finalValue += modulatedValues[knobId];
+            }
 
         const clampedValue = Math.max(0, Math.min(1, finalValue));
 
@@ -4438,6 +4662,19 @@ function setFxValue(id, value, forceVisualUpdate = false) {
                 return;
             }
 
+            if (id === 36) {
+                const clampedValue = Math.max(0, Math.min(1, value));
+                d.value = clampedValue;
+                d.angle = MIN_FX_ANGLE + (clampedValue * (MAX_FX_ANGLE - MIN_FX_ANGLE));
+                if (d.indicator) {
+                    applyIndicatorTransform(d.indicator, d.angle);
+                }
+                const nextIndex = breakValueToIndex(clampedValue);
+                const progressNormalized = getBreakLoopProgressNormalized();
+                setBreakSampleIndex(nextIndex, { progressNormalized, normalizedValue: clampedValue });
+                return;
+            }
+
             d.value = Math.max(0, Math.min(1, value));
             d.angle = MIN_FX_ANGLE + (d.value * (MAX_FX_ANGLE - MIN_FX_ANGLE));
             if (d.indicator && (!isLfoMode || forceVisualUpdate)) {
@@ -4865,6 +5102,11 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
            breakGridArpSlot = document.getElementById('break-grid-arp-slot');
            breakWaveCanvas = document.getElementById('break-waveform');
            breakWaveCtx = breakWaveCanvas ? breakWaveCanvas.getContext('2d') : null;
+           breakSelectionDisplay = document.getElementById('break-selection-display');
+           breakSpeedControls = document.getElementById('break-speed-controls');
+           breakSpeedHalfButton = document.getElementById('break-speed-half');
+           breakSpeedDoubleButton = document.getElementById('break-speed-double');
+           breakSpeedDisplay = document.getElementById('break-speed-display');
            
            // --- 1. Audio Resume (Touch & Click) ---
            const resumeAudio = () => {
@@ -4942,6 +5184,21 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                    toggleBreakMode();
                });
            }
+           if (breakSpeedHalfButton) {
+               addTouchListener(breakSpeedHalfButton, (e) => {
+                   setBreakSpeedMultiplier(0.5, { accumulate: true });
+                   e?.target?.blur?.();
+               });
+           }
+           if (breakSpeedDoubleButton) {
+               addTouchListener(breakSpeedDoubleButton, (e) => {
+                setBreakSpeedMultiplier(2, { accumulate: true });
+                e?.target?.blur?.();
+            });
+        }
+           updateBreakSelectionUi();
+           syncBreakSelectionKnob();
+           updateBreakSpeedUi();
            updateBreakSlipUi();
            updateBreakGridVisibility();
            updateBreakPlaybackEligibility();
