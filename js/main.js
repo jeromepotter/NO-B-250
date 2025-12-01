@@ -1020,7 +1020,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
         function setBreakSampleIndex(index, { progressNormalized = 0, normalizedValue, forceImmediate = false } = {}) {
     const clamped = clamp(index ?? breakSampleIndex, BREAK_SAMPLE_MIN_INDEX, BREAK_SAMPLE_MAX_INDEX);
-    
+
     if (Number.isFinite(normalizedValue)) {
         breakSelectionNormalized = Math.max(0, Math.min(1, normalizedValue));
     } else {
@@ -1036,13 +1036,12 @@ let liveLfoOutputs = [0, 0, 0, 0];
     } else {
         // Immediate load (preview mode)
         breakSampleIndex = clamped;
-        activeBreakSampleIndex = clamped;
 
         const loadPromise = ensureBreakSampleLoaded(clamped, progressNormalized);
 
         if (!breakRunning) {
             const applyPreview = () => {
-                if (!breakRunning && activeBreakSampleIndex === clamped && breakWaveformPeaks?.length) {
+                if (!breakRunning && breakSampleIndex === clamped && breakWaveformPeaks?.length) {
                     drawBreakWaveform(progressNormalized);
                 }
             };
