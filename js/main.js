@@ -1080,6 +1080,15 @@ let liveLfoOutputs = [0, 0, 0, 0];
         pendingBreakIndex = clamped;
         updateBreakSelectionUi(clamped);
         fetchBreakSampleData(clamped);
+
+        // Align the swap with the same queued offset as playback start so the
+        // new loop enters one step after the next bar downbeat in BPM mode.
+        const tempoSource = getTempoSourceState();
+        if (tempoSource) {
+            const patternLen = 16;
+            breakQueueTargetCycle = Math.floor(tempoSource.euclideanStepCounter / patternLen) + 1;
+            breakQueueTargetStep = 1;
+        }
     } else {
         // Immediate load (preview mode)
         breakSampleIndex = clamped;
