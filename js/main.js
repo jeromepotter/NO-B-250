@@ -431,6 +431,12 @@ let liveLfoOutputs = [0, 0, 0, 0];
     if (!state) return;
 
     const now = getNowMs();
+             // --- QUANTIZATION SETTING ---
+    // 16 = 1 Bar (Default)
+    // 8  = 1/2 Bar
+    // 4  = 1/4 Bar (1 Beat)
+    // 1  = 1/16 Note (Instant)
+    const ARP_LAUNCH_QUANTIZATION = 4;
     
     // --- BPM MODE (Grid Locked) ---
     if (tempoMode === TEMPO_MODE_BPM) {
@@ -6119,6 +6125,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
