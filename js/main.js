@@ -317,7 +317,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let midiClockBpm = DEFAULT_ARP_RATE_BPM;
         let tempoMode = TEMPO_MODE_BPM;
 
-       function initMasterClockWorker() {
+      function initMasterClockWorker() {
     if (masterClockWorker) return;
     masterClockWorker = new Worker(new URL('./clock-worker.js', import.meta.url), { type: 'module' });
     masterClockWorker.onmessage = (event) => {
@@ -325,9 +325,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         if (type === 'tick') {
             const timestamp = getNowMs();
 
-            // 1. --- FIX: CHECK TRIGGERS FIRST ---
-            // We check the state *before* the arp steps forward.
-            // This ensures we catch "Step 0" (The Downbeat) immediately.
+            // 1. CHECK TRIGGERS
             const source = getTempoSourceState();
             if (source && source.arpRunning) {
                 const patternLen = 16;
@@ -335,7 +333,17 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 const stepInCycle = source.euclideanStepCounter % patternLen;
                 const targetReached = breakQueueTargetCycle === null || currentCycle >= breakQueueTargetCycle;
                 const targetStep = breakQueueTargetStep ?? 0;
-                if (stepInCycle === targetStep && targetReached) {
+
+                // FIX: Check timing! 
+                // Even if the Counter says "Step 0", we must ensure the Clock says "Time for Step 0".
+                // In BPM mode, the arp only plays if timestamp >= nextArpStepTime.
+                let isArpReadyToPlay = true;
+                if (tempoMode === TEMPO_MODE_BPM) {
+                    // We add a tiny buffer (tolerance) to ensure we don't miss the frame
+                    isArpReadyToPlay = timestamp >= (source.nextArpStepTime - MASTER_CLOCK_TOLERANCE_MS);
+                }
+
+                if (stepInCycle === targetStep && targetReached && isArpReadyToPlay) {
                     if (pendingBreakIndex !== null) {
                         ensureBreakSampleLoaded(pendingBreakIndex, 0);
                         pendingBreakIndex = null;
@@ -6088,6 +6096,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
