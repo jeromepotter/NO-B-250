@@ -441,24 +441,26 @@ let liveLfoOutputs = [0, 0, 0, 0];
         const isOtherArpRunning = otherState?.arpRunning;
 
         if (isOtherArpRunning) {
-             // BAR SYNC LOGIC:
-             // 1. Find out where the other arp is currently (0-15)
+             // 1. BAR SYNC (Sync to existing Arp)
+             // If the other Arp is running, we must wait for its next Downbeat (Step 0)
              const patternLen = 16; 
              const otherCurrentStep = otherState.euclideanStepCounter % patternLen;
              
-             // 2. Calculate steps until the NEXT Step 0.
-             // We use % patternLen here so if the other arp is currently ON step 0, 
-             // the result is 0 (start now) instead of 16 (wait a whole bar).
-             const stepsUntilDownbeat = (patternLen - otherCurrentStep) % patternLen;
+             const stepsUntilDownbeat = (16 - otherCurrentStep) % 16;
              
-             // 3. Calculate exact start time.
-             // We removed the "- 1". Now we add exactly the time needed to reach the 
-             // sync point, ensuring Arp 2 starts Step 0 exactly when Arp 1 wraps to Step 0.
              state.nextArpStepTime = otherState.nextArpStepTime + (stepsUntilDownbeat * intervalMs);
              
-        } else {
-             // No other arp running? Start immediately on the next 16th note
+        } else if (masterClockRunning && masterClockStartTime !== null) {
+             // 2. GRID SYNC (Clock is running, e.g. Drums only)
+             // If Drums are playing but no Arp, snap to the next 16th note to keep rhythm
              state.nextArpStepTime = quantizeToNextSixteenth(now, intervalMs);
+
+        } else {
+             // 3. COLD START (Silence) - THE FIX
+             // Nothing is running. Define "NOW" as the start of the grid.
+             // This removes the latency delay.
+             masterClockStartTime = now;
+             state.nextArpStepTime = now;
         }
         
         state.lastArpStepTime = 0;
@@ -6117,6 +6119,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
