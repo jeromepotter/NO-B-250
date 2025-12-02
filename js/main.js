@@ -431,13 +431,14 @@ let liveLfoOutputs = [0, 0, 0, 0];
     if (!state) return;
 
     const now = getNowMs();
-             // --- QUANTIZATION SETTING ---
+    
+    // --- QUANTIZATION SETTING ---
     // 16 = 1 Bar (Default)
     // 8  = 1/2 Bar
     // 4  = 1/4 Bar (1 Beat)
     // 1  = 1/16 Note (Instant)
-    const ARP_LAUNCH_QUANTIZATION = 4;
-    
+    const ARP_LAUNCH_QUANTIZATION = 4; // <--- CHANGE THIS VALUE to tweak Arp feel
+
     // --- BPM MODE (Grid Locked) ---
     if (tempoMode === TEMPO_MODE_BPM) {
         const intervalMs = bpmToSixteenthMs(state.arpRateBpm);
@@ -447,24 +448,26 @@ let liveLfoOutputs = [0, 0, 0, 0];
         const isOtherArpRunning = otherState?.arpRunning;
 
         if (isOtherArpRunning) {
-             // 1. BAR SYNC (Sync to existing Arp)
-             // If the other Arp is running, we must wait for its next Downbeat (Step 0)
+             // 1. SYNC TO OTHER ARP
              const patternLen = 16; 
              const otherCurrentStep = otherState.euclideanStepCounter % patternLen;
              
-             const stepsUntilDownbeat = (16 - otherCurrentStep) % 16;
+             // Calculate steps until the NEXT quantization point relative to the other arp.
+             // For 1 Bar (16), this waits for step 0.
+             // For 1/4 Bar (4), this waits for step 0, 4, 8, or 12.
+             const stepsUntilTarget = (ARP_LAUNCH_QUANTIZATION - (otherCurrentStep % ARP_LAUNCH_QUANTIZATION)) % ARP_LAUNCH_QUANTIZATION;
              
-             state.nextArpStepTime = otherState.nextArpStepTime + (stepsUntilDownbeat * intervalMs);
+             state.nextArpStepTime = otherState.nextArpStepTime + (stepsUntilTarget * intervalMs);
              
         } else if (masterClockRunning && masterClockStartTime !== null) {
-             // 2. GRID SYNC (Clock is running, e.g. Drums only)
-             // If Drums are playing but no Arp, snap to the next 16th note to keep rhythm
-             state.nextArpStepTime = quantizeToNextSixteenth(now, intervalMs);
+             // 2. SYNC TO DRUMS / MASTER CLOCK
+             // If Drums are playing, snap to the nearest quantization grid line
+             // Helper function 'quantizeToGrid' handles the math for us
+             state.nextArpStepTime = quantizeToGrid(now, intervalMs, ARP_LAUNCH_QUANTIZATION);
 
         } else {
-             // 3. COLD START (Silence) - THE FIX
+             // 3. COLD START (Silence)
              // Nothing is running. Define "NOW" as the start of the grid.
-             // This removes the latency delay.
              masterClockStartTime = now;
              state.nextArpStepTime = now;
         }
@@ -6125,6 +6128,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
