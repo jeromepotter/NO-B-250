@@ -1212,7 +1212,7 @@ async function toggleBreakPlayback(options = {}) {
         return;
     }
 
-    // --- FIX: Queue Start ---
+    // Queue Start
     breakPlayRequested = true;
     updateBreakPlayUi();
     breakQueueTargetCycle = null;
@@ -1226,7 +1226,11 @@ async function toggleBreakPlayback(options = {}) {
         if (tempoSource) {
             const patternLen = 16;
             const currentCycle = Math.floor(tempoSource.euclideanStepCounter / patternLen);
-             breakQueueTargetCycle = currentCycle + 1;
+            
+            // FIX: Removed "+ 1". We now target the current cycle.
+            // If we are at Step 0, this allows immediate playback.
+            // If we are past Step 0, the loop naturally waits for the next cycle.
+             breakQueueTargetCycle = currentCycle;
              breakQueueTargetStep = 0; // Launch on the bar downbeat
         }
     }
@@ -6078,6 +6082,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
