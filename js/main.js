@@ -1100,7 +1100,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             }
         }
 
-        function setBreakSampleIndex(index, { progressNormalized = 0, normalizedValue, forceImmediate = false } = {}) {
+       function setBreakSampleIndex(index, { progressNormalized = 0, normalizedValue, forceImmediate = false } = {}) {
     const clamped = clamp(index ?? breakSampleIndex, BREAK_SAMPLE_MIN_INDEX, BREAK_SAMPLE_MAX_INDEX);
 
     // 1. Update Visual Variable first
@@ -1119,29 +1119,33 @@ let liveLfoOutputs = [0, 0, 0, 0];
     syncBreakSelectionKnob();
 
     // 3. Determine if we should Queue (Wait) or Load Immediately
-    const shouldQueueChange = breakRunning && !forceImmediate && tempoMode !== TEMPO_MODE_MS;
+    // We ONLY queue if:
+    // A. The break is currently running
+    // B. This isn't a forced LFO update
+    // C. We are in BPM mode
+    // D. We successfully found a Master Arp to sync with (tempoSource)
+    const tempoSource = getTempoSourceState();
+    const shouldQueueChange = breakRunning && !forceImmediate && tempoMode === TEMPO_MODE_BPM && tempoSource && tempoSource.arpRunning;
 
     if (shouldQueueChange) {
-        // --- QUEUED SWITCH (BPM Mode) ---
+        // --- QUEUED SWITCH (BPM Mode with Active Arp) ---
         pendingBreakIndex = clamped;
         updateBreakSelectionUi(clamped);
         fetchBreakSampleData(clamped);
 
-        // Calculate the Target Cycle (The next "1")
-        const tempoSource = getTempoSourceState();
-        if (tempoSource) {
-            const patternLen = 16;
-            const currentCycle = Math.floor(tempoSource.euclideanStepCounter / patternLen);
-            
-            // Simple & Robust: Always target the start of the NEXT bar.
-            // This guarantees we don't switch mid-pattern.
-            breakQueueTargetCycle = currentCycle + 1;
-            breakQueueTargetStep = 0;
-        }
+        const patternLen = 16;
+        const currentCycle = Math.floor(tempoSource.euclideanStepCounter / patternLen);
+        
+        // Target the START of the NEXT bar.
+        breakQueueTargetCycle = currentCycle + 1;
+        breakQueueTargetStep = 0;
+        
     } else {
-        // --- IMMEDIATE SWITCH (Free Mode / Stopped) ---
+        // --- IMMEDIATE SWITCH (Free Mode / Solo Drums / Stopped) ---
         breakSampleIndex = clamped;
         updateBreakSelectionUi(clamped);
+        pendingBreakIndex = null; // Clear any pending
+        breakQueueTargetCycle = null;
 
         const loadPromise = ensureBreakSampleLoaded(clamped, progressNormalized);
 
@@ -1452,16 +1456,18 @@ async function toggleBreakPlayback(options = {}) {
         }
 
         function getTempoSourceState() {
-            const left = knobState[0];
-            const right = knobState[1];
-            const leftOn = !!left?.isArpOn;
-            const rightOn = !!right?.isArpOn;
-            if (!leftOn && !rightOn) return null;
-            if (leftOn && rightOn && !isArpRateSynced) return null;
-            if (leftOn) return left;
-            if (rightOn) return right;
-            return null;
-        }
+    const left = knobState[0];
+    const right = knobState[1];
+    
+    // Priority 1: If Left Arp is ON, it is the Master (Grid Source).
+    if (left?.isArpOn) return left;
+    
+    // Priority 2: If Left is OFF but Right is ON, Right is Master.
+    if (right?.isArpOn) return right;
+    
+    // If neither is ON, we have no grid.
+    return null;
+}
 
         function getTempoSourceIntervalMs() {
             const sourceState = getTempoSourceState();
@@ -6111,6 +6117,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
