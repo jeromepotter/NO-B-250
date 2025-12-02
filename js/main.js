@@ -213,6 +213,9 @@ let liveLfoOutputs = [0, 0, 0, 0];
             }
             updateLfoDestDisplay(lfoIndex);
             drawLfoCables();
+            if (uniqueChain.length && shouldKeepLfoAnimationRunning()) {
+                ensureLfoAnimationRunning();
+            }
             return primaryDest;
         }
       
@@ -568,18 +571,19 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const knob = fxKnobData[36];
             if (!knob) return;
 
-            const baseValue = Math.max(0, Math.min(1, Number.isFinite(knob.value) ? knob.value : breakSelectionNormalized));
+            const baseValue = Math.max(0, Math.min(1, Number.isFinite(breakSelectionNormalized) ? breakSelectionNormalized : knob.value));
             const modulatedValue = Math.max(0, Math.min(1, baseValue + modOffset));
             const targetIndex = breakValueToIndex(modulatedValue);
 
             const progressNormalized = getBreakLoopProgressNormalized();
             setBreakSampleIndex(targetIndex, { progressNormalized, normalizedValue: baseValue });
+            syncBreakSelectionKnob(modulatedValue);
         }
 
-        function syncBreakSelectionKnob() {
+        function syncBreakSelectionKnob(visualNormalized) {
             const knob = fxKnobData[36];
             if (!knob || !knob.indicator) return;
-            const renderValue = Math.max(0, Math.min(1, Number.isFinite(knob.value) ? knob.value : breakSelectionNormalized));
+            const renderValue = Math.max(0, Math.min(1, Number.isFinite(visualNormalized) ? visualNormalized : (Number.isFinite(knob.value) ? knob.value : breakSelectionNormalized)));
             knob.angle = MIN_FX_ANGLE + (renderValue * (MAX_FX_ANGLE - MIN_FX_ANGLE));
             applyIndicatorTransform(knob.indicator, knob.angle);
         }
@@ -1181,6 +1185,9 @@ let liveLfoOutputs = [0, 0, 0, 0];
             refreshBreakSlipAnchor();
             synthNode?.port.postMessage({ type: 'startBreakLoop', data: { playbackRate: breakPlaybackRate } });
             startBreakWaveformAnimation();
+            if (shouldKeepLfoAnimationRunning()) {
+                ensureLfoAnimationRunning();
+            }
             breakQueueTargetCycle = null;
             breakQueueTargetStep = 0;
         }
