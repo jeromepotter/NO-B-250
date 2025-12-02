@@ -418,7 +418,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             return quantizeToGrid(now, intervalMs, 1);
         }
 
-       function startArpClockForState(knobId) {
+      function startArpClockForState(knobId) {
     const state = knobState[knobId];
     if (!state) return;
 
@@ -435,17 +435,18 @@ let liveLfoOutputs = [0, 0, 0, 0];
         if (isOtherArpRunning) {
              // BAR SYNC LOGIC:
              // 1. Find out where the other arp is currently (0-15)
-             const patternLen = 16; // Standard bar length
+             const patternLen = 16; 
              const otherCurrentStep = otherState.euclideanStepCounter % patternLen;
              
-             // 2. Calculate how many steps until the NEXT Step 0
-             const stepsUntilDownbeat = patternLen - otherCurrentStep;
+             // 2. Calculate steps until the NEXT Step 0.
+             // We use % patternLen here so if the other arp is currently ON step 0, 
+             // the result is 0 (start now) instead of 16 (wait a whole bar).
+             const stepsUntilDownbeat = (patternLen - otherCurrentStep) % patternLen;
              
-             // 3. Calculate exact start time based on the OTHER arp's next scheduled tick
-             // We use otherState.nextArpStepTime because that is the reliable future grid anchor
-             // (We subtract 1 interval because nextArpStepTime represents the *next* tick, 
-             // so we are calculating the offset from that future point)
-             state.nextArpStepTime = otherState.nextArpStepTime + ((stepsUntilDownbeat - 1) * intervalMs);
+             // 3. Calculate exact start time.
+             // We removed the "- 1". Now we add exactly the time needed to reach the 
+             // sync point, ensuring Arp 2 starts Step 0 exactly when Arp 1 wraps to Step 0.
+             state.nextArpStepTime = otherState.nextArpStepTime + (stepsUntilDownbeat * intervalMs);
              
         } else {
              // No other arp running? Start immediately on the next 16th note
@@ -6077,6 +6078,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
