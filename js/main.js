@@ -1257,26 +1257,39 @@ async function toggleBreakPlayback(options = {}) {
     breakQueueTargetCycle = null;
     breakQueueTargetStep = 0;
 
-    // In BPM mode, queue the break to launch on the NEXT bar downbeat
+    // --- BPM MODE (Grid Locked) ---
     if (!isFreeTiming) {
         const tempoSource = getTempoSourceState();
         if (tempoSource) {
             const patternLen = 16;
-            
+            const QUANTIZATION = 4; // 4 steps = 1 Beat (Quarter Note)
+
             // Calculate where we are right now
             const currentStep = tempoSource.euclideanStepCounter % patternLen;
             const currentCycle = Math.floor(tempoSource.euclideanStepCounter / patternLen);
             
-            // FIX: Standard Quantization Logic
-            // If we are exactly on Step 0, play in this cycle (catch the beat).
-            // If we are past Step 0 (Steps 1-15), we must wait for the NEXT cycle.
-            if (currentStep === 0) {
+            // Calculate distance to the NEXT quantization point
+            // If we are at step 2, target is 4. Distance = 2.
+            // If we are at step 0, target is 0. Distance = 0.
+            const stepsUntilTarget = (QUANTIZATION - (currentStep % QUANTIZATION)) % QUANTIZATION;
+
+            if (stepsUntilTarget === 0) {
+                // We are ON the grid -> Play NOW (Current Cycle, Current Step)
                 breakQueueTargetCycle = currentCycle;
+                breakQueueTargetStep = currentStep;
             } else {
-                breakQueueTargetCycle = currentCycle + 1;
+                // We are OFF the grid -> Wait for the specific target step
+                const targetAbsStep = currentStep + stepsUntilTarget;
+                
+                // Handle Wrap-Around (e.g., if we are at step 14, next beat is 16 (which is Step 0 of NEXT cycle))
+                if (targetAbsStep >= patternLen) {
+                    breakQueueTargetCycle = currentCycle + 1;
+                    breakQueueTargetStep = targetAbsStep % patternLen;
+                } else {
+                    breakQueueTargetCycle = currentCycle;
+                    breakQueueTargetStep = targetAbsStep;
+                }
             }
-            
-            breakQueueTargetStep = 0; // Always launch on the "1"
         }
     }
 
@@ -4521,25 +4534,33 @@ async function applyPreset(p, isArpCategoryPreset = false, options = {}) {
 
     const { skipPowerOn = false } = options;
 
-    // Capture intent
-    const presetBreakShouldPlay = p.breakPlayActive !== undefined ? !!p.breakPlayActive : null;
+    // FIX: Default to FALSE (Stop) if the preset doesn't specify.
+    // This ensures that switching to a new sound (like "Round Bass") kills the drums
+    // from the previous preset, preventing the "Loop 1" glitch.
+    const presetBreakShouldPlay = p.breakPlayActive !== undefined ? !!p.breakPlayActive : false;
 
     const ignoreLocks = !!isArpCategoryPreset;
     const arpLockActive = ignoreLocks ? false : isArpLockEnabled;
     const lfoLockActive = ignoreLocks ? false : isLfoLockEnabled;
 
-    // FIX: Wait for power!
     if (!skipPowerOn && !isPowerOn) await powerOn();
 
     // --- 1. STOP old arps ---
     if (!arpLockActive) {
-        // FIX: Pass 'true' to preserve drums/clock so we can queue the next change gracefully
+        // We preserve drums/clock here so we can stop them cleanly later if needed,
+        // or queue the next pattern if the new preset HAS drums.
         stopArpeggiator(0, true);
         stopArpeggiator(1, true);
     }
 
     // --- 2. WIPE knobs ---
-    resetAllFxToDefaults({ skipArpKnobs: arpLockActive, skipLfoKnobs: lfoLockActive });
+    // We pass 'skipBreakKnob' if arpLockActive is true, so we don't lose our loop selection
+    // when surfing presets with Lock ON.
+    resetAllFxToDefaults({ 
+        skipArpKnobs: arpLockActive, 
+        skipLfoKnobs: lfoLockActive,
+        skipBreakKnob: arpLockActive // Preserve Loop Index if Lock is ON
+    });
 
     // --- 3. RESTORE tempo mode ---
     const presetTempoMode = p.tempoMode ?? TEMPO_MODE_BPM;
@@ -4588,11 +4609,11 @@ async function applyPreset(p, isArpCategoryPreset = false, options = {}) {
             const targetIndex = p.breakSampleIndex ?? breakValueToIndex(p.breakSelectionNormalized);
             const normalizedValue = p.breakSelectionNormalized ?? breakIndexToValue(targetIndex);
             
-            // FIX: Changed forceImmediate to FALSE. This allows the drum loop to queue
-            // onto the next bar instead of slamming in instantly.
+            // Allow queueing (forceImmediate: false) so drums stay on beat
             setBreakSampleIndex(targetIndex, { normalizedValue, forceImmediate: false });
         }
 
+        // FIX: If the preset dictates drums should be OFF (or doesn't specify), kill them now.
         if (presetBreakShouldPlay === false && breakPlayRequested) {
             stopBreakPlaybackImmediate();
             stopMasterClockIfIdle();
@@ -4661,7 +4682,6 @@ async function applyPreset(p, isArpCategoryPreset = false, options = {}) {
                ensureLfoAnimationRunning();
            }
        } else { 
-           // Reset UI if no LFOs
            lfoState.forEach((lfo, index) => {
                lfo.rate = 0; lfo.depth = 0; lfo.wave = 0;
                setLfoDestChain(index, []);
@@ -4679,7 +4699,6 @@ async function applyPreset(p, isArpCategoryPreset = false, options = {}) {
            }
        }
     } else {
-       // LFO Lock active... (rest of logic)
        lfoState.forEach((lockedLfo, index) => {
            const rateKnobId = Object.keys(LFO_KNOB_MAP).find(id => LFO_KNOB_MAP[id].lfo === index && LFO_KNOB_MAP[id].param === 'rate');
            const depthKnobId = Object.keys(LFO_KNOB_MAP).find(id => LFO_KNOB_MAP[id].lfo === index && LFO_KNOB_MAP[id].param === 'depth');
@@ -4890,29 +4909,38 @@ function setFxValue(id, value, forceVisualUpdate = false) {
             }
         }
 
-function resetAllFxToDefaults({ skipArpKnobs = false, skipLfoKnobs = false } = {}) {
-           if (!skipLfoKnobs) {
-               resetLfoTempoSyncState();
-           }
-           Object.keys(fxKnobData).forEach(idStr => {
-               const id = parseInt(idStr, 10);
-               if (skipArpKnobs && [16, 17, 18, 19, 22, 23, 24, 25, 35, 36, 32, 33, 34].includes(id)) return;
-               if (skipLfoKnobs && LFO_FX_IDS.includes(id)) return;
-               let defaultValue = 0.0;
-               if (id === 2) defaultValue = 1.0;
-               if (id === 7) defaultValue = 0.7;
-               if (id === 10) defaultValue = 1.0;
-               if (id === 16 || id === 17) defaultValue = arpRateBpmToValue(DEFAULT_ARP_RATE_BPM);
-               if (id === 20 || id === 21) defaultValue = 1.0;
-               if (id === 26 || id === 27) defaultValue = 0.5;
-               if (id === 24 || id === 25) defaultValue = 0.5;
-               if (id === 30 || id === 31) defaultValue = 0.0;
-               if (id === 32) defaultValue = 0.5;
-               if (id === 33) defaultValue = 0.0;
-               if (id === 34) defaultValue = 0.7;
-               setFxValue(id, defaultValue);
-           });
-       }
+function resetAllFxToDefaults({ skipArpKnobs = false, skipLfoKnobs = false, skipBreakKnob = false } = {}) {
+    if (!skipLfoKnobs) {
+        resetLfoTempoSyncState();
+    }
+    Object.keys(fxKnobData).forEach(idStr => {
+        const id = parseInt(idStr, 10);
+        
+        // Skip Arp/Seq knobs
+        if (skipArpKnobs && [16, 17, 18, 19, 22, 23, 24, 25, 35, 36, 32, 33, 34].includes(id)) return;
+        
+        // Skip LFO knobs
+        if (skipLfoKnobs && LFO_FX_IDS.includes(id)) return;
+        
+        // Skip Break Selection Knob (New)
+        if (skipBreakKnob && id === 36) return;
+
+        let defaultValue = 0.0;
+        if (id === 2) defaultValue = 1.0;
+        if (id === 7) defaultValue = 0.7;
+        if (id === 10) defaultValue = 1.0;
+        if (id === 16 || id === 17) defaultValue = arpRateBpmToValue(DEFAULT_ARP_RATE_BPM);
+        if (id === 20 || id === 21) defaultValue = 1.0;
+        if (id === 26 || id === 27) defaultValue = 0.5;
+        if (id === 24 || id === 25) defaultValue = 0.5;
+        if (id === 30 || id === 31) defaultValue = 0.0;
+        if (id === 32) defaultValue = 0.5;
+        if (id === 33) defaultValue = 0.0;
+        if (id === 34) defaultValue = 0.7;
+        
+        setFxValue(id, defaultValue);
+    });
+}
 
 function generateAndApplyRandomPreset(complexity = 'SIMPLE') {
     if (!isPowerOn) powerOn();
@@ -6144,6 +6172,8 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
+
 
 
 
