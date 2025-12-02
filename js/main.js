@@ -1121,7 +1121,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         breakSelectionNormalized = breakIndexToValue(clamped);
     }
     
-    // 2. Performance Guard: Don't reload if nothing changed
+    // 2. Performance Guard
     if (clamped === breakSampleIndex && !forceImmediate) {
         syncBreakSelectionKnob();
         return; 
@@ -1129,17 +1129,18 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
     syncBreakSelectionKnob();
 
-    // 3. Determine if we should Queue (Wait) or Load Immediately
-    // We ONLY queue if:
-    // A. The break is currently running
-    // B. This isn't a forced LFO update
-    // C. We are in BPM mode
-    // D. We successfully found a Master Arp to sync with (tempoSource)
+    // 3. Determine if we should Queue
     const tempoSource = getTempoSourceState();
-    const shouldQueueChange = breakRunning && !forceImmediate && tempoMode === TEMPO_MODE_BPM && tempoSource && tempoSource.arpRunning;
+    
+    // FIX: We treat the break as "Active" if it is running OR if it is queued/requested to run.
+    // This prevents the logic from falling back to "Immediate Switch" during the split-second
+    // where the preset has loaded but the drums haven't technically started audio playback yet.
+    const isBreakActive = breakRunning || breakPlayRequested || breakPlayQueued;
+    
+    const shouldQueueChange = isBreakActive && !forceImmediate && tempoMode === TEMPO_MODE_BPM && tempoSource && tempoSource.arpRunning;
 
     if (shouldQueueChange) {
-        // --- QUEUED SWITCH (BPM Mode with Active Arp) ---
+        // --- QUEUED SWITCH (BPM Mode) ---
         pendingBreakIndex = clamped;
         updateBreakSelectionUi(clamped);
         fetchBreakSampleData(clamped);
@@ -1147,15 +1148,15 @@ let liveLfoOutputs = [0, 0, 0, 0];
         const patternLen = 16;
         const currentCycle = Math.floor(tempoSource.euclideanStepCounter / patternLen);
         
-        // Target the START of the NEXT bar.
+        // Wait for the next bar
         breakQueueTargetCycle = currentCycle + 1;
         breakQueueTargetStep = 0;
         
     } else {
-        // --- IMMEDIATE SWITCH (Free Mode / Solo Drums / Stopped) ---
+        // --- IMMEDIATE SWITCH (Free Mode / Stopped) ---
         breakSampleIndex = clamped;
         updateBreakSelectionUi(clamped);
-        pendingBreakIndex = null; // Clear any pending
+        pendingBreakIndex = null; 
         breakQueueTargetCycle = null;
 
         const loadPromise = ensureBreakSampleLoaded(clamped, progressNormalized);
@@ -6130,6 +6131,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
