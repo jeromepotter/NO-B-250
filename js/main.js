@@ -564,17 +564,26 @@ let liveLfoOutputs = [0, 0, 0, 0];
             }
         }
 
-        function applyBreakSelectionModulation(modOffset = 0) {
-            const knob = fxKnobData[36];
-            if (!knob) return;
+       function applyBreakSelectionModulation(modOffset = 0) {
+    const knob = fxKnobData[36];
+    if (!knob) return;
 
-            const baseValue = Math.max(0, Math.min(1, Number.isFinite(knob.value) ? knob.value : breakSelectionNormalized));
-            const modulatedValue = Math.max(0, Math.min(1, baseValue + modOffset));
-            const targetIndex = breakValueToIndex(modulatedValue);
+    const baseValue = Math.max(0, Math.min(1, Number.isFinite(knob.value) ? knob.value : breakSelectionNormalized));
+    const modulatedValue = Math.max(0, Math.min(1, baseValue + modOffset));
+    const targetIndex = breakValueToIndex(modulatedValue);
 
-            const progressNormalized = getBreakLoopProgressNormalized();
-            setBreakSampleIndex(targetIndex, { progressNormalized, normalizedValue: baseValue });
-        }
+    const progressNormalized = getBreakLoopProgressNormalized();
+    
+    // FIX: We passed 'baseValue' before, which pinned the knob to the manual position.
+    // We now pass 'modulatedValue' so the visual knob follows the LFO.
+    // We also add forceImmediate: true so the LFO can scan through samples instantly 
+    // without waiting for the end of the bar (optional, but better for LFOs).
+    setBreakSampleIndex(targetIndex, { 
+        progressNormalized, 
+        normalizedValue: modulatedValue,
+        forceImmediate: true 
+    });
+}
 
         function syncBreakSelectionKnob() {
             const knob = fxKnobData[36];
@@ -1094,24 +1103,32 @@ let liveLfoOutputs = [0, 0, 0, 0];
         function setBreakSampleIndex(index, { progressNormalized = 0, normalizedValue, forceImmediate = false } = {}) {
     const clamped = clamp(index ?? breakSampleIndex, BREAK_SAMPLE_MIN_INDEX, BREAK_SAMPLE_MAX_INDEX);
 
+    // 1. Update Visual Variable first
     if (Number.isFinite(normalizedValue)) {
         breakSelectionNormalized = Math.max(0, Math.min(1, normalizedValue));
     } else {
         breakSelectionNormalized = breakIndexToValue(clamped);
     }
+    
+    // 2. CRITICAL FIX: Performance Guard
+    // If the index hasn't changed, we update the knob visual (above) but STOP here.
+    // This prevents re-queuing/re-fetching the same sample 60 times a second during LFO modulation.
+    if (clamped === breakSampleIndex && !forceImmediate) {
+        syncBreakSelectionKnob();
+        return; 
+    }
+
     syncBreakSelectionKnob();
 
     const shouldQueueChange = breakRunning && !forceImmediate && tempoMode !== TEMPO_MODE_MS;
 
     if (shouldQueueChange) {
         // Queue the change so it happens after the current loop finishes.
-        // This preserves BPM quantization while preventing mid-loop swaps.
         pendingBreakIndex = clamped;
         updateBreakSelectionUi(clamped);
         fetchBreakSampleData(clamped);
 
-         // Align the swap with the same queued offset as playback start so the
-         // new loop enters on the next bar downbeat in BPM mode.
+         // Align the swap
         const tempoSource = getTempoSourceState();
         if (tempoSource) {
             const patternLen = 16;
@@ -1124,7 +1141,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
              breakQueueTargetStep = 0;
         }
     } else {
-        // Immediate load (preview mode)
+        // Immediate load
         breakSampleIndex = clamped;
         updateBreakSelectionUi(clamped);
 
@@ -6096,6 +6113,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
