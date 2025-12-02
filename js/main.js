@@ -1110,9 +1110,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         breakSelectionNormalized = breakIndexToValue(clamped);
     }
     
-    // 2. CRITICAL FIX: Performance Guard
-    // If the index hasn't changed, we update the knob visual (above) but STOP here.
-    // This prevents re-queuing/re-fetching the same sample 60 times a second during LFO modulation.
+    // 2. Performance Guard: Don't reload if nothing changed
     if (clamped === breakSampleIndex && !forceImmediate) {
         syncBreakSelectionKnob();
         return; 
@@ -1120,28 +1118,28 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
     syncBreakSelectionKnob();
 
+    // 3. Determine if we should Queue (Wait) or Load Immediately
     const shouldQueueChange = breakRunning && !forceImmediate && tempoMode !== TEMPO_MODE_MS;
 
     if (shouldQueueChange) {
-        // Queue the change so it happens after the current loop finishes.
+        // --- QUEUED SWITCH (BPM Mode) ---
         pendingBreakIndex = clamped;
         updateBreakSelectionUi(clamped);
         fetchBreakSampleData(clamped);
 
-         // Align the swap
+        // Calculate the Target Cycle (The next "1")
         const tempoSource = getTempoSourceState();
         if (tempoSource) {
             const patternLen = 16;
             const currentCycle = Math.floor(tempoSource.euclideanStepCounter / patternLen);
-            const loopProgress = getBreakLoopProgressNormalized();
-            const barsPerLoop = getBreakBarsPerLoop();
-            const barsRemaining = Math.max(0, (1 - loopProgress) * barsPerLoop);
-            const cyclesToWait = Math.max(1, Math.ceil(barsRemaining));
-             breakQueueTargetCycle = currentCycle + cyclesToWait;
-             breakQueueTargetStep = 0;
+            
+            // Simple & Robust: Always target the start of the NEXT bar.
+            // This guarantees we don't switch mid-pattern.
+            breakQueueTargetCycle = currentCycle + 1;
+            breakQueueTargetStep = 0;
         }
     } else {
-        // Immediate load
+        // --- IMMEDIATE SWITCH (Free Mode / Stopped) ---
         breakSampleIndex = clamped;
         updateBreakSelectionUi(clamped);
 
@@ -6113,6 +6111,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
