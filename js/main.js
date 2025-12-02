@@ -1257,26 +1257,39 @@ async function toggleBreakPlayback(options = {}) {
     breakQueueTargetCycle = null;
     breakQueueTargetStep = 0;
 
-    // In BPM mode, queue the break to launch on the NEXT bar downbeat
+    // --- BPM MODE (Grid Locked) ---
     if (!isFreeTiming) {
         const tempoSource = getTempoSourceState();
         if (tempoSource) {
             const patternLen = 16;
-            
+            const QUANTIZATION = 4; // 4 steps = 1 Beat (Quarter Note)
+
             // Calculate where we are right now
             const currentStep = tempoSource.euclideanStepCounter % patternLen;
             const currentCycle = Math.floor(tempoSource.euclideanStepCounter / patternLen);
             
-            // FIX: Standard Quantization Logic
-            // If we are exactly on Step 0, play in this cycle (catch the beat).
-            // If we are past Step 0 (Steps 1-15), we must wait for the NEXT cycle.
-            if (currentStep === 0) {
+            // Calculate distance to the NEXT quantization point
+            // If we are at step 2, target is 4. Distance = 2.
+            // If we are at step 0, target is 0. Distance = 0.
+            const stepsUntilTarget = (QUANTIZATION - (currentStep % QUANTIZATION)) % QUANTIZATION;
+
+            if (stepsUntilTarget === 0) {
+                // We are ON the grid -> Play NOW (Current Cycle, Current Step)
                 breakQueueTargetCycle = currentCycle;
+                breakQueueTargetStep = currentStep;
             } else {
-                breakQueueTargetCycle = currentCycle + 1;
+                // We are OFF the grid -> Wait for the specific target step
+                const targetAbsStep = currentStep + stepsUntilTarget;
+                
+                // Handle Wrap-Around (e.g., if we are at step 14, next beat is 16 (which is Step 0 of NEXT cycle))
+                if (targetAbsStep >= patternLen) {
+                    breakQueueTargetCycle = currentCycle + 1;
+                    breakQueueTargetStep = targetAbsStep % patternLen;
+                } else {
+                    breakQueueTargetCycle = currentCycle;
+                    breakQueueTargetStep = targetAbsStep;
+                }
             }
-            
-            breakQueueTargetStep = 0; // Always launch on the "1"
         }
     }
 
@@ -6144,6 +6157,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
