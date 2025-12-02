@@ -1135,8 +1135,11 @@ let liveLfoOutputs = [0, 0, 0, 0];
     // FIX: Check if break is Running OR Requested (this catches the preset load state)
     const isBreakActive = breakRunning || breakPlayRequested || breakPlayQueued;
     
-    // FIX: Use isBreakActive instead of just breakRunning
-    const shouldQueueChange = isBreakActive && !forceImmediate && tempoMode === TEMPO_MODE_BPM && tempoSource && tempoSource.arpRunning;
+    // FIX: Allow queue if Arp is running OR if the Master Clock is running (e.g. during preset swap)
+    // This ensures we don't fall back to "Instant" just because applyPreset stopped the arp for 10ms.
+    const isGridActive = (tempoSource && tempoSource.arpRunning) || masterClockRunning;
+
+    const shouldQueueChange = isBreakActive && !forceImmediate && tempoMode === TEMPO_MODE_BPM && tempoSource && isGridActive;
 
     if (shouldQueueChange) {
         // --- QUEUED SWITCH (BPM Mode) ---
@@ -1174,7 +1177,6 @@ let liveLfoOutputs = [0, 0, 0, 0];
         }
     }
 }
-
         function sendBreakPlaybackRate() {
             if (!synthNode || !breakRunning || !breakBufferLoaded) return;
             const nextRate = getBreakPlaybackRate();
@@ -4531,8 +4533,9 @@ async function applyPreset(p, isArpCategoryPreset = false, options = {}) {
 
     // --- 1. STOP old arps ---
     if (!arpLockActive) {
-        stopArpeggiator(0);
-        stopArpeggiator(1);
+        // FIX: Pass 'true' to preserve drums/clock so we can queue the next change gracefully
+        stopArpeggiator(0, true);
+        stopArpeggiator(1, true);
     }
 
     // --- 2. WIPE knobs ---
@@ -4584,8 +4587,10 @@ async function applyPreset(p, isArpCategoryPreset = false, options = {}) {
         if (hasBreakSelection) {
             const targetIndex = p.breakSampleIndex ?? breakValueToIndex(p.breakSelectionNormalized);
             const normalizedValue = p.breakSelectionNormalized ?? breakIndexToValue(targetIndex);
-            // This will now respect the "isBreakActive" check if breakPlayActive is true
-            setBreakSampleIndex(targetIndex, { normalizedValue, forceImmediate: true });
+            
+            // FIX: Changed forceImmediate to FALSE. This allows the drum loop to queue
+            // onto the next bar instead of slamming in instantly.
+            setBreakSampleIndex(targetIndex, { normalizedValue, forceImmediate: false });
         }
 
         if (presetBreakShouldPlay === false && breakPlayRequested) {
@@ -6139,6 +6144,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
