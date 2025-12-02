@@ -432,6 +432,13 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
     const now = getNowMs();
     
+    // --- QUANTIZATION SETTING ---
+    // 16 = 1 Bar (Default)
+    // 8  = 1/2 Bar
+    // 4  = 1/4 Bar (1 Beat)
+    // 1  = 1/16 Note (Instant)
+    const ARP_LAUNCH_QUANTIZATION = 4; // <--- CHANGE THIS VALUE to tweak Arp feel
+
     // --- BPM MODE (Grid Locked) ---
     if (tempoMode === TEMPO_MODE_BPM) {
         const intervalMs = bpmToSixteenthMs(state.arpRateBpm);
@@ -441,24 +448,28 @@ let liveLfoOutputs = [0, 0, 0, 0];
         const isOtherArpRunning = otherState?.arpRunning;
 
         if (isOtherArpRunning) {
-             // BAR SYNC LOGIC:
-             // 1. Find out where the other arp is currently (0-15)
+             // 1. SYNC TO OTHER ARP
              const patternLen = 16; 
              const otherCurrentStep = otherState.euclideanStepCounter % patternLen;
              
-             // 2. Calculate steps until the NEXT Step 0.
-             // We use % patternLen here so if the other arp is currently ON step 0, 
-             // the result is 0 (start now) instead of 16 (wait a whole bar).
-             const stepsUntilDownbeat = (patternLen - otherCurrentStep) % patternLen;
+             // Calculate steps until the NEXT quantization point relative to the other arp.
+             // For 1 Bar (16), this waits for step 0.
+             // For 1/4 Bar (4), this waits for step 0, 4, 8, or 12.
+             const stepsUntilTarget = (ARP_LAUNCH_QUANTIZATION - (otherCurrentStep % ARP_LAUNCH_QUANTIZATION)) % ARP_LAUNCH_QUANTIZATION;
              
-             // 3. Calculate exact start time.
-             // We removed the "- 1". Now we add exactly the time needed to reach the 
-             // sync point, ensuring Arp 2 starts Step 0 exactly when Arp 1 wraps to Step 0.
-             state.nextArpStepTime = otherState.nextArpStepTime + (stepsUntilDownbeat * intervalMs);
+             state.nextArpStepTime = otherState.nextArpStepTime + (stepsUntilTarget * intervalMs);
              
+        } else if (masterClockRunning && masterClockStartTime !== null) {
+             // 2. SYNC TO DRUMS / MASTER CLOCK
+             // If Drums are playing, snap to the nearest quantization grid line
+             // Helper function 'quantizeToGrid' handles the math for us
+             state.nextArpStepTime = quantizeToGrid(now, intervalMs, ARP_LAUNCH_QUANTIZATION);
+
         } else {
-             // No other arp running? Start immediately on the next 16th note
-             state.nextArpStepTime = quantizeToNextSixteenth(now, intervalMs);
+             // 3. COLD START (Silence)
+             // Nothing is running. Define "NOW" as the start of the grid.
+             masterClockStartTime = now;
+             state.nextArpStepTime = now;
         }
         
         state.lastArpStepTime = 0;
@@ -564,17 +575,26 @@ let liveLfoOutputs = [0, 0, 0, 0];
             }
         }
 
-        function applyBreakSelectionModulation(modOffset = 0) {
-            const knob = fxKnobData[36];
-            if (!knob) return;
+       function applyBreakSelectionModulation(modOffset = 0) {
+    const knob = fxKnobData[36];
+    if (!knob) return;
 
-            const baseValue = Math.max(0, Math.min(1, Number.isFinite(knob.value) ? knob.value : breakSelectionNormalized));
-            const modulatedValue = Math.max(0, Math.min(1, baseValue + modOffset));
-            const targetIndex = breakValueToIndex(modulatedValue);
+    const baseValue = Math.max(0, Math.min(1, Number.isFinite(knob.value) ? knob.value : breakSelectionNormalized));
+    const modulatedValue = Math.max(0, Math.min(1, baseValue + modOffset));
+    const targetIndex = breakValueToIndex(modulatedValue);
 
-            const progressNormalized = getBreakLoopProgressNormalized();
-            setBreakSampleIndex(targetIndex, { progressNormalized, normalizedValue: baseValue });
-        }
+    const progressNormalized = getBreakLoopProgressNormalized();
+    
+    // FIX: We passed 'baseValue' before, which pinned the knob to the manual position.
+    // We now pass 'modulatedValue' so the visual knob follows the LFO.
+    // We also add forceImmediate: true so the LFO can scan through samples instantly 
+    // without waiting for the end of the bar (optional, but better for LFOs).
+    setBreakSampleIndex(targetIndex, { 
+        progressNormalized, 
+        normalizedValue: modulatedValue,
+        forceImmediate: true 
+    });
+}
 
         function syncBreakSelectionKnob() {
             const knob = fxKnobData[36];
@@ -1091,42 +1111,52 @@ let liveLfoOutputs = [0, 0, 0, 0];
             }
         }
 
-        function setBreakSampleIndex(index, { progressNormalized = 0, normalizedValue, forceImmediate = false } = {}) {
+       function setBreakSampleIndex(index, { progressNormalized = 0, normalizedValue, forceImmediate = false } = {}) {
     const clamped = clamp(index ?? breakSampleIndex, BREAK_SAMPLE_MIN_INDEX, BREAK_SAMPLE_MAX_INDEX);
 
+    // 1. Update Visual Variable first
     if (Number.isFinite(normalizedValue)) {
         breakSelectionNormalized = Math.max(0, Math.min(1, normalizedValue));
     } else {
         breakSelectionNormalized = breakIndexToValue(clamped);
     }
+    
+    // 2. Performance Guard: Don't reload if nothing changed
+    if (clamped === breakSampleIndex && !forceImmediate) {
+        syncBreakSelectionKnob();
+        return; 
+    }
+
     syncBreakSelectionKnob();
 
-    const shouldQueueChange = breakRunning && !forceImmediate && tempoMode !== TEMPO_MODE_MS;
+    // 3. Determine if we should Queue (Wait) or Load Immediately
+    // We ONLY queue if:
+    // A. The break is currently running
+    // B. This isn't a forced LFO update
+    // C. We are in BPM mode
+    // D. We successfully found a Master Arp to sync with (tempoSource)
+    const tempoSource = getTempoSourceState();
+    const shouldQueueChange = breakRunning && !forceImmediate && tempoMode === TEMPO_MODE_BPM && tempoSource && tempoSource.arpRunning;
 
     if (shouldQueueChange) {
-        // Queue the change so it happens after the current loop finishes.
-        // This preserves BPM quantization while preventing mid-loop swaps.
+        // --- QUEUED SWITCH (BPM Mode with Active Arp) ---
         pendingBreakIndex = clamped;
         updateBreakSelectionUi(clamped);
         fetchBreakSampleData(clamped);
 
-         // Align the swap with the same queued offset as playback start so the
-         // new loop enters on the next bar downbeat in BPM mode.
-        const tempoSource = getTempoSourceState();
-        if (tempoSource) {
-            const patternLen = 16;
-            const currentCycle = Math.floor(tempoSource.euclideanStepCounter / patternLen);
-            const loopProgress = getBreakLoopProgressNormalized();
-            const barsPerLoop = getBreakBarsPerLoop();
-            const barsRemaining = Math.max(0, (1 - loopProgress) * barsPerLoop);
-            const cyclesToWait = Math.max(1, Math.ceil(barsRemaining));
-             breakQueueTargetCycle = currentCycle + cyclesToWait;
-             breakQueueTargetStep = 0;
-        }
+        const patternLen = 16;
+        const currentCycle = Math.floor(tempoSource.euclideanStepCounter / patternLen);
+        
+        // Target the START of the NEXT bar.
+        breakQueueTargetCycle = currentCycle + 1;
+        breakQueueTargetStep = 0;
+        
     } else {
-        // Immediate load (preview mode)
+        // --- IMMEDIATE SWITCH (Free Mode / Solo Drums / Stopped) ---
         breakSampleIndex = clamped;
         updateBreakSelectionUi(clamped);
+        pendingBreakIndex = null; // Clear any pending
+        breakQueueTargetCycle = null;
 
         const loadPromise = ensureBreakSampleLoaded(clamped, progressNormalized);
 
@@ -1437,16 +1467,18 @@ async function toggleBreakPlayback(options = {}) {
         }
 
         function getTempoSourceState() {
-            const left = knobState[0];
-            const right = knobState[1];
-            const leftOn = !!left?.isArpOn;
-            const rightOn = !!right?.isArpOn;
-            if (!leftOn && !rightOn) return null;
-            if (leftOn && rightOn && !isArpRateSynced) return null;
-            if (leftOn) return left;
-            if (rightOn) return right;
-            return null;
-        }
+    const left = knobState[0];
+    const right = knobState[1];
+    
+    // Priority 1: If Left Arp is ON, it is the Master (Grid Source).
+    if (left?.isArpOn) return left;
+    
+    // Priority 2: If Left is OFF but Right is ON, Right is Master.
+    if (right?.isArpOn) return right;
+    
+    // If neither is ON, we have no grid.
+    return null;
+}
 
         function getTempoSourceIntervalMs() {
             const sourceState = getTempoSourceState();
@@ -6096,6 +6128,12 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
+
+
+
+
+
 
 
 
