@@ -325,9 +325,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         if (type === 'tick') {
             const timestamp = getNowMs();
 
-            // 1. --- FIX: CHECK TRIGGERS FIRST ---
-            // We check the state *before* the arp steps forward.
-            // This ensures we catch "Step 0" (The Downbeat) immediately.
+            // 1. CHECK TRIGGERS
             const source = getTempoSourceState();
             if (source && source.arpRunning) {
                 const patternLen = 16;
@@ -335,7 +333,17 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 const stepInCycle = source.euclideanStepCounter % patternLen;
                 const targetReached = breakQueueTargetCycle === null || currentCycle >= breakQueueTargetCycle;
                 const targetStep = breakQueueTargetStep ?? 0;
-                if (stepInCycle === targetStep && targetReached) {
+
+                // FIX: Check timing! 
+                // Even if the Counter says "Step 0", we must ensure the Clock says "Time for Step 0".
+                // In BPM mode, the arp only plays if timestamp >= nextArpStepTime.
+                let isArpReadyToPlay = true;
+                if (tempoMode === TEMPO_MODE_BPM) {
+                    // We add a tiny buffer (tolerance) to ensure we don't miss the frame
+                    isArpReadyToPlay = timestamp >= (source.nextArpStepTime - MASTER_CLOCK_TOLERANCE_MS);
+                }
+
+                if (stepInCycle === targetStep && targetReached && isArpReadyToPlay) {
                     if (pendingBreakIndex !== null) {
                         ensureBreakSampleLoaded(pendingBreakIndex, 0);
                         pendingBreakIndex = null;
@@ -374,121 +382,6 @@ let liveLfoOutputs = [0, 0, 0, 0];
         }
     };
 }
-
-        function ensureMasterClock() {
-            initMasterClockWorker();
-            if (tempoMode === TEMPO_MODE_BPM && masterClockStartTime === null) {
-                masterClockStartTime = getNowMs();
-            }
-            if (masterClockRunning || !masterClockWorker) return;
-            masterClockWorker.postMessage({ type: 'start', intervalMs: MASTER_CLOCK_INTERVAL_MS });
-            masterClockRunning = true;
-        }
-
-        function stopMasterClockIfIdle() {
-            if (!masterClockRunning || !masterClockWorker) return;
-            if (knobState.some(state => state?.arpRunning) || breakPlayRequested) return;
-            masterClockWorker.postMessage({ type: 'stop' });
-            masterClockRunning = false;
-            masterClockStartTime = null;
-            updateMidiClockState();
-        }
-
-        function quantizeToGrid(now, intervalMs, steps = 1) {
-            if (intervalMs <= 0) return now;
-            if (masterClockStartTime === null) masterClockStartTime = now;
-            const elapsed = now - masterClockStartTime;
-            const ticksSinceOrigin = Math.ceil(elapsed / intervalMs);
-            
-            // Find the next tick that aligns with the grid step size
-            let nextTick = ticksSinceOrigin;
-            if (steps > 1) {
-                const remainder = nextTick % steps;
-                if (remainder !== 0) {
-                    nextTick += (steps - remainder);
-                }
-            }
-
-            let nextTime = masterClockStartTime + nextTick * intervalMs;
-            if (nextTime <= now) nextTime += (steps * intervalMs);
-            return nextTime;
-        }
-
-        function quantizeToNextSixteenth(now, intervalMs) {
-            return quantizeToGrid(now, intervalMs, 1);
-        }
-
-      function startArpClockForState(knobId) {
-    const state = knobState[knobId];
-    if (!state) return;
-
-    const now = getNowMs();
-    
-    // --- BPM MODE (Grid Locked) ---
-    if (tempoMode === TEMPO_MODE_BPM) {
-        const intervalMs = bpmToSixteenthMs(state.arpRateBpm);
-        
-        const otherId = knobId === 0 ? 1 : 0;
-        const otherState = knobState[otherId];
-        const isOtherArpRunning = otherState?.arpRunning;
-
-        if (isOtherArpRunning) {
-             // BAR SYNC LOGIC:
-             // 1. Find out where the other arp is currently (0-15)
-             const patternLen = 16; 
-             const otherCurrentStep = otherState.euclideanStepCounter % patternLen;
-             
-             // 2. Calculate steps until the NEXT Step 0.
-             // We use % patternLen here so if the other arp is currently ON step 0, 
-             // the result is 0 (start now) instead of 16 (wait a whole bar).
-             const stepsUntilDownbeat = (patternLen - otherCurrentStep) % patternLen;
-             
-             // 3. Calculate exact start time.
-             // We removed the "- 1". Now we add exactly the time needed to reach the 
-             // sync point, ensuring Arp 2 starts Step 0 exactly when Arp 1 wraps to Step 0.
-             state.nextArpStepTime = otherState.nextArpStepTime + (stepsUntilDownbeat * intervalMs);
-             
-        } else {
-             // No other arp running? Start immediately on the next 16th note
-             state.nextArpStepTime = quantizeToNextSixteenth(now, intervalMs);
-        }
-        
-        state.lastArpStepTime = 0;
-    } 
-    // --- MS MODE (Free Running) ---
-    else {
-        state.lastArpStepTime = now - normalizeArpRateMs(state.arpRateMs ?? DEFAULT_ARP_RATE_MS);
-        state.nextArpStepTime = 0;
-    }
-
-    ensureMasterClock();
-    updateMidiClockState();
-}
-
-        function getMidiClockBpm() {
-            midiClockBpm = calculateMidiBpm();
-            return midiClockBpm;
-        }
-
-        function startMidiClockTransport() {
-            if (!midiClockEnabled || midiClockRunning) return;
-            initMasterClockWorker();
-            const bpm = getMidiClockBpm();
-            if (masterClockWorker) {
-                masterClockWorker.postMessage({ type: 'enableMidiClock', bpm });
-            }
-            midiClockRunning = true;
-            sendMidiMessage([0xFA]);
-        }
-
-        function stopMidiClockTransport() {
-            if (!midiClockRunning) return;
-            if (masterClockWorker) {
-                masterClockWorker.postMessage({ type: 'disableMidiClock' });
-            }
-            midiClockRunning = false;
-            sendMidiMessage([0xFC]);
-        }
 
         function updateMidiClockBpm() {
             if (!midiClockRunning || !masterClockWorker) return;
@@ -6088,6 +5981,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
