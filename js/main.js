@@ -1218,20 +1218,26 @@ async function toggleBreakPlayback(options = {}) {
     breakQueueTargetCycle = null;
     breakQueueTargetStep = 0;
 
-    // In BPM mode, queue the break to launch on the NEXT bar downbeat so it
-    // lines up with the Euclidean playhead instead of firing immediately. MS
-    // mode stays free-running.
+    // In BPM mode, queue the break to launch on the NEXT bar downbeat
     if (!isFreeTiming) {
         const tempoSource = getTempoSourceState();
         if (tempoSource) {
             const patternLen = 16;
+            
+            // Calculate where we are right now
+            const currentStep = tempoSource.euclideanStepCounter % patternLen;
             const currentCycle = Math.floor(tempoSource.euclideanStepCounter / patternLen);
             
-            // FIX: Removed "+ 1". We now target the current cycle.
-            // If we are at Step 0, this allows immediate playback.
-            // If we are past Step 0, the loop naturally waits for the next cycle.
-             breakQueueTargetCycle = currentCycle;
-             breakQueueTargetStep = 0; // Launch on the bar downbeat
+            // FIX: Standard Quantization Logic
+            // If we are exactly on Step 0, play in this cycle (catch the beat).
+            // If we are past Step 0 (Steps 1-15), we must wait for the NEXT cycle.
+            if (currentStep === 0) {
+                breakQueueTargetCycle = currentCycle;
+            } else {
+                breakQueueTargetCycle = currentCycle + 1;
+            }
+            
+            breakQueueTargetStep = 0; // Always launch on the "1"
         }
     }
 
@@ -6082,6 +6088,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
