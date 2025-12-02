@@ -418,57 +418,51 @@ let liveLfoOutputs = [0, 0, 0, 0];
             return quantizeToGrid(now, intervalMs, 1);
         }
 
-        function startArpClockForState(knobId) {
-            const state = knobState[knobId];
-            if (!state) return;
+       function startArpClockForState(knobId) {
+    const state = knobState[knobId];
+    if (!state) return;
 
-            const now = getNowMs();
-            if (tempoMode === TEMPO_MODE_BPM) {
-                const intervalMs = bpmToSixteenthMs(state.arpRateBpm);
+    const now = getNowMs();
+    
+    // --- BPM MODE (Grid Locked) ---
+    if (tempoMode === TEMPO_MODE_BPM) {
+        const intervalMs = bpmToSixteenthMs(state.arpRateBpm);
+        
+        const otherId = knobId === 0 ? 1 : 0;
+        const otherState = knobState[otherId];
+        const isOtherArpRunning = otherState?.arpRunning;
 
-                // Check if the other arp is already running
-                const otherId = knobId === 0 ? 1 : 0;
-                const otherState = knobState[otherId];
-                const isOtherArpRunning = otherState?.arpRunning;
-
-                // If the other arp is nearing the end of its bar (steps 13-16),
-                // start exactly on its next downbeat so both sequences line up.
-                if (isOtherArpRunning) {
-                    const patternLen = 16;
-                    const otherStepInCycle = otherState.euclideanStepCounter % patternLen;
-                    const isNearBarEnd = otherStepInCycle >= (patternLen - 4);
-                    const otherIntervalMs = bpmToSixteenthMs(otherState.arpRateBpm);
-                    const hasTimingInfo = Number.isFinite(otherState.nextArpStepTime) && otherIntervalMs > 0;
-
-                    if (isNearBarEnd && hasTimingInfo) {
-                        const stepsUntilDownbeat = (patternLen - ((otherStepInCycle + 1) % patternLen)) % patternLen;
-                        const adjustedSteps = stepsUntilDownbeat === 0 ? 1 : stepsUntilDownbeat;
-                        const alignedStart = otherState.nextArpStepTime + (adjustedSteps * otherIntervalMs);
-
-                        // Avoid scheduling in the past if the other arp jumped forward.
-                        state.nextArpStepTime = Math.max(alignedStart, quantizeToNextSixteenth(now, intervalMs));
-                        state.lastArpStepTime = 0;
-                        ensureMasterClock();
-                        updateMidiClockState();
-                        return;
-                    }
-                }
-
-                // If the other arp is running, wait 4 steps (1 beat) to sync up musically.
-                // Otherwise start immediately on the next 16th note (1 step).
-                const quantizeSteps = isOtherArpRunning ? 4 : 1;
-
-                const baseGrid = quantizeToGrid(now, intervalMs, quantizeSteps);
-                state.nextArpStepTime = baseGrid;
-                state.lastArpStepTime = 0;
-            } else {
-                state.lastArpStepTime = now - normalizeArpRateMs(state.arpRateMs ?? DEFAULT_ARP_RATE_MS);
-                state.nextArpStepTime = 0;
-            }
-
-            ensureMasterClock();
-            updateMidiClockState();
+        if (isOtherArpRunning) {
+             // BAR SYNC LOGIC:
+             // 1. Find out where the other arp is currently (0-15)
+             const patternLen = 16; // Standard bar length
+             const otherCurrentStep = otherState.euclideanStepCounter % patternLen;
+             
+             // 2. Calculate how many steps until the NEXT Step 0
+             const stepsUntilDownbeat = patternLen - otherCurrentStep;
+             
+             // 3. Calculate exact start time based on the OTHER arp's next scheduled tick
+             // We use otherState.nextArpStepTime because that is the reliable future grid anchor
+             // (We subtract 1 interval because nextArpStepTime represents the *next* tick, 
+             // so we are calculating the offset from that future point)
+             state.nextArpStepTime = otherState.nextArpStepTime + ((stepsUntilDownbeat - 1) * intervalMs);
+             
+        } else {
+             // No other arp running? Start immediately on the next 16th note
+             state.nextArpStepTime = quantizeToNextSixteenth(now, intervalMs);
         }
+        
+        state.lastArpStepTime = 0;
+    } 
+    // --- MS MODE (Free Running) ---
+    else {
+        state.lastArpStepTime = now - normalizeArpRateMs(state.arpRateMs ?? DEFAULT_ARP_RATE_MS);
+        state.nextArpStepTime = 0;
+    }
+
+    ensureMasterClock();
+    updateMidiClockState();
+}
 
         function getMidiClockBpm() {
             midiClockBpm = calculateMidiBpm();
