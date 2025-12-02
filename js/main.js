@@ -2373,19 +2373,36 @@ function generateComplexRandomLfoState(includeArpTargets = true) {
       };
 
       function encodePresetForUrl(presetObj) {
-    try {function decodePresetFromUrl(encodedPreset) {
+    try {
+        const json = JSON.stringify(presetObj);
+        const base64 = LZString.compressToBase64(json) || '';
+
+        // CUSTOM SAFE ENCODING:
+        // 1. Replace '+' with '~' (instead of '-') to prevent iMessage line breaks.
+        // 2. Replace '/' with '_' (standard URL safe).
+        // 3. Remove padding '='.
+        return base64
+            .replace(/\+/g, '~') 
+            .replace(/\//g, '_')
+            .replace(/=+$/g, ''); 
+    } catch (err) {
+        console.error('Failed to encode preset', err);
+        return '';
+    }
+}
+
+function decodePresetFromUrl(encodedPreset) {
     if (!encodedPreset) return null;
 
     // Helper to restore standard Base64 from our safe formats
     const restoreBase64 = (str) => {
-        // robustness: handle '.', '~', and '-' as '+'
-        // (This ensures backward compatibility with previous link versions)
-        const safeStr = str.replace(/[.~-]/g, '+').replace(/_/g, '/');
+        // robustness: handle both '~' (new safe char) and '-' (standard/legacy) as '+'
+        const safeStr = str.replace(/[~-]/g, '+').replace(/_/g, '/');
         const padLen = (4 - (safeStr.length % 4)) % 4;
         return safeStr + '='.repeat(padLen);
     };
 
-    // 1. Try Base64 (New Dot/Dash-Free & Standard Base64URL)
+    // 1. Try Base64 (New Dash-Free & Standard Base64URL)
     try {
         const decompressed = LZString.decompressFromBase64(restoreBase64(encodedPreset));
         if (decompressed) {
@@ -2396,7 +2413,7 @@ function generateComplexRandomLfoState(includeArpTargets = true) {
         // Fall through to legacy
     }
 
-    // 2. Fallback: Legacy LZString EncodedURIComponent
+    // 2. Fallback: Legacy LZString EncodedURIComponent (The format breaking currently)
     try {
         const decompressed = LZString.decompressFromEncodedURIComponent(encodedPreset);
         if (decompressed) return JSON.parse(decompressed);
@@ -6111,8 +6128,6 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
-
-
 
 
 
