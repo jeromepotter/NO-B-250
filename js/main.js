@@ -257,7 +257,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         const ARP_RATE_CURVE_INV_EXP = 1 / ARP_RATE_CURVE_EXP;
         const MIN_MIDI_EXPORT_BPM = 40;
         const MASTER_CLOCK_INTERVAL_MS = 2;
-        const MASTER_CLOCK_TOLERANCE_MS = 1;
+        const MASTER_CLOCK_TOLERANCE_MS = 4;
         const TEMPO_KNOB_DOUBLE_TAP_MS = 350;
 
         function clamp(value, min, max) {
@@ -446,14 +446,12 @@ let liveLfoOutputs = [0, 0, 0, 0];
              const patternLen = 16; 
              const otherCurrentStep = otherState.euclideanStepCounter % patternLen;
              
-             // 2. Calculate steps until the NEXT Step 0.
-             // We use % patternLen here so if the other arp is currently ON step 0, 
-             // the result is 0 (start now) instead of 16 (wait a whole bar).
-             const stepsUntilDownbeat = (patternLen - otherCurrentStep) % patternLen;
+             // 2. Calculate steps until the NEXT Downbeat (Step 0).
+             // Logic: If other is at Step 15, next is 0. We need 0 offset. (15-15 = 0)
+             // If other is at Step 0, next is 1. We need 15 offset to get back to 0. (15-0 = 15)
+             const stepsUntilDownbeat = (15 - otherCurrentStep + patternLen) % patternLen;
              
              // 3. Calculate exact start time.
-             // We removed the "- 1". Now we add exactly the time needed to reach the 
-             // sync point, ensuring Arp 2 starts Step 0 exactly when Arp 1 wraps to Step 0.
              state.nextArpStepTime = otherState.nextArpStepTime + (stepsUntilDownbeat * intervalMs);
              
         } else {
@@ -472,7 +470,6 @@ let liveLfoOutputs = [0, 0, 0, 0];
     ensureMasterClock();
     updateMidiClockState();
 }
-
         function getMidiClockBpm() {
             midiClockBpm = calculateMidiBpm();
             return midiClockBpm;
@@ -6096,6 +6093,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
