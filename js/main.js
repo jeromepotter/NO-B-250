@@ -5422,6 +5422,28 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                }
                shareButton.blur();
            });
+              addTouchListener(recordButton, () => {
+               if (!isPowerOn) {
+                   powerOn();
+                   return;
+               }
+               
+               if (isRecordingAudio) {
+                   // STOP RECORDING
+                   if (synthNode) {
+                       synthNode.port.postMessage({ type: 'stopRecording' });
+                   }
+               } else {
+                   // START RECORDING
+                   isRecordingAudio = true;
+                   pcmChunks = []; 
+                   totalPcmBytes = 0;
+                   if (synthNode) {
+                       synthNode.port.postMessage({ type: 'startRecording' });
+                   }
+                   startRecordingUI();
+               }
+           });
 
            addTouchListener(recordMidiButton, () => {
                toggleMidiRecording();
@@ -6117,6 +6139,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
