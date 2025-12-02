@@ -1121,7 +1121,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         breakSelectionNormalized = breakIndexToValue(clamped);
     }
     
-    // 2. Performance Guard: Don't reload if nothing changed
+    // 2. Performance Guard
     if (clamped === breakSampleIndex && !forceImmediate) {
         syncBreakSelectionKnob();
         return; 
@@ -1129,17 +1129,17 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
     syncBreakSelectionKnob();
 
-    // 3. Determine if we should Queue (Wait) or Load Immediately
-    // We ONLY queue if:
-    // A. The break is currently running
-    // B. This isn't a forced LFO update
-    // C. We are in BPM mode
-    // D. We successfully found a Master Arp to sync with (tempoSource)
+    // 3. Determine if we should Queue
     const tempoSource = getTempoSourceState();
-    const shouldQueueChange = breakRunning && !forceImmediate && tempoMode === TEMPO_MODE_BPM && tempoSource && tempoSource.arpRunning;
+    
+    // FIX: Check if break is Running OR Requested (this catches the preset load state)
+    const isBreakActive = breakRunning || breakPlayRequested || breakPlayQueued;
+    
+    // FIX: Use isBreakActive instead of just breakRunning
+    const shouldQueueChange = isBreakActive && !forceImmediate && tempoMode === TEMPO_MODE_BPM && tempoSource && tempoSource.arpRunning;
 
     if (shouldQueueChange) {
-        // --- QUEUED SWITCH (BPM Mode with Active Arp) ---
+        // --- QUEUED SWITCH (BPM Mode) ---
         pendingBreakIndex = clamped;
         updateBreakSelectionUi(clamped);
         fetchBreakSampleData(clamped);
@@ -1147,15 +1147,14 @@ let liveLfoOutputs = [0, 0, 0, 0];
         const patternLen = 16;
         const currentCycle = Math.floor(tempoSource.euclideanStepCounter / patternLen);
         
-        // Target the START of the NEXT bar.
         breakQueueTargetCycle = currentCycle + 1;
         breakQueueTargetStep = 0;
         
     } else {
-        // --- IMMEDIATE SWITCH (Free Mode / Solo Drums / Stopped) ---
+        // --- IMMEDIATE SWITCH ---
         breakSampleIndex = clamped;
         updateBreakSelectionUi(clamped);
-        pendingBreakIndex = null; // Clear any pending
+        pendingBreakIndex = null; 
         breakQueueTargetCycle = null;
 
         const loadPromise = ensureBreakSampleLoaded(clamped, progressNormalized);
@@ -4116,10 +4115,18 @@ lfoState.forEach((lfo, lfoIndex) => {
            const fname = `N-OB-${fDate}_${color}.json`; const blob = new Blob([JSON.stringify(preset, null, 2)], { type: 'application/json' });
            const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = fname; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
        }
-       function loadPreset(e) {
+    function loadPreset(e) {
            const file=e.target.files[0]; if(!file)return;
            const reader=new FileReader();
-           reader.onload=function(loadEvent){try{const p=JSON.parse(loadEvent.target.result);applyPreset(p);updatePresetDisplay(file.name,'user');}catch(err){console.error("Error parsing preset:",err);}};
+           reader.onload = async function(loadEvent){ // Added async
+               try {
+                   const p=JSON.parse(loadEvent.target.result);
+                   await applyPreset(p); // Added await
+                   updatePresetDisplay(file.name,'user');
+               } catch(err){
+                   console.error("Error parsing preset:",err);
+               }
+           };
            reader.readAsText(file); e.target.value='';
        }
       
@@ -4507,307 +4514,287 @@ lfoState.forEach((lfo, lfoIndex) => {
         return LFO_DEST_NONE;
     }
 
-function applyPreset(p, isArpCategoryPreset = false, options = {}) {
-           if (!p) return;
+async function applyPreset(p, isArpCategoryPreset = false, options = {}) {
+    if (!p) return;
 
-           const { skipPowerOn = false } = options;
+    const { skipPowerOn = false } = options;
 
-           // Capture drum autoplay intent before we potentially reset anything
-           const presetBreakShouldPlay = p.breakPlayActive !== undefined ? !!p.breakPlayActive : null;
+    // Capture intent
+    const presetBreakShouldPlay = p.breakPlayActive !== undefined ? !!p.breakPlayActive : null;
 
-           const ignoreLocks = !!isArpCategoryPreset;
-           const arpLockActive = ignoreLocks ? false : isArpLockEnabled;
-           const lfoLockActive = ignoreLocks ? false : isLfoLockEnabled;
+    const ignoreLocks = !!isArpCategoryPreset;
+    const arpLockActive = ignoreLocks ? false : isArpLockEnabled;
+    const lfoLockActive = ignoreLocks ? false : isLfoLockEnabled;
 
-          if (!skipPowerOn && !isPowerOn) powerOn();
+    // FIX: Wait for power!
+    if (!skipPowerOn && !isPowerOn) await powerOn();
 
-           // --- 1. STOP old arps completely FIRST ---
-           
-           // FIX: Only stop the arps if we are NOT locking the sequence.
-           // If SEQ LOCK is On, we leave the engines running and just hot-swap the sounds below.
-           if (!arpLockActive) {
-               stopArpeggiator(0);
-               stopArpeggiator(1);
-           }
+    // --- 1. STOP old arps ---
+    if (!arpLockActive) {
+        stopArpeggiator(0);
+        stopArpeggiator(1);
+    }
 
-           // --- 2. WIPE all knobs to a clean state ---
-           // (This logic remains the same, it cleans up the sound params)
-           resetAllFxToDefaults({ skipArpKnobs: arpLockActive, skipLfoKnobs: lfoLockActive });
+    // --- 2. WIPE knobs ---
+    resetAllFxToDefaults({ skipArpKnobs: arpLockActive, skipLfoKnobs: lfoLockActive });
 
-          // --- 3. RESTORE tempo mode (Pattern/Timing) ---
-            const presetTempoMode = p.tempoMode ?? TEMPO_MODE_BPM;
-            if (!arpLockActive) {
-                setTempoMode(presetTempoMode);
+    // --- 3. RESTORE tempo mode ---
+    const presetTempoMode = p.tempoMode ?? TEMPO_MODE_BPM;
+    if (!arpLockActive) {
+        setTempoMode(presetTempoMode);
+    }
+
+    // --- 4. APPLY SETTINGS ---
+    if (!arpLockActive) {
+        scaleSelector.value = p.scale ?? 'Major';
+        scaleSelector.dispatchEvent(new Event('change'));
+        keySelector.value = p.key ?? 'C';
+
+        if (p.scale === 'Custom') {
+            customScale = p.customScale || [];
+            document.querySelectorAll('#custom-scale-builder .key').forEach(k => { 
+                const n = parseInt(k.dataset.note); 
+                k.classList.toggle('selected', customScale.includes(n)); 
+            });
+        }
+
+        if (p.allowDuplicateNotesMode !== undefined) {
+            allowDuplicateNotesMode = p.allowDuplicateNotesMode;
+            document.body.classList.toggle('easter-egg-mode', allowDuplicateNotesMode);
+        }
+
+        if (p.breakModeActive !== undefined) {
+            const targetBreakMode = !!p.breakModeActive;
+            if (targetBreakMode !== breakModeActive) {
+                toggleBreakMode();
+            } else {
+                updateBreakGridVisibility();
             }
+        }
 
-            // --- 4. APPLY all new settings from the preset ---
-            
-            // WRAP ALL PATTERN/SEQUENCE LOGIC IN THE LOCK CHECK
-            if (!arpLockActive) {
-                // A. Key & Scale
-                scaleSelector.value = p.scale ?? 'Major';
-                scaleSelector.dispatchEvent(new Event('change'));
-                keySelector.value = p.key ?? 'C';
+        if (p.breakFxSendToGlobalFx !== undefined) {
+            setBreakFxRouting(!!p.breakFxSendToGlobalFx);
+        }
 
-                if (p.scale === 'Custom') {
-                    customScale = p.customScale || [];
-                    document.querySelectorAll('#custom-scale-builder .key').forEach(k => { 
-                        const n = parseInt(k.dataset.note); 
-                        k.classList.toggle('selected', customScale.includes(n)); 
-                    });
+        if (p.breakSlipAnchorHoldEnabled !== undefined) {
+            setBreakSlipAnchorHold(!!p.breakSlipAnchorHoldEnabled);
+        }
+
+        const hasBreakSelection = p.breakSampleIndex !== undefined || p.breakSelectionNormalized !== undefined;
+        if (hasBreakSelection) {
+            const targetIndex = p.breakSampleIndex ?? breakValueToIndex(p.breakSelectionNormalized);
+            const normalizedValue = p.breakSelectionNormalized ?? breakIndexToValue(targetIndex);
+            // This will now respect the "isBreakActive" check if breakPlayActive is true
+            setBreakSampleIndex(targetIndex, { normalizedValue, forceImmediate: true });
+        }
+
+        if (presetBreakShouldPlay === false && breakPlayRequested) {
+            stopBreakPlaybackImmediate();
+            stopMasterClockIfIdle();
+        }
+    }
+   
+    // Apply LFOs
+    const presetTempoSyncTargets = [];
+    if (!lfoLockActive) {
+        if (p.lfoState && Array.isArray(p.lfoState)) {
+           // Reset LFOs
+           lfoState.forEach((lfo, index) => {
+                lfo.rate = 0; lfo.depth = 0; lfo.wave = 0;
+                setLfoDestChain(index, []);
+                if (synthNode) {
+                    synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'rate', value: 0 } });
+                    synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'depth', value: 0 } });
+                    synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'wave', value: 0 } });
+                    synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'destChain', value: [] } });
                 }
+           });
 
-                // B. Duplicate Note Mode (This is part of the pattern logic!)
-                if (p.allowDuplicateNotesMode !== undefined) {
-                    allowDuplicateNotesMode = p.allowDuplicateNotesMode;
-                    document.body.classList.toggle('easter-egg-mode', allowDuplicateNotesMode);
-                }
+           p.lfoState.forEach((savedLfo, index) => {
+               if (index < lfoState.length) {
+                   lfoState[index].rate = savedLfo.rate ?? 0;
+                   lfoState[index].depth = savedLfo.depth ?? 0;
+                   lfoState[index].wave = savedLfo.wave ?? 0;
+                   const savedDestChain = Array.isArray(savedLfo.destChain) && savedLfo.destChain.length ? savedLfo.destChain : [savedLfo.dest];
+                   setLfoDestChain(index, savedDestChain);
 
-                // C. Break Mode Logic (The Drums)
-                if (p.breakModeActive !== undefined) {
-                    const targetBreakMode = !!p.breakModeActive;
-                    if (targetBreakMode !== breakModeActive) {
-                        toggleBreakMode();
-                    } else {
-                        updateBreakGridVisibility();
-                    }
-                }
-
-                if (p.breakFxSendToGlobalFx !== undefined) {
-                    setBreakFxRouting(!!p.breakFxSendToGlobalFx);
-                }
-
-                if (p.breakSlipAnchorHoldEnabled !== undefined) {
-                    setBreakSlipAnchorHold(!!p.breakSlipAnchorHoldEnabled);
-                }
-
-                const hasBreakSelection = p.breakSampleIndex !== undefined || p.breakSelectionNormalized !== undefined;
-                if (hasBreakSelection) {
-                    const targetIndex = p.breakSampleIndex ?? breakValueToIndex(p.breakSelectionNormalized);
-                    const normalizedValue = p.breakSelectionNormalized ?? breakIndexToValue(targetIndex);
-                    setBreakSampleIndex(targetIndex, { normalizedValue, forceImmediate: true });
-                }
-
-                if (presetBreakShouldPlay === false && breakPlayRequested) {
-                    stopBreakPlaybackImmediate();
-                    stopMasterClockIfIdle();
-                }
-            }
-           
-           // --- 4. APPLY LFO STATE (IMPORTANT: Do this before FX settings) ---
-           const presetTempoSyncTargets = [];
-            if (!lfoLockActive) {
-                if (p.lfoState && Array.isArray(p.lfoState)) {
-                   // Reset all LFOs to defaults first to ensure no partial state lingers if the preset has fewer than 4 LFOs
-                   lfoState.forEach((lfo, index) => {
-                        lfo.rate = 0; lfo.depth = 0; lfo.wave = 0;
-                        setLfoDestChain(index, []);
-                        if (synthNode) {
-                            synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'rate', value: 0 } });
-                            synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'depth', value: 0 } });
-                            synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'wave', value: 0 } });
-                        }
-                   });
-
-                   p.lfoState.forEach((savedLfo, index) => {
-                       if (index < lfoState.length) {
-                           lfoState[index].rate = savedLfo.rate ?? 0;
-                           lfoState[index].depth = savedLfo.depth ?? 0;
-                           lfoState[index].wave = savedLfo.wave ?? 0;
-                           const savedDestChain = Array.isArray(savedLfo.destChain) && savedLfo.destChain.length ? savedLfo.destChain : [savedLfo.dest];
-                           setLfoDestChain(index, savedDestChain);
-
-                           const storedFreeValue = clamp(savedLfo.storedFreeValue ?? lfoTempoLinkState[index].storedFreeValue ?? 0.5, 0, 1);
-                           lfoTempoLinkState[index].storedFreeValue = storedFreeValue;
-                           if (savedLfo.tempoSync) {
-                               presetTempoSyncTargets.push({ index, storedFreeValue });
-                           }
-
-                           const rateKnobId = Object.keys(LFO_KNOB_MAP).find(id => LFO_KNOB_MAP[id].lfo === index && LFO_KNOB_MAP[id].param === 'rate');
-                           const depthKnobId = Object.keys(LFO_KNOB_MAP).find(id => LFO_KNOB_MAP[id].lfo === index && LFO_KNOB_MAP[id].param === 'depth');
-                           const waveKnobId = Object.keys(LFO_KNOB_MAP).find(id => LFO_KNOB_MAP[id].lfo === index && LFO_KNOB_MAP[id].param === 'wave');
-
-                           if (rateKnobId) {
-                               const rateKnobValue = savedLfo.tempoSync ? storedFreeValue : lfoState[index].rate;
-                               setFxValue(parseInt(rateKnobId), rateKnobValue, true);
-                           }
-                           if (depthKnobId) setFxValue(parseInt(depthKnobId), lfoState[index].depth, true);
-                           if (waveKnobId) {
-                               const waveIndex = lfoState[index].wave;
-                               const waveKnobValue = (waveIndex + 0.5) / LFO_WAVEFORMS.length;
-                               setFxValue(parseInt(waveKnobId), waveKnobValue, true);
-                               const waveDisplay = document.getElementById(`lfo-wave-display-${index}`);
-                               if (waveDisplay) waveDisplay.textContent = LFO_WAVEFORMS[waveIndex];
-                           }
-
-                           updateLfoDestDisplay(index);
-
-                           if (synthNode) {
-                               synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'rate', value: lfoState[index].rate } });
-                               synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'depth', value: lfoState[index].depth } });
-                               synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'wave', value: lfoState[index].wave } });
-                               synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'destChain', value: getLfoDestChain(lfoState[index]) } });
-                           }
-                       }
-                   });
-
-                   if (lfoState.some(lfo => getLfoDestChain(lfo).some(dest => LFO_DEST_TO_MAIN_KNOB[dest]))) {
-                       ensureLfoAnimationRunning();
+                   const storedFreeValue = clamp(savedLfo.storedFreeValue ?? lfoTempoLinkState[index].storedFreeValue ?? 0.5, 0, 1);
+                   lfoTempoLinkState[index].storedFreeValue = storedFreeValue;
+                   if (savedLfo.tempoSync) {
+                       presetTempoSyncTargets.push({ index, storedFreeValue });
                    }
-               } else { // Reset LFOs for older presets (THE FIX IS HERE)
-                   lfoState.forEach((lfo, index) => {
-                       lfo.rate = 0; lfo.depth = 0; lfo.wave = 0;
-                       setLfoDestChain(index, []);
 
-                       // *** FORCE UPDATE THE AUDIO ENGINE ***
-                       if (synthNode) {
-                           synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'rate', value: 0 } });
-                           synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'depth', value: 0 } });
-                           synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'wave', value: 0 } });
-                            synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'destChain', value: [] } });
-                        }
-                    });
-
-                   // Reset UI Text
-                   for (let i = 0; i < 4; i++) {
-                        const waveDisplay = document.getElementById(`lfo-wave-display-${i}`);
-                        if (waveDisplay) waveDisplay.textContent = 'SINE';
-                        updateLfoDestDisplay(i);
-                   }
-               }
-           } else {
-               // Reassert the existing LFO configuration when locked so newer presets without LFO data
-               // keep the previous modulation routing and depth.
-               lfoState.forEach((lockedLfo, index) => {
                    const rateKnobId = Object.keys(LFO_KNOB_MAP).find(id => LFO_KNOB_MAP[id].lfo === index && LFO_KNOB_MAP[id].param === 'rate');
                    const depthKnobId = Object.keys(LFO_KNOB_MAP).find(id => LFO_KNOB_MAP[id].lfo === index && LFO_KNOB_MAP[id].param === 'depth');
                    const waveKnobId = Object.keys(LFO_KNOB_MAP).find(id => LFO_KNOB_MAP[id].lfo === index && LFO_KNOB_MAP[id].param === 'wave');
 
-                   // Destinations must always be reasserted to keep the modulation patch live.
-                   setLfoDestChain(index, getLfoDestChain(lockedLfo));
-
                    if (rateKnobId) {
-                       const rateValue = lfoTempoLinkState[index]?.enabled ? lfoTempoLinkState[index].storedFreeValue : (lockedLfo.rate ?? 0);
-                       setFxValue(parseInt(rateKnobId, 10), rateValue, true);
+                       const rateKnobValue = savedLfo.tempoSync ? storedFreeValue : lfoState[index].rate;
+                       setFxValue(parseInt(rateKnobId), rateKnobValue, true);
                    }
-                   if (depthKnobId) setFxValue(parseInt(depthKnobId, 10), lockedLfo.depth ?? 0, true);
+                   if (depthKnobId) setFxValue(parseInt(depthKnobId), lfoState[index].depth, true);
                    if (waveKnobId) {
-                       const waveIndex = lockedLfo.wave ?? 0;
-                       const waveValue = (waveIndex + 0.5) / LFO_WAVEFORMS.length;
-                       setFxValue(parseInt(waveKnobId, 10), waveValue, true);
+                       const waveIndex = lfoState[index].wave;
+                       const waveKnobValue = (waveIndex + 0.5) / LFO_WAVEFORMS.length;
+                       setFxValue(parseInt(waveKnobId), waveKnobValue, true);
                        const waveDisplay = document.getElementById(`lfo-wave-display-${index}`);
                        if (waveDisplay) waveDisplay.textContent = LFO_WAVEFORMS[waveIndex];
                    }
 
+                   updateLfoDestDisplay(index);
+
                    if (synthNode) {
-                       synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'rate', value: lockedLfo.rate ?? 0 } });
-                       synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'depth', value: lockedLfo.depth ?? 0 } });
-                       synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'wave', value: lockedLfo.wave ?? 0 } });
-                       synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'destChain', value: getLfoDestChain(lockedLfo) } });
+                       synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'rate', value: lfoState[index].rate } });
+                       synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'depth', value: lfoState[index].depth } });
+                       synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'wave', value: lfoState[index].wave } });
+                       synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'destChain', value: getLfoDestChain(lfoState[index]) } });
                    }
-               });
-
-               if (lfoState.some(lfo => getLfoDestChain(lfo).length)) {
-                   ensureLfoAnimationRunning();
                }
+           });
+
+           if (lfoState.some(lfo => getLfoDestChain(lfo).some(dest => LFO_DEST_TO_MAIN_KNOB[dest]))) {
+               ensureLfoAnimationRunning();
            }
-
-           const targetLfoMode = lfoLockActive ? true : (p.isLfoMode ?? false);
-           toggleLfoModeUI(targetLfoMode, true);
-
-           if (p.knobSettings) { p.knobSettings.forEach(kD => { const s = knobState.find(k => k.id === kD.id); if (s) s.totalAngle = kD.totalAngle ?? 0; }); }
-
-           const hasBreakSlipFxSetting = Array.isArray(p.fxSettings) && p.fxSettings.some(fx => fx.id === 35);
-           if (!hasBreakSlipFxSetting && p.breakSlipBaseDivision !== undefined) {
-               const normalizedSlip = breakSlipDivisionToNormalized(p.breakSlipBaseDivision);
-               setFxValue(35, normalizedSlip, true);
+       } else { 
+           // Reset UI if no LFOs
+           lfoState.forEach((lfo, index) => {
+               lfo.rate = 0; lfo.depth = 0; lfo.wave = 0;
+               setLfoDestChain(index, []);
+               if (synthNode) {
+                   synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'rate', value: 0 } });
+                   synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'depth', value: 0 } });
+                   synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'wave', value: 0 } });
+                    synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'destChain', value: [] } });
+                }
+            });
+           for (let i = 0; i < 4; i++) {
+                const waveDisplay = document.getElementById(`lfo-wave-display-${i}`);
+                if (waveDisplay) waveDisplay.textContent = 'SINE';
+                updateLfoDestDisplay(i);
            }
-
-           if (p.fxSettings) {
-               p.fxSettings.forEach(fx => {
-                   if (arpLockActive && [16, 17, 18, 19, 22, 23, 24, 25, 35, 36, 32, 33, 34].includes(fx.id)) return;
-                   if (lfoLockActive && LFO_FX_IDS.includes(fx.id)) return;
-                   setFxValue(fx.id, fx.value ?? 0);
-               });
+       }
+    } else {
+       // LFO Lock active... (rest of logic)
+       lfoState.forEach((lockedLfo, index) => {
+           const rateKnobId = Object.keys(LFO_KNOB_MAP).find(id => LFO_KNOB_MAP[id].lfo === index && LFO_KNOB_MAP[id].param === 'rate');
+           const depthKnobId = Object.keys(LFO_KNOB_MAP).find(id => LFO_KNOB_MAP[id].lfo === index && LFO_KNOB_MAP[id].param === 'depth');
+           const waveKnobId = Object.keys(LFO_KNOB_MAP).find(id => LFO_KNOB_MAP[id].lfo === index && LFO_KNOB_MAP[id].param === 'wave');
+           setLfoDestChain(index, getLfoDestChain(lockedLfo));
+           if (rateKnobId) {
+               const rateValue = lfoTempoLinkState[index]?.enabled ? lfoTempoLinkState[index].storedFreeValue : (lockedLfo.rate ?? 0);
+               setFxValue(parseInt(rateKnobId, 10), rateValue, true);
            }
-
-           if (p.arpSettings && !arpLockActive) {
-               isArpRateSynced = p.arpSettings.isArpRateSynced ?? false;
-               currentArpOrder = p.arpSettings.currentArpOrder ?? "Up";
-               arpSyncSwitch.classList.toggle('on', isArpRateSynced);
-               arpOrderSelector.value = currentArpOrder;
-
-               const arp1 = p.arpSettings.arp1 || {};
-               knobState[0].isArpOn = arp1.isArpOn ?? false;
-               knobState[0].isArpHoldOn = arp1.isOn ?? false;
-               knobState[0].isSweepMode = arp1.isSweepMode ?? true;
-               knobState[0].dom.arpModeSwitch?.classList.toggle('on', knobState[0].isSweepMode);
-                knobState[0].arpNotes = (arp1.notes || []).map(n => typeof n === 'number' ? { midi: n, active: true } : n);
-               updateSequenceDisplay(0);
-               knobState[0].arpTranspose = arp1.transpose ?? 0;
-               if (knobState[0].isArpOn && !knobState[0].isArpHoldOn && knobState[0].arpNotes.length > 0) {
-                   knobState[0].isArpHoldOn = true;
-               }
-               knobState[0].dom.arpSwitch?.classList.toggle('on', knobState[0].isArpOn);
-               document.getElementById('arp-hold-switch-0')?.classList.toggle('on', knobState[0].isArpHoldOn);
-
-               const arp2 = p.arpSettings.arp2 || {};
-               knobState[1].isArpOn = arp2.isArpOn ?? false;
-               knobState[1].isArpHoldOn = arp2.isOn ?? false;
-               knobState[1].isSweepMode = arp2.isSweepMode ?? true;
-               knobState[1].dom.arpModeSwitch?.classList.toggle('on', knobState[1].isSweepMode);
-                knobState[1].arpNotes = (arp2.notes || []).map(n => typeof n === 'number' ? { midi: n, active: true } : n);
-               updateSequenceDisplay(1);
-               knobState[1].arpTranspose = arp2.transpose ?? 0;
-               if (knobState[1].isArpOn && !knobState[1].isArpHoldOn && knobState[1].arpNotes.length > 0) {
-                   knobState[1].isArpHoldOn = true;
-               }
-               knobState[1].dom.arpSwitch?.classList.toggle('on', knobState[1].isArpOn);
-               document.getElementById('arp-hold-switch-1')?.classList.toggle('on', knobState[1].isArpHoldOn);
-
-               if (isArpRateSynced && knobState[0].isArpOn && knobState[1].isArpOn) {
-                    const arp1RateValue = fxKnobData[16].value;
-                    setFxValue(17, arp1RateValue);
-               }
-
-               updateFeelPatternPreview(0);
-               updateFeelPatternPreview(1);
+           if (depthKnobId) setFxValue(parseInt(depthKnobId, 10), lockedLfo.depth ?? 0, true);
+           if (waveKnobId) {
+               const waveIndex = lockedLfo.wave ?? 0;
+               const waveValue = (waveIndex + 0.5) / LFO_WAVEFORMS.length;
+               setFxValue(parseInt(waveKnobId, 10), waveValue, true);
+               const waveDisplay = document.getElementById(`lfo-wave-display-${index}`);
+               if (waveDisplay) waveDisplay.textContent = LFO_WAVEFORMS[waveIndex];
            }
-
-           if (presetTempoSyncTargets.length > 0) {
-               presetTempoSyncTargets.forEach(({ index, storedFreeValue }) => {
-                   setLfoTempoSync(index, true, storedFreeValue);
-               });
+           if (synthNode) {
+               synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'rate', value: lockedLfo.rate ?? 0 } });
+               synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'depth', value: lockedLfo.depth ?? 0 } });
+               synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'wave', value: lockedLfo.wave ?? 0 } });
+               synthNode.port.postMessage({ type: 'setLfo', data: { lfoId: index, param: 'destChain', value: getLfoDestChain(lockedLfo) } });
            }
+       });
+       if (lfoState.some(lfo => getLfoDestChain(lfo).length)) {
+           ensureLfoAnimationRunning();
+       }
+    }
 
-           updateGlobalArpVisibility();
-           knobState.forEach(k => { updateStateFromTotalAngle(k.id); });
-          knobState.forEach(k => {
-               if (isPowerOn && k.isArpOn && k.isArpHoldOn && k.arpNotes.length > 0) {
-                   startArpeggiator(k.id);
-                      if (p.arpSettings) {
+    const targetLfoMode = lfoLockActive ? true : (p.isLfoMode ?? false);
+    toggleLfoModeUI(targetLfoMode, true);
+
+    if (p.knobSettings) { p.knobSettings.forEach(kD => { const s = knobState.find(k => k.id === kD.id); if (s) s.totalAngle = kD.totalAngle ?? 0; }); }
+
+    const hasBreakSlipFxSetting = Array.isArray(p.fxSettings) && p.fxSettings.some(fx => fx.id === 35);
+    if (!hasBreakSlipFxSetting && p.breakSlipBaseDivision !== undefined) {
+       const normalizedSlip = breakSlipDivisionToNormalized(p.breakSlipBaseDivision);
+       setFxValue(35, normalizedSlip, true);
+    }
+
+    if (p.fxSettings) {
+       p.fxSettings.forEach(fx => {
+           if (arpLockActive && [16, 17, 18, 19, 22, 23, 24, 25, 35, 36, 32, 33, 34].includes(fx.id)) return;
+           if (lfoLockActive && LFO_FX_IDS.includes(fx.id)) return;
+           setFxValue(fx.id, fx.value ?? 0);
+       });
+    }
+
+    if (p.arpSettings && !arpLockActive) {
+       isArpRateSynced = p.arpSettings.isArpRateSynced ?? false;
+       currentArpOrder = p.arpSettings.currentArpOrder ?? "Up";
+       arpSyncSwitch.classList.toggle('on', isArpRateSynced);
+       arpOrderSelector.value = currentArpOrder;
+
+       const arp1 = p.arpSettings.arp1 || {};
+       knobState[0].isArpOn = arp1.isArpOn ?? false;
+       knobState[0].isArpHoldOn = arp1.isOn ?? false;
+       knobState[0].isSweepMode = arp1.isSweepMode ?? true;
+       knobState[0].dom.arpModeSwitch?.classList.toggle('on', knobState[0].isSweepMode);
+        knobState[0].arpNotes = (arp1.notes || []).map(n => typeof n === 'number' ? { midi: n, active: true } : n);
+       updateSequenceDisplay(0);
+       knobState[0].arpTranspose = arp1.transpose ?? 0;
+       if (knobState[0].isArpOn && !knobState[0].isArpHoldOn && knobState[0].arpNotes.length > 0) {
+           knobState[0].isArpHoldOn = true;
+       }
+       knobState[0].dom.arpSwitch?.classList.toggle('on', knobState[0].isArpOn);
+       document.getElementById('arp-hold-switch-0')?.classList.toggle('on', knobState[0].isArpHoldOn);
+
+       const arp2 = p.arpSettings.arp2 || {};
+       knobState[1].isArpOn = arp2.isArpOn ?? false;
+       knobState[1].isArpHoldOn = arp2.isOn ?? false;
+       knobState[1].isSweepMode = arp2.isSweepMode ?? true;
+       knobState[1].dom.arpModeSwitch?.classList.toggle('on', knobState[1].isSweepMode);
+        knobState[1].arpNotes = (arp2.notes || []).map(n => typeof n === 'number' ? { midi: n, active: true } : n);
+       updateSequenceDisplay(1);
+       knobState[1].arpTranspose = arp2.transpose ?? 0;
+       if (knobState[1].isArpOn && !knobState[1].isArpHoldOn && knobState[1].arpNotes.length > 0) {
+           knobState[1].isArpHoldOn = true;
+       }
+       knobState[1].dom.arpSwitch?.classList.toggle('on', knobState[1].isArpOn);
+       document.getElementById('arp-hold-switch-1')?.classList.toggle('on', knobState[1].isArpHoldOn);
+
+       if (isArpRateSynced && knobState[0].isArpOn && knobState[1].isArpOn) {
+            const arp1RateValue = fxKnobData[16].value;
+            setFxValue(17, arp1RateValue);
+       }
+
+       updateFeelPatternPreview(0);
+       updateFeelPatternPreview(1);
+    }
+
+    if (presetTempoSyncTargets.length > 0) {
+       presetTempoSyncTargets.forEach(({ index, storedFreeValue }) => {
+           setLfoTempoSync(index, true, storedFreeValue);
+       });
+    }
+
+    updateGlobalArpVisibility();
+    knobState.forEach(k => { updateStateFromTotalAngle(k.id); });
+    knobState.forEach(k => {
+       if (isPowerOn && k.isArpOn && k.isArpHoldOn && k.arpNotes.length > 0) {
+           startArpeggiator(k.id);
+              if (p.arpSettings) {
                 const arpData = (k.id === 0) ? p.arpSettings.arp1 : p.arpSettings.arp2;
-                
                 if (arpData) {
-                    // Restore Euclidean Step (Rhythm Phase)
                     if (typeof arpData.stepCounter === 'number') {
                         k.euclideanStepCounter = arpData.stepCounter;
                     }
-                    
-                    // Restore Note Index (Melodic Phase)
                     if (typeof arpData.noteIndex === 'number') {
                         k.currentArpNoteIndex = arpData.noteIndex;
                     }
                 }
-               }
-              }
-           });
-
-           // Trigger drum autoplay after arps are running so the queue check passes
-           if (presetBreakShouldPlay && !breakPlayRequested) {
-               toggleBreakPlayback({ allowArplessStart: true });
            }
        }
+    });
+
+    if (presetBreakShouldPlay && !breakPlayRequested) {
+       toggleBreakPlayback({ allowArplessStart: true });
+    }
+}
 
 function setFxValue(id, value, forceVisualUpdate = false) {
             const d = fxKnobData[id];
@@ -6130,6 +6117,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
