@@ -437,7 +437,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
     // 8  = 1/2 Bar
     // 4  = 1/4 Bar (1 Beat)
     // 1  = 1/16 Note (Instant)
-    const ARP_LAUNCH_QUANTIZATION = 4; // <--- CHANGE THIS VALUE to tweak Arp feel
+    const ARP_LAUNCH_QUANTIZATION = 1; // <--- CHANGE THIS VALUE to tweak Arp feel
 
     // --- BPM MODE (Grid Locked) ---
     if (tempoMode === TEMPO_MODE_BPM) {
@@ -1262,7 +1262,7 @@ async function toggleBreakPlayback(options = {}) {
         const tempoSource = getTempoSourceState();
         if (tempoSource) {
             const patternLen = 16;
-            const QUANTIZATION = 4; // 4 steps = 1 Beat (Quarter Note)
+            const QUANTIZATION = 1; // 4 steps = 1 Beat (Quarter Note)
 
             // Calculate where we are right now
             const currentStep = tempoSource.euclideanStepCounter % patternLen;
@@ -5963,6 +5963,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
