@@ -85,7 +85,6 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakGridContainer = null;
         let breakPlayButton = null;
         let breakSlipDisplay = null;
-        let breakFxSwitch = null;
         let breakSlipModeSwitch = null;
         let breakModeSwitch = null;
         let breakGridDefaultSlot = null;
@@ -121,7 +120,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakWaveformColors = null;
         let breakWaveformLastProgress = 0;
         let breakSlipCycleStartTime = 0;
-        let breakFxSendToGlobalFx = false;
+        let breakFxSendAmount = 0;
         let breakSlipAnchorHoldEnabled = true;
         const BREAK_SLIP_DIVISIONS = [4, 1, 0.5, 0.25, 0.125, 0.0625, 0.03125];
         let breakSelectionDisplay = null;
@@ -691,12 +690,6 @@ let liveLfoOutputs = [0, 0, 0, 0];
             return `1/${Math.round(1 / value)}`;
         }
 
-        function updateBreakFxSwitchUi() {
-            if (!breakFxSwitch) return;
-            breakFxSwitch.classList.toggle('on', breakFxSendToGlobalFx);
-            breakFxSwitch.setAttribute('aria-checked', breakFxSendToGlobalFx ? 'true' : 'false');
-        }
-
         function updateBreakSlipModeUi() {
             if (!breakSlipModeSwitch) return;
             breakSlipModeSwitch.classList.toggle('on', breakSlipAnchorHoldEnabled);
@@ -725,14 +718,21 @@ let liveLfoOutputs = [0, 0, 0, 0];
 }
         
 
-        function setBreakFxRouting(enabled) {
-            const next = !!enabled;
-            if (breakFxSendToGlobalFx !== next) {
-                breakFxSendToGlobalFx = next;
+        function setBreakFxAmount(amount, { syncKnob = true } = {}) {
+            const clamped = clamp(amount, 0, 1);
+            breakFxSendAmount = clamped;
+
+            if (syncKnob) {
+                const knob = fxKnobData[37];
+                if (knob) {
+                    knob.value = clamped;
+                    knob.angle = MIN_FX_ANGLE + (clamped * (MAX_FX_ANGLE - MIN_FX_ANGLE));
+                    applyIndicatorTransform(knob.indicator, knob.angle);
+                }
             }
-            updateBreakFxSwitchUi();
+
             if (synthNode) {
-                synthNode.port.postMessage({ type: 'setBreakFxSend', data: { enabled: breakFxSendToGlobalFx } });
+                synthNode.port.postMessage({ type: 'setBreakFxSend', data: { amount: breakFxSendAmount } });
             }
         }
 
@@ -1908,7 +1908,7 @@ function generateComplexRandomLfoState(includeArpTargets = true) {
                allowDuplicateNotesMode: allowDuplicateNotesMode,
                isLfoMode: isLfoMode,
                breakModeActive: breakModeActive,
-               breakFxSendToGlobalFx: breakFxSendToGlobalFx,
+               breakFxSendAmount: breakFxSendAmount,
                breakSlipAnchorHoldEnabled: breakSlipAnchorHoldEnabled,
                breakPlayActive: breakPlayRequested || breakRunning,
                breakSlipBaseDivision: breakSlipBaseDivision,
@@ -2684,7 +2684,7 @@ for (const event of events) {
                    if (synthNode && d.id === 7) { synthNode.port.postMessage({type:'setFx', data:{id:d.id, value:d.value}}); }
                });
                await ensureBreakSampleLoaded();
-               setBreakFxRouting(breakFxSendToGlobalFx);
+               setBreakFxAmount(breakFxSendAmount, { syncKnob: false });
            })();
 
            return audioSetupPromise;
@@ -2885,12 +2885,17 @@ function sendMidiMessage(message) {
 
             applyIndicatorTransform(d.indicator, d.angle);
 
-            if (id === 36) {
-               const nextIndex = breakValueToIndex(d.value);
-               const progressNormalized = getBreakLoopProgressNormalized();
-               setBreakSampleIndex(nextIndex, { progressNormalized, normalizedValue: d.value });
+           if (id === 36) {
+              const nextIndex = breakValueToIndex(d.value);
+              const progressNormalized = getBreakLoopProgressNormalized();
+              setBreakSampleIndex(nextIndex, { progressNormalized, normalizedValue: d.value });
+              return;
+           }
+
+           if (id === 37) {
+               setBreakFxAmount(d.value, { syncKnob: false });
                return;
-            }
+           }
 
            if (id === 35) {
                const snappedDivision = normalizedToBreakSlipDivision(d.value);
@@ -3109,6 +3114,7 @@ else if(id===22||id===23){fxKnobData[id].value=0.0;} else if(id===24||id===25){f
                    k.addEventListener('dblclick', handleTempoKnobDoubleClick);
                }
            });
+           breakFxSendAmount = fxKnobData[37]?.value ?? 0;
            document.addEventListener('mousemove', handleFxMouseMove); document.addEventListener('mouseup', handleFxMouseUp);
            document.addEventListener('touchmove', handleFxTouchMove, {passive:false}); document.addEventListener('touchend', handleFxTouchEnd); document.addEventListener('touchcancel', handleFxTouchEnd);
        }
@@ -4435,8 +4441,10 @@ async function applyPreset(p, isArpCategoryPreset = false, options = {}) {
             }
         }
 
-        if (p.breakFxSendToGlobalFx !== undefined) {
-            setBreakFxRouting(!!p.breakFxSendToGlobalFx);
+        if (p.breakFxSendAmount !== undefined) {
+            setBreakFxAmount(p.breakFxSendAmount);
+        } else if (p.breakFxSendToGlobalFx !== undefined) {
+            setBreakFxAmount(p.breakFxSendToGlobalFx ? 1 : 0);
         }
 
         if (p.breakSlipAnchorHoldEnabled !== undefined) {
@@ -4580,7 +4588,7 @@ async function applyPreset(p, isArpCategoryPreset = false, options = {}) {
 
     if (p.fxSettings) {
        p.fxSettings.forEach(fx => {
-           if (arpLockActive && [16, 17, 18, 19, 22, 23, 24, 25, 35, 36, 32, 33, 34].includes(fx.id)) return;
+           if (arpLockActive && [16, 17, 18, 19, 22, 23, 24, 25, 35, 36, 37, 32, 33, 34].includes(fx.id)) return;
            if (lfoLockActive && LFO_FX_IDS.includes(fx.id)) return;
            setFxValue(fx.id, fx.value ?? 0);
        });
@@ -4690,6 +4698,12 @@ function setFxValue(id, value, forceVisualUpdate = false) {
                 return;
             }
 
+            if (id === 37) {
+                const clampedValue = Math.max(0, Math.min(1, value));
+                setBreakFxAmount(clampedValue);
+                return;
+            }
+
             d.value = Math.max(0, Math.min(1, value));
             d.angle = MIN_FX_ANGLE + (d.value * (MAX_FX_ANGLE - MIN_FX_ANGLE));
             if (d.indicator && (!isLfoMode || forceVisualUpdate)) {
@@ -4756,7 +4770,7 @@ function resetAllFxToDefaults({ skipArpKnobs = false, skipLfoKnobs = false, skip
         const id = parseInt(idStr, 10);
         
         // Skip Arp/Seq knobs
-        if (skipArpKnobs && [16, 17, 18, 19, 22, 23, 24, 25, 35, 36, 32, 33, 34].includes(id)) return;
+        if (skipArpKnobs && [16, 17, 18, 19, 22, 23, 24, 25, 35, 36, 37, 32, 33, 34].includes(id)) return;
         
         // Skip LFO knobs
         if (skipLfoKnobs && LFO_FX_IDS.includes(id)) return;
@@ -4776,6 +4790,7 @@ function resetAllFxToDefaults({ skipArpKnobs = false, skipLfoKnobs = false, skip
         if (id === 32) defaultValue = 0.5;
         if (id === 33) defaultValue = 0.0;
         if (id === 34) defaultValue = 0.7;
+        if (id === 37) defaultValue = 0.0;
         
         setFxValue(id, defaultValue);
     });
@@ -5119,7 +5134,6 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
            breakGridContainer = document.getElementById('break-grid-container');
            breakPlayButton = document.getElementById('break-play-button');
            breakSlipDisplay = document.getElementById('break-slip-display');
-           breakFxSwitch = document.getElementById('break-fx-switch');
            breakSlipModeSwitch = document.getElementById('break-slip-mode-switch');
            breakModeSwitch = document.getElementById('break-mode-switch');
            breakGridDefaultSlot = document.getElementById('break-grid-default-slot') || breakGridContainer?.parentElement;
@@ -5180,13 +5194,6 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                    await toggleBreakPlayback();
                });
                updateBreakPlayUi();
-           }
-           if (breakFxSwitch) {
-               addTouchListener(breakFxSwitch, async () => {
-                   if (!isPowerOn) await powerOn();
-                   setBreakFxRouting(!breakFxSendToGlobalFx);
-               });
-               updateBreakFxSwitchUi();
            }
            if (breakSlipModeSwitch) {
                addTouchListener(breakSlipModeSwitch, async () => {
