@@ -1768,7 +1768,7 @@ async function toggleBreakPlayback(options = {}) {
       let masterArpControls, arpOrderSelector, arpLockSwitch, lfoLockSwitch;
       let allArpControlGrids;
       let rateDisplayRows = [];
-      let modalOverlay, howToButton, closeModalButton, shareButton;
+      let modalOverlay, howToButton, closeModalButton;
 
       let currentPresetMetadata = null;
 
@@ -2386,167 +2386,6 @@ function generateComplexRandomLfoState(includeArpTargets = true) {
            },
       };
 
-      function encodePresetForUrl(presetObj) {
-    try {
-        const json = JSON.stringify(presetObj);
-        const base64 = LZString.compressToBase64(json) || '';
-
-        // CUSTOM SAFE ENCODING 2.0:
-        // 1. Replace '+' with '.' (instead of '~')
-        //    '.' is unreserved, won't be encoded to %7E, and is safer for iMessage.
-        // 2. Replace '/' with '_' (standard URL safe).
-        // 3. Remove padding '='.
-        return base64
-            .replace(/\+/g, '.') 
-            .replace(/\//g, '_')
-            .replace(/=+$/g, ''); 
-    } catch (err) {
-        console.error('Failed to encode preset', err);
-        return '';
-    }
-}
-
-function decodePresetFromUrl(encodedPreset) {
-    if (!encodedPreset) return null;
-
-    // Helper to restore standard Base64 from our safe formats
-    const restoreBase64 = (str) => {
-        // robustness: handle '.', '~', and '-' as '+'
-        // (This ensures backward compatibility with previous link versions)
-        const safeStr = str.replace(/[.~-]/g, '+').replace(/_/g, '/');
-        const padLen = (4 - (safeStr.length % 4)) % 4;
-        return safeStr + '='.repeat(padLen);
-    };
-
-    // 1. Try Base64 (New Dot/Dash-Free & Standard Base64URL)
-    try {
-        const decompressed = LZString.decompressFromBase64(restoreBase64(encodedPreset));
-        if (decompressed) {
-            const parsed = JSON.parse(decompressed);
-            if (parsed) return parsed;
-        }
-    } catch (e) {
-        // Fall through to legacy
-    }
-
-    // 2. Fallback: Legacy LZString EncodedURIComponent
-    try {
-        const decompressed = LZString.decompressFromEncodedURIComponent(encodedPreset);
-        if (decompressed) return JSON.parse(decompressed);
-    } catch (e) {
-        // Fall through
-    }
-
-    return null;
-}
-
-      function generateShareableUrl() {
-           try {
-               const preset = buildPresetData();
-               const metadata = preset.metadata || {};
-
-               // Remove metadata from the compressed payload to keep the URL shorter for SMS/MMS.
-               // Messaging apps can split very long URLs into multiple messages, which breaks link previews.
-               const { metadata: _omit, ...presetWithoutMeta } = preset;
-               const urlSafePreset = encodePresetForUrl(presetWithoutMeta);
-
-               // FIX: Use origin + pathname to build a clean base URL every time.
-               // This prevents issues where re-sharing might inherit malformed data
-               // or accumulate debris from the current window.location.href
-               const baseUrl = window.location.origin + window.location.pathname;
-               const url = new URL(baseUrl);
-
-               url.searchParams.set('preset', urlSafePreset);
-               const displayName = (metadata.name || '').trim();
-               if (displayName) url.searchParams.set('name', displayName);
-               const sourceType = (metadata.sourceType || '').trim();
-               if (sourceType) url.searchParams.set('source', sourceType);
-               if (metadata.category !== undefined && metadata.category !== null) {
-                   url.searchParams.set('cat', String(metadata.category));
-               }
-
-               return url.toString();
-           } catch (err) {
-               console.error('Failed to generate shareable URL', err);
-               return window.location.href;
-           }
-      }
-
-     async function loadPresetFromUrl() {
-           const params = new URLSearchParams(window.location.search);
-           const encodedPreset = params.get('preset');
-           const presetUrl = params.get('presetUrl');
-           let parsedPreset = null;
-
-           if (encodedPreset) {
-               try {
-                   parsedPreset = decodePresetFromUrl(encodedPreset);
-               } catch (err) {
-                   console.error('Failed to load preset from encoded URL data', err);
-               }
-           }
-
-           if (!parsedPreset && presetUrl) {
-               try {
-                   const response = await fetch(presetUrl);
-                   if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                   parsedPreset = await response.json();
-               } catch (err) {
-                   console.error('Failed to fetch preset from URL', err);
-               }
-           }
-
-           if (!parsedPreset) return false;
-
-           const presetMetadata = parsedPreset.metadata || {};
-           const fallbackDisplayName = params.get('name');
-           const fallbackSourceType = params.get('source');
-           const fallbackCategory = params.has('cat') ? params.get('cat') : null;
-
-           const presetDisplayName = (fallbackDisplayName || presetMetadata.name || '').trim() || 'LINK';
-           const presetSourceType = (fallbackSourceType || presetMetadata.sourceType || '').trim() || 'user';
-           const presetCategory = fallbackCategory !== null ? fallbackCategory : (presetMetadata.category ?? null);
-
-           // Re-attach metadata so subsequent shares preserve the display name without bloating the URL.
-           parsedPreset.metadata = {
-               name: presetDisplayName,
-               sourceType: presetSourceType,
-               category: presetCategory,
-           };
-
-           // --- NEW: Intercept with Warning Modal ---
-           const warningModal = document.getElementById('share-warning-modal-overlay');
-           const confirmBtn = document.getElementById('confirm-share-load-button');
-
-           if (warningModal && confirmBtn) {
-               // Show the warning
-               warningModal.classList.remove('opacity-0', 'pointer-events-none');
-
-               // Wait for user confirmation
-               return new Promise((resolve) => {
-                   confirmBtn.onclick = async () => {
-                       // Hide modal
-                       warningModal.classList.add('opacity-0', 'pointer-events-none');
-                       
-                       // Initialize Audio Context on user gesture
-                       await powerOn();
-
-                       // Apply the preset
-                       applyPreset(parsedPreset, false, { skipPowerOn: true });
-                       updatePresetDisplay(presetDisplayName, presetSourceType, presetCategory);
-
-                       // Resolve true so init() knows we handled a preset
-                       resolve(true);
-                   };
-               });
-           }
-
-           // Fallback if modal is missing
-           await powerOn();
-           applyPreset(parsedPreset, false, { skipPowerOn: true });
-           updatePresetDisplay(presetDisplayName, presetSourceType, presetCategory);
-           return true;
-      }
        function float32ToPCM16(f) {
            const out = new Int16Array(f.length);
            for (let i = 0; i < f.length; i++) { let s = f[i]; if (s > 1) s = 1; else if (s < -1) s = -1; out[i] = s < 0 ? (s * 0x8000) : (s * 0x7FFF); }
@@ -5313,7 +5152,6 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
            modalOverlay = document.getElementById('how-to-modal-overlay');
            howToButton = document.getElementById('how-to-button-header');
            closeModalButton = document.getElementById('close-modal-button');
-           shareButton = document.getElementById('share-button');
            customScaleBuilder = document.getElementById('custom-scale-builder');
            recordButton = document.getElementById('record-button');
            recordMidiButton = document.getElementById('record-midi-button');
@@ -5325,8 +5163,6 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           buildPresetNavigationList();
           updatePresetDisplay();
 
-          let presetLoadedFromUrl = false;
-           
            // --- 3. TOUCH HELPER FUNCTION ---
            const addTouchListener = (element, callback) => {
                if (!element) return;
@@ -5414,47 +5250,6 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                }
           });
 
-          addTouchListener(shareButton, async () => {
-               if (!shareButton) return;
-               const originalLabel = shareButton.textContent;
-               
-               const shareUrl = generateShareableUrl();
-               const shareData = {
-                   title: 'NO-B 250 Patch',
-                   url: shareUrl
-               };
-
-               // Simple check to prioritize native sharing ONLY on mobile devices
-               const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
-               // 1. Try Native Share (Mobile Only)
-               if (isMobile && navigator.share && navigator.canShare && navigator.canShare(shareData)) {
-                   try {
-                       await navigator.share(shareData);
-                   } catch (err) {
-                       // Ignore 'AbortError' (user cancelled the share sheet)
-                       if (err.name !== 'AbortError') {
-                           console.error('Share failed', err);
-                       }
-                   }
-               } 
-               // 2. Desktop Fallback (Copy to Clipboard)
-               else {
-                   try {
-                       await navigator.clipboard.writeText(shareUrl);
-                       shareButton.textContent = 'URL COPIED';
-                   } catch (err) {
-                       console.error('Clipboard failed', err);
-                       shareButton.textContent = 'COPY FAILED';
-                   }
-                   
-                   // Reset button text after delay
-                   setTimeout(() => {
-                       if (shareButton) shareButton.textContent = originalLabel;
-                   }, 1200);
-               }
-               shareButton.blur();
-           });
               addTouchListener(recordButton, () => {
                if (!isPowerOn) {
                    powerOn();
@@ -5769,8 +5564,6 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
            });
            updateLfoTempoSwitchStates();
 
-          presetLoadedFromUrl = await loadPresetFromUrl();
-            
             document.querySelectorAll('.fx-knob-container').forEach(knobEl => {
                 const id = knobEl.dataset.fxId;
                 const labelEl = knobEl.nextElementSibling;
@@ -6161,13 +5954,11 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateGlobalArpVisibility();
          const initialPresetCategory = 'KEYS';
          const initialPresetName = 'DREAMY MALLET';
-          if (!presetLoadedFromUrl) {
-              if (applyFactoryPreset(initialPresetCategory, initialPresetName, { skipPowerOn: true })) {
-                  updatePresetDisplay(initialPresetName, 'factory', initialPresetCategory);
-              } else {
-                  updatePresetDisplay();
-                  knobState.forEach(k => updateStateFromTotalAngle(k.id));
-              }
+          if (applyFactoryPreset(initialPresetCategory, initialPresetName, { skipPowerOn: true })) {
+              updatePresetDisplay(initialPresetName, 'factory', initialPresetCategory);
+          } else {
+              updatePresetDisplay();
+              knobState.forEach(k => updateStateFromTotalAngle(k.id));
           }
           updateRateButtonLockState();
       }
