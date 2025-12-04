@@ -5737,6 +5737,11 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                    const wasOn = s.isArpOn;
                    s.isArpOn = !s.isArpOn; s.dom.arpSwitch.classList.toggle('on', s.isArpOn);
 
+                   if (s.isArpOn) {
+                       s.isArpHoldOn = true;
+                       holdSwitch?.classList.add('on');
+                   }
+
                    if (s.isArpOn && !wasOn && !isArpRateSynced) {
                        const otherId = s.id === 0 ? 1 : 0;
                        const otherState = knobState[otherId];
