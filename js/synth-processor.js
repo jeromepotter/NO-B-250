@@ -326,7 +326,7 @@ const LFO_DEST_NONE = -1;
                    this.slipRenderPhase = 0;
                    this.slipAnchorStart = 0;
                    this.slipActive = false;
-                   this.breakFxSend = false;
+                   this.breakFxSend = 0;
                    this.slipAnchorMode = true;
                    this.breakBypassL = new Float32Array(128);
                    this.breakBypassR = new Float32Array(128);
@@ -479,7 +479,11 @@ const LFO_DEST_NONE = -1;
                                this.recomputeSlipWindow();
                                break;
                            case 'setBreakFxSend':
-                               this.breakFxSend = !!(data && data.enabled);
+                               if (data && data.amount !== undefined) {
+                                   this.breakFxSend = Math.max(0, Math.min(1, data.amount));
+                               } else {
+                                   this.breakFxSend = data && data.enabled ? 1 : 0;
+                               }
                                break;
                             case 'setLfo':
                                 if (lfoId >= 0 && lfoId < this.lfoParams.length) {
@@ -594,7 +598,7 @@ case 'ping':
 
 // --- LFO Processing (with LFO-to-LFO modulation) ---
 let rawLfoOutputs = [0, 0, 0, 0];
-const breakFxSend = this.breakFxSend;
+const baseBreakFxSend = this.breakFxSend;
 const getLfoDestinations = (lfo) => {
     if (lfo && Array.isArray(lfo.destChain) && lfo.destChain.length) {
         return lfo.destChain;
@@ -718,6 +722,8 @@ for (const fxId in modulatedFx) {
         currentParams[id] = Math.max(0, Math.min(1, currentParams[id] + Math.max(-1, Math.min(1, modulatedFx[id]))));
     }
 }
+
+const breakFxSend = Math.max(0, Math.min(1, baseBreakFxSend + (modulatedFx[37] || 0)));
 
 // Calculate envelope times ONCE per buffer
 this.attackTime = 0.001 + Math.pow(currentParams[8], 2) * 2;
@@ -872,12 +878,15 @@ for(let i=0;i<blockSize;i++){
     let s_R = (s1_f * 0.6 + s2_f * 0.8) * 0.7;
 
     if (sampleMixL !== 0 || sampleMixR !== 0) {
-        if (breakFxSend) {
-            s_L += sampleMixL;
-            s_R += sampleMixR;
-        } else {
-            this.breakBypassL[i] = sampleMixL;
-            this.breakBypassR[i] = sampleMixR;
+        const wetAmount = Math.max(0, Math.min(1, breakFxSend));
+        const dryAmount = 1 - wetAmount;
+        if (wetAmount > 0) {
+            s_L += sampleMixL * wetAmount;
+            s_R += sampleMixR * wetAmount;
+        }
+        if (dryAmount > 0) {
+            this.breakBypassL[i] += sampleMixL * dryAmount;
+            this.breakBypassR[i] += sampleMixR * dryAmount;
         }
     }
     
@@ -1026,8 +1035,8 @@ for(let i=0; i<blockSize; i++) {
     this.filter_x2_R=this.filter_x1_R;this.filter_x1_R=s_R;this.filter_y2_R=this.filter_y1_R;this.filter_y1_R=_yR;
     
    // 4. Apply Master Volume
-    const bypassL = breakFxSend ? 0 : this.breakBypassL[i];
-    const bypassR = breakFxSend ? 0 : this.breakBypassR[i];
+    const bypassL = this.breakBypassL[i];
+    const bypassR = this.breakBypassR[i];
     let finalL = (yL + bypassL) * currentParams[7];
     let finalR = (_yR + bypassR) * currentParams[7];
 
