@@ -2,6 +2,19 @@
 ### Future Plans
 - "Split" Presets, taking advantage of dual voices with independent waveforms
 
+## [12.03] - 2025-12-03
+
+### Added
+- Dry/wet FX send control for Break/Drums loops, allowing the sampled breaks to be blended into the global effects chain.
+
+### Changed
+- Arpeggiator HOLD now enables automatically when you switch an arp on so patterns keep playing after you release the key.
+- Break/Drums controls are labeled for clarity, and Break playback quantization now matches the arpeggiator grid for tighter sync.
+- Global quantization was tightened so arpeggios and synced breaks always launch on the next 1/16th note when you hit PLAY, avoiding off-grid starts.
+
+### Removed
+- Share URL functionality has been removed.
+
 ## [11.28] - 2025-11-29
 
  ### Fixed
