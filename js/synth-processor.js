@@ -598,7 +598,7 @@ case 'ping':
 
 // --- LFO Processing (with LFO-to-LFO modulation) ---
 let rawLfoOutputs = [0, 0, 0, 0];
-const breakFxSend = this.breakFxSend;
+const baseBreakFxSend = this.breakFxSend;
 const getLfoDestinations = (lfo) => {
     if (lfo && Array.isArray(lfo.destChain) && lfo.destChain.length) {
         return lfo.destChain;
@@ -722,6 +722,8 @@ for (const fxId in modulatedFx) {
         currentParams[id] = Math.max(0, Math.min(1, currentParams[id] + Math.max(-1, Math.min(1, modulatedFx[id]))));
     }
 }
+
+const breakFxSend = Math.max(0, Math.min(1, baseBreakFxSend + (modulatedFx[37] || 0)));
 
 // Calculate envelope times ONCE per buffer
 this.attackTime = 0.001 + Math.pow(currentParams[8], 2) * 2;
