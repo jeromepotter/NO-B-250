@@ -668,3 +668,66 @@ animation: note-retrigger 0.08s ease-out;
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.soundfont-disabled {
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+#soundfont-upload-container {
+  border: none;
+}
+
+#soundfont-list-container {
+  display: none;
+  border: 1px solid #fff;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+}
+
+.soundfont-panel {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+#soundfont-list,
+#soundfont-sample-list {
+  max-height: 200px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.soundfont-item {
+  border: 1px solid #fff;
+  background: transparent;
+  justify-content: flex-start;
+}
+
+.soundfont-item.active {
+  border-color: #fbbf24;
+  box-shadow: none;
+}
+
+.soundfont-badge {
+  padding: 2px 6px;
+  border: 1px solid var(--color-text);
+  background: transparent;
+  letter-spacing: 0.12em;
+}
+
+.soundfont-subheading {
+  color: var(--color-accent-yellow);
+  letter-spacing: 0.18em;
+  font-weight: 700;
+}
+
+.soundfont-scroll {
+  border: 1px solid #fff;
+  background: transparent;
+  padding: 2px 6px;
+  font-weight: 700;
+  font-size: 10px;
+  line-height: 1;
+}

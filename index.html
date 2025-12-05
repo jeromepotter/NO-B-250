@@ -92,11 +92,11 @@
               </svg>
             </button>
           </div>
-          <div class="flex justify-center items-center space-x-4">
-            <select id="keySelector" class="retro-select text-base sm:text-lg focus:outline-none">
-                <option value="C">C</option>
-                <option value="C#">C#</option>
-              <option value="D">D</option>
+        <div class="flex justify-center items-center space-x-4">
+          <select id="keySelector" class="retro-select text-base sm:text-lg focus:outline-none">
+              <option value="C">C</option>
+              <option value="C#">C#</option>
+            <option value="D">D</option>
               <option value="D#">D#</option>
               <option value="E">E</option>
               <option value="F">F</option>
@@ -110,7 +110,33 @@
           <select id="scaleSelector" class="retro-select text-base sm:text-lg focus:outline-none"></select>
         </div>
       </div>
-      
+
+      <div id="soundfont-list-container" class="p-3 mt-3 text-[10px] sm:text-xs">
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center space-x-2">
+            <span class="font-bold tracking-[0.14em]">SOUNDFONTS</span>
+            <span id="soundfont-active-label" class="soundfont-badge text-[10px] sm:text-xs"></span>
+          </div>
+          <span id="soundfont-active-sample" class="text-[10px] sm:text-xs opacity-80 tracking-widest"></span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="flex flex-col space-y-2">
+            <div class="soundfont-subheading text-[10px] sm:text-xs tracking-[0.14em]">FILES</div>
+            <div id="soundfont-list" class="flex flex-col space-y-2"></div>
+          </div>
+          <div class="flex flex-col space-y-2">
+            <div class="flex items-center justify-between soundfont-subheading text-[10px] sm:text-xs tracking-[0.14em]">
+              <span>SOUNDS</span>
+              <div class="flex space-x-1">
+                <button id="soundfont-scroll-up" class="soundfont-scroll">▲</button>
+                <button id="soundfont-scroll-down" class="soundfont-scroll">▼</button>
+              </div>
+            </div>
+            <div id="soundfont-sample-list" class="flex flex-col space-y-2"></div>
+          </div>
+        </div>
+      </div>
+
      <div id="oscillator-row" class="flex justify-around items-start p-2 gap-x-4">
         
         <div class="flex-1 flex flex-col justify-center items-center">
@@ -686,7 +712,14 @@
           <span>SEND CLOCK</span>
         </label>
       </div>
-      
+
+      <div id="soundfont-upload-container" class="flex flex-col items-center p-2 space-y-2 mt-4 text-[10px] sm:text-xs">
+        <div class="font-bold tracking-widest">UPLOAD SOUNDFONT (.SF2)</div>
+        <input type="file" id="soundfont-file-input" class="hidden" accept=".sf2">
+        <button id="soundfont-upload-button" class="retro-button text-[10px] sm:text-xs font-bold">CHOOSE FILE</button>
+        <div id="soundfont-upload-status" class="text-[10px] sm:text-xs opacity-75 text-center"></div>
+      </div>
+
   </div> <div id="how-to-modal-overlay" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none">
       <div class="how-to-guide w-full max-w-xs sm:max-w-sm md:max-w-lg rounded-lg p-4">
         <a class='retro-button block w-full text-center mt-4' href='https://no-b-250.netlify.app/manual' target='_blank'>CLICK FOR FULL MANUAL</a>
