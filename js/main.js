@@ -284,6 +284,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             activeSoundfont.samples.forEach((sample, idx) => {
                 const item = document.createElement('button');
                 item.className = `soundfont-item retro-button text-xs sm:text-sm font-bold px-2 text-left ${idx === activeSoundfont.activeSampleIndex ? 'active' : ''}`;
+                item.dataset.sampleIndex = String(idx);
                 item.textContent = sample.name || `SAMPLE ${idx + 1}`;
                 item.addEventListener('click', () => setActiveSoundfontSample(idx));
                 sampleList.appendChild(item);
@@ -291,6 +292,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
             const activeSample = activeSoundfont.samples[activeSoundfont.activeSampleIndex];
             activeSampleLabel.textContent = activeSample?.name ? `ACTIVE: ${activeSample.name}` : '';
+            ensureActiveSampleVisible();
         }
 
         function refreshSoundfontListUI() {
@@ -315,6 +317,13 @@ let liveLfoOutputs = [0, 0, 0, 0];
             refreshSoundfontSampleList();
         }
 
+        function ensureActiveSampleVisible() {
+            const sampleList = document.getElementById('soundfont-sample-list');
+            if (!sampleList) return;
+            const activeButton = sampleList.querySelector('.soundfont-item.active');
+            activeButton?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
+
         function setActiveSoundfontSample(sampleIndex) {
             const sf = soundfontBank[activeSoundfontIndex];
             if (!sf || sampleIndex < 0 || sampleIndex >= sf.samples.length) return;
@@ -323,6 +332,15 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 synthNode.port.postMessage({ type: 'setSoundfontActiveIndex', data: { index: sampleIndex } });
             }
             refreshSoundfontSampleList();
+        }
+
+        function stepSoundfontSample(direction) {
+            const sf = soundfontBank[activeSoundfontIndex];
+            if (!sf || !sf.samples?.length) return;
+            const nextIndex = sf.activeSampleIndex + direction;
+            if (nextIndex < 0 || nextIndex >= sf.samples.length) return;
+            setActiveSoundfontSample(nextIndex);
+            ensureActiveSampleVisible();
         }
 
         function setActiveSoundfont(index) {
@@ -5754,15 +5772,10 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
 
          const soundfontUploadButton = document.getElementById('soundfont-upload-button');
          const soundfontFileInput = document.getElementById('soundfont-file-input');
-         const soundfontSampleList = document.getElementById('soundfont-sample-list');
          const soundfontScrollUp = document.getElementById('soundfont-scroll-up');
          const soundfontScrollDown = document.getElementById('soundfont-scroll-down');
-         const scrollSampleList = (direction) => {
-             if (!soundfontSampleList) return;
-             soundfontSampleList.scrollBy({ top: direction * 80, behavior: 'smooth' });
-         };
-         soundfontScrollUp?.addEventListener('click', () => scrollSampleList(-1));
-         soundfontScrollDown?.addEventListener('click', () => scrollSampleList(1));
+         soundfontScrollUp?.addEventListener('click', () => stepSoundfontSample(-1));
+         soundfontScrollDown?.addEventListener('click', () => stepSoundfontSample(1));
          addTouchListener(soundfontUploadButton, () => soundfontFileInput?.click());
          soundfontFileInput?.addEventListener('change', (e) => {
              const file = e.target.files?.[0];
