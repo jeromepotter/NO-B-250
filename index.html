@@ -111,12 +111,24 @@
         </div>
       </div>
 
-      <div id="soundfont-list-container" class="p-2 rounded-lg">
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-xs sm:text-sm font-bold tracking-widest">SOUNDFONTS</span>
-          <span id="soundfont-active-label" class="text-[10px] sm:text-xs opacity-75"></span>
+      <div id="soundfont-list-container" class="p-3 rounded-lg mt-2 soundfont-panel">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center space-x-2">
+            <span class="text-xs sm:text-sm font-bold tracking-widest">SOUNDFONTS</span>
+            <span id="soundfont-active-label" class="soundfont-badge text-[10px] sm:text-xs"></span>
+          </div>
+          <span id="soundfont-active-sample" class="text-[10px] sm:text-xs opacity-80 tracking-widest"></span>
         </div>
-        <div id="soundfont-list" class="flex flex-col space-y-2"></div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="flex flex-col space-y-2">
+            <div class="soundfont-subheading text-[10px] sm:text-xs tracking-[0.16em]">FILES</div>
+            <div id="soundfont-list" class="flex flex-col space-y-2"></div>
+          </div>
+          <div class="flex flex-col space-y-2">
+            <div class="soundfont-subheading text-[10px] sm:text-xs tracking-[0.16em]">SOUNDS</div>
+            <div id="soundfont-sample-list" class="flex flex-col space-y-2"></div>
+          </div>
+        </div>
       </div>
 
      <div id="oscillator-row" class="flex justify-around items-start p-2 gap-x-4">
@@ -684,7 +696,7 @@
         <label class="font-bold tracking-wider text-xs mt-1">DRUMS</label>
       </div>
 
-      <div id="soundfont-upload-container" class="flex flex-col items-center p-3 space-y-2 mt-6 rounded-lg">
+      <div id="soundfont-upload-container" class="flex flex-col items-center p-3 space-y-2 mt-6 rounded-lg soundfont-panel">
         <div class="text-xs sm:text-sm font-bold tracking-widest">UPLOAD SOUNDFONT (.SF2)</div>
         <input type="file" id="soundfont-file-input" class="hidden" accept=".sf2">
         <button id="soundfont-upload-button" class="retro-button text-xs font-bold">CHOOSE FILE</button>

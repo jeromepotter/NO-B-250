@@ -219,7 +219,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
                     if (code === 0) break;
                     nameChars.push(String.fromCharCode(code));
                 }
-                const name = nameChars.join('');
+                const name = nameChars.join('').trim();
                 if (name === 'EOS') break;
 
                 const start = headerView.getUint32(offset + 20, true);
@@ -269,6 +269,30 @@ let liveLfoOutputs = [0, 0, 0, 0];
             }
         }
 
+        function refreshSoundfontSampleList() {
+            const sampleList = document.getElementById('soundfont-sample-list');
+            const activeSampleLabel = document.getElementById('soundfont-active-sample');
+            if (!sampleList || !activeSampleLabel) return;
+
+            sampleList.innerHTML = '';
+            const activeSoundfont = soundfontBank[activeSoundfontIndex];
+            if (!activeSoundfont || !activeSoundfont.samples?.length) {
+                activeSampleLabel.textContent = '';
+                return;
+            }
+
+            activeSoundfont.samples.forEach((sample, idx) => {
+                const item = document.createElement('button');
+                item.className = `soundfont-item retro-button text-xs sm:text-sm font-bold px-2 text-left ${idx === activeSoundfont.activeSampleIndex ? 'active' : ''}`;
+                item.textContent = sample.name || `SAMPLE ${idx + 1}`;
+                item.addEventListener('click', () => setActiveSoundfontSample(idx));
+                sampleList.appendChild(item);
+            });
+
+            const activeSample = activeSoundfont.samples[activeSoundfont.activeSampleIndex];
+            activeSampleLabel.textContent = activeSample?.name ? `ACTIVE: ${activeSample.name}` : '';
+        }
+
         function refreshSoundfontListUI() {
             const listContainer = document.getElementById('soundfont-list-container');
             const list = document.getElementById('soundfont-list');
@@ -288,6 +312,17 @@ let liveLfoOutputs = [0, 0, 0, 0];
             });
 
             activeLabel.textContent = activeSoundfontIndex >= 0 ? soundfontBank[activeSoundfontIndex]?.name || '' : '';
+            refreshSoundfontSampleList();
+        }
+
+        function setActiveSoundfontSample(sampleIndex) {
+            const sf = soundfontBank[activeSoundfontIndex];
+            if (!sf || sampleIndex < 0 || sampleIndex >= sf.samples.length) return;
+            sf.activeSampleIndex = sampleIndex;
+            if (synthNode) {
+                synthNode.port.postMessage({ type: 'setSoundfontActiveIndex', data: { index: sampleIndex } });
+            }
+            refreshSoundfontSampleList();
         }
 
         function setActiveSoundfont(index) {
@@ -301,18 +336,23 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
             activeSoundfontIndex = index;
             const sf = soundfontBank[index];
-            const payload = sf.samples.map(sample => ({
-                name: sample.name,
-                sampleRate: sample.sampleRate,
-                originalPitch: sample.originalPitch,
-                pitchCorrection: sample.pitchCorrection,
-                loopStart: sample.loopStart,
-                loopEnd: sample.loopEnd,
-                data: sample.data.buffer,
-            }));
+            const activeSampleIndex = Math.max(0, Math.min(sf.activeSampleIndex ?? 0, sf.samples.length - 1));
+            sf.activeSampleIndex = activeSampleIndex;
+            const payload = sf.samples.map(sample => {
+                const dataCopy = new Float32Array(sample.data);
+                return {
+                    name: sample.name,
+                    sampleRate: sample.sampleRate,
+                    originalPitch: sample.originalPitch,
+                    pitchCorrection: sample.pitchCorrection,
+                    loopStart: sample.loopStart,
+                    loopEnd: sample.loopEnd,
+                    data: dataCopy.buffer,
+                };
+            });
             const transferables = payload.map(p => p.data);
             if (synthNode) {
-                synthNode.port.postMessage({ type: 'setSoundfont', data: { samples: payload } }, transferables);
+                synthNode.port.postMessage({ type: 'setSoundfont', data: { samples: payload, activeIndex: activeSampleIndex } }, transferables);
             }
             setSoundfontMode(true);
             refreshSoundfontListUI();
@@ -337,7 +377,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 try {
                     const buffer = reader.result;
                     const samples = parseSoundfont(buffer);
-                    soundfontBank.push({ name: file.name, samples });
+                    soundfontBank.push({ name: file.name, samples, activeSampleIndex: 0 });
                     setActiveSoundfont(soundfontBank.length - 1);
                     updateStatus('Loaded successfully.');
                 } catch (err) {

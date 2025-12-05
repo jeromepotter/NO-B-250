@@ -680,21 +680,44 @@ animation: note-retrigger 0.08s ease-out;
 
 #soundfont-list-container {
   display: none;
-  border: 2px solid #1f2937;
-  background: #0b1727;
+  border: 2px solid var(--color-text);
+  background: linear-gradient(180deg, rgba(8, 16, 30, 0.95), rgba(5, 11, 22, 0.95));
+  box-shadow: 0 8px 0 rgba(0, 0, 0, 0.35);
 }
 
-#soundfont-list {
-  max-height: 180px;
+.soundfont-panel {
+  border: 2px solid var(--color-text);
+  background: linear-gradient(180deg, rgba(8, 16, 30, 0.9), rgba(2, 6, 15, 0.9));
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.25);
+}
+
+#soundfont-list,
+#soundfont-sample-list {
+  max-height: 200px;
   overflow-y: auto;
+  padding-right: 4px;
 }
 
 .soundfont-item {
   border: 1px solid #1f2937;
   background: #0f2236;
+  justify-content: flex-start;
 }
 
 .soundfont-item.active {
   border-color: #fbbf24;
   box-shadow: 0 0 0 1px #fbbf24;
+}
+
+.soundfont-badge {
+  padding: 3px 8px;
+  border: 1px solid var(--color-text);
+  background: rgba(255, 255, 255, 0.05);
+  letter-spacing: 0.12em;
+}
+
+.soundfont-subheading {
+  color: var(--color-accent-yellow);
+  letter-spacing: 0.18em;
+  font-weight: 700;
 }

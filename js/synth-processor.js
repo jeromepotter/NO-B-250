@@ -469,9 +469,18 @@ const LFO_DEST_NONE = -1;
                                   loopEnd: s.loopEnd || 0,
                                   data: s.data ? new Float32Array(s.data) : new Float32Array(0),
                               }));
-                              this.soundfontSamples = converted.length ? [{ samples: converted }] : [];
-                              this.soundfontActiveIndex = this.soundfontSamples.length ? 0 : -1;
+                              this.soundfontSamples = converted;
+                              const requestedIndex = Number.isInteger(data?.activeIndex) ? data.activeIndex : 0;
+                              this.soundfontActiveIndex = converted.length ? Math.max(0, Math.min(requestedIndex, converted.length - 1)) : -1;
                               this.resetSoundfontVoices();
+                              break;
+                          }
+                          case 'setSoundfontActiveIndex': {
+                              const nextIndex = Number.isInteger(data?.index) ? data.index : -1;
+                              if (nextIndex >= 0 && nextIndex < this.soundfontSamples.length) {
+                                  this.soundfontActiveIndex = nextIndex;
+                                  this.resetSoundfontVoices();
+                              }
                               break;
                           }
                           case 'setBreakPosition':
@@ -612,9 +621,7 @@ case 'ping':
                }
 
                getSoundfontVoiceSample(voiceIndex, frequency) {
-                   const sf = this.getActiveSoundfontSample();
-                   if (!sf || !sf.samples || !sf.samples.length) return 0;
-                   const sample = sf.samples[0];
+                   const sample = this.getActiveSoundfontSample();
                    if (!sample || !sample.data || !sample.data.length) return 0;
 
                    const basePitch = sample.originalPitch || 60;
