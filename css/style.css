@@ -668,3 +668,33 @@ animation: note-retrigger 0.08s ease-out;
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.soundfont-disabled {
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+#soundfont-upload-container {
+  border-top: 2px solid #1f2937;
+}
+
+#soundfont-list-container {
+  display: none;
+  border: 2px solid #1f2937;
+  background: #0b1727;
+}
+
+#soundfont-list {
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.soundfont-item {
+  border: 1px solid #1f2937;
+  background: #0f2236;
+}
+
+.soundfont-item.active {
+  border-color: #fbbf24;
+  box-shadow: 0 0 0 1px #fbbf24;
+}

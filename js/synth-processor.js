@@ -328,6 +328,14 @@ const LFO_DEST_NONE = -1;
                    this.slipActive = false;
                    this.breakFxSend = 0;
                    this.slipAnchorMode = true;
+
+                   // --- Soundfont State ---
+                   this.soundfontSamples = [];
+                   this.soundfontActiveIndex = -1;
+                   this.soundfontVoices = [
+                       { position: 0 },
+                       { position: 0 },
+                   ];
                    this.breakBypassL = new Float32Array(128);
                    this.breakBypassR = new Float32Array(128);
 
@@ -372,18 +380,20 @@ const LFO_DEST_NONE = -1;
                        const { voice, freq, id, value, lfoId, param } = data || {};
                        switch (type) {
                            case 'noteOn':
-    if (voice === 0) { 
-        this.noteOn1 = true; 
-        this.targetFrequency1 = freq; 
-        if (this.params[0] < 0.01) this.currentFrequency1 = freq; 
-        this.envStage1 = 'attack'; 
-    } 
-    else { 
-        this.noteOn2 = true; 
-        this.targetFrequency2 = freq; 
-        if (this.params[0] < 0.01) this.currentFrequency2 = freq; 
-        this.envStage2 = 'attack'; 
-    } 
+    if (voice === 0) {
+        this.noteOn1 = true;
+        this.targetFrequency1 = freq;
+        if (this.params[0] < 0.01) this.currentFrequency1 = freq;
+        if (this.soundfontVoices[0]) this.soundfontVoices[0].position = 0;
+        this.envStage1 = 'attack';
+    }
+    else {
+        this.noteOn2 = true;
+        this.targetFrequency2 = freq;
+        if (this.params[0] < 0.01) this.currentFrequency2 = freq;
+        if (this.soundfontVoices[1]) this.soundfontVoices[1].position = 0;
+        this.envStage2 = 'attack';
+    }
     break;
                            case 'noteOff': 
     if (voice === 0) { 
@@ -417,7 +427,7 @@ const LFO_DEST_NONE = -1;
                                else if(id===21 || id===29){ this.updateDjFilterCoefficients(this.filterOsc2Coeffs, this.params[21], this.params[29]); }
                                else if(id===32 || id===33){ this.updateDjFilterCoefficients(this.breakFilterCoeffs, this.params[32], this.params[33]); }
                                break;
-                          case 'setSampleBuffer':
+                       case 'setSampleBuffer':
     if (data?.samples) {
         // 1. Determine Phase: Prefer the "Grid Phase" sent from Main Thread
         let nextPositionPhase = 0;
@@ -448,10 +458,26 @@ const LFO_DEST_NONE = -1;
         }
     }
     break;
-                           case 'setBreakPosition':
-                               if (this.samplerPlayback && this.samplerPlayback.active && this.sampleBuffer) {
-                                   const target = Math.max(0, Math.min(this.sampleLength, data?.position || 0));
-                                   this.samplerPlayback.position = target;
+                          case 'setSoundfont': {
+                              const incoming = Array.isArray(data?.samples) ? data.samples : [];
+                              const converted = incoming.map(s => ({
+                                  name: s.name || 'Sample',
+                                  sampleRate: s.sampleRate || sampleRate,
+                                  originalPitch: s.originalPitch || 60,
+                                  pitchCorrection: s.pitchCorrection || 0,
+                                  loopStart: s.loopStart || 0,
+                                  loopEnd: s.loopEnd || 0,
+                                  data: s.data ? new Float32Array(s.data) : new Float32Array(0),
+                              }));
+                              this.soundfontSamples = converted.length ? [{ samples: converted }] : [];
+                              this.soundfontActiveIndex = this.soundfontSamples.length ? 0 : -1;
+                              this.resetSoundfontVoices();
+                              break;
+                          }
+                          case 'setBreakPosition':
+                              if (this.samplerPlayback && this.samplerPlayback.active && this.sampleBuffer) {
+                                  const target = Math.max(0, Math.min(this.sampleLength, data?.position || 0));
+                                  this.samplerPlayback.position = target;
                                    this.slipRenderPhase = target;
                                }
                                break;
@@ -572,8 +598,45 @@ case 'ping':
                    const clamped = Math.max(0, Math.min(this.sampleLength - 1.001, position));
                    const idxA = Math.floor(clamped);
                    const idxB = Math.min(this.sampleLength - 1, idxA + 1);
-                   const frac = clamped - idxA;
-                   return (this.sampleBuffer[idxA] * (1 - frac)) + (this.sampleBuffer[idxB] * frac);
+               const frac = clamped - idxA;
+               return (this.sampleBuffer[idxA] * (1 - frac)) + (this.sampleBuffer[idxB] * frac);
+           }
+
+               getActiveSoundfontSample() {
+                   if (this.soundfontActiveIndex < 0 || this.soundfontActiveIndex >= this.soundfontSamples.length) return null;
+                   return this.soundfontSamples[this.soundfontActiveIndex];
+               }
+
+               resetSoundfontVoices() {
+                   this.soundfontVoices.forEach(v => { v.position = 0; });
+               }
+
+               getSoundfontVoiceSample(voiceIndex, frequency) {
+                   const sf = this.getActiveSoundfontSample();
+                   if (!sf || !sf.samples || !sf.samples.length) return 0;
+                   const sample = sf.samples[0];
+                   if (!sample || !sample.data || !sample.data.length) return 0;
+
+                   const basePitch = sample.originalPitch || 60;
+                   const baseFreq = 440 * Math.pow(2, (basePitch - 69) / 12);
+                   const rateBase = sample.sampleRate ? (sample.sampleRate / sampleRate) : 1;
+                   const rate = baseFreq > 0 ? (frequency / baseFreq) * rateBase : rateBase;
+
+                   const voiceState = this.soundfontVoices[voiceIndex];
+                   const loopStart = sample.loopStart || 0;
+                   const loopEnd = sample.loopEnd && sample.loopEnd > loopStart ? sample.loopEnd : sample.data.length;
+
+                   let pos = voiceState.position;
+                   if (pos >= loopEnd && loopEnd > loopStart) {
+                       pos = loopStart + ((pos - loopStart) % (loopEnd - loopStart));
+                   }
+                   const idxA = Math.floor(pos);
+                   const idxB = Math.min(sample.data.length - 1, idxA + 1);
+                   const frac = pos - idxA;
+                   const value = (sample.data[idxA] * (1 - frac)) + (sample.data[idxB] * frac);
+
+                   voiceState.position = pos + rate;
+                   return value;
                }
 
                process(i,o,p){
@@ -763,39 +826,49 @@ for(let i=0;i<blockSize;i++){
     this.currentFrequency2+=(this.targetFrequency2-this.currentFrequency2)*pt;
     
     // --- VOICE VARIANCE LOGIC ---
-    const dA1 = 1.0 + currentParams[4] * 0.01; 
-    const dA2 = 1.0 + currentParams[4] * 0.013; 
+    const dA1 = 1.0 + currentParams[4] * 0.01;
+    const dA2 = 1.0 + currentParams[4] * 0.013;
 
     let s1=0, s2=0;
+    const hasSoundfont = !!this.getActiveSoundfontSample();
 
-    // --- VOICE 1 (Standard Detune, Uses dA1) ---
-    if(this.noteOn1 || this.envStage1 === 'release'){
-        const o1_1=getWaveSample(this.phase1_1, waveType1);
-        this.phase1_1=(this.phase1_1+2*Math.PI*this.currentFrequency1/sr)%(2*Math.PI);
+    if (hasSoundfont) {
+        if (this.noteOn1 || this.envStage1 === 'release') {
+            s1 = this.getSoundfontVoiceSample(0, this.currentFrequency1 || this.targetFrequency1);
+        }
+        if (this.noteOn2 || this.envStage2 === 'release') {
+            s2 = this.getSoundfontVoiceSample(1, this.currentFrequency2 || this.targetFrequency2);
+        }
+    } else {
+        // --- VOICE 1 (Standard Detune, Uses dA1) ---
+        if(this.noteOn1 || this.envStage1 === 'release'){
+            const o1_1=getWaveSample(this.phase1_1, waveType1);
+            this.phase1_1=(this.phase1_1+2*Math.PI*this.currentFrequency1/sr)%(2*Math.PI);
 
-        const o2_1=getWaveSample(this.phase2_1, waveType1);
-        this.phase2_1=(this.phase2_1+2*Math.PI*this.currentFrequency1*dA1/sr)%(2*Math.PI);
+            const o2_1=getWaveSample(this.phase2_1, waveType1);
+            this.phase2_1=(this.phase2_1+2*Math.PI*this.currentFrequency1*dA1/sr)%(2*Math.PI);
 
-        const o3_1=getWaveSample(this.phase3_1, waveType1);
-        this.phase3_1=(this.phase3_1+2*Math.PI*(this.currentFrequency1/2)/sr)%(2*Math.PI);
+            const o3_1=getWaveSample(this.phase3_1, waveType1);
+            this.phase3_1=(this.phase3_1+2*Math.PI*(this.currentFrequency1/2)/sr)%(2*Math.PI);
 
-        s1=(o1_1+o2_1)*0.5;
-        s1 = (s1 + (o3_1 * currentParams[3])) * 0.8;
-    }
+            s1=(o1_1+o2_1)*0.5;
+            s1 = (s1 + (o3_1 * currentParams[3])) * 0.8;
+        }
 
-    // --- VOICE 2 (Drifty Detune, Uses dA2) ---
-    if(this.noteOn2 || this.envStage2 === 'release'){
-        const o1_2=getWaveSample(this.phase1_2, waveType2);
-        this.phase1_2=(this.phase1_2+2*Math.PI*this.currentFrequency2/sr)%(2*Math.PI);
+        // --- VOICE 2 (Drifty Detune, Uses dA2) ---
+        if(this.noteOn2 || this.envStage2 === 'release'){
+            const o1_2=getWaveSample(this.phase1_2, waveType2);
+            this.phase1_2=(this.phase1_2+2*Math.PI*this.currentFrequency2/sr)%(2*Math.PI);
 
-        const o2_2=getWaveSample(this.phase2_2, waveType2);
-        this.phase2_2=(this.phase2_2+2*Math.PI*this.currentFrequency2*dA2/sr)%(2*Math.PI);
+            const o2_2=getWaveSample(this.phase2_2, waveType2);
+            this.phase2_2=(this.phase2_2+2*Math.PI*this.currentFrequency2*dA2/sr)%(2*Math.PI);
 
-        const o3_2=getWaveSample(this.phase3_2, waveType2);
-        this.phase3_2=(this.phase3_2+2*Math.PI*(this.currentFrequency2/2)/sr)%(2*Math.PI);
+            const o3_2=getWaveSample(this.phase3_2, waveType2);
+            this.phase3_2=(this.phase3_2+2*Math.PI*(this.currentFrequency2/2)/sr)%(2*Math.PI);
 
-        s2=(o1_2+o2_2)*0.5;
-        s2 = (s2 + (o3_2 * currentParams[3])) * 0.8;
+            s2=(o1_2+o2_2)*0.5;
+            s2 = (s2 + (o3_2 * currentParams[3])) * 0.8;
+        }
     }
 
     let sampleVal = 0;

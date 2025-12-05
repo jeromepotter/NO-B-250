@@ -11,7 +11,11 @@
        const spinIntervals = {};
        const activeKeyControls = {};
        let customScale = [];
-      
+       const soundfontBank = [];
+       let activeSoundfontIndex = -1;
+       let isSoundfontMode = false;
+       const SOUND_FONT_DISABLED_FX_IDS = [0, 3, 4, 30, 31];
+
        // --- Recording State ---
        let isRecordingAudio = false; let recordStartTs = 0; let recordTimerId = null; let recordButton = null;
        let pcmChunks = []; let totalPcmBytes = 0;
@@ -151,6 +155,198 @@ let liveLfoOutputs = [0, 0, 0, 0];
             if (displayEl) {
                 displayEl.textContent = VOICE_WAVEFORMS[waveIndex];
             }
+        }
+
+        function parseFourCC(dv, offset) {
+            return String.fromCharCode(
+                dv.getUint8(offset),
+                dv.getUint8(offset + 1),
+                dv.getUint8(offset + 2),
+                dv.getUint8(offset + 3)
+            );
+        }
+
+        function parseSoundfont(arrayBuffer) {
+            const dv = new DataView(arrayBuffer);
+            if (parseFourCC(dv, 0) !== 'RIFF' || parseFourCC(dv, 8) !== 'sfbk') {
+                throw new Error('Not a valid SF2 file.');
+            }
+
+            const findChunk = (id, start = 12, end = dv.byteLength) => {
+                let offset = start;
+                while (offset + 8 <= end) {
+                    const chunkId = parseFourCC(dv, offset);
+                    const size = dv.getUint32(offset + 4, true);
+                    const chunkStart = offset + 8;
+                    const chunkEnd = chunkStart + size;
+                    if (chunkId === id) return { start: chunkStart, end: chunkEnd };
+                    offset = chunkEnd;
+                }
+                return null;
+            };
+
+            const findList = (listType) => {
+                let offset = 12;
+                while (offset + 12 <= dv.byteLength) {
+                    const id = parseFourCC(dv, offset);
+                    const size = dv.getUint32(offset + 4, true);
+                    const typeId = parseFourCC(dv, offset + 8);
+                    if (id === 'LIST' && typeId === listType) {
+                        return { start: offset + 12, end: offset + 8 + size };
+                    }
+                    offset += 8 + size;
+                }
+                return null;
+            };
+
+            const sdta = findList('sdta');
+            const pdta = findList('pdta');
+            if (!sdta || !pdta) throw new Error('Missing required soundfont chunks.');
+
+            const smplChunk = findChunk('smpl', sdta.start, sdta.end);
+            const shdrChunk = findChunk('shdr', pdta.start, pdta.end);
+            if (!smplChunk || !shdrChunk) throw new Error('Missing sample data in soundfont.');
+
+            const sampleData = new Int16Array(arrayBuffer, smplChunk.start, (smplChunk.end - smplChunk.start) / 2);
+            const headerView = new DataView(arrayBuffer, shdrChunk.start, shdrChunk.end - shdrChunk.start);
+
+            const samples = [];
+            const headerSize = 46;
+            for (let offset = 0; offset + headerSize <= headerView.byteLength; offset += headerSize) {
+                const nameChars = [];
+                for (let i = 0; i < 20; i++) {
+                    const code = headerView.getUint8(offset + i);
+                    if (code === 0) break;
+                    nameChars.push(String.fromCharCode(code));
+                }
+                const name = nameChars.join('');
+                if (name === 'EOS') break;
+
+                const start = headerView.getUint32(offset + 20, true);
+                const end = headerView.getUint32(offset + 24, true);
+                const startLoop = headerView.getUint32(offset + 28, true);
+                const endLoop = headerView.getUint32(offset + 32, true);
+                const sampleRate = headerView.getUint32(offset + 36, true);
+                const originalPitch = headerView.getUint8(offset + 40);
+                const pitchCorrection = headerView.getInt8(offset + 41);
+
+                const safeStart = Math.max(0, start);
+                const safeEnd = Math.min(sampleData.length, end);
+                if (safeEnd <= safeStart) continue;
+
+                const slice = sampleData.slice(safeStart, safeEnd);
+                const floatData = new Float32Array(slice.length);
+                for (let i = 0; i < slice.length; i++) {
+                    floatData[i] = slice[i] / 32768;
+                }
+
+                samples.push({
+                    name,
+                    data: floatData,
+                    sampleRate,
+                    originalPitch,
+                    pitchCorrection,
+                    loopStart: Math.max(0, startLoop - safeStart),
+                    loopEnd: Math.max(0, Math.min(endLoop - safeStart, floatData.length)),
+                });
+            }
+
+            if (!samples.length) throw new Error('No playable samples found in soundfont.');
+            return samples;
+        }
+
+        function setSoundfontMode(enabled) {
+            isSoundfontMode = enabled;
+            SOUND_FONT_DISABLED_FX_IDS.forEach(id => {
+                const target = document.querySelector(`[data-fx-id="${id}"]`);
+                if (target) target.classList.toggle('soundfont-disabled', enabled);
+                const label = target?.parentElement?.querySelector('label');
+                if (label) label.classList.toggle('soundfont-disabled', enabled);
+            });
+            for (let i = 0; i < 2; i++) {
+                const waveLabel = document.getElementById(`voice-${i}-wave-display`);
+                if (waveLabel) waveLabel.classList.toggle('soundfont-disabled', enabled);
+            }
+        }
+
+        function refreshSoundfontListUI() {
+            const listContainer = document.getElementById('soundfont-list-container');
+            const list = document.getElementById('soundfont-list');
+            const activeLabel = document.getElementById('soundfont-active-label');
+            if (!listContainer || !list || !activeLabel) return;
+
+            listContainer.style.display = soundfontBank.length ? 'block' : 'none';
+            list.innerHTML = '';
+            soundfontBank.forEach((sf, idx) => {
+                const item = document.createElement('button');
+                item.className = `soundfont-item retro-button text-xs sm:text-sm font-bold px-2 text-left ${idx === activeSoundfontIndex ? 'active' : ''}`;
+                item.textContent = sf.name;
+                item.addEventListener('click', () => {
+                    setActiveSoundfont(idx);
+                });
+                list.appendChild(item);
+            });
+
+            activeLabel.textContent = activeSoundfontIndex >= 0 ? soundfontBank[activeSoundfontIndex]?.name || '' : '';
+        }
+
+        function setActiveSoundfont(index) {
+            if (index < 0 || index >= soundfontBank.length) {
+                activeSoundfontIndex = -1;
+                setSoundfontMode(false);
+                refreshSoundfontListUI();
+                if (synthNode) synthNode.port.postMessage({ type: 'setSoundfont', data: { samples: [] } });
+                return;
+            }
+
+            activeSoundfontIndex = index;
+            const sf = soundfontBank[index];
+            const payload = sf.samples.map(sample => ({
+                name: sample.name,
+                sampleRate: sample.sampleRate,
+                originalPitch: sample.originalPitch,
+                pitchCorrection: sample.pitchCorrection,
+                loopStart: sample.loopStart,
+                loopEnd: sample.loopEnd,
+                data: sample.data.buffer,
+            }));
+            const transferables = payload.map(p => p.data);
+            if (synthNode) {
+                synthNode.port.postMessage({ type: 'setSoundfont', data: { samples: payload } }, transferables);
+            }
+            setSoundfontMode(true);
+            refreshSoundfontListUI();
+        }
+
+        function handleSoundfontUpload(file) {
+            const status = document.getElementById('soundfont-upload-status');
+            const updateStatus = (msg, isError = false) => {
+                if (status) {
+                    status.textContent = msg;
+                    status.style.color = isError ? '#f87171' : '';
+                }
+            };
+
+            if (!file) {
+                updateStatus('No file selected.', true);
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = async () => {
+                try {
+                    const buffer = reader.result;
+                    const samples = parseSoundfont(buffer);
+                    soundfontBank.push({ name: file.name, samples });
+                    setActiveSoundfont(soundfontBank.length - 1);
+                    updateStatus('Loaded successfully.');
+                } catch (err) {
+                    console.error(err);
+                    updateStatus('Failed to load soundfont.', true);
+                }
+            };
+            reader.onerror = () => updateStatus('Could not read file.', true);
+            reader.readAsArrayBuffer(file);
         }
 
         function hexToRgb(hex) {
@@ -5508,13 +5704,23 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                 cleanupPresetsSubmenuDismissListener();
            });
 
-            addTouchListener(submenuLoadButton, () => {
-                loadPresetInput.click();
-                closePresetDropdown();
-                presetsSubmenuContainer.style.display = 'none';
-                presetsToggleButton?.classList.remove('active');
-                cleanupPresetsSubmenuDismissListener();
-           });
+           addTouchListener(submenuLoadButton, () => {
+               loadPresetInput.click();
+               closePresetDropdown();
+               presetsSubmenuContainer.style.display = 'none';
+               presetsToggleButton?.classList.remove('active');
+               cleanupPresetsSubmenuDismissListener();
+          });
+
+          const soundfontUploadButton = document.getElementById('soundfont-upload-button');
+          const soundfontFileInput = document.getElementById('soundfont-file-input');
+          addTouchListener(soundfontUploadButton, () => soundfontFileInput?.click());
+          soundfontFileInput?.addEventListener('change', (e) => {
+              const file = e.target.files?.[0];
+              handleSoundfontUpload(file);
+              soundfontFileInput.value = '';
+          });
+          refreshSoundfontListUI();
 
            const midiConnectButton = document.getElementById('midi-connect-button');
            midiConnectButton?.addEventListener('click', () => {
