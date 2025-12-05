@@ -111,26 +111,6 @@
         </div>
       </div>
 
-      <div id="soundfont-list-container" class="p-3 rounded-lg mt-2 soundfont-panel">
-        <div class="flex items-center justify-between mb-3">
-          <div class="flex items-center space-x-2">
-            <span class="text-xs sm:text-sm font-bold tracking-widest">SOUNDFONTS</span>
-            <span id="soundfont-active-label" class="soundfont-badge text-[10px] sm:text-xs"></span>
-          </div>
-          <span id="soundfont-active-sample" class="text-[10px] sm:text-xs opacity-80 tracking-widest"></span>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div class="flex flex-col space-y-2">
-            <div class="soundfont-subheading text-[10px] sm:text-xs tracking-[0.16em]">FILES</div>
-            <div id="soundfont-list" class="flex flex-col space-y-2"></div>
-          </div>
-          <div class="flex flex-col space-y-2">
-            <div class="soundfont-subheading text-[10px] sm:text-xs tracking-[0.16em]">SOUNDS</div>
-            <div id="soundfont-sample-list" class="flex flex-col space-y-2"></div>
-          </div>
-        </div>
-      </div>
-
      <div id="oscillator-row" class="flex justify-around items-start p-2 gap-x-4">
         
         <div class="flex-1 flex flex-col justify-center items-center">
@@ -696,13 +676,6 @@
         <label class="font-bold tracking-wider text-xs mt-1">DRUMS</label>
       </div>
 
-      <div id="soundfont-upload-container" class="flex flex-col items-center p-3 space-y-2 mt-6 rounded-lg soundfont-panel">
-        <div class="text-xs sm:text-sm font-bold tracking-widest">UPLOAD SOUNDFONT (.SF2)</div>
-        <input type="file" id="soundfont-file-input" class="hidden" accept=".sf2">
-        <button id="soundfont-upload-button" class="retro-button text-xs font-bold">CHOOSE FILE</button>
-        <div id="soundfont-upload-status" class="text-[10px] sm:text-xs opacity-75 text-center"></div>
-      </div>
-
       <div id="midi-output-container" class="flex justify-center items-center p-2 space-x-2 mt-10">
         <select id="midi-output-selector" class="retro-select text-xs" disabled>
           <option>NO MIDI OUTPUTS</option>
@@ -712,6 +685,39 @@
           <input type="checkbox" id="midi-clock-toggle" class="retro-checkbox">
           <span>SEND CLOCK</span>
         </label>
+      </div>
+
+      <div id="soundfont-upload-container" class="flex flex-col items-center p-2 space-y-2 mt-4 text-[10px] sm:text-xs">
+        <div class="font-bold tracking-widest">UPLOAD SOUNDFONT (.SF2)</div>
+        <input type="file" id="soundfont-file-input" class="hidden" accept=".sf2">
+        <button id="soundfont-upload-button" class="retro-button text-[10px] sm:text-xs font-bold">CHOOSE FILE</button>
+        <div id="soundfont-upload-status" class="text-[10px] sm:text-xs opacity-75 text-center"></div>
+      </div>
+
+      <div id="soundfont-list-container" class="p-3 mt-3 text-[10px] sm:text-xs">
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center space-x-2">
+            <span class="font-bold tracking-[0.14em]">SOUNDFONTS</span>
+            <span id="soundfont-active-label" class="soundfont-badge text-[10px] sm:text-xs"></span>
+          </div>
+          <span id="soundfont-active-sample" class="text-[10px] sm:text-xs opacity-80 tracking-widest"></span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="flex flex-col space-y-2">
+            <div class="soundfont-subheading text-[10px] sm:text-xs tracking-[0.14em]">FILES</div>
+            <div id="soundfont-list" class="flex flex-col space-y-2"></div>
+          </div>
+          <div class="flex flex-col space-y-2">
+            <div class="flex items-center justify-between soundfont-subheading text-[10px] sm:text-xs tracking-[0.14em]">
+              <span>SOUNDS</span>
+              <div class="flex space-x-1">
+                <button id="soundfont-scroll-up" class="soundfont-scroll">▲</button>
+                <button id="soundfont-scroll-down" class="soundfont-scroll">▼</button>
+              </div>
+            </div>
+            <div id="soundfont-sample-list" class="flex flex-col space-y-2"></div>
+          </div>
+        </div>
       </div>
       
   </div> <div id="how-to-modal-overlay" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none">

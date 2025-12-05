@@ -5744,21 +5744,30 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                 cleanupPresetsSubmenuDismissListener();
            });
 
-           addTouchListener(submenuLoadButton, () => {
-               loadPresetInput.click();
-               closePresetDropdown();
-               presetsSubmenuContainer.style.display = 'none';
-               presetsToggleButton?.classList.remove('active');
-               cleanupPresetsSubmenuDismissListener();
-          });
+          addTouchListener(submenuLoadButton, () => {
+              loadPresetInput.click();
+              closePresetDropdown();
+              presetsSubmenuContainer.style.display = 'none';
+              presetsToggleButton?.classList.remove('active');
+              cleanupPresetsSubmenuDismissListener();
+         });
 
-          const soundfontUploadButton = document.getElementById('soundfont-upload-button');
-          const soundfontFileInput = document.getElementById('soundfont-file-input');
-          addTouchListener(soundfontUploadButton, () => soundfontFileInput?.click());
-          soundfontFileInput?.addEventListener('change', (e) => {
-              const file = e.target.files?.[0];
-              handleSoundfontUpload(file);
-              soundfontFileInput.value = '';
+         const soundfontUploadButton = document.getElementById('soundfont-upload-button');
+         const soundfontFileInput = document.getElementById('soundfont-file-input');
+         const soundfontSampleList = document.getElementById('soundfont-sample-list');
+         const soundfontScrollUp = document.getElementById('soundfont-scroll-up');
+         const soundfontScrollDown = document.getElementById('soundfont-scroll-down');
+         const scrollSampleList = (direction) => {
+             if (!soundfontSampleList) return;
+             soundfontSampleList.scrollBy({ top: direction * 80, behavior: 'smooth' });
+         };
+         soundfontScrollUp?.addEventListener('click', () => scrollSampleList(-1));
+         soundfontScrollDown?.addEventListener('click', () => scrollSampleList(1));
+         addTouchListener(soundfontUploadButton, () => soundfontFileInput?.click());
+         soundfontFileInput?.addEventListener('change', (e) => {
+             const file = e.target.files?.[0];
+             handleSoundfontUpload(file);
+             soundfontFileInput.value = '';
           });
           refreshSoundfontListUI();
 
