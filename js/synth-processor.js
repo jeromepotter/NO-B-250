@@ -637,15 +637,20 @@ case 'ping':
 
                    const voiceState = this.soundfontVoices[voiceIndex];
                    voiceState.fadeRemaining = voiceState.fadeRemaining || 0;
-                   const loopStart = sample.loopStart || 0;
-                   const loopEnd = sample.loopEnd && sample.loopEnd > loopStart ? sample.loopEnd : sample.data.length;
+                   const hasLoop = sample.loopEnd > sample.loopStart;
+                   const loopStart = hasLoop ? sample.loopStart : 0;
+                   const loopEnd = hasLoop ? Math.min(sample.loopEnd, sample.data.length) : sample.data.length;
 
                    let pos = voiceState.position;
-                   if (pos >= loopEnd && loopEnd > loopStart) {
-                       pos = loopStart + ((pos - loopStart) % (loopEnd - loopStart));
+                   if (hasLoop && pos >= loopEnd) {
+                       const loopLen = Math.max(1, loopEnd - loopStart);
+                       pos = loopStart + ((pos - loopStart) % loopLen);
                        if (pos < voiceState.position) {
                             voiceState.fadeRemaining = Math.max(voiceState.fadeRemaining, 100);
                        }
+                   } else if (!hasLoop && pos >= loopEnd) {
+                       // Hold the tail steady instead of wrapping to the start to avoid clicks
+                       pos = Math.max(loopEnd - 1.0001, 0);
                    }
                    const idxA = Math.floor(pos);
                    const idxB = Math.min(sample.data.length - 1, idxA + 1);
@@ -661,7 +666,8 @@ case 'ping':
                         return value * gain;
                    }
 
-                   voiceState.position = pos + rate;
+                   // 3. Advance the cursor, pinning at the end for one-shots
+                   voiceState.position = hasLoop ? (pos + rate) : Math.min(pos + rate, loopEnd - 0.0001);
                    return value;
                }
 
