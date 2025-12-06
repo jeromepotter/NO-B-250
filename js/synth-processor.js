@@ -380,10 +380,20 @@ const LFO_DEST_NONE = -1;
                        const { voice, freq, id, value, lfoId, param } = data || {};
                        switch (type) {
                            case 'noteOn':
+    // Check if a soundfont is currently active
+    const isSoundfontActive = !!this.getActiveSoundfontSample();
+
     if (voice === 0) {
         this.noteOn1 = true;
         this.targetFrequency1 = freq;
         if (this.params[0] < 0.01) this.currentFrequency1 = freq;
+        
+        // [FIX] Only hard-reset the envelope if we are using a Soundfont
+        // This prevents popping for samples, but keeps smooth legato for Saw/Square
+        if (isSoundfontActive) {
+             this.envValue1 = 0.0;
+        }
+
         if (this.soundfontVoices[0]) this.soundfontVoices[0].position = 0;
         this.envStage1 = 'attack';
     }
@@ -391,6 +401,12 @@ const LFO_DEST_NONE = -1;
         this.noteOn2 = true;
         this.targetFrequency2 = freq;
         if (this.params[0] < 0.01) this.currentFrequency2 = freq;
+
+        // [FIX] Apply same logic to Voice 2
+        if (isSoundfontActive) {
+             this.envValue2 = 0.0;
+        }
+
         if (this.soundfontVoices[1]) this.soundfontVoices[1].position = 0;
         this.envStage2 = 'attack';
     }
