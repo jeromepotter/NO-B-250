@@ -333,8 +333,8 @@ const LFO_DEST_NONE = -1;
                    this.soundfontSamples = [];
                    this.soundfontActiveIndex = -1;
                    this.soundfontVoices = [
-                       { position: 0 },
-                       { position: 0 },
+                       { position: 0, fadeRemaining: 0 },
+                       { position: 0, fadeRemaining: 0 },
                    ];
                    this.breakBypassL = new Float32Array(128);
                    this.breakBypassR = new Float32Array(128);
@@ -384,14 +384,20 @@ const LFO_DEST_NONE = -1;
         this.noteOn1 = true;
         this.targetFrequency1 = freq;
         if (this.params[0] < 0.01) this.currentFrequency1 = freq;
-        if (this.soundfontVoices[0]) this.soundfontVoices[0].position = 0;
+        if (this.soundfontVoices[0]) {
+            this.soundfontVoices[0].position = 0;
+            this.soundfontVoices[0].fadeRemaining = 100;
+        }
         this.envStage1 = 'attack';
     }
     else {
         this.noteOn2 = true;
         this.targetFrequency2 = freq;
         if (this.params[0] < 0.01) this.currentFrequency2 = freq;
-        if (this.soundfontVoices[1]) this.soundfontVoices[1].position = 0;
+        if (this.soundfontVoices[1]) {
+            this.soundfontVoices[1].position = 0;
+            this.soundfontVoices[1].fadeRemaining = 100;
+        }
         this.envStage2 = 'attack';
     }
     break;
@@ -617,7 +623,7 @@ case 'ping':
                }
 
                resetSoundfontVoices() {
-                   this.soundfontVoices.forEach(v => { v.position = 0; });
+                   this.soundfontVoices.forEach(v => { v.position = 0; v.fadeRemaining = 0; });
                }
 
                getSoundfontVoiceSample(voiceIndex, frequency) {
@@ -630,17 +636,30 @@ case 'ping':
                    const rate = baseFreq > 0 ? (frequency / baseFreq) * rateBase : rateBase;
 
                    const voiceState = this.soundfontVoices[voiceIndex];
+                   voiceState.fadeRemaining = voiceState.fadeRemaining || 0;
                    const loopStart = sample.loopStart || 0;
                    const loopEnd = sample.loopEnd && sample.loopEnd > loopStart ? sample.loopEnd : sample.data.length;
 
                    let pos = voiceState.position;
                    if (pos >= loopEnd && loopEnd > loopStart) {
                        pos = loopStart + ((pos - loopStart) % (loopEnd - loopStart));
+                       if (pos < voiceState.position) {
+                            voiceState.fadeRemaining = Math.max(voiceState.fadeRemaining, 100);
+                       }
                    }
                    const idxA = Math.floor(pos);
                    const idxB = Math.min(sample.data.length - 1, idxA + 1);
                    const frac = pos - idxA;
+                   // 1. Calculate the raw sample value
                    const value = (sample.data[idxA] * (1 - frac)) + (sample.data[idxB] * frac);
+
+                   // 2. Apply a micro-fade when starting or after any position jump (including loop wrap)
+                   if (voiceState.fadeRemaining > 0) {
+                        const gain = 1 - (voiceState.fadeRemaining / 100);
+                        voiceState.fadeRemaining -= 1;
+                        voiceState.position = pos + rate;
+                        return value * gain;
+                   }
 
                    voiceState.position = pos + rate;
                    return value;
