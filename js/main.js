@@ -4369,14 +4369,18 @@ lfoState.forEach((lfo, lfoIndex) => {
             let finalValue = knobData.value;
 
             if (knobId === 35) {
-                const modOffset = modulatedValues[knobId] || 0;
-                applyBreakSlipModulation(modOffset);
+                if (Object.prototype.hasOwnProperty.call(modulatedValues, knobId)) {
+                    const modOffset = modulatedValues[knobId] || 0;
+                    applyBreakSlipModulation(modOffset);
+                }
                 continue;
             }
 
             if (knobId === 36) {
-                const modOffset = modulatedValues[knobId] || 0;
-                applyBreakSelectionModulation(modOffset);
+                if (Object.prototype.hasOwnProperty.call(modulatedValues, knobId)) {
+                    const modOffset = modulatedValues[knobId] || 0;
+                    applyBreakSelectionModulation(modOffset);
+                }
             }
 
             if (modulatedValues[knobId] !== undefined) {
