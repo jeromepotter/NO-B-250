@@ -642,11 +642,12 @@ case 'ping':
                    const frac = pos - idxA;
                    const value = (sample.data[idxA] * (1 - frac)) + (sample.data[idxB] * frac);
 
-                   // Apply a short fade-in at the start of the sample to prevent pops when resetting position
-                   const fadedValue = voiceState.position < 100 ? value * (voiceState.position / 100) : value;
+                   if (voiceState.position < 100) {
+                       return value * (voiceState.position / 100);
+                   }
 
                    voiceState.position = pos + rate;
-                   return fadedValue;
+                   return value;
                }
 
                process(i,o,p){
