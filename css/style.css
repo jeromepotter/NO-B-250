@@ -686,6 +686,15 @@ animation: note-retrigger 0.08s ease-out;
   border-radius: 0;
 }
 
+.soundfont-locked {
+  display: none !important;
+}
+
+.soundfont-unlock-blur {
+  filter: blur(6px);
+  transition: filter 200ms ease;
+}
+
 .soundfont-panel {
   border: none;
   background: transparent;

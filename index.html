@@ -111,7 +111,7 @@
         </div>
       </div>
 
-      <div id="soundfont-list-container" class="p-3 mt-3 text-[10px] sm:text-xs">
+      <div id="soundfont-list-container" class="p-3 mt-3 text-[10px] sm:text-xs soundfont-locked">
         <div class="flex items-center justify-between mb-2">
           <div class="flex items-center space-x-2">
             <span class="font-bold tracking-[0.14em]">SOUNDFONTS</span>
@@ -713,10 +713,13 @@
         </label>
       </div>
 
-      <div id="soundfont-upload-container" class="flex flex-col items-center p-2 space-y-2 mt-4 text-[10px] sm:text-xs">
+      <div id="soundfont-upload-container" class="flex flex-col items-center p-2 space-y-2 mt-4 text-[10px] sm:text-xs soundfont-locked">
         <div class="font-bold tracking-widest">UPLOAD SOUNDFONT (.SF2)</div>
         <input type="file" id="soundfont-file-input" class="hidden" accept=".sf2">
-        <button id="soundfont-upload-button" class="retro-button text-[10px] sm:text-xs font-bold">CHOOSE FILE</button>
+        <div class="flex space-x-2">
+          <button id="soundfont-upload-button" class="retro-button text-[10px] sm:text-xs font-bold">CHOOSE FILE</button>
+          <button id="soundfont-remove-button" class="retro-button text-[10px] sm:text-xs font-bold">REMOVE ALL</button>
+        </div>
         <div id="soundfont-upload-status" class="text-[10px] sm:text-xs opacity-75 text-center"></div>
       </div>
 
