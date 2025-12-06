@@ -100,6 +100,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakPlayRequested = false;
         let breakRunning = false;
         let breakStartTimeoutId = null;
+        let breakQueueTimeoutId = null;
         let breakBufferLoaded = false;
         let breakPlaybackRate = 1;
         let breakSlipBaseDivision = 4;
@@ -1444,26 +1445,32 @@ let liveLfoOutputs = [0, 0, 0, 0];
     } else {
         breakSelectionNormalized = breakIndexToValue(clamped);
     }
-    
+
     // 2. Performance Guard
     if (clamped === breakSampleIndex && !forceImmediate) {
         syncBreakSelectionKnob();
-        return; 
+        return;
     }
 
     syncBreakSelectionKnob();
 
     // 3. Determine if we should Queue
     const tempoSource = getTempoSourceState();
-    
+
+    // If the loop is already running, we can use the playback position as a grid when arps are off.
+    const canUseLoopTiming = breakRunning && breakBufferLoaded && breakWaveformDuration > 0 && Number.isFinite(breakPlaybackStartTime);
+
     // FIX: Check if break is Running OR Requested (this catches the preset load state)
     const isBreakActive = breakRunning || breakPlayRequested || breakPlayQueued;
-    
+
     // FIX: Allow queue if Arp is running OR if the Master Clock is running (e.g. during preset swap)
     // This ensures we don't fall back to "Instant" just because applyPreset stopped the arp for 10ms.
-    const isGridActive = (tempoSource && tempoSource.arpRunning) || masterClockRunning;
+    const isGridActive = (tempoSource && tempoSource.arpRunning) || masterClockRunning || canUseLoopTiming;
 
-    const shouldQueueChange = isBreakActive && !forceImmediate && tempoMode === TEMPO_MODE_BPM && tempoSource && isGridActive;
+    const shouldQueueChange = isBreakActive && !forceImmediate && tempoMode === TEMPO_MODE_BPM && isGridActive;
+
+    // Cancel any previous queued switch when recalculating.
+    clearBreakQueueTimer();
 
     if (shouldQueueChange) {
         // --- QUEUED SWITCH (BPM Mode) ---
@@ -1471,17 +1478,34 @@ let liveLfoOutputs = [0, 0, 0, 0];
         updateBreakSelectionUi(clamped);
         fetchBreakSampleData(clamped);
 
-        const patternLen = 16;
-        const currentCycle = Math.floor(tempoSource.euclideanStepCounter / patternLen);
-        
-        breakQueueTargetCycle = currentCycle + 1;
-        breakQueueTargetStep = 0;
-        
+        // Prefer the arp grid when available; otherwise fall back to the drum loop duration.
+        if (tempoSource && tempoSource.arpRunning) {
+            const patternLen = 16;
+            const currentCycle = Math.floor(tempoSource.euclideanStepCounter / patternLen);
+
+            breakQueueTargetCycle = currentCycle + 1;
+            breakQueueTargetStep = 0;
+        } else if (canUseLoopTiming) {
+            const rate = Math.max(0.01, breakPlaybackRate || getBreakPlaybackRate());
+            const loopDurationMs = (breakWaveformDuration / rate) * 1000;
+            const nowSeconds = audioContext ? audioContext.currentTime : (performance.now() / 1000);
+            const elapsedMs = Math.max(0, (nowSeconds - breakPlaybackStartTime) * 1000);
+            const remainingMs = Math.max(0, loopDurationMs - (elapsedMs % loopDurationMs));
+
+            breakQueueTimeoutId = setTimeout(() => {
+                ensureBreakSampleLoaded(clamped, 0);
+                pendingBreakIndex = null;
+                breakQueueTargetCycle = null;
+                breakQueueTargetStep = 0;
+            }, remainingMs);
+        }
+
     } else {
         // --- IMMEDIATE SWITCH ---
+        clearBreakQueueTimer();
         breakSampleIndex = clamped;
         updateBreakSelectionUi(clamped);
-        pendingBreakIndex = null; 
+        pendingBreakIndex = null;
         breakQueueTargetCycle = null;
 
         const loadPromise = ensureBreakSampleLoaded(clamped, progressNormalized);
@@ -1525,8 +1549,16 @@ let liveLfoOutputs = [0, 0, 0, 0];
             }
         }
 
+        function clearBreakQueueTimer() {
+            if (breakQueueTimeoutId) {
+                clearTimeout(breakQueueTimeoutId);
+                breakQueueTimeoutId = null;
+            }
+        }
+
         function beginBreakPlayback() {
             breakStartTimeoutId = null;
+            clearBreakQueueTimer();
             if (!breakPlayRequested || !breakBufferLoaded) return;
             breakRunning = true;
             breakPlaybackRate = getBreakPlaybackRate();
@@ -1542,6 +1574,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
         function stopBreakPlaybackImmediate() {
             clearBreakStartTimer();
+            clearBreakQueueTimer();
             if (breakRunning) {
                 synthNode?.port.postMessage({ type: 'stopBreakLoop' });
             }
