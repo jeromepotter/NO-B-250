@@ -242,14 +242,30 @@ let liveLfoOutputs = [0, 0, 0, 0];
                     floatData[i] = slice[i] / 32768;
                 }
 
+                // Apply gentle fades at the edges and pad the tail so release envelopes can fade out without clicks
+                const edgeFadeSamples = 64;
+                for (let i = 0; i < Math.min(edgeFadeSamples, floatData.length); i++) {
+                    const gain = i / edgeFadeSamples;
+                    floatData[i] *= gain;
+                    floatData[floatData.length - 1 - i] *= gain;
+                }
+
+                const tailSamples = Math.max(1, Math.floor(sampleRate * 0.25));
+                const padded = new Float32Array(floatData.length + tailSamples);
+                padded.set(floatData);
+                const last = floatData[floatData.length - 1] || 0;
+                for (let i = floatData.length; i < padded.length; i++) {
+                    padded[i] = last;
+                }
+
                 samples.push({
                     name,
-                    data: floatData,
+                    data: padded,
                     sampleRate,
                     originalPitch,
                     pitchCorrection,
                     loopStart: Math.max(0, startLoop - safeStart),
-                    loopEnd: Math.max(0, Math.min(endLoop - safeStart, floatData.length)),
+                    loopEnd: Math.max(0, Math.min(endLoop - safeStart, padded.length)),
                 });
             }
 
