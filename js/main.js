@@ -14,6 +14,8 @@
        const soundfontBank = [];
        let activeSoundfontIndex = -1;
        let isSoundfontMode = false;
+       let isSoundfontUnlocked = false;
+       let soundfontUnlockBlurTimeout = null;
        const SOUND_FONT_DISABLED_FX_IDS = [0, 3, 4, 30, 31];
 
        // --- Recording State ---
@@ -269,6 +271,44 @@ let liveLfoOutputs = [0, 0, 0, 0];
             }
         }
 
+        function toggleSoundfontUiVisibility(forceVisible = isSoundfontUnlocked) {
+            const shouldShow = !!forceVisible;
+            const targets = [
+                document.getElementById('soundfont-upload-container'),
+                document.getElementById('soundfont-list-container'),
+            ];
+            targets.forEach(el => {
+                if (el) el.classList.toggle('soundfont-locked', !shouldShow);
+            });
+        }
+
+        function flashSoundfontUnlock() {
+            const container = document.getElementById('synth-container');
+            if (!container) return;
+
+            container.classList.add('soundfont-unlock-blur');
+            if (soundfontUnlockBlurTimeout) {
+                clearTimeout(soundfontUnlockBlurTimeout);
+            }
+            soundfontUnlockBlurTimeout = setTimeout(() => {
+                container.classList.remove('soundfont-unlock-blur');
+                soundfontUnlockBlurTimeout = null;
+            }, 400);
+        }
+
+        function maybeUnlockSoundfontUi() {
+            if (isSoundfontUnlocked) return;
+            const distortionValue = fxKnobData[1]?.value ?? 0;
+            const amValue = fxKnobData[5]?.value ?? 0;
+            const threshold = 0.995;
+
+            if (distortionValue >= threshold && amValue >= threshold) {
+                isSoundfontUnlocked = true;
+                toggleSoundfontUiVisibility(true);
+                flashSoundfontUnlock();
+            }
+        }
+
         function refreshSoundfontSampleList() {
             const sampleList = document.getElementById('soundfont-sample-list');
             const activeSampleLabel = document.getElementById('soundfont-active-sample');
@@ -315,6 +355,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
             activeLabel.textContent = activeSoundfontIndex >= 0 ? soundfontBank[activeSoundfontIndex]?.name || '' : '';
             refreshSoundfontSampleList();
+            toggleSoundfontUiVisibility();
         }
 
         function ensureActiveSampleVisible() {
@@ -405,6 +446,19 @@ let liveLfoOutputs = [0, 0, 0, 0];
             };
             reader.onerror = () => updateStatus('Could not read file.', true);
             reader.readAsArrayBuffer(file);
+        }
+
+        function clearSoundfonts() {
+            const status = document.getElementById('soundfont-upload-status');
+            soundfontBank.length = 0;
+            activeSoundfontIndex = -1;
+            setSoundfontMode(false);
+            refreshSoundfontListUI();
+            if (synthNode) synthNode.port.postMessage({ type: 'setSoundfont', data: { samples: [] } });
+            if (status) {
+                status.textContent = 'Removed all soundfonts.';
+                status.style.color = '';
+            }
         }
 
         function hexToRgb(hex) {
@@ -3134,10 +3188,12 @@ function sendMidiMessage(message) {
            if (activePatchingLfo !== null) return; // Prevent adjustment during patching
            
            let newAngle = Math.max(MIN_FX_ANGLE, Math.min(MAX_FX_ANGLE, d.angle + deltaY));
-           d.angle = newAngle; 
+           d.angle = newAngle;
            d.value = (d.angle - MIN_FX_ANGLE) / (MAX_FX_ANGLE - MIN_FX_ANGLE);
 
             applyIndicatorTransform(d.indicator, d.angle);
+
+           maybeUnlockSoundfontUi();
 
            if (id === 36) {
               const nextIndex = breakValueToIndex(d.value);
@@ -5772,6 +5828,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
 
          const soundfontUploadButton = document.getElementById('soundfont-upload-button');
          const soundfontFileInput = document.getElementById('soundfont-file-input');
+         const soundfontRemoveButton = document.getElementById('soundfont-remove-button');
          const soundfontScrollUp = document.getElementById('soundfont-scroll-up');
          const soundfontScrollDown = document.getElementById('soundfont-scroll-down');
          soundfontScrollUp?.addEventListener('click', () => stepSoundfontSample(-1));
@@ -5782,7 +5839,10 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
              handleSoundfontUpload(file);
              soundfontFileInput.value = '';
           });
-          refreshSoundfontListUI();
+         addTouchListener(soundfontRemoveButton, () => clearSoundfonts());
+         soundfontRemoveButton?.addEventListener('click', clearSoundfonts);
+         refreshSoundfontListUI();
+         toggleSoundfontUiVisibility(false);
 
            const midiConnectButton = document.getElementById('midi-connect-button');
            midiConnectButton?.addEventListener('click', () => {
