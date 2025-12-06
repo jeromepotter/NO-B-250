@@ -640,10 +640,14 @@ case 'ping':
                    const idxA = Math.floor(pos);
                    const idxB = Math.min(sample.data.length - 1, idxA + 1);
                    const frac = pos - idxA;
+                   // 1. Calculate the raw sample value
                    const value = (sample.data[idxA] * (1 - frac)) + (sample.data[idxB] * frac);
 
+                   // 2. [NEW CODE] Apply a micro-fade to the first 100 samples
+                   // This prevents clicks when the sample position resets to 0 instantly
                    if (voiceState.position < 100) {
-                       return value * (voiceState.position / 100);
+                        voiceState.position = pos + rate;
+                        return value * (voiceState.position / 100);
                    }
 
                    voiceState.position = pos + rate;
