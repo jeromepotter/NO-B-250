@@ -679,8 +679,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
                         breakQueueTargetStep = 0;
                     }
                 }
-            } else {
-                // Fallback if no arp is running (play immediately)
+            } else if (tempoMode === TEMPO_MODE_MS) {
+                // In free-timing mode we can trigger immediately without a grid
                 if (pendingBreakIndex !== null) {
                     ensureBreakSampleLoaded(pendingBreakIndex, 0);
                     pendingBreakIndex = null;
