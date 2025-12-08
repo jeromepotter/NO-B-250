@@ -1183,8 +1183,15 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 // In BPM mode, the arp only plays if timestamp >= nextArpStepTime.
                 let isArpReadyToPlay = true;
                 if (tempoMode === TEMPO_MODE_BPM) {
-                    // We add a tiny buffer (tolerance) to ensure we don't miss the frame
-                    isArpReadyToPlay = timestamp >= (source.nextArpStepTime - MASTER_CLOCK_TOLERANCE_MS);
+                    if (source.isStepsModeMaster) {
+                        // Step sequencer ticks were already emitted this frame, so the
+                        // next tick timestamp will always be in the future. Treat the
+                        // current frame as on-grid for queued break playback.
+                        isArpReadyToPlay = true;
+                    } else {
+                        // We add a tiny buffer (tolerance) to ensure we don't miss the frame
+                        isArpReadyToPlay = timestamp >= (source.nextArpStepTime - MASTER_CLOCK_TOLERANCE_MS);
+                    }
                 }
 
                 if (stepInCycle === targetStep && targetReached && isArpReadyToPlay) {
