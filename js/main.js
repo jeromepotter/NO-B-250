@@ -566,6 +566,17 @@ let liveLfoOutputs = [0, 0, 0, 0];
             });
 
             if (enabled) {
+               
+                [0, 1].forEach(id => {
+                    const holdSwitch = document.getElementById(`arp-hold-switch-${id}`);
+                    if (holdSwitch) {
+                        holdSwitch.classList.remove('on'); // Flips the visual switch off
+                    }
+                    if (knobState[id]) {
+                        knobState[id].isArpHoldOn = false; // Updates internal logic
+                    }
+                });
+
                 if (!wasStepsMode && !skipRandomize) randomizeStepSequences();
 
                 stepsModePreviousArpLock = isArpLockEnabled;
@@ -6905,6 +6916,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
