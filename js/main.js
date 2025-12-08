@@ -437,6 +437,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
                     if (!state) return;
                     state.isArpOn = true;
                     if (state.dom?.arpSwitch) state.dom.arpSwitch.classList.add('on');
+                    updateArpControlsFading(idx);
                 });
                 allArpControlGrids?.forEach(g => g.classList.remove('arp-hidden'));
                 if (masterArpControls) masterArpControls.classList.remove('arp-hidden');
@@ -448,6 +449,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
                         state.isArpOn = false;
                         state.arpRunning = false;
                         if (state.dom?.arpSwitch) state.dom.arpSwitch.classList.remove('on');
+                        updateArpControlsFading(idx);
                     }
                 });
                 updateGlobalArpVisibility();
