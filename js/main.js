@@ -376,6 +376,24 @@ let liveLfoOutputs = [0, 0, 0, 0];
             return intervalMs;
         }
 
+        function getNextStepGridTarget(patternLen = 16) {
+            const tempoSource = getTempoSourceState();
+            const sourceStepCounter = tempoSource?.euclideanStepCounter ?? sharedStepCounter;
+            const currentCycle = Math.floor(sourceStepCounter / patternLen);
+            const currentStep = sourceStepCounter % patternLen;
+            const nextStep = (currentStep + 1) % patternLen;
+            const targetCycle = nextStep === 0 ? currentCycle + 1 : currentCycle;
+            return { targetCycle, targetStep: nextStep };
+        }
+
+        function getNextDownbeatTarget(patternLen = 16) {
+            const tempoSource = getTempoSourceState();
+            const sourceStepCounter = tempoSource?.euclideanStepCounter ?? sharedStepCounter;
+            const currentCycle = Math.floor(sourceStepCounter / patternLen);
+            // Always push to the next cycle's first step so playback lands exactly on the downbeat.
+            return { targetCycle: currentCycle + 1, targetStep: 0 };
+        }
+
         function stepSequenceTick(seqIndex) {
             const sequence = stepSequences[seqIndex];
             if (!sequence) return;
@@ -1976,8 +1994,10 @@ let liveLfoOutputs = [0, 0, 0, 0];
         const sourceStepCounter = tempoSource?.euclideanStepCounter ?? sharedStepCounter;
         const currentCycle = Math.floor(sourceStepCounter / patternLen);
 
-        breakQueueTargetCycle = currentCycle + 1;
-        breakQueueTargetStep = 0;
+        const { targetCycle, targetStep } = getNextDownbeatTarget();
+        breakQueueTargetCycle = targetCycle;
+        breakQueueTargetStep = targetStep;
+        ensureMasterClock();
         
     } else {
         // --- IMMEDIATE SWITCH ---
@@ -2086,47 +2106,20 @@ async function toggleBreakPlayback(options = {}) {
 
     // --- BPM MODE (Grid Locked) ---
     if (!isFreeTiming) {
-        const tempoSource = getTempoSourceState();
-        if (tempoSource) {
-            const patternLen = 16;
-            const QUANTIZATION = 1; // 4 steps = 1 Beat (Quarter Note)
-
-            // Calculate where we are right now
-            const currentStep = tempoSource.euclideanStepCounter % patternLen;
-            const currentCycle = Math.floor(tempoSource.euclideanStepCounter / patternLen);
-
-            // Calculate distance to the NEXT quantization point
-            // If we are at step 2, target is 4. Distance = 2.
-            // If we are at step 0, target is 0. Distance = 0.
-            const stepsUntilTarget = (QUANTIZATION - (currentStep % QUANTIZATION)) % QUANTIZATION;
-
-            if (stepsUntilTarget === 0) {
-                // We are ON the grid -> Play NOW (Current Cycle, Current Step)
-                breakQueueTargetCycle = currentCycle;
-                breakQueueTargetStep = currentStep;
-            } else {
-                // We are OFF the grid -> Wait for the specific target step
-                const targetAbsStep = currentStep + stepsUntilTarget;
-
-                // Handle Wrap-Around (e.g., if we are at step 14, next beat is 16 (which is Step 0 of NEXT cycle))
-                if (targetAbsStep >= patternLen) {
-                    breakQueueTargetCycle = currentCycle + 1;
-                    breakQueueTargetStep = targetAbsStep % patternLen;
-                } else {
-                    breakQueueTargetCycle = currentCycle;
-                    breakQueueTargetStep = targetAbsStep;
-                }
-            }
-        } else if (isStepsMode) {
-            const delay = getNextStepDelayMs();
-            clearBreakStartTimer();
-            breakStartTimeoutId = setTimeout(async () => {
-                await ensureBreakSampleLoaded();
-                beginBreakPlayback();
-            }, delay);
+        if (isStepsMode) {
+            const { targetCycle, targetStep } = getNextStepGridTarget();
+            breakQueueTargetCycle = targetCycle;
+            breakQueueTargetStep = targetStep;
+            breakPlayQueued = true;
             ensureMasterClock();
+            await ensureBreakSampleLoaded();
             return;
         }
+
+        const tempoSource = getTempoSourceState();
+        const { targetCycle, targetStep } = getNextDownbeatTarget();
+        breakQueueTargetCycle = targetCycle;
+        breakQueueTargetStep = targetStep;
     }
 
     if (isFreeTiming) {
