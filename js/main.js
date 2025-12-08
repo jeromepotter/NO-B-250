@@ -257,6 +257,40 @@ let liveLfoOutputs = [0, 0, 0, 0];
             updateStepNoteDisplay(0, midiToNoteName(firstMidi));
         }
 
+        function applyPresetStepSequences(presetStepSequences) {
+            if (!Array.isArray(presetStepSequences)) return;
+
+            stepSequences.forEach((sequence, seqIndex) => {
+                const presetSeq = presetStepSequences[seqIndex];
+                if (!presetSeq || !Array.isArray(presetSeq.steps)) return;
+
+                presetSeq.steps.forEach((presetStep, stepIndex) => {
+                    const targetStep = sequence.steps[stepIndex];
+                    if (!targetStep) return;
+
+                    if (presetStep.value !== undefined) {
+                        const parsedValue = parseFloat(presetStep.value);
+                        const clampedValue = Math.max(0, Math.min(8, Number.isFinite(parsedValue) ? parsedValue : targetStep.value));
+                        targetStep.value = clampedValue;
+                    }
+
+                    if (presetStep.active !== undefined) {
+                        targetStep.active = !!presetStep.active;
+                    }
+
+                    updateStepKnobVisual(seqIndex, stepIndex);
+                });
+
+                const firstActiveStep = sequence.steps.find(step => step.active);
+                if (firstActiveStep) {
+                    const midiNote = getStepMidiNote(seqIndex, firstActiveStep.value);
+                    updateStepNoteDisplay(seqIndex, midiToNoteName(midiNote));
+                } else {
+                    updateStepNoteDisplay(seqIndex, '--');
+                }
+            });
+        }
+
         function updateStepNoteDisplay(seqIndex, text) {
             const display = stepSequences[seqIndex].noteDisplay;
             if (display) display.textContent = text;
@@ -525,7 +559,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             sequence.noteDisplay = document.querySelector(`.step-sequencer[data-sequence-index="${seqIndex}"] .step-note-display`);
         }
 
-        function setStepsMode(enabled) {
+        function setStepsMode(enabled, { skipRandomize = false } = {}) {
             const wasStepsMode = isStepsMode;
             isStepsMode = enabled;
             if (!stepsModeSwitch || !stepsModeContainer || !oscillatorRow) return;
@@ -546,7 +580,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             });
 
             if (enabled) {
-                if (!wasStepsMode) randomizeStepSequences();
+                if (!wasStepsMode && !skipRandomize) randomizeStepSequences();
 
                 stepsModePreviousArpLock = isArpLockEnabled;
                 stepsModePreviousRateSync = isArpRateSynced;
@@ -2752,6 +2786,13 @@ function generateComplexRandomLfoState(includeArpTargets = true) {
                breakSlipBaseDivision: breakSlipBaseDivision,
                breakSampleIndex: breakSampleIndex,
                breakSelectionNormalized: trim(breakSelectionNormalized),
+               isStepsMode: isStepsMode,
+               stepSequences: stepSequences.map(seq => ({
+                   steps: seq.steps.map(step => ({
+                       active: !!step.active,
+                       value: trim(step.value ?? 0),
+                   })),
+               })),
              lfoState: lfoState.map(lfo => {
             const obj = {};
             // Only save values if they differ from defaults
@@ -5327,7 +5368,17 @@ async function applyPreset(p, isArpCategoryPreset = false, options = {}) {
             stopMasterClockIfIdle();
         }
     }
-   
+
+    const presetHasStepSequences = Array.isArray(p.stepSequences) && p.stepSequences.some(seq => Array.isArray(seq?.steps) && seq.steps.length);
+    const targetStepsMode = presetHasStepSequences ? true : (p.isStepsMode ?? isStepsMode);
+    if (targetStepsMode !== isStepsMode) {
+        setStepsMode(targetStepsMode, { skipRandomize: presetHasStepSequences });
+    }
+
+    if (presetHasStepSequences) {
+        applyPresetStepSequences(p.stepSequences);
+    }
+
     // Apply LFOs
     const presetTempoSyncTargets = [];
     if (!lfoLockActive) {
