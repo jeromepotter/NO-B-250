@@ -386,9 +386,33 @@ let liveLfoOutputs = [0, 0, 0, 0];
             return { targetCycle, targetStep: nextStep };
         }
 
-        function getNextDownbeatTarget(patternLen = 16) {
+        function getBreakGridState() {
+            // When the step sequencer is active, use its grid exclusively for drum timing
+            // so arp quantization remains untouched.
+            if (isStepsMode && areStepSequencesRunning()) {
+                return {
+                    patternLen: 16,
+                    stepCounter: sharedStepCounter,
+                    nextTickTime: sharedStepNextTickTime,
+                };
+            }
+
             const tempoSource = getTempoSourceState();
-            const sourceStepCounter = tempoSource?.euclideanStepCounter ?? sharedStepCounter;
+            if (tempoSource?.arpRunning) {
+                return {
+                    patternLen: tempoSource.euclideanPatternLen ?? 16,
+                    stepCounter: tempoSource.euclideanStepCounter ?? 0,
+                    nextTickTime: tempoSource.nextArpStepTime,
+                };
+            }
+
+            return null;
+        }
+
+        function getNextDownbeatTarget(defaultPatternLen = 16) {
+            const grid = getBreakGridState();
+            const patternLen = grid?.patternLen ?? defaultPatternLen;
+            const sourceStepCounter = grid?.stepCounter ?? sharedStepCounter;
             const currentCycle = Math.floor(sourceStepCounter / patternLen);
             // Always push to the next cycle's first step so playback lands exactly on the downbeat.
             return { targetCycle: currentCycle + 1, targetStep: 0 };
@@ -1166,12 +1190,10 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const timestamp = getNowMs();
 
             // 1. CHECK TRIGGERS
-            const source = getTempoSourceState();
-            const hasStepGrid = isStepsMode && areStepSequencesRunning();
-            const hasGridSource = (source && source.arpRunning) || hasStepGrid;
-            if (hasGridSource) {
-                const patternLen = 16;
-                const stepCounter = source?.euclideanStepCounter ?? sharedStepCounter;
+            const breakGrid = getBreakGridState();
+            if (breakGrid) {
+                const patternLen = breakGrid.patternLen ?? 16;
+                const stepCounter = breakGrid.stepCounter ?? 0;
                 const currentCycle = Math.floor(stepCounter / patternLen);
                 const stepInCycle = stepCounter % patternLen;
                 const targetReached = breakQueueTargetCycle === null || currentCycle >= breakQueueTargetCycle;
@@ -1180,14 +1202,14 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 // FIX: Check timing!
                 // Even if the Counter says "Step 0", we must ensure the Clock says "Time for Step 0".
                 // In BPM mode, the arp only plays if timestamp >= nextArpStepTime.
-                const nextTickTime = source?.nextArpStepTime ?? sharedStepNextTickTime;
-                let isArpReadyToPlay = true;
+                const nextTickTime = breakGrid.nextTickTime;
+                let isGridReadyToPlay = true;
                 if (tempoMode === TEMPO_MODE_BPM && Number.isFinite(nextTickTime)) {
                     // We add a tiny buffer (tolerance) to ensure we don't miss the frame
-                    isArpReadyToPlay = timestamp >= (nextTickTime - MASTER_CLOCK_TOLERANCE_MS);
+                    isGridReadyToPlay = timestamp >= (nextTickTime - MASTER_CLOCK_TOLERANCE_MS);
                 }
 
-                if (stepInCycle === targetStep && targetReached && isArpReadyToPlay) {
+                if (stepInCycle === targetStep && targetReached && isGridReadyToPlay) {
                     if (pendingBreakIndex !== null) {
                         ensureBreakSampleLoaded(pendingBreakIndex, 0);
                         pendingBreakIndex = null;
