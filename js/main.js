@@ -137,7 +137,12 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let stepsModeContainer = null;
         let stepsModeSwitch = null;
         const stepPlayheads = [0, 0];
-        const stepIntervals = [null, null];
+        const stepTimers = [
+            { intervalId: null, startTimeout: null },
+            { intervalId: null, startTimeout: null },
+        ];
+        const stepLastMidi = [null, null];
+        const stepPreviewTimeouts = [null, null];
         const stepSequences = [
             { steps: Array.from({ length: 16 }, () => ({ active: false, value: 0 })), knobEls: [], noteDisplay: null },
             { steps: Array.from({ length: 16 }, () => ({ active: false, value: 0 })), knobEls: [], noteDisplay: null },
@@ -156,6 +161,11 @@ let liveLfoOutputs = [0, 0, 0, 0];
             return match ? parseFloat(match[1]) : 100;
         }
 
+        function getStepMidiNote(seqIndex, value) {
+            const angle = Math.max(0, Math.min(8, value)) * 360;
+            return getMidiNoteFromAngle(seqIndex, angle);
+        }
+
         function updateStepKnobVisual(seqIndex, stepIndex) {
             const { steps, knobEls } = stepSequences[seqIndex];
             const step = steps[stepIndex];
@@ -167,9 +177,12 @@ let liveLfoOutputs = [0, 0, 0, 0];
             knobEl.classList.toggle('inactive', !step.active);
             knobEl.dataset.value = step.value.toFixed(2);
             if (indicator) {
-                const rotation = (step.value / 8) * 360;
+                const rotation = step.value * 360;
                 indicator.style.transform = `translate(-50%, 0) rotate(${rotation}deg)`;
             }
+            const midiNote = getStepMidiNote(seqIndex, step.value);
+            const color = getArpNoteColor(midiNote);
+            knobEl.style.backgroundColor = `rgb(${color.r}, ${color.g}, ${color.b})`;
             if (label) {
                 label.textContent = `OCT ${step.value.toFixed(1)}`;
             }
@@ -191,18 +204,78 @@ let liveLfoOutputs = [0, 0, 0, 0];
             if (display) display.textContent = text;
         }
 
+        function sendStepNoteOff(seqIndex) {
+            const lastMidi = stepLastMidi[seqIndex];
+            if (!isPowerOn || lastMidi === null) return;
+            if (synthNode) {
+                synthNode.port.postMessage({ type: 'noteOff', data: { voice: seqIndex } });
+            }
+            captureMidiEvent(seqIndex, 'noteOff', lastMidi, 0);
+            sendMidiMessage([0x80 + seqIndex, lastMidi, 0]);
+            stepLastMidi[seqIndex] = null;
+            const state = knobState[seqIndex];
+            if (state) {
+                state.isNoteOn = false;
+                updateKnobColor(seqIndex);
+            }
+        }
+
+        function playStepMidi(seqIndex, midiNote) {
+            if (!isPowerOn || midiNote === null || !isFinite(midiNote)) return;
+            sendStepNoteOff(seqIndex);
+            const freq = getNoteFrequency(midiNote);
+            if (synthNode) {
+                synthNode.port.postMessage({ type: 'noteOn', data: { voice: seqIndex, freq } });
+            }
+            captureMidiEvent(seqIndex, 'noteOn', midiNote, 100);
+            sendMidiMessage([0x90 + seqIndex, midiNote, 100]);
+            stepLastMidi[seqIndex] = midiNote;
+            const state = knobState[seqIndex];
+            if (state) {
+                state.isNoteOn = true;
+                state.lastPlayedMidi = midiNote;
+                updateKnobColor(seqIndex);
+            }
+        }
+
+        function scheduleStepPreview(seqIndex, midiNote) {
+            if (stepPreviewTimeouts[seqIndex]) {
+                clearTimeout(stepPreviewTimeouts[seqIndex]);
+                stepPreviewTimeouts[seqIndex] = null;
+            }
+            if (midiNote === null || !isFinite(midiNote)) {
+                sendStepNoteOff(seqIndex);
+                updateStepNoteDisplay(seqIndex, '--');
+                return;
+            }
+            playStepMidi(seqIndex, midiNote);
+            updateStepNoteDisplay(seqIndex, midiToNoteName(midiNote));
+            stepPreviewTimeouts[seqIndex] = setTimeout(() => {
+                sendStepNoteOff(seqIndex);
+            }, 500);
+        }
+
         function getStepIntervalMs() {
             const bpm = Math.max(1, getCurrentBpm());
             return 60000 / (bpm * SIXTEENTH_NOTES_PER_QUARTER);
         }
 
         function stopStepSequence(seqIndex) {
-            if (stepIntervals[seqIndex]) {
-                clearInterval(stepIntervals[seqIndex]);
-                stepIntervals[seqIndex] = null;
+            const timer = stepTimers[seqIndex];
+            if (timer) {
+                if (timer.intervalId) {
+                    clearInterval(timer.intervalId);
+                    timer.intervalId = null;
+                }
+                if (timer.startTimeout) {
+                    clearTimeout(timer.startTimeout);
+                    timer.startTimeout = null;
+                }
             }
             stepPlayheads[seqIndex] = 0;
             stepSequences[seqIndex].knobEls.forEach(knob => knob?.classList.remove('active-step'));
+            sendStepNoteOff(seqIndex);
+            updateStepNoteDisplay(seqIndex, '--');
         }
 
         function stepSequenceTick(seqIndex) {
@@ -214,15 +287,44 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const knobEl = sequence.knobEls[current];
             const step = sequence.steps[current];
             if (knobEl) knobEl.classList.add('active-step');
-            const label = step.active ? `Step ${current + 1}: OCT ${step.value.toFixed(1)}` : '--';
-            updateStepNoteDisplay(seqIndex, label);
+            if (step.active) {
+                const midiNote = getStepMidiNote(seqIndex, step.value);
+                playStepMidi(seqIndex, midiNote);
+                updateStepNoteDisplay(seqIndex, midiToNoteName(midiNote));
+            } else {
+                sendStepNoteOff(seqIndex);
+                updateStepNoteDisplay(seqIndex, '--');
+            }
             stepPlayheads[seqIndex] = (current + 1) % totalSteps;
         }
 
         function startStepSequence(seqIndex) {
             stopStepSequence(seqIndex);
-            stepSequenceTick(seqIndex);
-            stepIntervals[seqIndex] = setInterval(() => stepSequenceTick(seqIndex), getStepIntervalMs());
+            const launch = () => {
+                stepSequenceTick(seqIndex);
+                const timer = stepTimers[seqIndex];
+                if (timer) {
+                    timer.intervalId = setInterval(() => stepSequenceTick(seqIndex), getStepIntervalMs());
+                }
+            };
+
+            if (tempoMode === TEMPO_MODE_BPM) {
+                ensureMasterClock();
+                const now = getNowMs();
+                const intervalMs = getStepIntervalMs();
+                const target = quantizeToNextSixteenth(now, intervalMs);
+                const delay = Math.max(0, target - now);
+                const timer = stepTimers[seqIndex];
+                if (timer) {
+                    timer.startTimeout = setTimeout(() => {
+                        launch();
+                    }, delay);
+                } else {
+                    launch();
+                }
+            } else {
+                launch();
+            }
         }
 
         function attachStepKnobHandlers(knobEl, seqIndex, stepIndex) {
@@ -230,24 +332,36 @@ let liveLfoOutputs = [0, 0, 0, 0];
             let startValue = 0;
             let moved = false;
 
+            const isSequenceRunning = () => {
+                const timer = stepTimers[seqIndex];
+                return Boolean(timer?.intervalId || timer?.startTimeout);
+            };
+
             const onPointerMove = (event) => {
                 const deltaY = startY - event.clientY;
                 const nextValue = startValue + deltaY / 40;
                 moved = true;
                 setStepValue(seqIndex, stepIndex, nextValue);
+                const stepData = stepSequences[seqIndex].steps[stepIndex];
+                if (stepData.active && !isSequenceRunning()) {
+                    const midi = getStepMidiNote(seqIndex, stepData.value);
+                    scheduleStepPreview(seqIndex, midi);
+                }
             };
 
             const release = (event) => {
                 knobEl.releasePointerCapture(event.pointerId);
                 document.removeEventListener('pointermove', onPointerMove);
                 document.removeEventListener('pointerup', release);
-                if (!stepSequences[seqIndex].steps[stepIndex].active) return;
-                if (!stepIntervals[seqIndex]) {
-                    updateStepNoteDisplay(seqIndex, `Preview: OCT ${stepSequences[seqIndex].steps[stepIndex].value.toFixed(1)}`);
+                const stepData = stepSequences[seqIndex].steps[stepIndex];
+                if (!stepData.active) {
+                    sendStepNoteOff(seqIndex);
+                    updateStepNoteDisplay(seqIndex, '--');
+                } else if (!isSequenceRunning()) {
+                    const midi = getStepMidiNote(seqIndex, stepData.value);
+                    scheduleStepPreview(seqIndex, midi);
                 }
-                if (!moved) {
-                    toggleStepActive(seqIndex, stepIndex, false);
-                }
+                if (!moved) toggleStepActive(seqIndex, stepIndex, false);
             };
 
             knobEl.addEventListener('pointerdown', (event) => {
@@ -258,6 +372,11 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 knobEl.setPointerCapture(event.pointerId);
                 if (!stepSequences[seqIndex].steps[stepIndex].active) {
                     toggleStepActive(seqIndex, stepIndex, true);
+                }
+                if (!isSequenceRunning()) {
+                    const stepData = stepSequences[seqIndex].steps[stepIndex];
+                    const midi = getStepMidiNote(seqIndex, stepData.value);
+                    scheduleStepPreview(seqIndex, midi);
                 }
                 document.addEventListener('pointermove', onPointerMove);
                 document.addEventListener('pointerup', release);
@@ -298,15 +417,30 @@ let liveLfoOutputs = [0, 0, 0, 0];
             stepsModeSwitch.classList.toggle('on', enabled);
             const sequencersWrapper = document.getElementById('step-sequencers');
             sequencersWrapper?.classList.toggle('hidden', !enabled);
-            oscillatorRow.classList.toggle('hidden', enabled);
+            document.querySelectorAll('.oscillator-visual').forEach(el => el.classList.toggle('hidden', enabled));
+
+            const lockSelectors = [
+                '#arp-switch-0', '#arp-switch-1',
+                '#arp-mode-switch-0', '#arp-mode-switch-1',
+                '#arp-hold-switch-0', '#arp-hold-switch-1',
+                '[data-fx-id="22"]', '[data-fx-id="23"]',
+                '[data-fx-id="18"]', '[data-fx-id="19"]',
+            ];
+            const lockAction = enabled ? 'add' : 'remove';
+            lockSelectors.forEach(sel => {
+                document.querySelectorAll(sel).forEach(el => el.classList[lockAction]('arp-disabled'));
+            });
+
             if (!enabled) {
                 stopStepSequence(0);
                 stopStepSequence(1);
+                sendStepNoteOff(0);
+                sendStepNoteOff(1);
             }
         }
 
         function initStepSequencers() {
-            stepsModeContainer = document.getElementById('steps-mode-container');
+            stepsModeContainer = document.getElementById('steps-mode-bar');
             stepsModeSwitch = document.getElementById('steps-mode-switch');
             if (!stepsModeContainer || !stepsModeSwitch) return;
 
