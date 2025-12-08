@@ -1167,6 +1167,10 @@ let liveLfoOutputs = [0, 0, 0, 0];
         if (type === 'tick') {
             const timestamp = getNowMs();
 
+            // Capture the current step target before the sequencer advances so we
+            // can align queued break triggers to the same boundary.
+            const preStepNextTick = sharedStepNextTickTime;
+
             handleStepSequencerTick(timestamp);
 
             // 1. CHECK TRIGGERS
@@ -1178,13 +1182,18 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 const targetReached = breakQueueTargetCycle === null || currentCycle >= breakQueueTargetCycle;
                 const targetStep = breakQueueTargetStep ?? 0;
 
-                // FIX: Check timing! 
+                // FIX: Check timing!
                 // Even if the Counter says "Step 0", we must ensure the Clock says "Time for Step 0".
                 // In BPM mode, the arp only plays if timestamp >= nextArpStepTime.
                 let isArpReadyToPlay = true;
                 if (tempoMode === TEMPO_MODE_BPM) {
-                    // We add a tiny buffer (tolerance) to ensure we don't miss the frame
-                    isArpReadyToPlay = timestamp >= (source.nextArpStepTime - MASTER_CLOCK_TOLERANCE_MS);
+                    // We add a tiny buffer (tolerance) to ensure we don't miss the frame.
+                    // For the step sequencer, use the pre-advance tick time so the break
+                    // can trigger alongside the step that just fired.
+                    const targetTime = source.isStepsModeMaster && preStepNextTick !== null
+                        ? preStepNextTick
+                        : source.nextArpStepTime;
+                    isArpReadyToPlay = timestamp >= (targetTime - MASTER_CLOCK_TOLERANCE_MS);
                 }
 
                 if (stepInCycle === targetStep && targetReached && isArpReadyToPlay) {
