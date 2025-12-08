@@ -132,6 +132,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakSelectionDisplay = null;
        let breakQueueTargetCycle = null;
        let breakQueueTargetStep = 0;
+        let pendingBreakSwitchTimeout = null;
 
         let isStepsMode = false;
         let stepsModeContainer = null;
@@ -143,9 +144,9 @@ let liveLfoOutputs = [0, 0, 0, 0];
         ];
         const stepLastMidi = [null, null];
         const stepPreviewTimeouts = [null, null];
-        const defaultStepOctaves = [4, 5];
+        const defaultStepOctaves = [2, 5];
         const stepSequences = [
-            { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[0] })), knobEls: [], noteDisplay: null },
+            { steps: Array.from({ length: 16 }, (_, idx) => ({ active: idx === 0, value: defaultStepOctaves[0] })), knobEls: [], noteDisplay: null },
             { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[1] })), knobEls: [], noteDisplay: null },
         ];
         let stepsModePreviousArpState = [false, false];
@@ -165,13 +166,30 @@ let liveLfoOutputs = [0, 0, 0, 0];
             return match ? parseFloat(match[1]) : 100;
         }
 
-        function applySmartTranspose(seqIndex, midiNote) {
+        function getLiveArpTranspose(seqIndex) {
             const state = knobState[seqIndex];
-            if (!state || !state.arpTranspose) return midiNote;
+            const baseTranspose = state?.arpTranspose ?? 0;
+            const baseValue = fxKnobData[24 + seqIndex]?.value;
+            let normalized = Number.isFinite(baseValue) ? baseValue : ((baseTranspose + 12) / 24);
+
+            lfoState.forEach((lfo, idx) => {
+                if (lfo.depth < 0.001) return;
+                if (getLfoDestChain(lfo).includes(24 + seqIndex)) {
+                    normalized += liveLfoOutputs[idx] || 0;
+                }
+            });
+
+            const clamped = Math.max(0, Math.min(1, normalized));
+            const transpose = Math.floor((clamped * 24) - 12);
+            if (state?.dom?.transposeDisplay) state.dom.transposeDisplay.textContent = transpose;
+            return transpose;
+        }
+
+        function applySmartTranspose(seqIndex, midiNote) {
             const fullScale = getFullScaleMidi();
             const baseIndex = fullScale.indexOf(midiNote);
             if (baseIndex === -1) return midiNote;
-            const targetIndex = Math.max(0, Math.min(fullScale.length - 1, baseIndex + state.arpTranspose));
+            const targetIndex = Math.max(0, Math.min(fullScale.length - 1, baseIndex + getLiveArpTranspose(seqIndex)));
             return fullScale[targetIndex];
         }
 
@@ -281,7 +299,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const timer = stepTimers[seqIndex];
             if (timer) {
                 if (timer.intervalId) {
-                    clearInterval(timer.intervalId);
+                    clearTimeout(timer.intervalId);
                     timer.intervalId = null;
                 }
                 if (timer.startTimeout) {
@@ -328,15 +346,26 @@ let liveLfoOutputs = [0, 0, 0, 0];
             stepPlayheads[seqIndex] = (current + 1) % totalSteps;
         }
 
+        function scheduleNextStepTick(seqIndex) {
+            const timer = stepTimers[seqIndex];
+            if (!timer) return;
+            const intervalMs = getStepIntervalMs();
+            const now = getNowMs();
+            const target = tempoMode === TEMPO_MODE_BPM ? quantizeToGrid(now, intervalMs, 1) : now + intervalMs;
+            const delay = Math.max(0, target - now);
+            if (tempoMode === TEMPO_MODE_BPM) ensureMasterClock();
+            timer.intervalId = setTimeout(() => {
+                stepSequenceTick(seqIndex);
+                scheduleNextStepTick(seqIndex);
+            }, delay);
+        }
+
         function startStepSequence(seqIndex, options = {}) {
             const { preservePlayhead = false, sharedDelay = null } = options;
             stopStepSequence(seqIndex, { resetPlayhead: !preservePlayhead, clearDisplay: !preservePlayhead });
             const launch = () => {
                 stepSequenceTick(seqIndex);
-                const timer = stepTimers[seqIndex];
-                if (timer) {
-                    timer.intervalId = setInterval(() => stepSequenceTick(seqIndex), getStepIntervalMs());
-                }
+                scheduleNextStepTick(seqIndex);
             };
 
             const delayOverride = Number.isFinite(sharedDelay) ? Math.max(0, sharedDelay) : null;
@@ -1874,6 +1903,13 @@ let liveLfoOutputs = [0, 0, 0, 0];
             }
         }
 
+        function clearPendingBreakSwitch() {
+            if (pendingBreakSwitchTimeout) {
+                clearTimeout(pendingBreakSwitchTimeout);
+                pendingBreakSwitchTimeout = null;
+            }
+        }
+
        function setBreakSampleIndex(index, { progressNormalized = 0, normalizedValue, forceImmediate = false } = {}) {
     const clamped = clamp(index ?? breakSampleIndex, BREAK_SAMPLE_MIN_INDEX, BREAK_SAMPLE_MAX_INDEX);
 
@@ -1883,14 +1919,15 @@ let liveLfoOutputs = [0, 0, 0, 0];
     } else {
         breakSelectionNormalized = breakIndexToValue(clamped);
     }
-    
+
     // 2. Performance Guard
     if (clamped === breakSampleIndex && !forceImmediate) {
         syncBreakSelectionKnob();
-        return; 
+        return;
     }
 
     syncBreakSelectionKnob();
+    clearPendingBreakSwitch();
 
     // 3. Determine if we should Queue
     const tempoSource = getTempoSourceState();
@@ -1902,7 +1939,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
     // This ensures we don't fall back to "Instant" just because applyPreset stopped the arp for 10ms.
     const isGridActive = (tempoSource && tempoSource.arpRunning) || masterClockRunning;
 
-    const shouldQueueChange = isBreakActive && !forceImmediate && tempoMode === TEMPO_MODE_BPM && tempoSource && isGridActive;
+    const shouldQueueChange = isBreakActive && !forceImmediate && tempoMode === TEMPO_MODE_BPM && (tempoSource || isStepsMode) && isGridActive;
 
     if (shouldQueueChange) {
         // --- QUEUED SWITCH (BPM Mode) ---
@@ -1915,28 +1952,40 @@ let liveLfoOutputs = [0, 0, 0, 0];
         
         breakQueueTargetCycle = currentCycle + 1;
         breakQueueTargetStep = 0;
-        
-    } else {
-        // --- IMMEDIATE SWITCH ---
-        breakSampleIndex = clamped;
-        updateBreakSelectionUi(clamped);
-        pendingBreakIndex = null; 
-        breakQueueTargetCycle = null;
+    } else if (breakRunning && tempoMode === TEMPO_MODE_BPM && !forceImmediate) {
+        const nowSeconds = audioContext ? audioContext.currentTime : (performance.now() / 1000);
+        const rate = Math.max(0.01, breakPlaybackRate || getBreakPlaybackRate());
+        const loopDuration = (breakWaveformDuration > 0 && rate > 0) ? (breakWaveformDuration / rate) : null;
+        if (loopDuration && isFinite(loopDuration)) {
+            const elapsed = nowSeconds - (breakPlaybackStartTime || 0);
+            const remaining = loopDuration - (elapsed % loopDuration);
+            pendingBreakSwitchTimeout = setTimeout(() => {
+                pendingBreakSwitchTimeout = null;
+                setBreakSampleIndex(clamped, { progressNormalized, normalizedValue, forceImmediate: true });
+            }, Math.max(0, remaining * 1000));
+            return;
+        }
+    }
 
-        const loadPromise = ensureBreakSampleLoaded(clamped, progressNormalized);
+    // --- IMMEDIATE SWITCH ---
+    breakSampleIndex = clamped;
+    updateBreakSelectionUi(clamped);
+    pendingBreakIndex = null;
+    breakQueueTargetCycle = null;
 
-        if (!breakRunning) {
-            const applyPreview = () => {
-                if (!breakRunning && breakSampleIndex === clamped && breakWaveformPeaks?.length) {
-                    drawBreakWaveform(progressNormalized);
-                }
-            };
+    const loadPromise = ensureBreakSampleLoaded(clamped, progressNormalized);
 
-            if (loadPromise?.then) {
-                loadPromise.then(applyPreview);
-            } else {
-                applyPreview();
+    if (!breakRunning) {
+        const applyPreview = () => {
+            if (!breakRunning && breakSampleIndex === clamped && breakWaveformPeaks?.length) {
+                drawBreakWaveform(progressNormalized);
             }
+        };
+
+        if (loadPromise?.then) {
+            loadPromise.then(applyPreview);
+        } else {
+            applyPreview();
         }
     }
 }
@@ -1981,6 +2030,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
         function stopBreakPlaybackImmediate() {
             clearBreakStartTimer();
+            clearPendingBreakSwitch();
             if (breakRunning) {
                 synthNode?.port.postMessage({ type: 'stopBreakLoop' });
             }

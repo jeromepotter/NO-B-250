@@ -219,6 +219,7 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
         cursor: pointer;
         transition: box-shadow 0.1s, opacity 0.1s, transform 0.1s;
         box-shadow: 0 0 0 2px var(--color-surface);
+        touch-action: none;
       }
 
       .step-knob .step-indicator {
