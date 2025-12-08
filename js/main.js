@@ -149,6 +149,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
             { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[1] })), knobEls: [], noteDisplay: null },
         ];
         let stepsModePreviousArpState = [false, false];
+        let stepsModePreviousArpLock = false;
+        let stepsModePreviousRateSync = false;
 
         function getLfoDestChain(lfo) {
             if (lfo && Array.isArray(lfo.destChain) && lfo.destChain.length) return lfo.destChain;
@@ -163,9 +165,20 @@ let liveLfoOutputs = [0, 0, 0, 0];
             return match ? parseFloat(match[1]) : 100;
         }
 
+        function applySmartTranspose(seqIndex, midiNote) {
+            const state = knobState[seqIndex];
+            if (!state || !state.arpTranspose) return midiNote;
+            const fullScale = getFullScaleMidi();
+            const baseIndex = fullScale.indexOf(midiNote);
+            if (baseIndex === -1) return midiNote;
+            const targetIndex = Math.max(0, Math.min(fullScale.length - 1, baseIndex + state.arpTranspose));
+            return fullScale[targetIndex];
+        }
+
         function getStepMidiNote(seqIndex, value) {
             const angle = Math.max(0, Math.min(8, value)) * 360;
-            return getMidiNoteFromAngle(seqIndex, angle);
+            const baseNote = getMidiNoteFromAngle(seqIndex, angle);
+            return applySmartTranspose(seqIndex, baseNote);
         }
 
         function updateStepKnobVisual(seqIndex, stepIndex) {
@@ -195,6 +208,12 @@ let liveLfoOutputs = [0, 0, 0, 0];
         function toggleStepActive(seqIndex, stepIndex, isActive) {
             stepSequences[seqIndex].steps[stepIndex].active = isActive;
             updateStepKnobVisual(seqIndex, stepIndex);
+        }
+
+        function refreshStepSequencerVisuals(seqIndex) {
+            const sequence = stepSequences[seqIndex];
+            if (!sequence) return;
+            sequence.steps.forEach((_, idx) => updateStepKnobVisual(seqIndex, idx));
         }
 
         function updateStepNoteDisplay(seqIndex, text) {
@@ -258,7 +277,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             return 60000 / (bpm * SIXTEENTH_NOTES_PER_QUARTER);
         }
 
-        function stopStepSequence(seqIndex) {
+        function stopStepSequence(seqIndex, { resetPlayhead = true, clearDisplay = true } = {}) {
             const timer = stepTimers[seqIndex];
             if (timer) {
                 if (timer.intervalId) {
@@ -270,10 +289,23 @@ let liveLfoOutputs = [0, 0, 0, 0];
                     timer.startTimeout = null;
                 }
             }
-            stepPlayheads[seqIndex] = 0;
+            if (resetPlayhead) {
+                stepPlayheads[seqIndex] = 0;
+            }
             stepSequences[seqIndex].knobEls.forEach(knob => knob?.classList.remove('active-step'));
             sendStepNoteOff(seqIndex);
-            updateStepNoteDisplay(seqIndex, '--');
+            if (clearDisplay) {
+                updateStepNoteDisplay(seqIndex, '--');
+            }
+        }
+
+        function getSharedStepStartDelay() {
+            if (tempoMode !== TEMPO_MODE_BPM) return 0;
+            ensureMasterClock();
+            const now = getNowMs();
+            const intervalMs = getStepIntervalMs();
+            const target = quantizeToNextSixteenth(now, intervalMs);
+            return Math.max(0, target - now);
         }
 
         function stepSequenceTick(seqIndex) {
@@ -296,8 +328,9 @@ let liveLfoOutputs = [0, 0, 0, 0];
             stepPlayheads[seqIndex] = (current + 1) % totalSteps;
         }
 
-        function startStepSequence(seqIndex) {
-            stopStepSequence(seqIndex);
+        function startStepSequence(seqIndex, options = {}) {
+            const { preservePlayhead = false, sharedDelay = null } = options;
+            stopStepSequence(seqIndex, { resetPlayhead: !preservePlayhead, clearDisplay: !preservePlayhead });
             const launch = () => {
                 stepSequenceTick(seqIndex);
                 const timer = stepTimers[seqIndex];
@@ -306,12 +339,9 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 }
             };
 
+            const delayOverride = Number.isFinite(sharedDelay) ? Math.max(0, sharedDelay) : null;
             if (tempoMode === TEMPO_MODE_BPM) {
-                ensureMasterClock();
-                const now = getNowMs();
-                const intervalMs = getStepIntervalMs();
-                const target = quantizeToNextSixteenth(now, intervalMs);
-                const delay = Math.max(0, target - now);
+                const delay = delayOverride !== null ? delayOverride : getSharedStepStartDelay();
                 const timer = stepTimers[seqIndex];
                 if (timer) {
                     timer.startTimeout = setTimeout(() => {
@@ -321,8 +351,30 @@ let liveLfoOutputs = [0, 0, 0, 0];
                     launch();
                 }
             } else {
-                launch();
+                const delay = delayOverride !== null ? delayOverride : 0;
+                if (delay > 0) {
+                    const timer = stepTimers[seqIndex];
+                    if (timer) {
+                        timer.startTimeout = setTimeout(launch, delay);
+                    } else {
+                        launch();
+                    }
+                } else {
+                    launch();
+                }
             }
+        }
+
+        function rescheduleRunningStepSequences() {
+            if (!isStepsMode) return;
+            const sharedDelay = getSharedStepStartDelay();
+            stepSequences.forEach((_, idx) => {
+                const timer = stepTimers[idx];
+                const isRunning = Boolean(timer?.intervalId || timer?.startTimeout);
+                if (isRunning) {
+                    startStepSequence(idx, { preservePlayhead: true, sharedDelay });
+                }
+            });
         }
 
         function attachStepKnobHandlers(knobEl, seqIndex, stepIndex) {
@@ -432,6 +484,18 @@ let liveLfoOutputs = [0, 0, 0, 0];
             });
 
             if (enabled) {
+                stepsModePreviousArpLock = isArpLockEnabled;
+                stepsModePreviousRateSync = isArpRateSynced;
+                isArpLockEnabled = true;
+                isArpRateSynced = true;
+                if (arpLockSwitch) {
+                    arpLockSwitch.classList.add('on', 'arp-disabled');
+                    arpLockSwitch.parentElement?.classList.add('arp-disabled');
+                }
+                const syncContainer = document.getElementById('rate-sync-container') || arpSyncSwitch?.parentElement;
+                if (syncContainer) syncContainer.classList.add('arp-disabled');
+                if (arpSyncSwitch) arpSyncSwitch.classList.add('on');
+
                 stepsModePreviousArpState = knobState.map(state => state?.isArpOn);
                 knobState.forEach((state, idx) => {
                     if (!state) return;
@@ -439,9 +503,28 @@ let liveLfoOutputs = [0, 0, 0, 0];
                     if (state.dom?.arpSwitch) state.dom.arpSwitch.classList.add('on');
                     updateArpControlsFading(idx);
                 });
+                if (tempoMode === TEMPO_MODE_BPM) {
+                    const masterBpm = knobState[0]?.arpRateBpm ?? DEFAULT_ARP_RATE_BPM;
+                    setArpRateFromBpm(1, masterBpm);
+                } else {
+                    const masterMs = knobState[0]?.arpRateMs ?? DEFAULT_ARP_RATE_MS;
+                    setArpRateFromMs(1, masterMs);
+                }
                 allArpControlGrids?.forEach(g => g.classList.remove('arp-hidden'));
                 if (masterArpControls) masterArpControls.classList.remove('arp-hidden');
             } else {
+                isArpLockEnabled = stepsModePreviousArpLock;
+                if (arpLockSwitch) {
+                    arpLockSwitch.classList.toggle('on', isArpLockEnabled);
+                    arpLockSwitch.classList.remove('arp-disabled');
+                    arpLockSwitch.parentElement?.classList.remove('arp-disabled');
+                }
+                isArpRateSynced = stepsModePreviousRateSync;
+                if (arpSyncSwitch) {
+                    arpSyncSwitch.classList.toggle('on', isArpRateSynced);
+                }
+                const syncContainer = document.getElementById('rate-sync-container') || arpSyncSwitch?.parentElement;
+                if (syncContainer) syncContainer.classList.remove('arp-disabled');
                 knobState.forEach((state, idx) => {
                     if (!state) return;
                     const shouldRestoreOff = stepsModePreviousArpState[idx] === false;
@@ -462,6 +545,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 sendStepNoteOff(1);
             }
 
+            updateSyncSwitchVisibility();
             updateBreakPlaybackEligibility();
         }
 
@@ -477,12 +561,17 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 setStepsMode(!isStepsMode);
             });
 
-            Array.from(document.querySelectorAll('.step-sequencer')).forEach(seqEl => {
-                const index = parseInt(seqEl.dataset.sequenceIndex, 10);
-                const startButton = seqEl.querySelector('.step-start');
-                const stopButton = seqEl.querySelector('.step-stop');
-                startButton?.addEventListener('click', () => startStepSequence(index));
-                stopButton?.addEventListener('click', () => stopStepSequence(index));
+            const startAllButton = document.getElementById('step-start-all');
+            const stopAllButton = document.getElementById('step-stop-all');
+            const startBoth = () => {
+                const sharedDelay = getSharedStepStartDelay();
+                startStepSequence(0, { sharedDelay });
+                startStepSequence(1, { sharedDelay });
+            };
+            startAllButton?.addEventListener('click', startBoth);
+            stopAllButton?.addEventListener('click', () => {
+                stopStepSequence(0);
+                stopStepSequence(1);
             });
 
             setStepsMode(false);
@@ -2377,6 +2466,7 @@ async function toggleBreakPlayback(options = {}) {
             updateTempoKnobIndicator(knobId, knobValue);
             handleTempoLinkedControls();
             updateMidiClockState();
+            if (isStepsMode) rescheduleRunningStepSequences();
         }
 
         function setArpRateFromMs(knobId, rateMs) {
@@ -2410,6 +2500,7 @@ async function toggleBreakPlayback(options = {}) {
             updateTempoKnobIndicator(knobId, knobValue);
             handleTempoLinkedControls();
             updateMidiClockState();
+            if (isStepsMode) rescheduleRunningStepSequences();
         }
 
         function handleArpRateButton(knobId, multiplier) {
@@ -3661,6 +3752,7 @@ function sendMidiMessage(message) {
                   if(state.dom.transposeDisplay) state.dom.transposeDisplay.textContent = trans;
                   updateStateFromTotalAngle(knobId);
                   updateSequenceDisplay(knobId);
+                  refreshStepSequencerVisuals(knobId);
                } else if (id === 16 || id === 17) {
                    const otherId = knobId === 0 ? 1 : 0;
                    if (tempoMode === TEMPO_MODE_BPM) {
@@ -4713,6 +4805,11 @@ lfoState.forEach((lfo, lfoIndex) => {
 
             updateRateButtonLockState();
             updateLfoTempoSwitchStates();
+
+            if (isStepsMode && syncCont) {
+                syncCont.classList.add('arp-disabled');
+                arpSyncSwitch?.classList.add('on');
+            }
        }
         function updateLfoVisuals(lfoOutputs) {
     const modulatedValues = {}; // key: destination id, value: total modulation amount

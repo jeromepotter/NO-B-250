@@ -113,11 +113,7 @@
 
       <div id="step-sequencers" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-6 p-2">
         <div class="step-sequencer" data-sequence-index="0">
-          <div class="flex justify-between items-center mb-3">
-            <div class="flex items-center space-x-2">
-              <button class="retro-button text-[10px] sm:text-xs font-bold step-start" type="button">START</button>
-              <button class="retro-button text-[10px] sm:text-xs font-bold step-stop" type="button">STOP</button>
-            </div>
+          <div class="flex justify-end items-center mb-3">
             <div class="text-[10px] sm:text-xs font-bold tracking-wider">SEQ A</div>
           </div>
           <div class="grid grid-cols-8 gap-2 step-knob-grid" data-sequence-grid="0"></div>
@@ -125,12 +121,13 @@
           <div class="flex justify-center items-center mt-1 text-base sm:text-lg font-bold step-note-display">--</div>
         </div>
 
+        <div class="col-span-1 sm:col-span-2 flex justify-center items-center space-x-2 step-global-controls">
+          <button id="step-start-all" class="retro-button text-[10px] sm:text-xs font-bold" type="button">START</button>
+          <button id="step-stop-all" class="retro-button text-[10px] sm:text-xs font-bold" type="button">STOP</button>
+        </div>
+
         <div class="step-sequencer" data-sequence-index="1">
-          <div class="flex justify-between items-center mb-3">
-            <div class="flex items-center space-x-2">
-              <button class="retro-button text-[10px] sm:text-xs font-bold step-start" type="button">START</button>
-              <button class="retro-button text-[10px] sm:text-xs font-bold step-stop" type="button">STOP</button>
-            </div>
+          <div class="flex justify-end items-center mb-3">
             <div class="text-[10px] sm:text-xs font-bold tracking-wider">SEQ B</div>
           </div>
           <div class="grid grid-cols-8 gap-2 step-knob-grid" data-sequence-grid="1"></div>
