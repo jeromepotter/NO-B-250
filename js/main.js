@@ -352,20 +352,28 @@ let liveLfoOutputs = [0, 0, 0, 0];
             return 60000 / (bpm * SIXTEENTH_NOTES_PER_QUARTER);
         }
 
+        function handleStepSequencerTick(timestamp) {
+            if (!isStepsMode || sharedStepNextTickTime === null) return;
+
+            const intervalMs = getStepIntervalMs();
+            if (!Number.isFinite(intervalMs) || intervalMs <= 0) return;
+
+            while (timestamp + MASTER_CLOCK_TOLERANCE_MS >= sharedStepNextTickTime) {
+                stepSequenceTick(0);
+                stepSequenceTick(1);
+                sharedStepCounter = (sharedStepCounter + 1) % 1e9;
+                sharedStepNextTickTime += intervalMs;
+            }
+        }
+
         function areStepSequencesRunning() {
-            return Boolean(sharedStepTimer.intervalId || sharedStepTimer.startTimeout);
+            return sharedStepNextTickTime !== null;
         }
 
         function clearSharedStepTimer() {
-            if (sharedStepTimer.intervalId) {
-                clearInterval(sharedStepTimer.intervalId);
-                sharedStepTimer.intervalId = null;
-            }
-            if (sharedStepTimer.startTimeout) {
-                clearTimeout(sharedStepTimer.startTimeout);
-                sharedStepTimer.startTimeout = null;
-            }
             sharedStepNextTickTime = null;
+            sharedStepTimer.intervalId = null;
+            sharedStepTimer.startTimeout = null;
             stepTimers.forEach(timer => {
                 if (!timer) return;
                 timer.intervalId = null;
@@ -433,39 +441,17 @@ let liveLfoOutputs = [0, 0, 0, 0];
         function startAllStepSequences({ preservePlayhead = false, preserveClock = false, sharedDelay = null } = {}) {
             stopAllStepSequences({ resetPlayhead: !preservePlayhead, clearDisplay: !preservePlayhead });
 
-            const launch = () => {
-                sharedStepTimer.startTimeout = null;
-                stepTimers.forEach(timer => { if (timer) timer.startTimeout = null; });
-
-                const intervalMs = getStepIntervalMs();
-                if (!preserveClock) sharedStepCounter = 0;
-
-                const runTick = () => {
-                    stepSequenceTick(0);
-                    stepSequenceTick(1);
-                    sharedStepCounter = (sharedStepCounter + 1) % 1e9;
-                    sharedStepNextTickTime = getNowMs() + intervalMs;
-                };
-
-                runTick();
-                sharedStepNextTickTime = getNowMs() + intervalMs;
-                const interval = setInterval(runTick, intervalMs);
-                sharedStepTimer.intervalId = interval;
-                stepTimers.forEach(timer => { if (timer) timer.intervalId = interval; });
-            };
+            const intervalMs = getStepIntervalMs();
+            if (!preserveClock) sharedStepCounter = 0;
 
             const delayOverride = Number.isFinite(sharedDelay) ? Math.max(0, sharedDelay) : null;
             const delay = tempoMode === TEMPO_MODE_BPM
                 ? (delayOverride !== null ? delayOverride : getSharedStepStartDelay())
                 : (delayOverride !== null ? delayOverride : 0);
 
-            if (delay > 0) {
-                const timeoutId = setTimeout(launch, delay);
-                sharedStepTimer.startTimeout = timeoutId;
-                stepTimers.forEach(timer => { if (timer) timer.startTimeout = timeoutId; });
-            } else {
-                launch();
-            }
+            const now = getNowMs();
+            sharedStepNextTickTime = now + delay;
+            ensureMasterClock();
         }
 
         function rescheduleRunningStepSequences() {
@@ -1181,6 +1167,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
         if (type === 'tick') {
             const timestamp = getNowMs();
 
+            handleStepSequencerTick(timestamp);
+
             // 1. CHECK TRIGGERS
             const source = getTempoSourceState();
             if (source && source.arpRunning) {
@@ -1195,8 +1183,15 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 // In BPM mode, the arp only plays if timestamp >= nextArpStepTime.
                 let isArpReadyToPlay = true;
                 if (tempoMode === TEMPO_MODE_BPM) {
-                    // We add a tiny buffer (tolerance) to ensure we don't miss the frame
-                    isArpReadyToPlay = timestamp >= (source.nextArpStepTime - MASTER_CLOCK_TOLERANCE_MS);
+                    if (source.isStepsModeMaster) {
+                        // Step sequencer ticks were already emitted this frame, so the
+                        // next tick timestamp will always be in the future. Treat the
+                        // current frame as on-grid for queued break playback.
+                        isArpReadyToPlay = true;
+                    } else {
+                        // We add a tiny buffer (tolerance) to ensure we don't miss the frame
+                        isArpReadyToPlay = timestamp >= (source.nextArpStepTime - MASTER_CLOCK_TOLERANCE_MS);
+                    }
                 }
 
                 if (stepInCycle === targetStep && targetReached && isArpReadyToPlay) {
@@ -1205,10 +1200,12 @@ let liveLfoOutputs = [0, 0, 0, 0];
                         pendingBreakIndex = null;
                     }
                     if (breakPlayQueued) {
-                        beginBreakPlayback();
-                        breakPlayQueued = false;
-                        breakQueueTargetCycle = null;
-                        breakQueueTargetStep = 0;
+                        const started = beginBreakPlayback();
+                        if (started) {
+                            breakPlayQueued = false;
+                            breakQueueTargetCycle = null;
+                            breakQueueTargetStep = 0;
+                        }
                     }
                 }
             } else {
@@ -1218,10 +1215,12 @@ let liveLfoOutputs = [0, 0, 0, 0];
                     pendingBreakIndex = null;
                 }
                 if (breakPlayQueued) {
-                    beginBreakPlayback();
-                    breakPlayQueued = false;
-                    breakQueueTargetCycle = null;
-                    breakQueueTargetStep = 0;
+                    const started = beginBreakPlayback();
+                    if (started) {
+                        breakPlayQueued = false;
+                        breakQueueTargetCycle = null;
+                        breakQueueTargetStep = 0;
+                    }
                 }
             }
 
@@ -1251,7 +1250,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
         function stopMasterClockIfIdle() {
             if (!masterClockRunning || !masterClockWorker) return;
-            if (knobState.some(state => state?.arpRunning) || breakPlayRequested) return;
+            if (knobState.some(state => state?.arpRunning) || breakPlayRequested || areStepSequencesRunning()) return;
             masterClockWorker.postMessage({ type: 'stop' });
             masterClockRunning = false;
             masterClockStartTime = null;
@@ -2063,7 +2062,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
         function beginBreakPlayback() {
             breakStartTimeoutId = null;
-            if (!breakPlayRequested || !breakBufferLoaded) return;
+            if (!breakPlayRequested || !breakBufferLoaded) return false;
             breakRunning = true;
             breakPlaybackRate = getBreakPlaybackRate();
             breakPlaybackStartTime = audioContext ? audioContext.currentTime : (performance.now() / 1000);
@@ -2074,6 +2073,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             startBreakWaveformAnimation();
             breakQueueTargetCycle = null;
             breakQueueTargetStep = 0;
+            return true;
         }
 
         function stopBreakPlaybackImmediate() {
@@ -2123,34 +2123,13 @@ async function toggleBreakPlayback(options = {}) {
         const tempoSource = getTempoSourceState();
         if (tempoSource) {
             const patternLen = 16;
-            const QUANTIZATION = 1; // 4 steps = 1 Beat (Quarter Note)
 
-            // Calculate where we are right now
-            const currentStep = tempoSource.euclideanStepCounter % patternLen;
-            const currentCycle = Math.floor(tempoSource.euclideanStepCounter / patternLen);
-
-            // Calculate distance to the NEXT quantization point
-            // If we are at step 2, target is 4. Distance = 2.
-            // If we are at step 0, target is 0. Distance = 0.
-            const stepsUntilTarget = (QUANTIZATION - (currentStep % QUANTIZATION)) % QUANTIZATION;
-
-            if (stepsUntilTarget === 0) {
-                // We are ON the grid -> Play NOW (Current Cycle, Current Step)
-                breakQueueTargetCycle = currentCycle;
-                breakQueueTargetStep = currentStep;
-            } else {
-                // We are OFF the grid -> Wait for the specific target step
-                const targetAbsStep = currentStep + stepsUntilTarget;
-
-                // Handle Wrap-Around (e.g., if we are at step 14, next beat is 16 (which is Step 0 of NEXT cycle))
-                if (targetAbsStep >= patternLen) {
-                    breakQueueTargetCycle = currentCycle + 1;
-                    breakQueueTargetStep = targetAbsStep % patternLen;
-                } else {
-                    breakQueueTargetCycle = currentCycle;
-                    breakQueueTargetStep = targetAbsStep;
-                }
-            }
+            // Start on the very next step so the first trigger aligns to the
+            // sequencer grid instead of floating somewhere inside the current
+            // step.
+            const targetStepCounter = tempoSource.euclideanStepCounter + 1;
+            breakQueueTargetCycle = Math.floor(targetStepCounter / patternLen);
+            breakQueueTargetStep = targetStepCounter % patternLen;
         } else if (isStepsMode) {
             const delay = getNextStepDelayMs();
             clearBreakStartTimer();
@@ -2353,7 +2332,26 @@ async function toggleBreakPlayback(options = {}) {
         function getTempoSourceState() {
     const left = knobState[0];
     const right = knobState[1];
-    
+
+    if (isStepsMode && sharedStepNextTickTime !== null) {
+        const bpm = getCurrentBpm();
+
+        // sharedStepCounter tracks the NEXT step to play, but callers
+        // generally want the position of the CURRENT step. Shift back
+        // by one (without going negative) so queued actions land after
+        // the currently playing step rather than one early.
+        const currentStepCounter = Math.max(0, sharedStepCounter - 1);
+
+        return {
+            isStepsModeMaster: true,
+            arpRunning: true,
+            euclideanStepCounter: currentStepCounter,
+            arpRateBpm: bpm,
+            arpRateMs: getStepIntervalMs(),
+            nextArpStepTime: sharedStepNextTickTime,
+        };
+    }
+
     // Priority 1: If Left Arp is ON, it is the Master (Grid Source).
     if (left?.isArpOn) return left;
     
