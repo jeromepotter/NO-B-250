@@ -144,7 +144,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
         ];
         const stepLastMidi = [null, null];
         const stepPreviewTimeouts = [null, null];
-        const defaultStepOctaves = [4, 5];
+        const defaultStepOctaves = [2, 4];
+        const stepRandomBaseOctaves = [2, 4];
         const stepSequences = [
             { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[0] })), knobEls: [], noteDisplay: null },
             { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[1] })), knobEls: [], noteDisplay: null },
@@ -238,6 +239,22 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const sequence = stepSequences[seqIndex];
             if (!sequence) return;
             sequence.steps.forEach((_, idx) => updateStepKnobVisual(seqIndex, idx));
+        }
+
+        function randomizeStepSequences() {
+            stepSequences.forEach((sequence, seqIndex) => {
+                const baseOctave = stepRandomBaseOctaves[seqIndex] ?? defaultStepOctaves[seqIndex] ?? 0;
+                sequence.steps.forEach((step, idx) => {
+                    step.active = false;
+                    step.value = baseOctave + Math.random();
+                    updateStepKnobVisual(seqIndex, idx);
+                });
+                updateStepNoteDisplay(seqIndex, '--');
+            });
+
+            toggleStepActive(0, 0, true);
+            const firstMidi = getStepMidiNote(0, stepSequences[0].steps[0].value);
+            updateStepNoteDisplay(0, midiToNoteName(firstMidi));
         }
 
         function updateStepNoteDisplay(seqIndex, text) {
@@ -432,6 +449,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const isSequenceRunning = () => areStepSequencesRunning();
 
             const onPointerMove = (event) => {
+                event.preventDefault();
                 const deltaY = startY - event.clientY;
                 const nextValue = startValue + deltaY / 40;
                 moved = moved || Math.abs(deltaY) > 2;
@@ -508,6 +526,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         }
 
         function setStepsMode(enabled) {
+            const wasStepsMode = isStepsMode;
             isStepsMode = enabled;
             if (!stepsModeSwitch || !stepsModeContainer || !oscillatorRow) return;
             stepsModeSwitch.classList.toggle('on', enabled);
@@ -527,6 +546,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
             });
 
             if (enabled) {
+                if (!wasStepsMode) randomizeStepSequences();
+
                 stepsModePreviousArpLock = isArpLockEnabled;
                 stepsModePreviousRateSync = isArpRateSynced;
                 isArpLockEnabled = true;
