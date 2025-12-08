@@ -152,6 +152,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let stepsModePreviousArpState = [false, false];
         let stepsModePreviousArpLock = false;
         let stepsModePreviousRateSync = false;
+        let stepsModePreviousFeelValues = [];
+        let stepsModePreviousFeelPatterns = [];
 
         function getLfoDestChain(lfo) {
             if (lfo && Array.isArray(lfo.destChain) && lfo.destChain.length) return lfo.destChain;
@@ -390,6 +392,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const isSequenceRunning = () => areStepSequencesRunning();
 
             const onPointerMove = (event) => {
+                if (event.cancelable) event.preventDefault();
                 const deltaY = startY - event.clientY;
                 const nextValue = startValue + deltaY / 40;
                 moved = moved || Math.abs(deltaY) > 2;
@@ -487,6 +490,11 @@ let liveLfoOutputs = [0, 0, 0, 0];
             if (enabled) {
                 stepsModePreviousArpLock = isArpLockEnabled;
                 stepsModePreviousRateSync = isArpRateSynced;
+                stepsModePreviousFeelValues = knobState.map((state, idx) => {
+                    const fxId = 22 + idx;
+                    return fxKnobData[fxId]?.value ?? state?.feelKnobValue ?? 0;
+                });
+                stepsModePreviousFeelPatterns = knobState.map(state => state?.currentFeelPattern || null);
                 isArpLockEnabled = true;
                 isArpRateSynced = true;
                 if (arpLockSwitch) {
@@ -513,6 +521,15 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 }
                 allArpControlGrids?.forEach(g => g.classList.remove('arp-hidden'));
                 if (masterArpControls) masterArpControls.classList.remove('arp-hidden');
+                knobState.forEach((state, idx) => {
+                    if (!state) return;
+                    state.euclideanStepCounter = 0;
+                    setFxValue(22 + idx, 0, true);
+                    state.feelKnobValue = 0;
+                    state.currentFeelPattern = EUCLIDEAN_PATTERNS[0];
+                    state.lastRenderedFeelPattern = null;
+                    updateFeelPatternPreview(idx);
+                });
             } else {
                 isArpLockEnabled = stepsModePreviousArpLock;
                 if (arpLockSwitch) {
@@ -535,7 +552,19 @@ let liveLfoOutputs = [0, 0, 0, 0];
                         if (state.dom?.arpSwitch) state.dom.arpSwitch.classList.remove('on');
                         updateArpControlsFading(idx);
                     }
+                    const prevFeel = stepsModePreviousFeelValues[idx];
+                    if (prevFeel !== undefined && prevFeel !== null) {
+                        setFxValue(22 + idx, prevFeel, true);
+                    }
+                    const prevPattern = stepsModePreviousFeelPatterns[idx];
+                    if (prevPattern) {
+                        state.currentFeelPattern = prevPattern;
+                        state.lastRenderedFeelPattern = null;
+                        updateFeelPatternPreview(idx);
+                    }
                 });
+                stepsModePreviousFeelValues = [];
+                stepsModePreviousFeelPatterns = [];
                 updateGlobalArpVisibility();
             }
 
@@ -4264,6 +4293,9 @@ lfoState.forEach((lfo, lfoIndex) => {
         if (state.dom.feelDisplay) state.dom.feelDisplay.textContent = pIndex + 1;
     }
 });
+            if (isStepsMode) {
+                modulatedFeelPattern = EUCLIDEAN_PATTERNS[0];
+            }
            const isBpmMode = tempoMode === TEMPO_MODE_BPM;
            if (isBpmMode) {
                modulatedRateBpm = normalizeArpRateBpm(modulatedRateBpm);
