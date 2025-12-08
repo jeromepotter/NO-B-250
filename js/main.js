@@ -376,6 +376,16 @@ let liveLfoOutputs = [0, 0, 0, 0];
             return intervalMs;
         }
 
+        function getNextStepGridTarget(patternLen = 16) {
+            const tempoSource = getTempoSourceState();
+            const sourceStepCounter = tempoSource?.euclideanStepCounter ?? sharedStepCounter;
+            const currentCycle = Math.floor(sourceStepCounter / patternLen);
+            const currentStep = sourceStepCounter % patternLen;
+            const nextStep = (currentStep + 1) % patternLen;
+            const targetCycle = nextStep === 0 ? currentCycle + 1 : currentCycle;
+            return { targetCycle, targetStep: nextStep };
+        }
+
         function stepSequenceTick(seqIndex) {
             const sequence = stepSequences[seqIndex];
             if (!sequence) return;
@@ -1976,6 +1986,9 @@ let liveLfoOutputs = [0, 0, 0, 0];
         const sourceStepCounter = tempoSource?.euclideanStepCounter ?? sharedStepCounter;
         const currentCycle = Math.floor(sourceStepCounter / patternLen);
 
+        breakPlayQueued = true;
+        ensureMasterClock();
+
         breakQueueTargetCycle = currentCycle + 1;
         breakQueueTargetStep = 0;
         
@@ -2030,6 +2043,11 @@ let liveLfoOutputs = [0, 0, 0, 0];
         function beginBreakPlayback() {
             breakStartTimeoutId = null;
             if (!breakPlayRequested || !breakBufferLoaded) return;
+
+            if (breakRunning && synthNode) {
+                synthNode.port.postMessage({ type: 'stopBreakLoop' });
+            }
+
             breakRunning = true;
             breakPlaybackRate = getBreakPlaybackRate();
             breakPlaybackStartTime = audioContext ? audioContext.currentTime : (performance.now() / 1000);
@@ -2086,6 +2104,22 @@ async function toggleBreakPlayback(options = {}) {
 
     // --- BPM MODE (Grid Locked) ---
     if (!isFreeTiming) {
+        if (isStepsMode) {
+            const patternLen = 16;
+            const tempoSource = getTempoSourceState();
+            const sourceStepCounter = tempoSource?.euclideanStepCounter ?? sharedStepCounter;
+            const currentCycle = Math.floor(sourceStepCounter / patternLen);
+            const currentStep = sourceStepCounter % patternLen;
+            const targetCycle = currentStep === 0 ? currentCycle : currentCycle + 1;
+
+            breakQueueTargetCycle = targetCycle;
+            breakQueueTargetStep = 0;
+            breakPlayQueued = true;
+            ensureMasterClock();
+            await ensureBreakSampleLoaded();
+            return;
+        }
+
         const tempoSource = getTempoSourceState();
         if (tempoSource) {
             const patternLen = 16;
@@ -2117,15 +2151,6 @@ async function toggleBreakPlayback(options = {}) {
                     breakQueueTargetStep = targetAbsStep;
                 }
             }
-        } else if (isStepsMode) {
-            const delay = getNextStepDelayMs();
-            clearBreakStartTimer();
-            breakStartTimeoutId = setTimeout(async () => {
-                await ensureBreakSampleLoaded();
-                beginBreakPlayback();
-            }, delay);
-            ensureMasterClock();
-            return;
         }
     }
 
