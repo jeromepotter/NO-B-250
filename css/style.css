@@ -196,7 +196,7 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
 
       /* Step Sequencer */
       #steps-mode-bar {
-        gap: 0.5rem;
+        gap: 0.25rem;
       }
 
       #step-sequencers {
@@ -207,12 +207,12 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
         background: transparent;
         border: none;
         border-radius: 0.75rem;
-        padding: 0.25rem 0.75rem 0.5rem;
+        padding: 0.1rem 0.5rem 0.25rem;
       }
 
       .step-knob {
-        width: 46px;
-        height: 46px;
+        width: 38px;
+        height: 38px;
         border-radius: 50%;
         background: var(--color-egg-orange);
         position: relative;
@@ -224,11 +224,11 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
       .step-knob .step-indicator {
         position: absolute;
         width: 4px;
-        height: 16px;
+        height: 12px;
         background: var(--color-text);
         left: 50%;
-        top: 4px;
-        transform-origin: 50% 20px;
+        top: 3px;
+        transform-origin: 50% 15px;
         border-radius: 9999px;
       }
 
@@ -242,14 +242,8 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
       }
 
       .step-knob-grid {
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.35rem;
         justify-items: center;
-      }
-
-      .step-knob-label {
-        font-size: 10px;
-        text-align: center;
-        margin-top: 2px;
       }
       .rate-display-row {
         display: flex;

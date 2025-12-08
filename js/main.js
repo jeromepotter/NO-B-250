@@ -172,7 +172,6 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const knobEl = knobEls[stepIndex];
             if (!knobEl) return;
             const indicator = knobEl.querySelector('.step-indicator');
-            const label = knobEl.parentElement.querySelector('.step-knob-label');
 
             knobEl.classList.toggle('inactive', !step.active);
             knobEl.dataset.value = step.value.toFixed(2);
@@ -183,9 +182,6 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const midiNote = getStepMidiNote(seqIndex, step.value);
             const color = getArpNoteColor(midiNote);
             knobEl.style.backgroundColor = `rgb(${color.r}, ${color.g}, ${color.b})`;
-            if (label) {
-                label.textContent = `OCT ${step.value.toFixed(1)}`;
-            }
         }
 
         function setStepValue(seqIndex, stepIndex, value) {
@@ -331,6 +327,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             let startY = 0;
             let startValue = 0;
             let moved = false;
+            let activatedOnDown = false;
 
             const isSequenceRunning = () => {
                 const timer = stepTimers[seqIndex];
@@ -340,7 +337,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const onPointerMove = (event) => {
                 const deltaY = startY - event.clientY;
                 const nextValue = startValue + deltaY / 40;
-                moved = true;
+                moved = moved || Math.abs(deltaY) > 2;
                 setStepValue(seqIndex, stepIndex, nextValue);
                 const stepData = stepSequences[seqIndex].steps[stepIndex];
                 if (stepData.active && !isSequenceRunning()) {
@@ -354,14 +351,20 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 document.removeEventListener('pointermove', onPointerMove);
                 document.removeEventListener('pointerup', release);
                 const stepData = stepSequences[seqIndex].steps[stepIndex];
-                if (!stepData.active) {
-                    sendStepNoteOff(seqIndex);
-                    updateStepNoteDisplay(seqIndex, '--');
-                } else if (!isSequenceRunning()) {
+                if (!moved && !activatedOnDown) {
+                    const nextActive = !stepData.active;
+                    toggleStepActive(seqIndex, stepIndex, nextActive);
+                    if (nextActive && !isSequenceRunning()) {
+                        const midi = getStepMidiNote(seqIndex, stepData.value);
+                        scheduleStepPreview(seqIndex, midi);
+                    } else if (!nextActive) {
+                        sendStepNoteOff(seqIndex);
+                        updateStepNoteDisplay(seqIndex, '--');
+                    }
+                } else if (stepData.active && !isSequenceRunning()) {
                     const midi = getStepMidiNote(seqIndex, stepData.value);
                     scheduleStepPreview(seqIndex, midi);
                 }
-                if (!moved) toggleStepActive(seqIndex, stepIndex, false);
             };
 
             knobEl.addEventListener('pointerdown', (event) => {
@@ -369,9 +372,11 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 startY = event.clientY;
                 startValue = stepSequences[seqIndex].steps[stepIndex].value;
                 moved = false;
+                activatedOnDown = false;
                 knobEl.setPointerCapture(event.pointerId);
                 if (!stepSequences[seqIndex].steps[stepIndex].active) {
                     toggleStepActive(seqIndex, stepIndex, true);
+                    activatedOnDown = true;
                 }
                 if (!isSequenceRunning()) {
                     const stepData = stepSequences[seqIndex].steps[stepIndex];
@@ -390,20 +395,13 @@ let liveLfoOutputs = [0, 0, 0, 0];
             grids.forEach((grid, rowIndex) => {
                 for (let i = 0; i < 8; i++) {
                     const stepIndex = rowIndex * 8 + i;
-                    const wrapper = document.createElement('div');
-                    wrapper.className = 'flex flex-col items-center';
                     const knob = document.createElement('div');
                     knob.className = 'step-knob inactive';
                     knob.dataset.value = '0';
                     const indicator = document.createElement('div');
                     indicator.className = 'step-indicator';
                     knob.appendChild(indicator);
-                    const label = document.createElement('div');
-                    label.className = 'step-knob-label opacity-80';
-                    label.textContent = 'OCT 0.0';
-                    wrapper.appendChild(knob);
-                    wrapper.appendChild(label);
-                    grid.appendChild(wrapper);
+                    grid.appendChild(knob);
                     attachStepKnobHandlers(knob, seqIndex, stepIndex);
                     sequence.knobEls.push(knob);
                 }
@@ -430,6 +428,13 @@ let liveLfoOutputs = [0, 0, 0, 0];
             lockSelectors.forEach(sel => {
                 document.querySelectorAll(sel).forEach(el => el.classList[lockAction]('arp-disabled'));
             });
+
+            if (enabled) {
+                allArpControlGrids?.forEach(g => g.classList.remove('arp-hidden'));
+                if (masterArpControls) masterArpControls.classList.remove('arp-hidden');
+            } else {
+                updateGlobalArpVisibility();
+            }
 
             if (!enabled) {
                 stopStepSequence(0);
