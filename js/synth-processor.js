@@ -384,20 +384,30 @@ const LFO_DEST_NONE = -1;
         this.noteOn1 = true;
         this.targetFrequency1 = freq;
         if (this.params[0] < 0.01) this.currentFrequency1 = freq;
-        if (this.soundfontVoices[0]) {
+       if (this.soundfontVoices[0]) {
             this.soundfontVoices[0].position = 0;
             this.soundfontVoices[0].fadeRemaining = 100;
         }
+
+        if (this.soundfontActiveIndex !== -1) {
+            this.envValue1 = 0.0;
+        }
+
         this.envStage1 = 'attack';
     }
     else {
         this.noteOn2 = true;
         this.targetFrequency2 = freq;
         if (this.params[0] < 0.01) this.currentFrequency2 = freq;
-        if (this.soundfontVoices[1]) {
+       if (this.soundfontVoices[1]) {
             this.soundfontVoices[1].position = 0;
             this.soundfontVoices[1].fadeRemaining = 100;
         }
+
+        if (this.soundfontActiveIndex !== -1) {
+            this.envValue2 = 0.0;
+        }
+
         this.envStage2 = 'attack';
     }
     break;
@@ -1177,6 +1187,7 @@ return true;
 }
 }
 registerProcessor('synth-processor', SynthProcessor);
+
 
 
 
