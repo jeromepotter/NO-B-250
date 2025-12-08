@@ -2107,7 +2107,7 @@ async function toggleBreakPlayback(options = {}) {
     // --- BPM MODE (Grid Locked) ---
     if (!isFreeTiming) {
         if (isStepsMode) {
-            const { targetCycle, targetStep } = getNextStepGridTarget();
+            const { targetCycle, targetStep } = getNextDownbeatTarget();
             breakQueueTargetCycle = targetCycle;
             breakQueueTargetStep = targetStep;
             breakPlayQueued = true;
@@ -2312,13 +2312,26 @@ async function toggleBreakPlayback(options = {}) {
         function getTempoSourceState() {
     const left = knobState[0];
     const right = knobState[1];
-    
+
     // Priority 1: If Left Arp is ON, it is the Master (Grid Source).
     if (left?.isArpOn) return left;
-    
+
     // Priority 2: If Left is OFF but Right is ON, Right is Master.
     if (right?.isArpOn) return right;
-    
+
+    // Priority 3: If step sequencer is running in BPM mode, use it as the grid source.
+    if (isStepsMode && areStepSequencesRunning() && tempoMode === TEMPO_MODE_BPM) {
+        const intervalMs = getStepIntervalMs();
+        return {
+            isArpOn: false,
+            arpRunning: true,
+            arpRateBpm: getCurrentBpm(),
+            arpRateMs: intervalMs,
+            euclideanStepCounter: sharedStepCounter,
+            nextArpStepTime: sharedStepNextTickTime ?? (getNowMs() + intervalMs),
+        };
+    }
+
     // If neither is ON, we have no grid.
     return null;
 }
