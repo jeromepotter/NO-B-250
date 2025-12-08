@@ -1986,6 +1986,9 @@ let liveLfoOutputs = [0, 0, 0, 0];
         const sourceStepCounter = tempoSource?.euclideanStepCounter ?? sharedStepCounter;
         const currentCycle = Math.floor(sourceStepCounter / patternLen);
 
+        breakPlayQueued = true;
+        ensureMasterClock();
+
         breakQueueTargetCycle = currentCycle + 1;
         breakQueueTargetStep = 0;
         
@@ -2040,6 +2043,11 @@ let liveLfoOutputs = [0, 0, 0, 0];
         function beginBreakPlayback() {
             breakStartTimeoutId = null;
             if (!breakPlayRequested || !breakBufferLoaded) return;
+
+            if (breakRunning && synthNode) {
+                synthNode.port.postMessage({ type: 'stopBreakLoop' });
+            }
+
             breakRunning = true;
             breakPlaybackRate = getBreakPlaybackRate();
             breakPlaybackStartTime = audioContext ? audioContext.currentTime : (performance.now() / 1000);
@@ -2097,9 +2105,15 @@ async function toggleBreakPlayback(options = {}) {
     // --- BPM MODE (Grid Locked) ---
     if (!isFreeTiming) {
         if (isStepsMode) {
-            const { targetCycle, targetStep } = getNextStepGridTarget();
+            const patternLen = 16;
+            const tempoSource = getTempoSourceState();
+            const sourceStepCounter = tempoSource?.euclideanStepCounter ?? sharedStepCounter;
+            const currentCycle = Math.floor(sourceStepCounter / patternLen);
+            const currentStep = sourceStepCounter % patternLen;
+            const targetCycle = currentStep === 0 ? currentCycle : currentCycle + 1;
+
             breakQueueTargetCycle = targetCycle;
-            breakQueueTargetStep = targetStep;
+            breakQueueTargetStep = 0;
             breakPlayQueued = true;
             ensureMasterClock();
             await ensureBreakSampleLoaded();
