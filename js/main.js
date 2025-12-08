@@ -152,6 +152,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         ];
         let sharedStepCounter = 0;
         let sharedStepNextTickTime = null;
+        let sharedStepLastTickTime = null;
         let stepsModePreviousArpState = [false, false];
         let stepsModePreviousArpLock = false;
         let stepsModePreviousRateSync = false;
@@ -362,6 +363,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 stepSequenceTick(0);
                 stepSequenceTick(1);
                 sharedStepCounter = (sharedStepCounter + 1) % 1e9;
+                sharedStepLastTickTime = sharedStepNextTickTime;
                 sharedStepNextTickTime += intervalMs;
             }
         }
@@ -372,6 +374,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
         function clearSharedStepTimer() {
             sharedStepNextTickTime = null;
+            sharedStepLastTickTime = null;
             sharedStepTimer.intervalId = null;
             sharedStepTimer.startTimeout = null;
             stepTimers.forEach(timer => {
@@ -451,6 +454,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
             const now = getNowMs();
             sharedStepNextTickTime = now + delay;
+            sharedStepLastTickTime = null;
             ensureMasterClock();
         }
 
@@ -1184,7 +1188,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 let isArpReadyToPlay = true;
                 if (tempoMode === TEMPO_MODE_BPM) {
                     // We add a tiny buffer (tolerance) to ensure we don't miss the frame
-                    isArpReadyToPlay = timestamp >= (source.nextArpStepTime - MASTER_CLOCK_TOLERANCE_MS);
+                    const stepAlignedTarget = source.lastStepTime ?? source.nextArpStepTime;
+                    isArpReadyToPlay = timestamp >= (stepAlignedTarget - MASTER_CLOCK_TOLERANCE_MS);
                 }
 
                 if (stepInCycle === targetStep && targetReached && isArpReadyToPlay) {
@@ -1985,8 +1990,11 @@ let liveLfoOutputs = [0, 0, 0, 0];
     // This ensures we don't fall back to "Instant" just because applyPreset stopped the arp for 10ms.
     const isGridActive = (tempoSource && tempoSource.arpRunning) || masterClockRunning;
 
-    const shouldQueueChange = (isBreakActive && !forceImmediate && tempoMode === TEMPO_MODE_BPM && tempoSource && isGridActive)
-        || (isStepsMode && isBreakActive && !forceImmediate && tempoMode === TEMPO_MODE_BPM);
+    const shouldQueueChange = isBreakActive
+        && !forceImmediate
+        && tempoMode === TEMPO_MODE_BPM
+        && tempoSource
+        && isGridActive;
 
     if (shouldQueueChange) {
         // --- QUEUED SWITCH (BPM Mode) ---
@@ -2342,17 +2350,18 @@ async function toggleBreakPlayback(options = {}) {
     const left = knobState[0];
     const right = knobState[1];
 
-    if (isStepsMode && sharedStepNextTickTime !== null) {
-        const bpm = getCurrentBpm();
-        return {
-            isStepsModeMaster: true,
-            arpRunning: true,
-            euclideanStepCounter: sharedStepCounter,
-            arpRateBpm: bpm,
-            arpRateMs: getStepIntervalMs(),
-            nextArpStepTime: sharedStepNextTickTime,
-        };
-    }
+        if (isStepsMode && sharedStepNextTickTime !== null) {
+            const bpm = getCurrentBpm();
+            return {
+                isStepsModeMaster: true,
+                arpRunning: true,
+                euclideanStepCounter: sharedStepCounter,
+                arpRateBpm: bpm,
+                arpRateMs: getStepIntervalMs(),
+                nextArpStepTime: sharedStepNextTickTime,
+                lastStepTime: sharedStepLastTickTime,
+            };
+        }
 
     // Priority 1: If Left Arp is ON, it is the Master (Grid Source).
     if (left?.isArpOn) return left;
