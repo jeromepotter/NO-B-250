@@ -376,6 +376,24 @@ let liveLfoOutputs = [0, 0, 0, 0];
             return intervalMs;
         }
 
+        function getNextStepGridTarget(patternLen = 16) {
+            const tempoSource = getTempoSourceState();
+            const sourceStepCounter = tempoSource?.euclideanStepCounter ?? sharedStepCounter;
+            const currentCycle = Math.floor(sourceStepCounter / patternLen);
+            const currentStep = sourceStepCounter % patternLen;
+            const nextStep = (currentStep + 1) % patternLen;
+            const targetCycle = nextStep === 0 ? currentCycle + 1 : currentCycle;
+            return { targetCycle, targetStep: nextStep };
+        }
+
+        function getNextDownbeatTarget(patternLen = 16) {
+            const tempoSource = getTempoSourceState();
+            const sourceStepCounter = tempoSource?.euclideanStepCounter ?? sharedStepCounter;
+            const currentCycle = Math.floor(sourceStepCounter / patternLen);
+            // Always push to the next cycle's first step so playback lands exactly on the downbeat.
+            return { targetCycle: currentCycle + 1, targetStep: 0 };
+        }
+
         function stepSequenceTick(seqIndex) {
             const sequence = stepSequences[seqIndex];
             if (!sequence) return;
@@ -1149,20 +1167,24 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
             // 1. CHECK TRIGGERS
             const source = getTempoSourceState();
-            if (source && source.arpRunning) {
+            const hasStepGrid = isStepsMode && areStepSequencesRunning();
+            const hasGridSource = (source && source.arpRunning) || hasStepGrid;
+            if (hasGridSource) {
                 const patternLen = 16;
-                const currentCycle = Math.floor(source.euclideanStepCounter / patternLen);
-                const stepInCycle = source.euclideanStepCounter % patternLen;
+                const stepCounter = source?.euclideanStepCounter ?? sharedStepCounter;
+                const currentCycle = Math.floor(stepCounter / patternLen);
+                const stepInCycle = stepCounter % patternLen;
                 const targetReached = breakQueueTargetCycle === null || currentCycle >= breakQueueTargetCycle;
                 const targetStep = breakQueueTargetStep ?? 0;
 
-                // FIX: Check timing! 
+                // FIX: Check timing!
                 // Even if the Counter says "Step 0", we must ensure the Clock says "Time for Step 0".
                 // In BPM mode, the arp only plays if timestamp >= nextArpStepTime.
+                const nextTickTime = source?.nextArpStepTime ?? sharedStepNextTickTime;
                 let isArpReadyToPlay = true;
-                if (tempoMode === TEMPO_MODE_BPM) {
+                if (tempoMode === TEMPO_MODE_BPM && Number.isFinite(nextTickTime)) {
                     // We add a tiny buffer (tolerance) to ensure we don't miss the frame
-                    isArpReadyToPlay = timestamp >= (source.nextArpStepTime - MASTER_CLOCK_TOLERANCE_MS);
+                    isArpReadyToPlay = timestamp >= (nextTickTime - MASTER_CLOCK_TOLERANCE_MS);
                 }
 
                 if (stepInCycle === targetStep && targetReached && isArpReadyToPlay) {
@@ -1976,8 +1998,10 @@ let liveLfoOutputs = [0, 0, 0, 0];
         const sourceStepCounter = tempoSource?.euclideanStepCounter ?? sharedStepCounter;
         const currentCycle = Math.floor(sourceStepCounter / patternLen);
 
-        breakQueueTargetCycle = currentCycle + 1;
-        breakQueueTargetStep = 0;
+        const { targetCycle, targetStep } = getNextDownbeatTarget();
+        breakQueueTargetCycle = targetCycle;
+        breakQueueTargetStep = targetStep;
+        ensureMasterClock();
         
     } else {
         // --- IMMEDIATE SWITCH ---
@@ -2086,47 +2110,9 @@ async function toggleBreakPlayback(options = {}) {
 
     // --- BPM MODE (Grid Locked) ---
     if (!isFreeTiming) {
-        const tempoSource = getTempoSourceState();
-        if (tempoSource) {
-            const patternLen = 16;
-            const QUANTIZATION = 1; // 4 steps = 1 Beat (Quarter Note)
-
-            // Calculate where we are right now
-            const currentStep = tempoSource.euclideanStepCounter % patternLen;
-            const currentCycle = Math.floor(tempoSource.euclideanStepCounter / patternLen);
-
-            // Calculate distance to the NEXT quantization point
-            // If we are at step 2, target is 4. Distance = 2.
-            // If we are at step 0, target is 0. Distance = 0.
-            const stepsUntilTarget = (QUANTIZATION - (currentStep % QUANTIZATION)) % QUANTIZATION;
-
-            if (stepsUntilTarget === 0) {
-                // We are ON the grid -> Play NOW (Current Cycle, Current Step)
-                breakQueueTargetCycle = currentCycle;
-                breakQueueTargetStep = currentStep;
-            } else {
-                // We are OFF the grid -> Wait for the specific target step
-                const targetAbsStep = currentStep + stepsUntilTarget;
-
-                // Handle Wrap-Around (e.g., if we are at step 14, next beat is 16 (which is Step 0 of NEXT cycle))
-                if (targetAbsStep >= patternLen) {
-                    breakQueueTargetCycle = currentCycle + 1;
-                    breakQueueTargetStep = targetAbsStep % patternLen;
-                } else {
-                    breakQueueTargetCycle = currentCycle;
-                    breakQueueTargetStep = targetAbsStep;
-                }
-            }
-        } else if (isStepsMode) {
-            const delay = getNextStepDelayMs();
-            clearBreakStartTimer();
-            breakStartTimeoutId = setTimeout(async () => {
-                await ensureBreakSampleLoaded();
-                beginBreakPlayback();
-            }, delay);
-            ensureMasterClock();
-            return;
-        }
+        const { targetCycle, targetStep } = getNextDownbeatTarget();
+        breakQueueTargetCycle = targetCycle;
+        breakQueueTargetStep = targetStep;
     }
 
     if (isFreeTiming) {
