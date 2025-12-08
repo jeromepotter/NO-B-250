@@ -1173,8 +1173,9 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const source = getTempoSourceState();
             if (source && source.arpRunning) {
                 const patternLen = 16;
-                const currentCycle = Math.floor(source.euclideanStepCounter / patternLen);
-                const stepInCycle = source.euclideanStepCounter % patternLen;
+                const stepCounter = source.euclideanStepCounter ?? source.currentStepCounter ?? 0;
+                const currentCycle = Math.floor(stepCounter / patternLen);
+                const stepInCycle = stepCounter % patternLen;
                 const targetReached = breakQueueTargetCycle === null || currentCycle >= breakQueueTargetCycle;
                 const targetStep = breakQueueTargetStep ?? 0;
 
@@ -1995,7 +1996,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         fetchBreakSampleData(clamped);
 
         const patternLen = 16;
-        const sourceStepCounter = tempoSource?.euclideanStepCounter ?? sharedStepCounter;
+        const sourceStepCounter = tempoSource?.euclideanStepCounter ?? tempoSource?.currentStepCounter ?? sharedStepCounter;
         const currentCycle = Math.floor(sourceStepCounter / patternLen);
 
         breakQueueTargetCycle = currentCycle + 1;
@@ -2114,8 +2115,9 @@ async function toggleBreakPlayback(options = {}) {
             const QUANTIZATION = 1; // 4 steps = 1 Beat (Quarter Note)
 
             // Calculate where we are right now
-            const currentStep = tempoSource.euclideanStepCounter % patternLen;
-            const currentCycle = Math.floor(tempoSource.euclideanStepCounter / patternLen);
+            const stepCounter = tempoSource.euclideanStepCounter ?? tempoSource.currentStepCounter ?? 0;
+            const currentStep = stepCounter % patternLen;
+            const currentCycle = Math.floor(stepCounter / patternLen);
 
             // Calculate distance to the NEXT quantization point
             // If we are at step 2, target is 4. Distance = 2.
@@ -2345,16 +2347,14 @@ async function toggleBreakPlayback(options = {}) {
     if (isStepsMode && sharedStepNextTickTime !== null) {
         const bpm = getCurrentBpm();
 
-        // sharedStepCounter tracks the NEXT step to play, but callers
-        // generally want the position of the CURRENT step. Shift back
-        // by one (without going negative) so queued actions land after
-        // the currently playing step rather than one early.
         const currentStepCounter = Math.max(0, sharedStepCounter - 1);
+        const nextStepCounter = sharedStepCounter;
 
         return {
             isStepsModeMaster: true,
             arpRunning: true,
-            euclideanStepCounter: currentStepCounter,
+            euclideanStepCounter: nextStepCounter,
+            currentStepCounter,
             arpRateBpm: bpm,
             arpRateMs: getStepIntervalMs(),
             nextArpStepTime: sharedStepNextTickTime,
