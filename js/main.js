@@ -143,10 +143,12 @@ let liveLfoOutputs = [0, 0, 0, 0];
         ];
         const stepLastMidi = [null, null];
         const stepPreviewTimeouts = [null, null];
+        const defaultStepOctaves = [4, 5];
         const stepSequences = [
-            { steps: Array.from({ length: 16 }, () => ({ active: false, value: 0 })), knobEls: [], noteDisplay: null },
-            { steps: Array.from({ length: 16 }, () => ({ active: false, value: 0 })), knobEls: [], noteDisplay: null },
+            { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[0] })), knobEls: [], noteDisplay: null },
+            { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[1] })), knobEls: [], noteDisplay: null },
         ];
+        let stepsModePreviousArpState = [false, false];
 
         function getLfoDestChain(lfo) {
             if (lfo && Array.isArray(lfo.destChain) && lfo.destChain.length) return lfo.destChain;
@@ -397,13 +399,14 @@ let liveLfoOutputs = [0, 0, 0, 0];
                     const stepIndex = rowIndex * 8 + i;
                     const knob = document.createElement('div');
                     knob.className = 'step-knob inactive';
-                    knob.dataset.value = '0';
+                    knob.dataset.value = `${sequence.steps[stepIndex].value}`;
                     const indicator = document.createElement('div');
                     indicator.className = 'step-indicator';
                     knob.appendChild(indicator);
                     grid.appendChild(knob);
                     attachStepKnobHandlers(knob, seqIndex, stepIndex);
                     sequence.knobEls.push(knob);
+                    updateStepKnobVisual(seqIndex, stepIndex);
                 }
             });
             sequence.noteDisplay = document.querySelector(`.step-sequencer[data-sequence-index="${seqIndex}"] .step-note-display`);
@@ -418,7 +421,6 @@ let liveLfoOutputs = [0, 0, 0, 0];
             document.querySelectorAll('.oscillator-visual').forEach(el => el.classList.toggle('hidden', enabled));
 
             const lockSelectors = [
-                '#arp-switch-0', '#arp-switch-1',
                 '#arp-mode-switch-0', '#arp-mode-switch-1',
                 '#arp-hold-switch-0', '#arp-hold-switch-1',
                 '[data-fx-id="22"]', '[data-fx-id="23"]',
@@ -430,9 +432,24 @@ let liveLfoOutputs = [0, 0, 0, 0];
             });
 
             if (enabled) {
+                stepsModePreviousArpState = knobState.map(state => state?.isArpOn);
+                knobState.forEach((state, idx) => {
+                    if (!state) return;
+                    state.isArpOn = true;
+                    if (state.dom?.arpSwitch) state.dom.arpSwitch.classList.add('on');
+                });
                 allArpControlGrids?.forEach(g => g.classList.remove('arp-hidden'));
                 if (masterArpControls) masterArpControls.classList.remove('arp-hidden');
             } else {
+                knobState.forEach((state, idx) => {
+                    if (!state) return;
+                    const shouldRestoreOff = stepsModePreviousArpState[idx] === false;
+                    if (shouldRestoreOff) {
+                        state.isArpOn = false;
+                        state.arpRunning = false;
+                        if (state.dom?.arpSwitch) state.dom.arpSwitch.classList.remove('on');
+                    }
+                });
                 updateGlobalArpVisibility();
             }
 
@@ -442,6 +459,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 sendStepNoteOff(0);
                 sendStepNoteOff(1);
             }
+
+            updateBreakPlaybackEligibility();
         }
 
         function initStepSequencers() {
@@ -1544,13 +1563,14 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
         function updateBreakPlaybackEligibility() {
             const hasRunningArp = isAnyArpRunning();
-            if (!hasRunningArp && breakPlayRequested) {
+            const allowPlay = hasRunningArp || isStepsMode;
+            if (!allowPlay && breakPlayRequested) {
                 stopBreakPlaybackImmediate();
                 stopMasterClockIfIdle();
             }
             if (breakPlayButton) {
-                breakPlayButton.disabled = !hasRunningArp;
-                breakPlayButton.setAttribute('aria-disabled', hasRunningArp ? 'false' : 'true');
+                breakPlayButton.disabled = !allowPlay;
+                breakPlayButton.setAttribute('aria-disabled', allowPlay ? 'false' : 'true');
             }
         }
 
@@ -1888,8 +1908,9 @@ async function toggleBreakPlayback(options = {}) {
     const { allowArplessStart = false } = options;
     const hasRunningArp = isAnyArpRunning();
     const isFreeTiming = tempoMode === TEMPO_MODE_MS;
+    const allowArpless = allowArplessStart || isStepsMode;
 
-    if (!allowArplessStart && !isFreeTiming && !hasRunningArp) {
+    if (!allowArpless && !isFreeTiming && !hasRunningArp) {
         stopBreakPlaybackImmediate();
         updateBreakPlaybackEligibility();
         stopMasterClockIfIdle();
@@ -1919,7 +1940,7 @@ async function toggleBreakPlayback(options = {}) {
             // Calculate where we are right now
             const currentStep = tempoSource.euclideanStepCounter % patternLen;
             const currentCycle = Math.floor(tempoSource.euclideanStepCounter / patternLen);
-            
+
             // Calculate distance to the NEXT quantization point
             // If we are at step 2, target is 4. Distance = 2.
             // If we are at step 0, target is 0. Distance = 0.
@@ -1932,7 +1953,7 @@ async function toggleBreakPlayback(options = {}) {
             } else {
                 // We are OFF the grid -> Wait for the specific target step
                 const targetAbsStep = currentStep + stepsUntilTarget;
-                
+
                 // Handle Wrap-Around (e.g., if we are at step 14, next beat is 16 (which is Step 0 of NEXT cycle))
                 if (targetAbsStep >= patternLen) {
                     breakQueueTargetCycle = currentCycle + 1;
@@ -1942,6 +1963,18 @@ async function toggleBreakPlayback(options = {}) {
                     breakQueueTargetStep = targetAbsStep;
                 }
             }
+        } else if (isStepsMode) {
+            const intervalMs = bpmToSixteenthMs(Math.max(1, getCurrentBpm()));
+            const now = getNowMs();
+            const target = quantizeToNextSixteenth(now, intervalMs);
+            const delay = Math.max(0, target - now);
+            clearBreakStartTimer();
+            breakStartTimeoutId = setTimeout(async () => {
+                await ensureBreakSampleLoaded();
+                beginBreakPlayback();
+            }, delay);
+            ensureMasterClock();
+            return;
         }
     }
 
