@@ -130,13 +130,202 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakSlipAnchorHoldEnabled = true;
         const BREAK_SLIP_DIVISIONS = [4, 1, 0.5, 0.25, 0.125, 0.0625, 0.03125];
         let breakSelectionDisplay = null;
-        let breakQueueTargetCycle = null;
-        let breakQueueTargetStep = 0;
+       let breakQueueTargetCycle = null;
+       let breakQueueTargetStep = 0;
+
+        let isStepsMode = false;
+        let stepsModeContainer = null;
+        let stepsModeSwitch = null;
+        const stepPlayheads = [0, 0];
+        const stepIntervals = [null, null];
+        const stepSequences = [
+            { steps: Array.from({ length: 16 }, () => ({ active: false, value: 0 })), knobEls: [], noteDisplay: null },
+            { steps: Array.from({ length: 16 }, () => ({ active: false, value: 0 })), knobEls: [], noteDisplay: null },
+        ];
 
         function getLfoDestChain(lfo) {
             if (lfo && Array.isArray(lfo.destChain) && lfo.destChain.length) return lfo.destChain;
             if (lfo && lfo.dest !== undefined && lfo.dest !== LFO_DEST_NONE) return [lfo.dest];
             return [];
+        }
+
+        function getCurrentBpm() {
+            const label = document.getElementById('rate-display-0');
+            if (!label) return 100;
+            const match = label.textContent.match(/([0-9]+)\s*BPM/i);
+            return match ? parseFloat(match[1]) : 100;
+        }
+
+        function updateStepKnobVisual(seqIndex, stepIndex) {
+            const { steps, knobEls } = stepSequences[seqIndex];
+            const step = steps[stepIndex];
+            const knobEl = knobEls[stepIndex];
+            if (!knobEl) return;
+            const indicator = knobEl.querySelector('.step-indicator');
+            const label = knobEl.parentElement.querySelector('.step-knob-label');
+
+            knobEl.classList.toggle('inactive', !step.active);
+            knobEl.dataset.value = step.value.toFixed(2);
+            if (indicator) {
+                const rotation = (step.value / 8) * 360;
+                indicator.style.transform = `translate(-50%, 0) rotate(${rotation}deg)`;
+            }
+            if (label) {
+                label.textContent = `OCT ${step.value.toFixed(1)}`;
+            }
+        }
+
+        function setStepValue(seqIndex, stepIndex, value) {
+            const clamped = Math.max(0, Math.min(8, value));
+            stepSequences[seqIndex].steps[stepIndex].value = clamped;
+            updateStepKnobVisual(seqIndex, stepIndex);
+        }
+
+        function toggleStepActive(seqIndex, stepIndex, isActive) {
+            stepSequences[seqIndex].steps[stepIndex].active = isActive;
+            updateStepKnobVisual(seqIndex, stepIndex);
+        }
+
+        function updateStepNoteDisplay(seqIndex, text) {
+            const display = stepSequences[seqIndex].noteDisplay;
+            if (display) display.textContent = text;
+        }
+
+        function getStepIntervalMs() {
+            const bpm = Math.max(1, getCurrentBpm());
+            return 60000 / (bpm * SIXTEENTH_NOTES_PER_QUARTER);
+        }
+
+        function stopStepSequence(seqIndex) {
+            if (stepIntervals[seqIndex]) {
+                clearInterval(stepIntervals[seqIndex]);
+                stepIntervals[seqIndex] = null;
+            }
+            stepPlayheads[seqIndex] = 0;
+            stepSequences[seqIndex].knobEls.forEach(knob => knob?.classList.remove('active-step'));
+        }
+
+        function stepSequenceTick(seqIndex) {
+            const sequence = stepSequences[seqIndex];
+            if (!sequence) return;
+            const totalSteps = sequence.steps.length;
+            sequence.knobEls.forEach(knob => knob?.classList.remove('active-step'));
+            const current = stepPlayheads[seqIndex] % totalSteps;
+            const knobEl = sequence.knobEls[current];
+            const step = sequence.steps[current];
+            if (knobEl) knobEl.classList.add('active-step');
+            const label = step.active ? `Step ${current + 1}: OCT ${step.value.toFixed(1)}` : '--';
+            updateStepNoteDisplay(seqIndex, label);
+            stepPlayheads[seqIndex] = (current + 1) % totalSteps;
+        }
+
+        function startStepSequence(seqIndex) {
+            stopStepSequence(seqIndex);
+            stepSequenceTick(seqIndex);
+            stepIntervals[seqIndex] = setInterval(() => stepSequenceTick(seqIndex), getStepIntervalMs());
+        }
+
+        function attachStepKnobHandlers(knobEl, seqIndex, stepIndex) {
+            let startY = 0;
+            let startValue = 0;
+            let moved = false;
+
+            const onPointerMove = (event) => {
+                const deltaY = startY - event.clientY;
+                const nextValue = startValue + deltaY / 40;
+                moved = true;
+                setStepValue(seqIndex, stepIndex, nextValue);
+            };
+
+            const release = (event) => {
+                knobEl.releasePointerCapture(event.pointerId);
+                document.removeEventListener('pointermove', onPointerMove);
+                document.removeEventListener('pointerup', release);
+                if (!stepSequences[seqIndex].steps[stepIndex].active) return;
+                if (!stepIntervals[seqIndex]) {
+                    updateStepNoteDisplay(seqIndex, `Preview: OCT ${stepSequences[seqIndex].steps[stepIndex].value.toFixed(1)}`);
+                }
+                if (!moved) {
+                    toggleStepActive(seqIndex, stepIndex, false);
+                }
+            };
+
+            knobEl.addEventListener('pointerdown', (event) => {
+                event.preventDefault();
+                startY = event.clientY;
+                startValue = stepSequences[seqIndex].steps[stepIndex].value;
+                moved = false;
+                knobEl.setPointerCapture(event.pointerId);
+                if (!stepSequences[seqIndex].steps[stepIndex].active) {
+                    toggleStepActive(seqIndex, stepIndex, true);
+                }
+                document.addEventListener('pointermove', onPointerMove);
+                document.addEventListener('pointerup', release);
+            });
+        }
+
+        function buildStepSequencer(seqIndex) {
+            const grids = Array.from(document.querySelectorAll(`[data-sequence-grid="${seqIndex}"]`));
+            const sequence = stepSequences[seqIndex];
+            sequence.knobEls = [];
+            grids.forEach((grid, rowIndex) => {
+                for (let i = 0; i < 8; i++) {
+                    const stepIndex = rowIndex * 8 + i;
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'flex flex-col items-center';
+                    const knob = document.createElement('div');
+                    knob.className = 'step-knob inactive';
+                    knob.dataset.value = '0';
+                    const indicator = document.createElement('div');
+                    indicator.className = 'step-indicator';
+                    knob.appendChild(indicator);
+                    const label = document.createElement('div');
+                    label.className = 'step-knob-label opacity-80';
+                    label.textContent = 'OCT 0.0';
+                    wrapper.appendChild(knob);
+                    wrapper.appendChild(label);
+                    grid.appendChild(wrapper);
+                    attachStepKnobHandlers(knob, seqIndex, stepIndex);
+                    sequence.knobEls.push(knob);
+                }
+            });
+            sequence.noteDisplay = document.querySelector(`.step-sequencer[data-sequence-index="${seqIndex}"] .step-note-display`);
+        }
+
+        function setStepsMode(enabled) {
+            isStepsMode = enabled;
+            if (!stepsModeSwitch || !stepsModeContainer || !oscillatorRow) return;
+            stepsModeSwitch.classList.toggle('on', enabled);
+            const sequencersWrapper = document.getElementById('step-sequencers');
+            sequencersWrapper?.classList.toggle('hidden', !enabled);
+            oscillatorRow.classList.toggle('hidden', enabled);
+            if (!enabled) {
+                stopStepSequence(0);
+                stopStepSequence(1);
+            }
+        }
+
+        function initStepSequencers() {
+            stepsModeContainer = document.getElementById('steps-mode-container');
+            stepsModeSwitch = document.getElementById('steps-mode-switch');
+            if (!stepsModeContainer || !stepsModeSwitch) return;
+
+            buildStepSequencer(0);
+            buildStepSequencer(1);
+
+            stepsModeSwitch.addEventListener('click', () => {
+                setStepsMode(!isStepsMode);
+            });
+
+            Array.from(document.querySelectorAll('.step-sequencer')).forEach(seqEl => {
+                const index = parseInt(seqEl.dataset.sequenceIndex, 10);
+                const startButton = seqEl.querySelector('.step-start');
+                const stopButton = seqEl.querySelector('.step-stop');
+                startButton?.addEventListener('click', () => startStepSequence(index));
+                stopButton?.addEventListener('click', () => stopStepSequence(index));
+            });
+
+            setStepsMode(false);
         }
 
         function formatLfoDestDisplay(chain) {
@@ -5545,6 +5734,8 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
            updateBreakPlaybackEligibility();
            resizeBreakWaveformCanvas();
            window.addEventListener('resize', resizeBreakWaveformCanvas);
+
+           initStepSequencers();
 
           addTouchListener(presetPrevButton, (event) => handlePresetNavigation(-1, event));
           addTouchListener(presetNextButton, (event) => handlePresetNavigation(1, event));

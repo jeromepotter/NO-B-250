@@ -702,6 +702,62 @@
         <label class="font-bold tracking-wider text-xs mt-1">DRUMS</label>
       </div>
 
+      <div id="steps-mode-container" class="p-3 space-y-3 border-2 border-current rounded-lg">
+        <div class="flex items-center justify-center space-x-3">
+          <div id="steps-mode-switch" class="power-switch small">
+            <div class="power-switch-handle"></div>
+          </div>
+          <label class="font-bold tracking-wider text-sm">STEPS</label>
+          <span class="text-[10px] sm:text-xs opacity-80">Switch to 16-step sequencer mode</span>
+        </div>
+
+        <div id="steps-arp-overlay" class="flex flex-col items-center space-y-2 text-[10px] sm:text-xs">
+          <div class="tracking-[0.14em] font-bold">ARP CONTROLS LOCKED</div>
+          <div class="flex flex-wrap justify-center gap-2">
+            <span class="overlay-chip">ARP</span>
+            <span class="overlay-chip">MODE</span>
+            <span class="overlay-chip">HOLD</span>
+            <span class="overlay-chip">FEEL</span>
+            <span class="overlay-chip">OCTS</span>
+          </div>
+          <div class="opacity-80">BPM &amp; transpose remain available for sequencing.</div>
+        </div>
+
+        <div id="step-sequencers" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="step-sequencer" data-sequence-index="0">
+            <div class="flex justify-between items-center mb-2">
+              <div class="flex items-center space-x-2">
+                <button class="retro-button text-[10px] sm:text-xs font-bold step-start" type="button">START</button>
+                <button class="retro-button text-[10px] sm:text-xs font-bold step-stop" type="button">STOP</button>
+              </div>
+              <div class="text-[10px] sm:text-xs font-bold tracking-wider">SEQ A</div>
+            </div>
+            <div class="grid grid-cols-8 gap-2 step-knob-grid" data-sequence-grid="0"></div>
+            <div class="grid grid-cols-8 gap-2 step-knob-grid" data-sequence-grid="0" data-row="1"></div>
+            <div class="flex justify-center items-center mt-2 text-xs sm:text-sm">
+              <span class="opacity-80 mr-2">Active Note:</span>
+              <span class="font-bold step-note-display">--</span>
+            </div>
+          </div>
+
+          <div class="step-sequencer" data-sequence-index="1">
+            <div class="flex justify-between items-center mb-2">
+              <div class="flex items-center space-x-2">
+                <button class="retro-button text-[10px] sm:text-xs font-bold step-start" type="button">START</button>
+                <button class="retro-button text-[10px] sm:text-xs font-bold step-stop" type="button">STOP</button>
+              </div>
+              <div class="text-[10px] sm:text-xs font-bold tracking-wider">SEQ B</div>
+            </div>
+            <div class="grid grid-cols-8 gap-2 step-knob-grid" data-sequence-grid="1"></div>
+            <div class="grid grid-cols-8 gap-2 step-knob-grid" data-sequence-grid="1" data-row="1"></div>
+            <div class="flex justify-center items-center mt-2 text-xs sm:text-sm">
+              <span class="opacity-80 mr-2">Active Note:</span>
+              <span class="font-bold step-note-display">--</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div id="midi-output-container" class="flex justify-center items-center p-2 space-x-2 mt-10">
         <select id="midi-output-selector" class="retro-select text-xs" disabled>
           <option>NO MIDI OUTPUTS</option>

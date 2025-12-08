@@ -178,7 +178,7 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
          color: var(--color-text);
          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
        }
-      .arp-rate-button {
+.arp-rate-button {
         min-width: 1.75rem;
         padding: 0.1rem 0.4rem;
         border: none;
@@ -192,6 +192,68 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
         line-height: 1;
         letter-spacing: 0.08em;
         transition: color 0.2s, opacity 0.2s, transform 0.1s;
+      }
+
+      /* Step Sequencer */
+      #steps-mode-container {
+        background-color: rgba(0, 0, 0, 0.35);
+        border-color: var(--color-text);
+      }
+
+      .overlay-chip {
+        border: 1px dashed currentColor;
+        padding: 0.15rem 0.4rem;
+        border-radius: 9999px;
+        opacity: 0.65;
+      }
+
+      .step-sequencer {
+        background: rgba(0, 0, 0, 0.25);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 0.75rem;
+        padding: 0.75rem;
+      }
+
+      .step-knob {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: var(--color-egg-orange);
+        position: relative;
+        cursor: pointer;
+        transition: box-shadow 0.1s, opacity 0.1s, transform 0.1s;
+        box-shadow: 0 0 0 2px var(--color-surface);
+      }
+
+      .step-knob .step-indicator {
+        position: absolute;
+        width: 4px;
+        height: 16px;
+        background: var(--color-text);
+        left: 50%;
+        top: 4px;
+        transform-origin: 50% 20px;
+        border-radius: 9999px;
+      }
+
+      .step-knob.inactive {
+        opacity: 0.4;
+        filter: grayscale(0.6);
+      }
+
+      .step-knob.active-step {
+        box-shadow: 0 0 12px var(--color-accent-blue);
+      }
+
+      .step-knob-grid {
+        margin-bottom: 0.35rem;
+        justify-items: center;
+      }
+
+      .step-knob-label {
+        font-size: 10px;
+        text-align: center;
+        margin-top: 2px;
       }
       .rate-display-row {
         display: flex;
