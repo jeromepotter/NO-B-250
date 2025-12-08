@@ -451,7 +451,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const onPointerMove = (event) => {
                 event.preventDefault();
                 const deltaY = startY - event.clientY;
-                const nextValue = startValue + deltaY / 40;
+                const nextValue = startValue + deltaY / 80;
                 moved = moved || Math.abs(deltaY) > 2;
                 setStepValue(seqIndex, stepIndex, nextValue);
                 const stepData = stepSequences[seqIndex].steps[stepIndex];
