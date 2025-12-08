@@ -130,13 +130,478 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakSlipAnchorHoldEnabled = true;
         const BREAK_SLIP_DIVISIONS = [4, 1, 0.5, 0.25, 0.125, 0.0625, 0.03125];
         let breakSelectionDisplay = null;
-        let breakQueueTargetCycle = null;
-        let breakQueueTargetStep = 0;
+       let breakQueueTargetCycle = null;
+       let breakQueueTargetStep = 0;
+
+        let isStepsMode = false;
+        let stepsModeContainer = null;
+        let stepsModeSwitch = null;
+        const stepPlayheads = [0, 0];
+        const sharedStepTimer = { intervalId: null, startTimeout: null };
+        const stepTimers = [
+            { intervalId: null, startTimeout: null },
+            { intervalId: null, startTimeout: null },
+        ];
+        const stepLastMidi = [null, null];
+        const stepPreviewTimeouts = [null, null];
+        const defaultStepOctaves = [4, 5];
+        const stepSequences = [
+            { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[0] })), knobEls: [], noteDisplay: null },
+            { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[1] })), knobEls: [], noteDisplay: null },
+        ];
+        let stepsModePreviousArpState = [false, false];
+        let stepsModePreviousArpLock = false;
+        let stepsModePreviousRateSync = false;
+        let stepsModePreviousFeelValues = [];
+        let stepsModePreviousFeelPatterns = [];
 
         function getLfoDestChain(lfo) {
             if (lfo && Array.isArray(lfo.destChain) && lfo.destChain.length) return lfo.destChain;
             if (lfo && lfo.dest !== undefined && lfo.dest !== LFO_DEST_NONE) return [lfo.dest];
             return [];
+        }
+
+        function getCurrentBpm() {
+            const label = document.getElementById('rate-display-0');
+            if (!label) return 100;
+            const match = label.textContent.match(/([0-9]+)\s*BPM/i);
+            return match ? parseFloat(match[1]) : 100;
+        }
+
+        function applySmartTranspose(seqIndex, midiNote) {
+            const state = knobState[seqIndex];
+            if (!state || !state.arpTranspose) return midiNote;
+            const fullScale = getFullScaleMidi();
+            const baseIndex = fullScale.indexOf(midiNote);
+            if (baseIndex === -1) return midiNote;
+            const targetIndex = Math.max(0, Math.min(fullScale.length - 1, baseIndex + state.arpTranspose));
+            return fullScale[targetIndex];
+        }
+
+        function getStepMidiNote(seqIndex, value) {
+            const angle = Math.max(0, Math.min(8, value)) * 360;
+            const baseNote = getMidiNoteFromAngle(seqIndex, angle);
+            return applySmartTranspose(seqIndex, baseNote);
+        }
+
+        function updateStepKnobVisual(seqIndex, stepIndex) {
+            const { steps, knobEls } = stepSequences[seqIndex];
+            const step = steps[stepIndex];
+            const knobEl = knobEls[stepIndex];
+            if (!knobEl) return;
+            const indicator = knobEl.querySelector('.step-indicator');
+
+            knobEl.classList.toggle('inactive', !step.active);
+            knobEl.dataset.value = step.value.toFixed(2);
+            if (indicator) {
+                const rotation = step.value * 360;
+                indicator.style.transform = `translate(-50%, 0) rotate(${rotation}deg)`;
+            }
+            const midiNote = getStepMidiNote(seqIndex, step.value);
+            const color = getArpNoteColor(midiNote);
+            knobEl.style.backgroundColor = `rgb(${color.r}, ${color.g}, ${color.b})`;
+        }
+
+        function setStepValue(seqIndex, stepIndex, value) {
+            const clamped = Math.max(0, Math.min(8, value));
+            stepSequences[seqIndex].steps[stepIndex].value = clamped;
+            updateStepKnobVisual(seqIndex, stepIndex);
+        }
+
+        function toggleStepActive(seqIndex, stepIndex, isActive) {
+            stepSequences[seqIndex].steps[stepIndex].active = isActive;
+            updateStepKnobVisual(seqIndex, stepIndex);
+        }
+
+        function refreshStepSequencerVisuals(seqIndex) {
+            const sequence = stepSequences[seqIndex];
+            if (!sequence) return;
+            sequence.steps.forEach((_, idx) => updateStepKnobVisual(seqIndex, idx));
+        }
+
+        function updateStepNoteDisplay(seqIndex, text) {
+            const display = stepSequences[seqIndex].noteDisplay;
+            if (display) display.textContent = text;
+        }
+
+        function sendStepNoteOff(seqIndex) {
+            const lastMidi = stepLastMidi[seqIndex];
+            if (!isPowerOn || lastMidi === null) return;
+            if (synthNode) {
+                synthNode.port.postMessage({ type: 'noteOff', data: { voice: seqIndex } });
+            }
+            captureMidiEvent(seqIndex, 'noteOff', lastMidi, 0);
+            sendMidiMessage([0x80 + seqIndex, lastMidi, 0]);
+            stepLastMidi[seqIndex] = null;
+            const state = knobState[seqIndex];
+            if (state) {
+                state.isNoteOn = false;
+                updateKnobColor(seqIndex);
+            }
+        }
+
+        function playStepMidi(seqIndex, midiNote) {
+            if (!isPowerOn || midiNote === null || !isFinite(midiNote)) return;
+            sendStepNoteOff(seqIndex);
+            const freq = getNoteFrequency(midiNote);
+            if (synthNode) {
+                synthNode.port.postMessage({ type: 'noteOn', data: { voice: seqIndex, freq } });
+            }
+            captureMidiEvent(seqIndex, 'noteOn', midiNote, 100);
+            sendMidiMessage([0x90 + seqIndex, midiNote, 100]);
+            stepLastMidi[seqIndex] = midiNote;
+            const state = knobState[seqIndex];
+            if (state) {
+                state.isNoteOn = true;
+                state.lastPlayedMidi = midiNote;
+                updateKnobColor(seqIndex);
+            }
+        }
+
+        function scheduleStepPreview(seqIndex, midiNote) {
+            if (stepPreviewTimeouts[seqIndex]) {
+                clearTimeout(stepPreviewTimeouts[seqIndex]);
+                stepPreviewTimeouts[seqIndex] = null;
+            }
+            if (midiNote === null || !isFinite(midiNote)) {
+                sendStepNoteOff(seqIndex);
+                updateStepNoteDisplay(seqIndex, '--');
+                return;
+            }
+            playStepMidi(seqIndex, midiNote);
+            updateStepNoteDisplay(seqIndex, midiToNoteName(midiNote));
+            stepPreviewTimeouts[seqIndex] = setTimeout(() => {
+                sendStepNoteOff(seqIndex);
+            }, 500);
+        }
+
+        function getStepIntervalMs() {
+            const bpm = Math.max(1, getCurrentBpm());
+            return 60000 / (bpm * SIXTEENTH_NOTES_PER_QUARTER);
+        }
+
+        function areStepSequencesRunning() {
+            return Boolean(sharedStepTimer.intervalId || sharedStepTimer.startTimeout);
+        }
+
+        function clearSharedStepTimer() {
+            if (sharedStepTimer.intervalId) {
+                clearInterval(sharedStepTimer.intervalId);
+                sharedStepTimer.intervalId = null;
+            }
+            if (sharedStepTimer.startTimeout) {
+                clearTimeout(sharedStepTimer.startTimeout);
+                sharedStepTimer.startTimeout = null;
+            }
+            stepTimers.forEach(timer => {
+                if (!timer) return;
+                timer.intervalId = null;
+                timer.startTimeout = null;
+            });
+        }
+
+        function stopStepSequence(seqIndex, { resetPlayhead = true, clearDisplay = true } = {}) {
+            stopAllStepSequences({ resetPlayhead, clearDisplay });
+        }
+
+        function stopAllStepSequences({ resetPlayhead = true, clearDisplay = true } = {}) {
+            clearSharedStepTimer();
+            stepSequences.forEach((sequence, idx) => {
+                if (resetPlayhead) {
+                    stepPlayheads[idx] = 0;
+                }
+                sequence.knobEls.forEach(knob => knob?.classList.remove('active-step'));
+                sendStepNoteOff(idx);
+                if (clearDisplay) {
+                    updateStepNoteDisplay(idx, '--');
+                }
+            });
+        }
+
+        function getSharedStepStartDelay() {
+            if (tempoMode !== TEMPO_MODE_BPM) return 0;
+            ensureMasterClock();
+            const now = getNowMs();
+            const intervalMs = getStepIntervalMs();
+            const target = quantizeToNextSixteenth(now, intervalMs);
+            return Math.max(0, target - now);
+        }
+
+        function stepSequenceTick(seqIndex) {
+            const sequence = stepSequences[seqIndex];
+            if (!sequence) return;
+            const totalSteps = sequence.steps.length;
+            sequence.knobEls.forEach(knob => knob?.classList.remove('active-step'));
+            const current = stepPlayheads[seqIndex] % totalSteps;
+            const knobEl = sequence.knobEls[current];
+            const step = sequence.steps[current];
+            if (knobEl) knobEl.classList.add('active-step');
+            if (step.active) {
+                const midiNote = getStepMidiNote(seqIndex, step.value);
+                playStepMidi(seqIndex, midiNote);
+                updateStepNoteDisplay(seqIndex, midiToNoteName(midiNote));
+            } else {
+                sendStepNoteOff(seqIndex);
+                updateStepNoteDisplay(seqIndex, '--');
+            }
+            stepPlayheads[seqIndex] = (current + 1) % totalSteps;
+        }
+
+        function startAllStepSequences({ preservePlayhead = false, sharedDelay = null } = {}) {
+            stopAllStepSequences({ resetPlayhead: !preservePlayhead, clearDisplay: !preservePlayhead });
+
+            const launch = () => {
+                sharedStepTimer.startTimeout = null;
+                stepTimers.forEach(timer => { if (timer) timer.startTimeout = null; });
+                stepSequenceTick(0);
+                stepSequenceTick(1);
+                const interval = setInterval(() => {
+                    stepSequenceTick(0);
+                    stepSequenceTick(1);
+                }, getStepIntervalMs());
+                sharedStepTimer.intervalId = interval;
+                stepTimers.forEach(timer => { if (timer) timer.intervalId = interval; });
+            };
+
+            const delayOverride = Number.isFinite(sharedDelay) ? Math.max(0, sharedDelay) : null;
+            const delay = tempoMode === TEMPO_MODE_BPM
+                ? (delayOverride !== null ? delayOverride : getSharedStepStartDelay())
+                : (delayOverride !== null ? delayOverride : 0);
+
+            if (delay > 0) {
+                const timeoutId = setTimeout(launch, delay);
+                sharedStepTimer.startTimeout = timeoutId;
+                stepTimers.forEach(timer => { if (timer) timer.startTimeout = timeoutId; });
+            } else {
+                launch();
+            }
+        }
+
+        function rescheduleRunningStepSequences() {
+            if (!isStepsMode || !areStepSequencesRunning()) return;
+            const sharedDelay = getSharedStepStartDelay();
+            startAllStepSequences({ preservePlayhead: true, sharedDelay });
+        }
+
+        function attachStepKnobHandlers(knobEl, seqIndex, stepIndex) {
+            let startY = 0;
+            let startValue = 0;
+            let moved = false;
+            let activatedOnDown = false;
+
+            const isSequenceRunning = () => areStepSequencesRunning();
+
+            const onPointerMove = (event) => {
+                if (event.cancelable) event.preventDefault();
+                const deltaY = startY - event.clientY;
+                const nextValue = startValue + deltaY / 40;
+                moved = moved || Math.abs(deltaY) > 2;
+                setStepValue(seqIndex, stepIndex, nextValue);
+                const stepData = stepSequences[seqIndex].steps[stepIndex];
+                if (stepData.active && !isSequenceRunning()) {
+                    const midi = getStepMidiNote(seqIndex, stepData.value);
+                    scheduleStepPreview(seqIndex, midi);
+                }
+            };
+
+            const release = (event) => {
+                knobEl.releasePointerCapture(event.pointerId);
+                document.removeEventListener('pointermove', onPointerMove);
+                document.removeEventListener('pointerup', release);
+                const stepData = stepSequences[seqIndex].steps[stepIndex];
+                if (!moved && !activatedOnDown) {
+                    const nextActive = !stepData.active;
+                    toggleStepActive(seqIndex, stepIndex, nextActive);
+                    if (nextActive && !isSequenceRunning()) {
+                        const midi = getStepMidiNote(seqIndex, stepData.value);
+                        scheduleStepPreview(seqIndex, midi);
+                    } else if (!nextActive) {
+                        sendStepNoteOff(seqIndex);
+                        updateStepNoteDisplay(seqIndex, '--');
+                    }
+                } else if (stepData.active && !isSequenceRunning()) {
+                    const midi = getStepMidiNote(seqIndex, stepData.value);
+                    scheduleStepPreview(seqIndex, midi);
+                }
+            };
+
+            knobEl.addEventListener('pointerdown', (event) => {
+                event.preventDefault();
+                startY = event.clientY;
+                startValue = stepSequences[seqIndex].steps[stepIndex].value;
+                moved = false;
+                activatedOnDown = false;
+                knobEl.setPointerCapture(event.pointerId);
+                if (!stepSequences[seqIndex].steps[stepIndex].active) {
+                    toggleStepActive(seqIndex, stepIndex, true);
+                    activatedOnDown = true;
+                }
+                if (!isSequenceRunning()) {
+                    const stepData = stepSequences[seqIndex].steps[stepIndex];
+                    const midi = getStepMidiNote(seqIndex, stepData.value);
+                    scheduleStepPreview(seqIndex, midi);
+                }
+                document.addEventListener('pointermove', onPointerMove);
+                document.addEventListener('pointerup', release);
+            });
+        }
+
+        function buildStepSequencer(seqIndex) {
+            const grids = Array.from(document.querySelectorAll(`[data-sequence-grid="${seqIndex}"]`));
+            const sequence = stepSequences[seqIndex];
+            sequence.knobEls = [];
+            grids.forEach((grid, rowIndex) => {
+                for (let i = 0; i < 8; i++) {
+                    const stepIndex = rowIndex * 8 + i;
+                    const knob = document.createElement('div');
+                    knob.className = 'step-knob inactive';
+                    knob.dataset.value = `${sequence.steps[stepIndex].value}`;
+                    const indicator = document.createElement('div');
+                    indicator.className = 'step-indicator';
+                    knob.appendChild(indicator);
+                    grid.appendChild(knob);
+                    attachStepKnobHandlers(knob, seqIndex, stepIndex);
+                    sequence.knobEls.push(knob);
+                    updateStepKnobVisual(seqIndex, stepIndex);
+                }
+            });
+            sequence.noteDisplay = document.querySelector(`.step-sequencer[data-sequence-index="${seqIndex}"] .step-note-display`);
+        }
+
+        function setStepsMode(enabled) {
+            isStepsMode = enabled;
+            if (!stepsModeSwitch || !stepsModeContainer || !oscillatorRow) return;
+            stepsModeSwitch.classList.toggle('on', enabled);
+            const sequencersWrapper = document.getElementById('step-sequencers');
+            sequencersWrapper?.classList.toggle('hidden', !enabled);
+            document.querySelectorAll('.oscillator-visual').forEach(el => el.classList.toggle('hidden', enabled));
+
+            const lockSelectors = [
+                '#arp-mode-switch-0', '#arp-mode-switch-1',
+                '#arp-hold-switch-0', '#arp-hold-switch-1',
+                '[data-fx-id="22"]', '[data-fx-id="23"]',
+                '[data-fx-id="18"]', '[data-fx-id="19"]',
+            ];
+            const lockAction = enabled ? 'add' : 'remove';
+            lockSelectors.forEach(sel => {
+                document.querySelectorAll(sel).forEach(el => el.classList[lockAction]('arp-disabled'));
+            });
+
+            if (enabled) {
+                stepsModePreviousArpLock = isArpLockEnabled;
+                stepsModePreviousRateSync = isArpRateSynced;
+                stepsModePreviousFeelValues = knobState.map((state, idx) => {
+                    const fxId = 22 + idx;
+                    return fxKnobData[fxId]?.value ?? state?.feelKnobValue ?? 0;
+                });
+                stepsModePreviousFeelPatterns = knobState.map(state => state?.currentFeelPattern || null);
+                isArpLockEnabled = true;
+                isArpRateSynced = true;
+                if (arpLockSwitch) {
+                    arpLockSwitch.classList.add('on', 'arp-disabled');
+                    arpLockSwitch.parentElement?.classList.add('arp-disabled');
+                }
+                const syncContainer = document.getElementById('rate-sync-container') || arpSyncSwitch?.parentElement;
+                if (syncContainer) syncContainer.classList.add('arp-disabled');
+                if (arpSyncSwitch) arpSyncSwitch.classList.add('on');
+
+                stepsModePreviousArpState = knobState.map(state => state?.isArpOn);
+                knobState.forEach((state, idx) => {
+                    if (!state) return;
+                    state.isArpOn = true;
+                    if (state.dom?.arpSwitch) state.dom.arpSwitch.classList.add('on');
+                    updateArpControlsFading(idx);
+                });
+                if (tempoMode === TEMPO_MODE_BPM) {
+                    const masterBpm = knobState[0]?.arpRateBpm ?? DEFAULT_ARP_RATE_BPM;
+                    setArpRateFromBpm(1, masterBpm);
+                } else {
+                    const masterMs = knobState[0]?.arpRateMs ?? DEFAULT_ARP_RATE_MS;
+                    setArpRateFromMs(1, masterMs);
+                }
+                allArpControlGrids?.forEach(g => g.classList.remove('arp-hidden'));
+                if (masterArpControls) masterArpControls.classList.remove('arp-hidden');
+                knobState.forEach((state, idx) => {
+                    if (!state) return;
+                    state.euclideanStepCounter = 0;
+                    setFxValue(22 + idx, 0, true);
+                    state.feelKnobValue = 0;
+                    state.currentFeelPattern = EUCLIDEAN_PATTERNS[0];
+                    state.lastRenderedFeelPattern = null;
+                    updateFeelPatternPreview(idx);
+                });
+            } else {
+                isArpLockEnabled = stepsModePreviousArpLock;
+                if (arpLockSwitch) {
+                    arpLockSwitch.classList.toggle('on', isArpLockEnabled);
+                    arpLockSwitch.classList.remove('arp-disabled');
+                    arpLockSwitch.parentElement?.classList.remove('arp-disabled');
+                }
+                isArpRateSynced = stepsModePreviousRateSync;
+                if (arpSyncSwitch) {
+                    arpSyncSwitch.classList.toggle('on', isArpRateSynced);
+                }
+                const syncContainer = document.getElementById('rate-sync-container') || arpSyncSwitch?.parentElement;
+                if (syncContainer) syncContainer.classList.remove('arp-disabled');
+                knobState.forEach((state, idx) => {
+                    if (!state) return;
+                    const shouldRestoreOff = stepsModePreviousArpState[idx] === false;
+                    if (shouldRestoreOff) {
+                        state.isArpOn = false;
+                        state.arpRunning = false;
+                        if (state.dom?.arpSwitch) state.dom.arpSwitch.classList.remove('on');
+                        updateArpControlsFading(idx);
+                    }
+                    const prevFeel = stepsModePreviousFeelValues[idx];
+                    if (prevFeel !== undefined && prevFeel !== null) {
+                        setFxValue(22 + idx, prevFeel, true);
+                    }
+                    const prevPattern = stepsModePreviousFeelPatterns[idx];
+                    if (prevPattern) {
+                        state.currentFeelPattern = prevPattern;
+                        state.lastRenderedFeelPattern = null;
+                        updateFeelPatternPreview(idx);
+                    }
+                });
+                stepsModePreviousFeelValues = [];
+                stepsModePreviousFeelPatterns = [];
+                updateGlobalArpVisibility();
+            }
+
+            if (!enabled) {
+                stopAllStepSequences();
+                sendStepNoteOff(0);
+                sendStepNoteOff(1);
+            }
+
+            updateSyncSwitchVisibility();
+            updateBreakPlaybackEligibility();
+        }
+
+        function initStepSequencers() {
+            stepsModeContainer = document.getElementById('steps-mode-bar');
+            stepsModeSwitch = document.getElementById('steps-mode-switch');
+            if (!stepsModeContainer || !stepsModeSwitch) return;
+
+            buildStepSequencer(0);
+            buildStepSequencer(1);
+
+            stepsModeSwitch.addEventListener('click', () => {
+                setStepsMode(!isStepsMode);
+            });
+
+            const startAllButton = document.getElementById('step-start-all');
+            const stopAllButton = document.getElementById('step-stop-all');
+            const startBoth = () => {
+                const sharedDelay = getSharedStepStartDelay();
+                startAllStepSequences({ sharedDelay });
+            };
+            startAllButton?.addEventListener('click', startBoth);
+            stopAllButton?.addEventListener('click', () => {
+                stopAllStepSequences();
+            });
+
+            setStepsMode(false);
         }
 
         function formatLfoDestDisplay(chain) {
@@ -1216,13 +1681,14 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
         function updateBreakPlaybackEligibility() {
             const hasRunningArp = isAnyArpRunning();
-            if (!hasRunningArp && breakPlayRequested) {
+            const allowPlay = hasRunningArp || isStepsMode;
+            if (!allowPlay && breakPlayRequested) {
                 stopBreakPlaybackImmediate();
                 stopMasterClockIfIdle();
             }
             if (breakPlayButton) {
-                breakPlayButton.disabled = !hasRunningArp;
-                breakPlayButton.setAttribute('aria-disabled', hasRunningArp ? 'false' : 'true');
+                breakPlayButton.disabled = !allowPlay;
+                breakPlayButton.setAttribute('aria-disabled', allowPlay ? 'false' : 'true');
             }
         }
 
@@ -1560,8 +2026,9 @@ async function toggleBreakPlayback(options = {}) {
     const { allowArplessStart = false } = options;
     const hasRunningArp = isAnyArpRunning();
     const isFreeTiming = tempoMode === TEMPO_MODE_MS;
+    const allowArpless = allowArplessStart || isStepsMode;
 
-    if (!allowArplessStart && !isFreeTiming && !hasRunningArp) {
+    if (!allowArpless && !isFreeTiming && !hasRunningArp) {
         stopBreakPlaybackImmediate();
         updateBreakPlaybackEligibility();
         stopMasterClockIfIdle();
@@ -1591,7 +2058,7 @@ async function toggleBreakPlayback(options = {}) {
             // Calculate where we are right now
             const currentStep = tempoSource.euclideanStepCounter % patternLen;
             const currentCycle = Math.floor(tempoSource.euclideanStepCounter / patternLen);
-            
+
             // Calculate distance to the NEXT quantization point
             // If we are at step 2, target is 4. Distance = 2.
             // If we are at step 0, target is 0. Distance = 0.
@@ -1604,7 +2071,7 @@ async function toggleBreakPlayback(options = {}) {
             } else {
                 // We are OFF the grid -> Wait for the specific target step
                 const targetAbsStep = currentStep + stepsUntilTarget;
-                
+
                 // Handle Wrap-Around (e.g., if we are at step 14, next beat is 16 (which is Step 0 of NEXT cycle))
                 if (targetAbsStep >= patternLen) {
                     breakQueueTargetCycle = currentCycle + 1;
@@ -1614,6 +2081,18 @@ async function toggleBreakPlayback(options = {}) {
                     breakQueueTargetStep = targetAbsStep;
                 }
             }
+        } else if (isStepsMode) {
+            const intervalMs = bpmToSixteenthMs(Math.max(1, getCurrentBpm()));
+            const now = getNowMs();
+            const target = quantizeToNextSixteenth(now, intervalMs);
+            const delay = Math.max(0, target - now);
+            clearBreakStartTimer();
+            breakStartTimeoutId = setTimeout(async () => {
+                await ensureBreakSampleLoaded();
+                beginBreakPlayback();
+            }, delay);
+            ensureMasterClock();
+            return;
         }
     }
 
@@ -2014,6 +2493,7 @@ async function toggleBreakPlayback(options = {}) {
             updateTempoKnobIndicator(knobId, knobValue);
             handleTempoLinkedControls();
             updateMidiClockState();
+            if (isStepsMode) rescheduleRunningStepSequences();
         }
 
         function setArpRateFromMs(knobId, rateMs) {
@@ -2047,6 +2527,7 @@ async function toggleBreakPlayback(options = {}) {
             updateTempoKnobIndicator(knobId, knobValue);
             handleTempoLinkedControls();
             updateMidiClockState();
+            if (isStepsMode) rescheduleRunningStepSequences();
         }
 
         function handleArpRateButton(knobId, multiplier) {
@@ -3298,6 +3779,7 @@ function sendMidiMessage(message) {
                   if(state.dom.transposeDisplay) state.dom.transposeDisplay.textContent = trans;
                   updateStateFromTotalAngle(knobId);
                   updateSequenceDisplay(knobId);
+                  refreshStepSequencerVisuals(knobId);
                } else if (id === 16 || id === 17) {
                    const otherId = knobId === 0 ? 1 : 0;
                    if (tempoMode === TEMPO_MODE_BPM) {
@@ -3811,6 +4293,9 @@ lfoState.forEach((lfo, lfoIndex) => {
         if (state.dom.feelDisplay) state.dom.feelDisplay.textContent = pIndex + 1;
     }
 });
+            if (isStepsMode) {
+                modulatedFeelPattern = EUCLIDEAN_PATTERNS[0];
+            }
            const isBpmMode = tempoMode === TEMPO_MODE_BPM;
            if (isBpmMode) {
                modulatedRateBpm = normalizeArpRateBpm(modulatedRateBpm);
@@ -4264,6 +4749,9 @@ lfoState.forEach((lfo, lfoIndex) => {
            }
 
            const isArpCategoryPreset = category === 'ARPS';
+           if (isArpCategoryPreset && isStepsMode) {
+               setStepsMode(false);
+           }
            applyPreset(fullPreset, isArpCategoryPreset, options);
            return true;
        }
@@ -4346,10 +4834,18 @@ lfoState.forEach((lfo, lfoIndex) => {
            }
             const anyOn = knobState.some(k => k.isArpOn);
             const orderCont = arpOrderSelector.parentElement;
-            if(orderCont){orderCont.classList[anyOn?'remove':'add']('arp-disabled');}
+            if(orderCont){
+                const disableOrder = isStepsMode || !anyOn;
+                orderCont.classList[disableOrder?'add':'remove']('arp-disabled');
+            }
 
             updateRateButtonLockState();
             updateLfoTempoSwitchStates();
+
+            if (isStepsMode && syncCont) {
+                syncCont.classList.add('arp-disabled');
+                arpSyncSwitch?.classList.add('on');
+            }
        }
         function updateLfoVisuals(lfoOutputs) {
     const modulatedValues = {}; // key: destination id, value: total modulation amount
@@ -5545,6 +6041,8 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
            updateBreakPlaybackEligibility();
            resizeBreakWaveformCanvas();
            window.addEventListener('resize', resizeBreakWaveformCanvas);
+
+           initStepSequencers();
 
           addTouchListener(presetPrevButton, (event) => handlePresetNavigation(-1, event));
           addTouchListener(presetNextButton, (event) => handlePresetNavigation(1, event));
