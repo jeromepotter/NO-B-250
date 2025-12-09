@@ -22,9 +22,9 @@ A browser-based dual-oscillator synthesizer with vintage-inspired sound and mode
 - **4 LFOs** - Sine, triangle, saw, square, random with Tempo Sync
 - **Advanced LFO Patching** - Chain multiple destinations to a single LFO and use Cross-Modulation (LFOs controlling LFOs) for complex, evolving textures.
 - **Visual Patch Bay** - Cable-style routing interface for modulation
-- **Dual Tempo Engines** - Switch between BPM Mode (grid-locked) and MS Mode (milliseconds/free-running)
 - **Interactive Sequencer** - Visualize, mute, and delete notes from a sequence
 - **Dual Arpeggiators** - Per-voice with rate, transpose, octave range, and feel controls
+- **Steps Mode** - Dual 16-step octave sequencers with shared START/STOP controls, per-step note color feedback, and a Doepfer Dark Time-inspired workflow
 
 ### Playability
 - **Musical Scales** - Major, minor, pentatonic, and more
@@ -32,8 +32,11 @@ A browser-based dual-oscillator synthesizer with vintage-inspired sound and mode
 - **Transposition** - Scale-aware pitch shifting for arpeggios
 - **Keyboard Controls** - Comprehensive QWERTY mapping for desktop
 - **Mobile Optimized** - Touch-friendly interface with spin controls
-- **ARP and LFO Lock - Change your preset sounds while keeping a sequence and/or modulation
+- **ARP and LFO Lock** - Change your preset sounds while keeping a sequence and/or modulation
 - **Euclidean Rhythms** - Algorithmic rhythm generation using pre-calculated Euclidean patterns for complex polyrhythms.
+
+### Sampling & Loops
+- **Break / Drums Mode** - Curated drum breaks with slip stutter control, FX send, and quantized launches that sync to arpeggiator timing
 
 ### Recording & MIDI
 - **Audio Recording** - Export your performances as WAV files

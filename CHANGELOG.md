@@ -2,6 +2,16 @@
 ### Future Plans
 - "Split" Presets, taking advantage of dual voices with independent waveforms
 
+## [12.10] - 2025-12-10
+
+### Added
+- **Steps Mode:** Dual 16-step octave sequencers with shared START/STOP controls. Steps respect the active scale/key, keep both voices locked and synced so patterns launch together, and borrow their dual-row feel from classic hardware like the Doepfer Dark Time.
+
+### Changed
+- Step sequences now save/load with presets so custom patterns travel with your sounds. Loading presets that contain steps automatically re-enables Steps Mode with the stored steps.
+- Step sequencers stack vertically on larger screens for clearer editing while hiding the main oscillator visuals during step programming.
+- Break playback waits for the next grid tick so the first hit always aligns with the running clock.
+
 ## [12.03] - 2025-12-03
 
 ### Added
