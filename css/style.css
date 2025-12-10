@@ -203,11 +203,51 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
         align-items: start;
       }
 
+      .step-sequencer-header {
+        gap: 0.5rem;
+      }
+
       .step-sequencer {
         background: transparent;
         border: none;
         border-radius: 0.75rem;
         padding: 0.1rem 0.5rem 0.25rem;
+      }
+
+      .step-length-control {
+        gap: 0.25rem;
+      }
+
+      .step-length-knob {
+        width: 36px;
+        height: 36px;
+        border-radius: 9999px;
+        background: var(--color-egg-orange);
+        position: relative;
+        cursor: pointer;
+        box-shadow: 0 0 0 2px var(--color-surface);
+        touch-action: none;
+      }
+
+      .step-length-indicator {
+        position: absolute;
+        width: 4px;
+        height: 11px;
+        background: var(--color-text);
+        left: 50%;
+        top: 4px;
+        transform-origin: 50% 14px;
+        border-radius: 9999px;
+        transition: transform 0.12s ease-out;
+      }
+
+      .step-length-label {
+        text-align: center;
+        letter-spacing: 0.18em;
+      }
+
+      .step-length-value {
+        letter-spacing: 0.12em;
       }
 
       .step-knob {
@@ -245,6 +285,12 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
       .step-knob-grid {
         margin-bottom: 0.35rem;
         justify-items: center;
+      }
+
+      .step-knob.step-out-of-range {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
       }
       .rate-display-row {
         display: flex;

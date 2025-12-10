@@ -146,9 +146,15 @@ let liveLfoOutputs = [0, 0, 0, 0];
         const stepPreviewTimeouts = [null, null];
         const defaultStepOctaves = [2, 4];
         const stepRandomBaseOctaves = [2, 4];
+        const STEP_MIN_LENGTH = 1;
+        const STEP_MAX_LENGTH = 16;
+        const STEP_LENGTH_MIN_ANGLE = -135;
+        const STEP_LENGTH_MAX_ANGLE = 135;
+        const STEP_LENGTH_ANGLE_RANGE = STEP_LENGTH_MAX_ANGLE - STEP_LENGTH_MIN_ANGLE;
+        const STEP_LENGTH_KNOB_SENSITIVITY = 1.5;
         const stepSequences = [
-            { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[0] })), knobEls: [], noteDisplay: null },
-            { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[1] })), knobEls: [], noteDisplay: null },
+            { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[0] })), knobEls: [], noteDisplay: null, length: STEP_MAX_LENGTH, lengthDialValue: STEP_MAX_LENGTH, lengthKnob: null, lengthValueEl: null },
+            { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[1] })), knobEls: [], noteDisplay: null, length: STEP_MAX_LENGTH, lengthDialValue: STEP_MAX_LENGTH, lengthKnob: null, lengthValueEl: null },
         ];
         let sharedStepCounter = 0;
         let sharedStepNextTickTime = null;
@@ -224,6 +230,75 @@ let liveLfoOutputs = [0, 0, 0, 0];
             knobEl.style.backgroundColor = `rgb(${color.r}, ${color.g}, ${color.b})`;
         }
 
+        function lengthValueToAngle(value) {
+            const normalized = (Math.max(STEP_MIN_LENGTH, Math.min(STEP_MAX_LENGTH, value)) - STEP_MIN_LENGTH)
+                / (STEP_MAX_LENGTH - STEP_MIN_LENGTH);
+            return STEP_LENGTH_MIN_ANGLE + normalized * STEP_LENGTH_ANGLE_RANGE;
+        }
+
+        function angleToLengthValue(angle) {
+            const clampedAngle = Math.max(STEP_LENGTH_MIN_ANGLE, Math.min(STEP_LENGTH_MAX_ANGLE, angle));
+            const normalized = (clampedAngle - STEP_LENGTH_MIN_ANGLE) / STEP_LENGTH_ANGLE_RANGE;
+            return STEP_MIN_LENGTH + normalized * (STEP_MAX_LENGTH - STEP_MIN_LENGTH);
+        }
+
+        function getSequenceLength(seqIndex) {
+            const sequence = stepSequences[seqIndex];
+            if (!sequence) return STEP_MAX_LENGTH;
+            const clamped = Math.max(STEP_MIN_LENGTH, Math.min(STEP_MAX_LENGTH, sequence.length ?? STEP_MAX_LENGTH));
+            return clamped;
+        }
+
+        function updateStepLengthVisuals(seqIndex) {
+            const sequence = stepSequences[seqIndex];
+            if (!sequence) return;
+            const length = getSequenceLength(seqIndex);
+            const dialValue = Math.max(
+                STEP_MIN_LENGTH,
+                Math.min(STEP_MAX_LENGTH, sequence.lengthDialValue ?? length),
+            );
+
+            if (sequence.lengthKnob) {
+                sequence.lengthKnob.setAttribute('aria-valuenow', String(length));
+                const indicator = sequence.lengthKnob.querySelector('.step-length-indicator');
+                if (indicator) {
+                    const rotation = lengthValueToAngle(dialValue);
+                    indicator.style.transform = `translate(-50%, 0) rotate(${rotation}deg)`;
+                }
+            }
+
+            if (sequence.lengthValueEl) {
+                sequence.lengthValueEl.textContent = length;
+            }
+
+            sequence.knobEls.forEach((knob, idx) => {
+                if (!knob) return;
+                const isOutOfRange = idx >= length;
+                knob.classList.toggle('step-out-of-range', isOutOfRange);
+                knob.setAttribute('aria-disabled', isOutOfRange ? 'true' : 'false');
+                if (isOutOfRange) {
+                    knob.classList.remove('active-step');
+                }
+            });
+
+            if (stepPlayheads[seqIndex] >= length) {
+                stepPlayheads[seqIndex] = 0;
+            }
+        }
+
+        function setSequenceLength(seqIndex, length) {
+            const sequence = stepSequences[seqIndex];
+            if (!sequence) return;
+            const clampedDial = Math.max(STEP_MIN_LENGTH, Math.min(STEP_MAX_LENGTH, length));
+            const prevLength = sequence.length ?? STEP_MAX_LENGTH;
+            sequence.lengthDialValue = clampedDial;
+            sequence.length = Math.round(clampedDial);
+            updateStepLengthVisuals(seqIndex);
+            if (sequence.length !== prevLength && areStepSequencesRunning()) {
+                sequence.knobEls.forEach(knob => knob?.classList.remove('active-step'));
+            }
+        }
+
         function setStepValue(seqIndex, stepIndex, value) {
             const clamped = Math.max(0, Math.min(8, value));
             stepSequences[seqIndex].steps[stepIndex].value = clamped;
@@ -262,7 +337,16 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
             stepSequences.forEach((sequence, seqIndex) => {
                 const presetSeq = presetStepSequences[seqIndex];
-                if (!presetSeq || !Array.isArray(presetSeq.steps)) return;
+                if (!presetSeq) return;
+
+                const presetLength = presetSeq.length ?? presetSeq.stepLength ?? presetSeq.totalSteps;
+                if (presetLength !== undefined) {
+                    setSequenceLength(seqIndex, presetLength);
+                } else {
+                    updateStepLengthVisuals(seqIndex);
+                }
+
+                if (!Array.isArray(presetSeq.steps)) return;
 
                 presetSeq.steps.forEach((presetStep, stepIndex) => {
                     const targetStep = sequence.steps[stepIndex];
@@ -281,7 +365,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
                     updateStepKnobVisual(seqIndex, stepIndex);
                 });
 
-                const firstActiveStep = sequence.steps.find(step => step.active);
+                const firstActiveStep = sequence.steps.find((step, idx) => step.active && idx < getSequenceLength(seqIndex));
                 if (firstActiveStep) {
                     const midiNote = getStepMidiNote(seqIndex, firstActiveStep.value);
                     updateStepNoteDisplay(seqIndex, midiToNoteName(midiNote));
@@ -421,7 +505,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
         function stepSequenceTick(seqIndex) {
             const sequence = stepSequences[seqIndex];
             if (!sequence) return;
-            const totalSteps = sequence.steps.length;
+            const totalSteps = getSequenceLength(seqIndex);
+            if (!Number.isFinite(totalSteps) || totalSteps <= 0) return;
             sequence.knobEls.forEach(knob => knob?.classList.remove('active-step'));
             const current = stepPlayheads[seqIndex] % totalSteps;
             const knobEl = sequence.knobEls[current];
@@ -458,6 +543,66 @@ let liveLfoOutputs = [0, 0, 0, 0];
             if (!isStepsMode || !areStepSequencesRunning()) return;
             const sharedDelay = getSharedStepStartDelay();
             startAllStepSequences({ preservePlayhead: true, preserveClock: true, sharedDelay });
+        }
+
+        function attachStepLengthHandlers(knobEl, seqIndex) {
+            let activePointerId = null;
+            let lastY = 0;
+
+            const onPointerMove = (event) => {
+                if (event.pointerId !== activePointerId) return;
+                event.preventDefault();
+                const deltaAngle = (lastY - event.clientY) * STEP_LENGTH_KNOB_SENSITIVITY;
+                lastY = event.clientY;
+                const sequence = stepSequences[seqIndex];
+                const currentDial = sequence?.lengthDialValue ?? getSequenceLength(seqIndex);
+                const currentAngle = lengthValueToAngle(currentDial);
+                const nextAngle = Math.max(STEP_LENGTH_MIN_ANGLE, Math.min(STEP_LENGTH_MAX_ANGLE, currentAngle + deltaAngle));
+                const nextValue = angleToLengthValue(nextAngle);
+                setSequenceLength(seqIndex, nextValue);
+            };
+
+            const release = (event) => {
+                if (event.pointerId !== activePointerId) return;
+                knobEl.releasePointerCapture(event.pointerId);
+                document.removeEventListener('pointermove', onPointerMove);
+                document.removeEventListener('pointerup', release);
+                activePointerId = null;
+            };
+
+            knobEl.addEventListener('pointerdown', (event) => {
+                event.preventDefault();
+                activePointerId = event.pointerId;
+                lastY = event.clientY;
+                knobEl.setPointerCapture(event.pointerId);
+                document.addEventListener('pointermove', onPointerMove);
+                document.addEventListener('pointerup', release);
+            });
+
+            knobEl.addEventListener('wheel', (event) => {
+                event.preventDefault();
+                const direction = event.deltaY < 0 ? 1 : -1;
+                const sequence = stepSequences[seqIndex];
+                const currentDial = sequence?.lengthDialValue ?? getSequenceLength(seqIndex);
+                setSequenceLength(seqIndex, currentDial + direction);
+            });
+
+            knobEl.addEventListener('keydown', (event) => {
+                if (['ArrowUp', 'ArrowRight', 'ArrowDown', 'ArrowLeft', 'Home', 'End'].includes(event.key)) {
+                    event.preventDefault();
+                    const current = getSequenceLength(seqIndex);
+                    const delta = event.key === 'ArrowUp' || event.key === 'ArrowRight' ? 1
+                        : event.key === 'ArrowDown' || event.key === 'ArrowLeft' ? -1
+                        : 0;
+                    if (event.key === 'Home') {
+                        setSequenceLength(seqIndex, STEP_MIN_LENGTH);
+                    } else if (event.key === 'End') {
+                        setSequenceLength(seqIndex, STEP_MAX_LENGTH);
+                    } else {
+                        setSequenceLength(seqIndex, current + delta);
+                    }
+                }
+            });
         }
 
         function attachStepKnobHandlers(knobEl, seqIndex, stepIndex) {
@@ -543,6 +688,12 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 }
             });
             sequence.noteDisplay = document.querySelector(`.step-sequencer[data-sequence-index="${seqIndex}"] .step-note-display`);
+            sequence.lengthKnob = document.querySelector(`[data-sequence-length-knob="${seqIndex}"]`);
+            sequence.lengthValueEl = document.querySelector(`[data-sequence-length="${seqIndex}"] .step-length-value`);
+            if (sequence.lengthKnob) {
+                attachStepLengthHandlers(sequence.lengthKnob, seqIndex);
+            }
+            updateStepLengthVisuals(seqIndex);
         }
 
         function setStepsMode(enabled, { skipRandomize = false } = {}) {
@@ -2796,12 +2947,13 @@ function generateComplexRandomLfoState(includeArpTargets = true) {
                breakSampleIndex: breakSampleIndex,
                breakSelectionNormalized: trim(breakSelectionNormalized),
                isStepsMode: isStepsMode,
-               stepSequences: stepSequences.map(seq => ({
-                   steps: seq.steps.map(step => ({
-                       active: !!step.active,
-                       value: trim(step.value ?? 0),
-                   })),
-               })),
+                stepSequences: stepSequences.map((seq, idx) => ({
+                    length: getSequenceLength(idx),
+                    steps: seq.steps.map(step => ({
+                        active: !!step.active,
+                        value: trim(step.value ?? 0),
+                    })),
+                })),
              lfoState: lfoState.map(lfo => {
             const obj = {};
             // Only save values if they differ from defaults
