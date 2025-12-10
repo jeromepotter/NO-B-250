@@ -178,8 +178,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
         }
 
         const stepSequences = [
-            { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[0] })), knobEls: [], noteDisplay: null, length: STEP_MAX_LENGTH, lengthDialValue: STEP_MAX_LENGTH, lengthKnob: null, lengthValueEl: null, chainSlots: createDefaultChainSlots(), chainSlotEls: [], chainBarCounter: 0, currentChainSlot: 0 },
-            { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[1] })), knobEls: [], noteDisplay: null, length: STEP_MAX_LENGTH, lengthDialValue: STEP_MAX_LENGTH, lengthKnob: null, lengthValueEl: null, chainSlots: createDefaultChainSlots(), chainSlotEls: [], chainBarCounter: 0, currentChainSlot: 0 },
+            { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[0] })), knobEls: [], noteDisplay: null, length: STEP_MAX_LENGTH, lengthDialValue: STEP_MAX_LENGTH, lengthKnob: null, lengthValueEl: null, chainSlots: createDefaultChainSlots(), chainSlotEls: [], chainBarCounter: 0, currentChainSlot: 0, chainEnabled: false, chainGridWrapper: null, chainToggleEl: null },
+            { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[1] })), knobEls: [], noteDisplay: null, length: STEP_MAX_LENGTH, lengthDialValue: STEP_MAX_LENGTH, lengthKnob: null, lengthValueEl: null, chainSlots: createDefaultChainSlots(), chainSlotEls: [], chainBarCounter: 0, currentChainSlot: 0, chainEnabled: false, chainGridWrapper: null, chainToggleEl: null },
         ];
         let sharedStepCounter = 0;
         let sharedStepNextTickTime = null;
@@ -202,7 +202,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
         function getChainTranspose(seqIndex) {
             const sequence = stepSequences[seqIndex];
-            if (!sequence) return 0;
+            if (!sequence || !sequence.chainEnabled) return 0;
             const slot = sequence.chainSlots?.[sequence.currentChainSlot];
             if (!slot || !slot.active) return 0;
             const clamped = Math.max(CHAIN_MIN_TRANSPOSE, Math.min(CHAIN_MAX_TRANSPOSE, Math.round(slot.trans ?? 0)));
@@ -464,14 +464,41 @@ let liveLfoOutputs = [0, 0, 0, 0];
         function updateChainPlayingState(seqIndex) {
             const sequence = stepSequences[seqIndex];
             if (!sequence?.chainSlots?.length) return;
+            const enabled = !!sequence.chainEnabled;
             sequence.chainSlots.forEach((slot, idx) => {
                 const slotEl = slot.slotEl || sequence.chainSlotEls[idx];
                 const isActive = !!slot.active && (slot.loops ?? 0) > 0;
                 if (slotEl) {
                     slotEl.classList.toggle('active', isActive);
-                    slotEl.classList.toggle('playing', idx === sequence.currentChainSlot && isActive);
+                    const isPlaying = enabled && idx === sequence.currentChainSlot && isActive;
+                    slotEl.classList.toggle('playing', isPlaying);
                 }
             });
+        }
+
+        function setChainEnabled(seqIndex, enabled) {
+            const sequence = stepSequences[seqIndex];
+            if (!sequence) return;
+            const nextEnabled = !!enabled;
+            sequence.chainEnabled = nextEnabled;
+
+            if (sequence.chainGridWrapper) {
+                sequence.chainGridWrapper.classList.toggle('hidden', !nextEnabled);
+            }
+
+            if (sequence.chainToggleEl) {
+                sequence.chainToggleEl.classList.toggle('on', nextEnabled);
+                sequence.chainToggleEl.setAttribute('aria-pressed', nextEnabled ? 'true' : 'false');
+                sequence.chainToggleEl.textContent = nextEnabled ? 'CHAIN ON' : 'CHAIN OFF';
+            }
+
+            if (nextEnabled) {
+                resetChainState(seqIndex);
+            } else if (sequence.chainSlots?.length) {
+                sequence.chainSlots.forEach(slot => slot.slotEl?.classList.remove('playing'));
+            }
+
+            updateChainPlayingState(seqIndex);
         }
 
         function updateChainSlotVisual(seqIndex, slotIndex) {
@@ -483,7 +510,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             if (transIndicator) {
                 const normalized = (Math.max(CHAIN_MIN_TRANSPOSE, Math.min(CHAIN_MAX_TRANSPOSE, slot.trans ?? 0)) - CHAIN_MIN_TRANSPOSE)
                     / (CHAIN_MAX_TRANSPOSE - CHAIN_MIN_TRANSPOSE);
-                const rotation = normalized * 360;
+                const rotation = (normalized * 360) - 180;
                 transIndicator.style.transform = `translate(-50%, 0) rotate(${rotation}deg)`;
             }
 
@@ -607,6 +634,22 @@ let liveLfoOutputs = [0, 0, 0, 0];
             });
         }
 
+        function initChainControls(seqIndex) {
+            const sequence = stepSequences[seqIndex];
+            if (!sequence) return;
+
+            sequence.chainGridWrapper = document.querySelector(`[data-chain-wrapper="${seqIndex}"]`);
+            sequence.chainToggleEl = document.querySelector(`[data-chain-toggle="${seqIndex}"]`);
+
+            if (sequence.chainToggleEl) {
+                sequence.chainToggleEl.addEventListener('click', () => {
+                    setChainEnabled(seqIndex, !sequence.chainEnabled);
+                });
+            }
+
+            setChainEnabled(seqIndex, sequence.chainEnabled);
+        }
+
         function buildChainSequencer(seqIndex) {
             const container = document.querySelector(`[data-chain-grid="${seqIndex}"]`);
             const sequence = stepSequences[seqIndex];
@@ -664,7 +707,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
         function handleChainProgress(seqIndex) {
             const sequence = stepSequences[seqIndex];
-            if (!sequence || !sequence.chainSlots?.length) return;
+            if (!sequence || !sequence.chainSlots?.length || !sequence.chainEnabled) return;
             const slot = sequence.chainSlots[sequence.currentChainSlot];
             if (!slot || !slot.active || (slot.loops ?? 0) <= 0) {
                 resetChainState(seqIndex);
@@ -1126,8 +1169,10 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
             buildStepSequencer(0);
             buildChainSequencer(0);
+            initChainControls(0);
             buildStepSequencer(1);
             buildChainSequencer(1);
+            initChainControls(1);
 
             stepsModeSwitch.addEventListener('click', () => {
                 setStepsMode(!isStepsMode);
