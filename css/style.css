@@ -253,6 +253,17 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
         pointer-events: none;
       }
 
+      .step-length-scale {
+        display: grid;
+        grid-template-columns: repeat(16, minmax(0, 1fr));
+        gap: 0.1rem;
+        font-size: 9px;
+        letter-spacing: 0.06em;
+        color: var(--color-text);
+        line-height: 1;
+        text-align: center;
+      }
+
       .step-knob {
         width: 38px;
         height: 38px;
@@ -291,8 +302,7 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
       }
 
       .step-knob.step-out-of-range {
-        opacity: 0.2;
-        filter: grayscale(1);
+        box-shadow: none;
       }
       .rate-display-row {
         display: flex;
