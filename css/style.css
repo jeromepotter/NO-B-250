@@ -293,18 +293,24 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
         pointer-events: none;
       }
 
-      .chain-section {
-        margin-top: 0.35rem;
-        padding: 0.35rem 0.2rem 0;
-        border-top: 1px solid var(--color-surface-light, #dbeafe);
+      .chain-toggle {
+        margin-top: 0.25rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.15rem;
       }
 
-      .chain-header {
+      .chain-toggle-label {
         font-size: 10px;
-        letter-spacing: 0.12em;
+        letter-spacing: 0.18em;
         font-weight: 700;
-        text-align: center;
-        margin-bottom: 0.25rem;
+      }
+
+      .chain-section {
+        margin-top: 0.15rem;
+        padding: 0.35rem 0.2rem 0;
+        border-top: 1px solid var(--color-surface-light, #dbeafe);
       }
 
       .chain-grid {
@@ -336,7 +342,7 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
         width: 34px;
         height: 34px;
         border-radius: 50%;
-        background: var(--color-egg-orange);
+        background: var(--color-accent-yellow);
         position: relative;
         cursor: pointer;
         box-shadow: 0 0 0 2px var(--color-surface);
@@ -345,12 +351,12 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
 
       .chain-indicator {
         position: absolute;
-        width: 3px;
-        height: 10px;
+        width: 4px;
+        height: 12px;
         background: var(--color-text);
         left: 50%;
-        top: 4px;
-        transform-origin: 50% 12px;
+        top: 3px;
+        transform-origin: 50% 14px;
         border-radius: 9999px;
       }
 

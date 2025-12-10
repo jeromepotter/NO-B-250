@@ -171,8 +171,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
         }
 
         const stepSequences = [
-            { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[0] })), knobEls: [], noteDisplay: null, length: STEP_MAX_LENGTH, lengthDialValue: STEP_MAX_LENGTH, lengthKnob: null, lengthValueEl: null, chainSlots: createDefaultChainSlots(), chainSlotEls: [], chainBarCounter: 0, currentChainSlot: 0 },
-            { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[1] })), knobEls: [], noteDisplay: null, length: STEP_MAX_LENGTH, lengthDialValue: STEP_MAX_LENGTH, lengthKnob: null, lengthValueEl: null, chainSlots: createDefaultChainSlots(), chainSlotEls: [], chainBarCounter: 0, currentChainSlot: 0 },
+            { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[0] })), knobEls: [], noteDisplay: null, length: STEP_MAX_LENGTH, lengthDialValue: STEP_MAX_LENGTH, lengthKnob: null, lengthValueEl: null, chainSlots: createDefaultChainSlots(), chainSlotEls: [], chainBarCounter: 0, currentChainSlot: 0, chainEnabled: false },
+            { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[1] })), knobEls: [], noteDisplay: null, length: STEP_MAX_LENGTH, lengthDialValue: STEP_MAX_LENGTH, lengthKnob: null, lengthValueEl: null, chainSlots: createDefaultChainSlots(), chainSlotEls: [], chainBarCounter: 0, currentChainSlot: 0, chainEnabled: false },
         ];
         let sharedStepCounter = 0;
         let sharedStepNextTickTime = null;
@@ -195,7 +195,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
         function getChainTranspose(seqIndex) {
             const sequence = stepSequences[seqIndex];
-            if (!sequence) return 0;
+            if (!sequence || !sequence.chainEnabled) return 0;
             const slot = sequence.chainSlots?.[sequence.currentChainSlot];
             if (!slot || !slot.active) return 0;
             const clamped = Math.max(CHAIN_MIN_TRANSPOSE, Math.min(CHAIN_MAX_TRANSPOSE, Math.round(slot.trans ?? 0)));
@@ -368,6 +368,17 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 const presetSeq = presetStepSequences[seqIndex];
                 if (!presetSeq) return;
 
+                const presetChain = presetSeq.chain;
+                const hasCustomChain = Array.isArray(presetChain) && presetChain.some((slot, idx) => {
+                    if (!slot) return false;
+                    const rawLoops = Math.round(slot.loops ?? (idx === 0 ? 1 : 0));
+                    const loops = Math.max(idx === 0 ? 1 : 0, Math.min(CHAIN_MAX_LOOPS, rawLoops));
+                    const trans = Math.round(slot.trans ?? 0);
+                    const isActive = idx === 0 ? true : (!!slot.active && loops > 0);
+                    return (idx === 0 && (trans !== 0 || loops > 1)) || (idx > 0 && isActive);
+                });
+                const desiredChainEnabled = presetSeq.chainEnabled !== undefined ? !!presetSeq.chainEnabled : hasCustomChain;
+
                 const presetLength = presetSeq.length ?? presetSeq.stepLength ?? presetSeq.totalSteps;
                 if (presetLength !== undefined) {
                     setSequenceLength(seqIndex, presetLength);
@@ -407,6 +418,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 } else {
                     resetChainSlots(seqIndex);
                 }
+                setChainEnabled(seqIndex, desiredChainEnabled);
             });
         }
 
@@ -454,17 +466,36 @@ let liveLfoOutputs = [0, 0, 0, 0];
             updateChainPlayingState(seqIndex);
         }
 
+        function updateChainToggleUi(seqIndex) {
+            const sequence = stepSequences[seqIndex];
+            const enabled = !!sequence?.chainEnabled;
+            const section = document.querySelector(`[data-chain-section="${seqIndex}"]`);
+            const toggle = document.querySelector(`[data-chain-switch="${seqIndex}"]`);
+            section?.classList.toggle('hidden', !enabled);
+            toggle?.classList.toggle('on', enabled);
+        }
+
+        function setChainEnabled(seqIndex, enabled) {
+            const sequence = stepSequences[seqIndex];
+            if (!sequence) return;
+            sequence.chainEnabled = !!enabled;
+            resetChainState(seqIndex);
+            updateChainToggleUi(seqIndex);
+        }
+
         function updateChainPlayingState(seqIndex) {
             const sequence = stepSequences[seqIndex];
             if (!sequence?.chainSlots?.length) return;
+            const isEnabled = !!sequence.chainEnabled;
             sequence.chainSlots.forEach((slot, idx) => {
                 const slotEl = slot.slotEl || sequence.chainSlotEls[idx];
                 const isActive = !!slot.active && (slot.loops ?? 0) > 0;
                 if (slotEl) {
                     slotEl.classList.toggle('active', isActive);
-                    slotEl.classList.toggle('playing', idx === sequence.currentChainSlot && isActive);
+                    slotEl.classList.toggle('playing', isEnabled && idx === sequence.currentChainSlot && isActive);
                 }
             });
+            refreshStepSequencerVisuals(seqIndex);
         }
 
         function updateChainSlotVisual(seqIndex, slotIndex) {
@@ -476,14 +507,14 @@ let liveLfoOutputs = [0, 0, 0, 0];
             if (transIndicator) {
                 const normalized = (Math.max(CHAIN_MIN_TRANSPOSE, Math.min(CHAIN_MAX_TRANSPOSE, slot.trans ?? 0)) - CHAIN_MIN_TRANSPOSE)
                     / (CHAIN_MAX_TRANSPOSE - CHAIN_MIN_TRANSPOSE);
-                const rotation = normalized * 360;
+                const rotation = (normalized * 360) - 180;
                 transIndicator.style.transform = `translate(-50%, 0) rotate(${rotation}deg)`;
             }
 
             const loopsIndicator = slot.loopsKnob?.querySelector('.chain-indicator');
             if (loopsIndicator) {
                 const normalizedLoops = Math.max(0, Math.min(CHAIN_MAX_LOOPS, slot.loops ?? 0)) / CHAIN_MAX_LOOPS;
-                loopsIndicator.style.transform = `translate(-50%, 0) rotate(${normalizedLoops * 360}deg)`;
+                loopsIndicator.style.transform = `translate(-50%, 0) rotate(${(normalizedLoops * 360) - 180}deg)`;
             }
 
             if (slot.transValueEl) {
@@ -654,7 +685,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
         function handleChainProgress(seqIndex) {
             const sequence = stepSequences[seqIndex];
-            if (!sequence || !sequence.chainSlots?.length) return;
+            if (!sequence || !sequence.chainSlots?.length || !sequence.chainEnabled) return;
             const slot = sequence.chainSlots[sequence.currentChainSlot];
             if (!slot || !slot.active || (slot.loops ?? 0) <= 0) {
                 resetChainState(seqIndex);
@@ -1118,6 +1149,16 @@ let liveLfoOutputs = [0, 0, 0, 0];
             buildChainSequencer(0);
             buildStepSequencer(1);
             buildChainSequencer(1);
+
+            [0, 1].forEach(idx => {
+                const switchEl = document.querySelector(`[data-chain-switch="${idx}"]`);
+                if (switchEl) {
+                    switchEl.addEventListener('click', () => {
+                        setChainEnabled(idx, !stepSequences[idx].chainEnabled);
+                    });
+                }
+                setChainEnabled(idx, stepSequences[idx].chainEnabled);
+            });
 
             stepsModeSwitch.addEventListener('click', () => {
                 setStepsMode(!isStepsMode);
@@ -3266,6 +3307,7 @@ function generateComplexRandomLfoState(includeArpTargets = true) {
                isStepsMode: isStepsMode,
                 stepSequences: stepSequences.map((seq, idx) => ({
                     length: getSequenceLength(idx),
+                    chainEnabled: !!seq.chainEnabled,
                     steps: seq.steps.map(step => ({
                         active: !!step.active,
                         value: trim(step.value ?? 0),
