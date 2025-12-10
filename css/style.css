@@ -203,11 +203,65 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
         align-items: start;
       }
 
+      .step-sequencer-header {
+        gap: 0.5rem;
+      }
+
       .step-sequencer {
         background: transparent;
         border: none;
         border-radius: 0.75rem;
         padding: 0.1rem 0.5rem 0.25rem;
+      }
+
+      .step-length-control {
+        gap: 0.35rem;
+      }
+
+      .step-length-knob {
+        width: 36px;
+        height: 36px;
+        border-radius: 9999px;
+        background: var(--color-egg-orange);
+        position: relative;
+        cursor: pointer;
+        box-shadow: 0 0 0 2px var(--color-surface);
+        touch-action: none;
+      }
+
+      .step-length-indicator {
+        position: absolute;
+        width: 4px;
+        height: 11px;
+        background: var(--color-text);
+        left: 50%;
+        top: 4px;
+        transform-origin: 50% 14px;
+        border-radius: 9999px;
+      }
+
+      .step-length-value {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        color: var(--color-text);
+        pointer-events: none;
+      }
+
+      .step-length-scale {
+        display: grid;
+        grid-template-columns: repeat(16, minmax(0, 1fr));
+        gap: 0.1rem;
+        font-size: 9px;
+        letter-spacing: 0.06em;
+        color: var(--color-text);
+        line-height: 1;
+        text-align: center;
       }
 
       .step-knob {
@@ -245,6 +299,10 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
       .step-knob-grid {
         margin-bottom: 0.35rem;
         justify-items: center;
+      }
+
+      .step-knob.step-out-of-range {
+        box-shadow: none;
       }
       .rate-display-row {
         display: flex;

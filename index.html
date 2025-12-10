@@ -139,8 +139,19 @@
 
       <div id="step-sequencers" class="hidden grid grid-cols-1 gap-6 p-2">
         <div class="step-sequencer" data-sequence-index="0">
-          <div class="flex justify-end items-center mb-3">
+          <div class="flex justify-between items-center mb-3 step-sequencer-header">
             <div class="text-[10px] sm:text-xs font-bold tracking-wider">SEQ A</div>
+            <div class="flex items-center space-x-2 step-length-control" data-sequence-length="0">
+              <div class="flex flex-col items-center space-y-1">
+                <div class="step-length-knob" data-sequence-length-knob="0" role="slider" aria-label="Sequence A length" aria-valuemin="1" aria-valuemax="16" aria-valuenow="16" tabindex="0">
+                  <div class="step-length-indicator"></div>
+                  <div class="step-length-value">16</div>
+                </div>
+                <div class="step-length-scale" aria-hidden="true">
+                  <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span><span>13</span><span>14</span><span>15</span><span>16</span>
+                </div>
+              </div>
+            </div>
           </div>
           <div class="grid grid-cols-8 gap-2 step-knob-grid" data-sequence-grid="0"></div>
           <div class="grid grid-cols-8 gap-2 step-knob-grid" data-sequence-grid="0" data-row="1"></div>
@@ -153,8 +164,19 @@
         </div>
 
         <div class="step-sequencer" data-sequence-index="1">
-          <div class="flex justify-end items-center mb-3">
+          <div class="flex justify-between items-center mb-3 step-sequencer-header">
             <div class="text-[10px] sm:text-xs font-bold tracking-wider">SEQ B</div>
+            <div class="flex items-center space-x-2 step-length-control" data-sequence-length="1">
+              <div class="flex flex-col items-center space-y-1">
+                <div class="step-length-knob" data-sequence-length-knob="1" role="slider" aria-label="Sequence B length" aria-valuemin="1" aria-valuemax="16" aria-valuenow="16" tabindex="0">
+                  <div class="step-length-indicator"></div>
+                  <div class="step-length-value">16</div>
+                </div>
+                <div class="step-length-scale" aria-hidden="true">
+                  <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span><span>13</span><span>14</span><span>15</span><span>16</span>
+                </div>
+              </div>
+            </div>
           </div>
           <div class="grid grid-cols-8 gap-2 step-knob-grid" data-sequence-grid="1"></div>
           <div class="grid grid-cols-8 gap-2 step-knob-grid" data-sequence-grid="1" data-row="1"></div>
