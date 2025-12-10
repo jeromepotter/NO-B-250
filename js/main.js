@@ -148,9 +148,13 @@ let liveLfoOutputs = [0, 0, 0, 0];
         const stepRandomBaseOctaves = [2, 4];
         const STEP_MIN_LENGTH = 1;
         const STEP_MAX_LENGTH = 16;
+        const STEP_LENGTH_MIN_ANGLE = -135;
+        const STEP_LENGTH_MAX_ANGLE = 135;
+        const STEP_LENGTH_ANGLE_RANGE = STEP_LENGTH_MAX_ANGLE - STEP_LENGTH_MIN_ANGLE;
+        const STEP_LENGTH_KNOB_SENSITIVITY = 1.5;
         const stepSequences = [
-            { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[0] })), knobEls: [], noteDisplay: null, length: STEP_MAX_LENGTH, lengthKnob: null, lengthValueEl: null },
-            { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[1] })), knobEls: [], noteDisplay: null, length: STEP_MAX_LENGTH, lengthKnob: null, lengthValueEl: null },
+            { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[0] })), knobEls: [], noteDisplay: null, length: STEP_MAX_LENGTH, lengthDialValue: STEP_MAX_LENGTH, lengthKnob: null, lengthValueEl: null },
+            { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[1] })), knobEls: [], noteDisplay: null, length: STEP_MAX_LENGTH, lengthDialValue: STEP_MAX_LENGTH, lengthKnob: null, lengthValueEl: null },
         ];
         let sharedStepCounter = 0;
         let sharedStepNextTickTime = null;
@@ -226,6 +230,18 @@ let liveLfoOutputs = [0, 0, 0, 0];
             knobEl.style.backgroundColor = `rgb(${color.r}, ${color.g}, ${color.b})`;
         }
 
+        function lengthValueToAngle(value) {
+            const normalized = (Math.max(STEP_MIN_LENGTH, Math.min(STEP_MAX_LENGTH, value)) - STEP_MIN_LENGTH)
+                / (STEP_MAX_LENGTH - STEP_MIN_LENGTH);
+            return STEP_LENGTH_MIN_ANGLE + normalized * STEP_LENGTH_ANGLE_RANGE;
+        }
+
+        function angleToLengthValue(angle) {
+            const clampedAngle = Math.max(STEP_LENGTH_MIN_ANGLE, Math.min(STEP_LENGTH_MAX_ANGLE, angle));
+            const normalized = (clampedAngle - STEP_LENGTH_MIN_ANGLE) / STEP_LENGTH_ANGLE_RANGE;
+            return STEP_MIN_LENGTH + normalized * (STEP_MAX_LENGTH - STEP_MIN_LENGTH);
+        }
+
         function getSequenceLength(seqIndex) {
             const sequence = stepSequences[seqIndex];
             if (!sequence) return STEP_MAX_LENGTH;
@@ -237,12 +253,16 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const sequence = stepSequences[seqIndex];
             if (!sequence) return;
             const length = getSequenceLength(seqIndex);
+            const dialValue = Math.max(
+                STEP_MIN_LENGTH,
+                Math.min(STEP_MAX_LENGTH, sequence.lengthDialValue ?? length),
+            );
 
             if (sequence.lengthKnob) {
                 sequence.lengthKnob.setAttribute('aria-valuenow', String(length));
                 const indicator = sequence.lengthKnob.querySelector('.step-length-indicator');
                 if (indicator) {
-                    const rotation = ((length - STEP_MIN_LENGTH) / (STEP_MAX_LENGTH - STEP_MIN_LENGTH)) * 270 - 135;
+                    const rotation = lengthValueToAngle(dialValue);
                     indicator.style.transform = `translate(-50%, 0) rotate(${rotation}deg)`;
                 }
             }
@@ -269,14 +289,12 @@ let liveLfoOutputs = [0, 0, 0, 0];
         function setSequenceLength(seqIndex, length) {
             const sequence = stepSequences[seqIndex];
             if (!sequence) return;
-            const clamped = Math.max(STEP_MIN_LENGTH, Math.min(STEP_MAX_LENGTH, Math.round(length)));
-            if (sequence.length === clamped) {
-                updateStepLengthVisuals(seqIndex);
-                return;
-            }
-            sequence.length = clamped;
+            const clampedDial = Math.max(STEP_MIN_LENGTH, Math.min(STEP_MAX_LENGTH, length));
+            const prevLength = sequence.length ?? STEP_MAX_LENGTH;
+            sequence.lengthDialValue = clampedDial;
+            sequence.length = Math.round(clampedDial);
             updateStepLengthVisuals(seqIndex);
-            if (areStepSequencesRunning()) {
+            if (sequence.length !== prevLength && areStepSequencesRunning()) {
                 sequence.knobEls.forEach(knob => knob?.classList.remove('active-step'));
             }
         }
@@ -528,26 +546,34 @@ let liveLfoOutputs = [0, 0, 0, 0];
         }
 
         function attachStepLengthHandlers(knobEl, seqIndex) {
-            let startY = 0;
-            let startValue = STEP_MAX_LENGTH;
+            let activePointerId = null;
+            let lastY = 0;
 
             const onPointerMove = (event) => {
+                if (event.pointerId !== activePointerId) return;
                 event.preventDefault();
-                const deltaY = startY - event.clientY;
-                const next = startValue + deltaY / 60;
-                setSequenceLength(seqIndex, next);
+                const deltaAngle = (lastY - event.clientY) * STEP_LENGTH_KNOB_SENSITIVITY;
+                lastY = event.clientY;
+                const sequence = stepSequences[seqIndex];
+                const currentDial = sequence?.lengthDialValue ?? getSequenceLength(seqIndex);
+                const currentAngle = lengthValueToAngle(currentDial);
+                const nextAngle = Math.max(STEP_LENGTH_MIN_ANGLE, Math.min(STEP_LENGTH_MAX_ANGLE, currentAngle + deltaAngle));
+                const nextValue = angleToLengthValue(nextAngle);
+                setSequenceLength(seqIndex, nextValue);
             };
 
             const release = (event) => {
+                if (event.pointerId !== activePointerId) return;
                 knobEl.releasePointerCapture(event.pointerId);
                 document.removeEventListener('pointermove', onPointerMove);
                 document.removeEventListener('pointerup', release);
+                activePointerId = null;
             };
 
             knobEl.addEventListener('pointerdown', (event) => {
                 event.preventDefault();
-                startY = event.clientY;
-                startValue = getSequenceLength(seqIndex);
+                activePointerId = event.pointerId;
+                lastY = event.clientY;
                 knobEl.setPointerCapture(event.pointerId);
                 document.addEventListener('pointermove', onPointerMove);
                 document.addEventListener('pointerup', release);
@@ -556,7 +582,9 @@ let liveLfoOutputs = [0, 0, 0, 0];
             knobEl.addEventListener('wheel', (event) => {
                 event.preventDefault();
                 const direction = event.deltaY < 0 ? 1 : -1;
-                setSequenceLength(seqIndex, getSequenceLength(seqIndex) + direction);
+                const sequence = stepSequences[seqIndex];
+                const currentDial = sequence?.lengthDialValue ?? getSequenceLength(seqIndex);
+                setSequenceLength(seqIndex, currentDial + direction);
             });
 
             knobEl.addEventListener('keydown', (event) => {
