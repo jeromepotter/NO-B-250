@@ -292,6 +292,95 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
         visibility: hidden;
         pointer-events: none;
       }
+
+      .chain-section {
+        margin-top: 0.45rem;
+        padding: 0.5rem 0.2rem 0.5rem;
+      }
+
+      .chain-section.chain-enabled {
+        border-top: 1px solid var(--color-surface-light, #dbeafe);
+      }
+
+      .chain-header {
+        font-size: 10px;
+        letter-spacing: 0.12em;
+        font-weight: 700;
+        text-align: center;
+        margin-bottom: 0.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+
+      .chain-header-label {
+        display: inline-block;
+      }
+
+      .chain-section:not(.chain-enabled) .chain-grid {
+        display: none;
+      }
+
+      .chain-grid {
+        display: grid;
+        grid-template-columns: repeat(8, minmax(0, 1fr));
+        gap: 0.35rem;
+        justify-items: center;
+      }
+
+      .chain-slot {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.3rem;
+        opacity: 0.4;
+        transition: opacity 0.12s ease-out, filter 0.12s ease-out;
+      }
+
+      .chain-slot.active {
+        opacity: 1;
+        filter: none;
+      }
+
+      .chain-slot.playing .chain-knob {
+        box-shadow: 0 0 12px var(--color-accent-blue);
+      }
+
+      .chain-grid.chain-disabled {
+        opacity: 0.5;
+      }
+
+      .chain-knob {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: var(--color-egg-orange);
+        position: relative;
+        cursor: pointer;
+        box-shadow: 0 0 0 2px var(--color-surface);
+        touch-action: none;
+      }
+
+      .chain-indicator {
+        position: absolute;
+        width: 3px;
+        height: 10px;
+        background: var(--color-text);
+        left: 50%;
+        top: 4px;
+        transform-origin: 50% 12px;
+        border-radius: 9999px;
+      }
+
+      .chain-value {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-align: center;
+        min-width: 32px;
+      }
       .rate-display-row {
         display: flex;
         align-items: center;
