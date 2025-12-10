@@ -304,6 +304,7 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
         letter-spacing: 0.12em;
         font-weight: 700;
         text-align: center;
+        margin-top: 0.35rem;
         margin-bottom: 0.25rem;
         display: flex;
         align-items: center;
@@ -320,6 +321,10 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
         grid-template-columns: repeat(8, minmax(0, 1fr));
         gap: 0.35rem;
         justify-items: center;
+      }
+
+      .chain-grid.chain-hidden {
+        display: none;
       }
 
       .chain-slot {

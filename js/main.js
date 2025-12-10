@@ -155,6 +155,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         const CHAIN_SLOT_COUNT = 8;
         const CHAIN_MIN_TRANSPOSE = -12;
         const CHAIN_MAX_TRANSPOSE = 12;
+        const CHAIN_TRANS_MAX_ANGLE = 150;
         const CHAIN_MAX_LOOPS = 16;
         const CHAIN_SLOT_COLOR_MIDI = [62, 63, 64, 65, 66, 67, 68, 69]; // D4 through A4
 
@@ -183,8 +184,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
         }
 
         const stepSequences = [
-            { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[0] })), knobEls: [], noteDisplay: null, length: STEP_MAX_LENGTH, lengthDialValue: STEP_MAX_LENGTH, lengthKnob: null, lengthValueEl: null, chainSlots: createDefaultChainSlots(), chainSlotEls: [], chainBarCounter: 0, currentChainSlot: 0, chainEnabled: true, chainSwitch: null, chainGrid: null },
-            { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[1] })), knobEls: [], noteDisplay: null, length: STEP_MAX_LENGTH, lengthDialValue: STEP_MAX_LENGTH, lengthKnob: null, lengthValueEl: null, chainSlots: createDefaultChainSlots(), chainSlotEls: [], chainBarCounter: 0, currentChainSlot: 0, chainEnabled: true, chainSwitch: null, chainGrid: null },
+            { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[0] })), knobEls: [], noteDisplay: null, length: STEP_MAX_LENGTH, lengthDialValue: STEP_MAX_LENGTH, lengthKnob: null, lengthValueEl: null, chainSlots: createDefaultChainSlots(), chainSlotEls: [], chainBarCounter: 0, currentChainSlot: 0, chainEnabled: false, chainSwitch: null, chainGrid: null },
+            { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[1] })), knobEls: [], noteDisplay: null, length: STEP_MAX_LENGTH, lengthDialValue: STEP_MAX_LENGTH, lengthKnob: null, lengthValueEl: null, chainSlots: createDefaultChainSlots(), chainSlotEls: [], chainBarCounter: 0, currentChainSlot: 0, chainEnabled: false, chainSwitch: null, chainGrid: null },
         ];
         let sharedStepCounter = 0;
         let sharedStepNextTickTime = null;
@@ -423,7 +424,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 if (presetSeq.chainEnabled !== undefined) {
                     setChainEnabled(seqIndex, !!presetSeq.chainEnabled);
                 } else {
-                    setChainEnabled(seqIndex, true);
+                    setChainEnabled(seqIndex, false);
                 }
 
                 if (Array.isArray(presetSeq.chain)) {
@@ -452,6 +453,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             }
             if (sequence.chainGrid) {
                 sequence.chainGrid.classList.toggle('chain-disabled', !enabled);
+                sequence.chainGrid.classList.toggle('chain-hidden', !enabled);
             }
         }
 
@@ -526,9 +528,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
             const transIndicator = slot.transKnob?.querySelector('.chain-indicator');
             if (transIndicator) {
-                const normalized = (Math.max(CHAIN_MIN_TRANSPOSE, Math.min(CHAIN_MAX_TRANSPOSE, slot.trans ?? 0)) - CHAIN_MIN_TRANSPOSE)
-                    / (CHAIN_MAX_TRANSPOSE - CHAIN_MIN_TRANSPOSE);
-                const rotation = normalized * 360;
+                const clamped = Math.max(CHAIN_MIN_TRANSPOSE, Math.min(CHAIN_MAX_TRANSPOSE, slot.trans ?? 0));
+                const rotation = (clamped / CHAIN_MAX_TRANSPOSE) * CHAIN_TRANS_MAX_ANGLE;
                 transIndicator.style.transform = `translate(-50%, 0) rotate(${rotation}deg)`;
             }
 
