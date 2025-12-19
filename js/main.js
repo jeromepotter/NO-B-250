@@ -3980,51 +3980,48 @@ function generateComplexRandomLfoState(includeArpTargets = true) {
             }
        }
 async function setupMidiOutput() {
-           const midiOutputSelector = document.getElementById('midi-output-selector');
-           if (!midiOutputSelector) return;
+    const midiOutputSelector = document.getElementById('midi-output-selector');
+    if (!midiOutputSelector) return;
 
-           try {
-midiAccess = await navigator.requestMIDIAccess({ sysex: true });
-midiLearnButton.classList.remove('disabled');
-midiLearnButton.disabled = false;
-// Listen to all inputs for learning/control
-midiAccess.inputs.forEach(input => {
-    input.onmidimessage = handleIncomingMidi;
-});               
-               // Clear previous options
-               midiOutputSelector.innerHTML = '';
-               
-               if (midiAccess.outputs.size > 0) {
-                   midiAccess.outputs.forEach(output => {
-                       const option = document.createElement('option');
-                       option.value = output.id;
-                       option.textContent = output.name;
-                       midiOutputSelector.appendChild(option);
-                   });
-                   midiOutputSelector.disabled = false;
-                   
-                   // Automatically select the first output
-                   selectedMidiOutput = midiAccess.outputs.values().next().value;
+    try {
+        // Request access with sysex for maximum compatibility
+        midiAccess = await navigator.requestMIDIAccess({ sysex: true });
+        
+        // --- 1. SET UP OUTPUTS (for Ableton) ---
+        midiOutputSelector.innerHTML = '';
+        if (midiAccess.outputs.size > 0) {
+            midiAccess.outputs.forEach(output => {
+                const option = document.createElement('option');
+                option.value = output.id;
+                option.textContent = output.name;
+                midiOutputSelector.appendChild(option);
+            });
+            midiOutputSelector.disabled = false;
+            selectedMidiOutput = midiAccess.outputs.values().next().value;
 
-                   // Listen for changes
-                   midiOutputSelector.addEventListener('change', () => {
-                       selectedMidiOutput = midiAccess.outputs.get(midiOutputSelector.value);
-                       console.log(`MIDI Output set to: ${selectedMidiOutput.name}`);
-                   });
+            midiOutputSelector.addEventListener('change', () => {
+                selectedMidiOutput = midiAccess.outputs.get(midiOutputSelector.value);
+            });
+        } else {
+            midiOutputSelector.innerHTML = '<option>No MIDI Outputs Found</option>';
+            midiOutputSelector.disabled = true;
+        }
 
-               } else {
-                   const option = document.createElement('option');
-                   option.textContent = 'No MIDI Outputs Found';
-                   midiOutputSelector.appendChild(option);
-                   midiOutputSelector.disabled = true;
-               }
+        // --- 2. SET UP INPUTS (for Controller & Learn Mode) ---
+        midiAccess.inputs.forEach(input => {
+            input.onmidimessage = handleIncomingMidi;
+        });
 
-           } catch (err) {
-               console.error('MIDI Access Denied or Failed:', err);
-               midiOutputSelector.innerHTML = '<option>MIDI Access Denied</option>';
-               midiOutputSelector.disabled = true;
-           }
-       }
+        // Enable the Learn Button
+        if (midiLearnButton) {
+            midiLearnButton.classList.remove('disabled');
+            midiLearnButton.disabled = false;
+        }
+
+    } catch (err) {
+        console.error('MIDI Access Failed:', err);
+    }
+}
 
        function toggleMidiRecording() {
             if (isRecordingMidi) {
@@ -7584,6 +7581,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
 midiLearnButton.addEventListener('click', toggleMidiLearnMode);
       }
        init();
+
 
 
 
