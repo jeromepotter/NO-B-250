@@ -11,6 +11,10 @@
        const spinIntervals = {};
        const activeKeyControls = {};
        let customScale = [];
+let isMidiLearnActive = false;
+let currentlyLearningTarget = null;
+let midiLearnButton = null;
+let midiAssignments = JSON.parse(localStorage.getItem('midiAssignments')) || {};
        const soundfontBank = [];
        let activeSoundfontIndex = -1;
        let isSoundfontMode = false;
@@ -705,6 +709,13 @@ function attachChainKnobHandlers(knobEl, seqIndex, slotIndex, type) {
                 const transValue = document.createElement('div');
                 transValue.className = 'chain-value';
                 transWrapper.appendChild(transValue);
+                   transKnob.dataset.type = 'chainTrans';
+transKnob.dataset.seqIdx = seqIndex;
+transKnob.dataset.slotIdx = idx;
+
+loopsKnob.dataset.type = 'chainLoops';
+loopsKnob.dataset.seqIdx = seqIndex;
+loopsKnob.dataset.slotIdx = idx;
 
                 const loopsWrapper = document.createElement('div');
                 const loopsKnob = document.createElement('div');
@@ -893,7 +904,96 @@ function attachChainKnobHandlers(knobEl, seqIndex, slotIndex, type) {
             if (tempoMode === TEMPO_MODE_BPM) return getSharedStepStartDelay();
             return intervalMs;
         }
+function toggleMidiLearnMode() {
+    isMidiLearnActive = !isMidiLearnActive;
+    midiLearnButton.classList.toggle('active', isMidiLearnActive);
+    currentlyLearningTarget = null;
 
+    // Target ALL knobs: FX, Main Oscillators, Seq Steps, Seq Lengths, and Chains
+    const allKnobs = document.querySelectorAll('.fx-knob-container, .main-knob, .step-knob, .step-length-knob, .chain-knob');
+
+    allKnobs.forEach(knob => {
+        if (isMidiLearnActive) {
+            // Check if this specific knob is already assigned
+            const isAssigned = Object.values(midiAssignments).some(a => isSameTarget(a, getTargetFromEl(knob)));
+            if (!isAssigned) {
+                knob.classList.add('blinking-midi-learn');
+            }
+            knob.addEventListener('click', handleKnobMidiLearnClick, { capture: true });
+        } else {
+            knob.classList.remove('blinking-midi-learn', 'learning-focus');
+            knob.removeEventListener('click', handleKnobMidiLearnClick, { capture: true });
+        }
+    });
+}
+
+function getTargetFromEl(el) {
+    if (el.classList.contains('fx-knob-container')) return { type: 'fx', id: parseInt(el.dataset.fxId) };
+    if (el.classList.contains('main-knob')) return { type: 'main', id: parseInt(el.dataset.knobId) };
+    if (el.classList.contains('step-knob')) return { type: 'seqStep', seqIdx: parseInt(el.dataset.seqIdx), stepIdx: parseInt(el.dataset.stepIdx) };
+    if (el.classList.contains('step-length-knob')) return { type: 'seqLen', seqIdx: parseInt(el.dataset.sequenceLengthKnob) };
+    if (el.dataset.type === 'chainTrans') return { type: 'chainTrans', seqIdx: parseInt(el.dataset.seqIdx), slotIdx: parseInt(el.dataset.slotIdx) };
+    if (el.dataset.type === 'chainLoops') return { type: 'chainLoops', seqIdx: parseInt(el.dataset.seqIdx), slotIdx: parseInt(el.dataset.slotIdx) };
+    return null;
+}
+
+function isSameTarget(a, b) {
+    if (!a || !b || a.type !== b.type) return false;
+    return a.id === b.id && a.seqIdx === b.seqIdx && a.stepIdx === b.stepIdx && a.slotIdx === b.slotIdx;
+}
+
+function handleKnobMidiLearnClick(e) {
+    if (!isMidiLearnActive) return;
+    e.stopPropagation();
+    e.preventDefault();
+
+    const target = getTargetFromEl(e.currentTarget);
+    if (target) {
+        currentlyLearningTarget = target;
+        document.querySelectorAll('.learning-focus').forEach(el => el.classList.remove('learning-focus'));
+        e.currentTarget.classList.add('learning-focus');
+    }
+}
+
+function handleIncomingMidi(event) {
+    const [status, data1, data2] = event.data;
+    const msgType = status & 0xf0;
+
+    if (msgType === 0xB0) { // CC Message
+        const ccNumber = data1;
+        const normalizedValue = data2 / 127;
+
+        if (isMidiLearnActive && currentlyLearningTarget) {
+            // PAIRING
+            midiAssignments[ccNumber] = currentlyLearningTarget;
+            localStorage.setItem('midiAssignments', JSON.stringify(midiAssignments));
+            
+            // UI Feedback: Stop blinking for this specific knob
+            document.querySelector('.learning-focus')?.classList.remove('blinking-midi-learn', 'learning-focus');
+            currentlyLearningTarget = null;
+        } else {
+            // CONTROL
+            applyMidiControl(ccNumber, normalizedValue);
+        }
+    }
+}
+
+function applyMidiControl(ccNumber, val) {
+    const target = midiAssignments[ccNumber];
+    if (!target) return;
+
+    switch (target.type) {
+        case 'fx': setFxValue(target.id, val); break;
+        case 'main': 
+            knobState[target.id].totalAngle = val * MAX_TOTAL_ANGLE;
+            updateStateFromTotalAngle(target.id);
+            break;
+        case 'seqStep': setStepValue(target.seqIdx, target.stepIdx, val * 8); break;
+        case 'seqLen': setSequenceLength(target.seqIdx, val * (STEP_MAX_LENGTH - STEP_MIN_LENGTH) + STEP_MIN_LENGTH); break;
+        case 'chainTrans': setChainSlotTransposition(target.seqIdx, target.slotIdx, (val * 24) - 12); break;
+        case 'chainLoops': setChainSlotLoops(target.seqIdx, target.slotIdx, val * CHAIN_MAX_LOOPS); break;
+    }
+}
         function stepSequenceTick(seqIndex) {
             const sequence = stepSequences[seqIndex];
             if (!sequence) return;
@@ -1078,6 +1178,8 @@ function attachChainKnobHandlers(knobEl, seqIndex, slotIndex, type) {
                     const stepIndex = rowIndex * 8 + i;
                     const knob = document.createElement('div');
                     knob.className = 'step-knob inactive';
+                       knob.dataset.seqIdx = seqIndex; 
+knob.dataset.stepIdx = stepIndex; 
                     knob.dataset.value = `${sequence.steps[stepIndex].value}`;
                     const indicator = document.createElement('div');
                     indicator.className = 'step-indicator';
@@ -3875,8 +3977,13 @@ async function setupMidiOutput() {
            if (!midiOutputSelector) return;
 
            try {
-               midiAccess = await navigator.requestMIDIAccess({ sysex: true });
-               
+midiAccess = await navigator.requestMIDIAccess({ sysex: true });
+midiLearnButton.classList.remove('disabled');
+midiLearnButton.disabled = false;
+// Listen to all inputs for learning/control
+midiAccess.inputs.forEach(input => {
+    input.onmidimessage = handleIncomingMidi;
+});               
                // Clear previous options
                midiOutputSelector.innerHTML = '';
                
@@ -7466,8 +7573,11 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
               knobState.forEach(k => updateStateFromTotalAngle(k.id));
           }
           updateRateButtonLockState();
+              midiLearnButton = document.getElementById('midi-learn-button');
+midiLearnButton.addEventListener('click', toggleMidiLearnMode);
       }
        init();
+
 
 
 
