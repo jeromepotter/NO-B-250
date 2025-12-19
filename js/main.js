@@ -2628,21 +2628,23 @@ let liveLfoOutputs = [0, 0, 0, 0];
             }
         }
 
-        function beginBreakPlayback() {
-            breakStartTimeoutId = null;
-            if (!breakPlayRequested || !breakBufferLoaded) return false;
-            breakRunning = true;
-            breakPlaybackRate = getBreakPlaybackRate();
-            breakPlaybackStartTime = audioContext ? audioContext.currentTime : (performance.now() / 1000);
-            breakSlipWindowSeconds = Number.NaN; // Force re-send of current slip window
-            sendBreakSlipWindow();
-            refreshBreakSlipAnchor();
-            synthNode?.port.postMessage({ type: 'startBreakLoop', data: { playbackRate: breakPlaybackRate } });
-            startBreakWaveformAnimation();
-            breakQueueTargetCycle = null;
-            breakQueueTargetStep = 0;
-            return true;
-        }
+     function beginBreakPlayback() {
+    breakStartTimeoutId = null;
+    if (!breakPlayRequested || !breakBufferLoaded) return false;
+    breakRunning = true;
+    breakPlaybackRate = getBreakPlaybackRate();
+    breakPlaybackStartTime = getNowSeconds();
+    breakSlipWindowSeconds = Number.NaN; 
+    sendBreakSlipWindow();
+    refreshBreakSlipAnchor();
+    synthNode?.port.postMessage({ type: 'startBreakLoop', data: { playbackRate: breakPlaybackRate } });
+    startBreakWaveformAnimation();
+    if (pendingBreakIndex === null) {
+        breakQueueTargetCycle = null;
+        breakQueueTargetStep = 0;
+    }
+    return true;
+}
 
         function stopBreakPlaybackImmediate() {
             clearBreakStartTimer();
@@ -2683,6 +2685,7 @@ async function toggleBreakPlayback(options = {}) {
     // Queue Start
     breakPlayRequested = true;
     updateBreakPlayUi();
+    if (pendingBreakIndex === null) {
     breakQueueTargetCycle = null;
     breakQueueTargetStep = 0;
 
@@ -7480,6 +7483,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
