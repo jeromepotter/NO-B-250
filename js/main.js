@@ -960,6 +960,17 @@ function handleKnobMidiLearnClick(e) {
     }
 }
 
+function isTriggerAssignment(target, { isNoteOn, isNoteOff, isCC, data2 }) {
+    if (!target) return false;
+
+    if (isNoteOn || isNoteOff) return true;
+
+    const isMainOscTarget = target.type === 'main';
+    const isMomentaryCc = isCC && (data2 === 0 || data2 === 127);
+
+    return isMainOscTarget && isMomentaryCc;
+}
+
 function handleIncomingMidi(event) {
     const [status, data1, data2] = event.data;
     const msgType = status & 0xf0;
@@ -974,10 +985,10 @@ function handleIncomingMidi(event) {
     const normalizedVal = isNoteOff ? 0 : data2 / 127;
 
     if (isMidiLearnActive && currentlyLearningTarget) {
-        // Tag correctly
+        const triggerMode = isTriggerAssignment(currentlyLearningTarget, { isNoteOn, isNoteOff, isCC, data2 });
         midiAssignments[midiKey] = { 
             ...currentlyLearningTarget, 
-            mode: (isNoteOn || isNoteOff) ? 'trigger' : 'value' 
+            mode: triggerMode ? 'trigger' : 'value' 
         };
         localStorage.setItem('midiAssignments', JSON.stringify(midiAssignments));
         updateMidiClearButtonState();
@@ -1042,27 +1053,11 @@ function applyMidiControl(target, val) {
     // TRIGGER MODE (Notes/Pads)
     if (target.mode === 'trigger') {
         const oscId = target.id;
-        const knob = knobState[oscId];
-        
-        // Use the math to get the current pitch from the knob's angle
-        const currentNote = getNoteNameFromAngle(oscId, knob.totalAngle);
 
         if (val > 0) {
-            synthNode.port.postMessage({
-                type: 'NOTE_ON',
-                note: currentNote,
-                oscTarget: oscId,
-                velocity: 1.0,
-                source: 'midi-trigger'
-            });
-            updateNoteDisplay(oscId, currentNote);
+            playNote(oscId);
         } else {
-            synthNode.port.postMessage({
-                type: 'NOTE_OFF',
-                note: currentNote,
-                oscTarget: oscId,
-                source: 'midi-trigger'
-            });
+            stopNote(oscId);
         }
         return; 
     }
