@@ -494,6 +494,13 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 sequence.rangeSpan = maxRangeForBase;
                 sequence.rangeDialValue = Math.min(sequence.rangeDialValue ?? sequence.rangeSpan, maxRangeForBase);
             }
+            const deltaBase = sequence.baseOctave - prevBase;
+            if (deltaBase !== 0) {
+                sequence.steps.forEach((step, idx) => {
+                    step.value = step.value + deltaBase;
+                    updateStepKnobVisual(seqIndex, idx);
+                });
+            }
             clampSequenceStepsToOctaveSpan(seqIndex);
             updateStepBaseVisuals(seqIndex);
             updateStepRangeVisuals(seqIndex);
