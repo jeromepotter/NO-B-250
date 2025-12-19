@@ -965,25 +965,31 @@ function handleIncomingMidi(event) {
     const isNoteOff = msgType === 0x80 || (msgType === 0x90 && data2 === 0);
     const isCC = msgType === 0xB0;
 
+    // BLOCK everything that isn't a Note or CC
     if (!isCC && !isNoteOn && !isNoteOff) return;
 
     const midiKey = (isNoteOn || isNoteOff) ? `note_${data1}` : `cc_${data1}`;
     const normalizedVal = isNoteOff ? 0 : data2 / 127;
 
     if (isMidiLearnActive && currentlyLearningTarget) {
-        // Tag as 'trigger' for Notes/Pads, 'value' for Knobs/Faders
+        // SAVE the assignment with the specific 'mode'
         midiAssignments[midiKey] = { 
             ...currentlyLearningTarget, 
             mode: (isNoteOn || isNoteOff) ? 'trigger' : 'value' 
         };
-        
         localStorage.setItem('midiAssignments', JSON.stringify(midiAssignments));
+        
         document.querySelector('.learning-focus')?.classList.remove('blinking-midi-learn', 'learning-focus');
         currentlyLearningTarget = null;
     } else {
         const assignment = midiAssignments[midiKey];
         if (assignment) {
+            // ONLY execute if there is a mapping
             applyMidiControl(assignment, normalizedVal);
+        } else if (isNoteOn || isNoteOff) {
+            // STOP raw notes from playing if they aren't mapped
+            // This stops the C0 / C8 ghost notes!
+            return; 
         }
     }
 }
@@ -1019,23 +1025,42 @@ function stopOscillatorTrigger(oscId) {
     });
 }
 function applyMidiControl(target, val) {
-    // TRIGGER MODE: This is what your MDPX button will use
+    // TRIGGER MODE (Notes/Pads)
     if (target.mode === 'trigger') {
-        // We ignore the MIDI note number and play the pitch shown on the UI knob
+        const oscId = target.id;
+        const knob = knobState[oscId];
+        
+        // Use the math to get the current pitch from the knob's angle
+        const currentNote = getNoteNameFromAngle(oscId, knob.totalAngle);
+
         if (val > 0) {
-            playOscillatorTrigger(target.id); 
+            synthNode.port.postMessage({
+                type: 'NOTE_ON',
+                note: currentNote,
+                oscTarget: oscId,
+                velocity: 1.0,
+                source: 'midi-trigger'
+            });
+            updateNoteDisplay(oscId, currentNote);
         } else {
-            stopOscillatorTrigger(target.id);
+            synthNode.port.postMessage({
+                type: 'NOTE_OFF',
+                note: currentNote,
+                oscTarget: oscId,
+                source: 'midi-trigger'
+            });
         }
         return; 
     }
 
-    // VALUE MODE: This is what a MDPX slider/knob will use
+    // VALUE MODE (CC/Knobs)
     switch (target.type) {
-        case 'fx': setFxValue(target.id, val); break;
         case 'main': 
             knobState[target.id].totalAngle = val * MAX_TOTAL_ANGLE;
             updateStateFromTotalAngle(target.id);
+            break;
+        case 'fx': 
+            setFxValue(target.id, val); 
             break;
         case 'seqStep': setStepValue(target.seqIdx, target.stepIdx, val * 8); break;
         case 'seqLen': setSequenceLength(target.seqIdx, val * (STEP_MAX_LENGTH - STEP_MIN_LENGTH) + STEP_MIN_LENGTH); break;
@@ -7675,6 +7700,7 @@ function sendMidiMessage(message) {
 midiLearnButton.addEventListener('click', toggleMidiLearnMode);
       }
        init();
+
 
 
 
