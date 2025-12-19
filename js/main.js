@@ -2628,17 +2628,21 @@ let liveLfoOutputs = [0, 0, 0, 0];
             }
         }
 
-     function beginBreakPlayback() {
+   function beginBreakPlayback() {
     breakStartTimeoutId = null;
     if (!breakPlayRequested || !breakBufferLoaded) return false;
+    
     breakRunning = true;
     breakPlaybackRate = getBreakPlaybackRate();
-    breakPlaybackStartTime = getNowSeconds();
-    breakSlipWindowSeconds = Number.NaN; 
+    breakPlaybackStartTime = audioContext ? audioContext.currentTime : (performance.now() / 1000);
+    breakSlipWindowSeconds = Number.NaN; // Force re-sync
     sendBreakSlipWindow();
     refreshBreakSlipAnchor();
+    
     synthNode?.port.postMessage({ type: 'startBreakLoop', data: { playbackRate: breakPlaybackRate } });
     startBreakWaveformAnimation();
+
+    // Fix: Only reset the targets if there isn't a knob-switch currently waiting for them
     if (pendingBreakIndex === null) {
         breakQueueTargetCycle = null;
         breakQueueTargetStep = 0;
@@ -2675,19 +2679,19 @@ async function toggleBreakPlayback(options = {}) {
         return;
     }
     
-    // If already playing, Stop is immediate
     if (breakPlayRequested) {
         stopBreakPlaybackImmediate();
         stopMasterClockIfIdle();
         return;
     }
 
-    // Queue Start
     breakPlayRequested = true;
     updateBreakPlayUi();
+
+    // Reset targets if no switch is pending
     if (pendingBreakIndex === null) {
-    breakQueueTargetCycle = null;
-    breakQueueTargetStep = 0;
+        breakQueueTargetCycle = null;
+        breakQueueTargetStep = 0;
     }
 
     // --- BPM MODE (Grid Locked) ---
@@ -2695,13 +2699,15 @@ async function toggleBreakPlayback(options = {}) {
         const tempoSource = getTempoSourceState();
         if (tempoSource) {
             const patternLen = 16;
+            const currentCycle = Math.floor(tempoSource.euclideanStepCounter / patternLen);
 
-            // Start on the very next step so the first trigger aligns to the
-            // sequencer grid instead of floating somewhere inside the current
-            // step.
-            const targetStepCounter = tempoSource.euclideanStepCounter + 1;
-            breakQueueTargetCycle = Math.floor(targetStepCounter / patternLen);
-            breakQueueTargetStep = targetStepCounter % patternLen;
+            // FIX: Instead of starting on the next step (+1), 
+            // we start on Step 0 of the NEXT bar (currentCycle + 1).
+            // This ensures the loop always completes 16 full steps.
+            if (breakQueueTargetCycle === null) {
+                breakQueueTargetCycle = currentCycle + 1;
+                breakQueueTargetStep = 0;
+            }
         } else if (isStepsMode) {
             const delay = getNextStepDelayMs();
             clearBreakStartTimer();
@@ -2721,11 +2727,8 @@ async function toggleBreakPlayback(options = {}) {
         return;
     }
 
-    ensureMasterClock(); // Ensure the clock is ticking so it can trigger us!
-
-    // Queue the command
+    ensureMasterClock();
     breakPlayQueued = true;
-
     await ensureBreakSampleLoaded();
 }
 
@@ -7484,6 +7487,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
