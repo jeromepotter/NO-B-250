@@ -992,8 +992,7 @@ function playOscillatorTrigger(oscId) {
     const knob = knobState[oscId];
     if (!knob) return;
 
-    // IMPORTANT: This ignores the MIDI note from your controller 
-    // and gets the note name from the ON-SCREEN knob angle.
+    // This grabs the ACTUAL note name from the screen (e.g., "Eb3")
     const currentNoteName = getNoteNameFromAngle(oscId, knob.totalAngle);
     
     synthNode.port.postMessage({
@@ -1001,7 +1000,7 @@ function playOscillatorTrigger(oscId) {
         note: currentNoteName,
         oscTarget: oscId,
         velocity: 1.0,
-        source: 'midi-trigger' // Labelled so it doesn't fight the arpeggiator
+        source: 'midi-trigger'
     });
     
     updateNoteDisplay(oscId, currentNoteName);
@@ -1020,13 +1019,18 @@ function stopOscillatorTrigger(oscId) {
     });
 }
 function applyMidiControl(target, val) {
+    // TRIGGER MODE: This is what your MDPX button will use
     if (target.mode === 'trigger') {
-        // This ignores the MIDI key number and plays the Pitch of the Knob
-        if (val > 0) playOscillatorTrigger(target.id); 
-        else stopOscillatorTrigger(target.id);
+        // We ignore the MIDI note number and play the pitch shown on the UI knob
+        if (val > 0) {
+            playOscillatorTrigger(target.id); 
+        } else {
+            stopOscillatorTrigger(target.id);
+        }
         return; 
     }
 
+    // VALUE MODE: This is what a MDPX slider/knob will use
     switch (target.type) {
         case 'fx': setFxValue(target.id, val); break;
         case 'main': 
@@ -1038,8 +1042,7 @@ function applyMidiControl(target, val) {
         case 'chainTrans': setChainSlotTransposition(target.seqIdx, target.slotIdx, (val * 24) - 12); break;
         case 'chainLoops': setChainSlotLoops(target.seqIdx, target.slotIdx, val * CHAIN_MAX_LOOPS); break;
     }
-}
-        function stepSequenceTick(seqIndex) {
+}        function stepSequenceTick(seqIndex) {
             const sequence = stepSequences[seqIndex];
             if (!sequence) return;
             const totalSteps = getSequenceLength(seqIndex);
@@ -7672,6 +7675,7 @@ function sendMidiMessage(message) {
 midiLearnButton.addEventListener('click', toggleMidiLearnMode);
       }
        init();
+
 
 
 
