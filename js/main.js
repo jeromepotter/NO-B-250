@@ -35,8 +35,6 @@ let selectedMidiOutput = null;
        let midiRecordingStartTime = 0;
        let recordMidiButton = null;
  let midiAccess = null;
-       let selectedMidiOutput = null;
-
        // --- LFO State ---
         const LFO_WAVEFORMS = ['SINE', 'TRI', 'SQUARE', 'SAW UP', 'SAW DN', 'RANDOM'];
         let lfoAnimationId = null;
@@ -7622,6 +7620,7 @@ function sendMidiMessage(message) {
 midiLearnButton.addEventListener('click', toggleMidiLearnMode);
       }
        init();
+
 
 
 
