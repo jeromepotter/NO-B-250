@@ -362,6 +362,10 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
         box-shadow: 0 0 0 2px var(--color-surface);
         touch-action: none;
       }
+.chain-slot.chain-locked {
+    opacity: 0.3; 
+    pointer-events: none; /* This prevents the knob from reacting to clicks */
+}
 
       .chain-indicator {
         position: absolute;
@@ -839,6 +843,7 @@ animation: note-retrigger 0.08s ease-out;
 .fx-knob-container {
   touch-action: none;
 }
+
 
 .break-play-btn {
   background: transparent;
