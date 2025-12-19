@@ -684,70 +684,74 @@ function attachChainKnobHandlers(knobEl, seqIndex, slotIndex, type) {
 }
 
         function buildChainSequencer(seqIndex) {
-            const container = document.querySelector(`[data-chain-grid="${seqIndex}"]`);
-            const sequence = stepSequences[seqIndex];
-            if (!container || !sequence) return;
+    const container = document.querySelector(`[data-chain-grid="${seqIndex}"]`);
+    const sequence = stepSequences[seqIndex];
+    if (!container || !sequence) return;
 
-            container.innerHTML = '';
-            sequence.chainSlotEls = [];
-            sequence.chainGrid = container;
-            sequence.chainSection = container.closest('.chain-section');
+    container.innerHTML = '';
+    sequence.chainSlotEls = [];
+    sequence.chainGrid = container;
+    sequence.chainSection = container.closest('.chain-section');
 
-            sequence.chainSlots.forEach((slot, idx) => {
-                const slotEl = document.createElement('div');
-                slotEl.className = 'chain-slot';
+    sequence.chainSlots.forEach((slot, idx) => {
+        const slotEl = document.createElement('div');
+        slotEl.className = 'chain-slot';
 
-                const transWrapper = document.createElement('div');
-                const transKnob = document.createElement('div');
-                transKnob.className = 'chain-knob chain-trans-knob';
-                const slotColor = getChainSlotColor(idx);
-                transKnob.style.backgroundColor = slotColor;
-                const transIndicator = document.createElement('div');
-                transIndicator.className = 'chain-indicator';
-                transKnob.appendChild(transIndicator);
-                transWrapper.appendChild(transKnob);
-                const transValue = document.createElement('div');
-                transValue.className = 'chain-value';
-                transWrapper.appendChild(transValue);
-                   transKnob.dataset.type = 'chainTrans';
-transKnob.dataset.seqIdx = seqIndex;
-transKnob.dataset.slotIdx = idx;
+        const transWrapper = document.createElement('div');
+        const transKnob = document.createElement('div');
+        transKnob.className = 'chain-knob chain-trans-knob';
+        
+        // --- ADD THESE TAGS ---
+        transKnob.dataset.type = 'chainTrans';
+        transKnob.dataset.seqIdx = seqIndex;
+        transKnob.dataset.slotIdx = idx;
 
-loopsKnob.dataset.type = 'chainLoops';
-loopsKnob.dataset.seqIdx = seqIndex;
-loopsKnob.dataset.slotIdx = idx;
+        const slotColor = getChainSlotColor(idx);
+        transKnob.style.backgroundColor = slotColor;
+        const transIndicator = document.createElement('div');
+        transIndicator.className = 'chain-indicator';
+        transKnob.appendChild(transIndicator);
+        transWrapper.appendChild(transKnob);
+        const transValue = document.createElement('div');
+        transValue.className = 'chain-value';
+        transWrapper.appendChild(transValue);
 
-                const loopsWrapper = document.createElement('div');
-                const loopsKnob = document.createElement('div');
-                loopsKnob.className = 'chain-knob chain-loops-knob';
-                loopsKnob.style.backgroundColor = slotColor;
-                const loopsIndicator = document.createElement('div');
-                loopsIndicator.className = 'chain-indicator';
-                loopsKnob.appendChild(loopsIndicator);
-                loopsWrapper.appendChild(loopsKnob);
-                const loopsValue = document.createElement('div');
-                loopsValue.className = 'chain-value';
-                loopsWrapper.appendChild(loopsValue);
+        const loopsWrapper = document.createElement('div');
+        const loopsKnob = document.createElement('div');
+        loopsKnob.className = 'chain-knob chain-loops-knob';
 
-                slotEl.appendChild(transWrapper);
-                slotEl.appendChild(loopsWrapper);
+        // --- ADD THESE TAGS ---
+        loopsKnob.dataset.type = 'chainLoops';
+        loopsKnob.dataset.seqIdx = seqIndex;
+        loopsKnob.dataset.slotIdx = idx;
 
-                container.appendChild(slotEl);
+        loopsKnob.style.backgroundColor = slotColor;
+        const loopsIndicator = document.createElement('div');
+        loopsIndicator.className = 'chain-indicator';
+        loopsKnob.appendChild(loopsIndicator);
+        loopsWrapper.appendChild(loopsKnob);
+        const loopsValue = document.createElement('div');
+        loopsValue.className = 'chain-value';
+        loopsWrapper.appendChild(loopsValue);
 
-                slot.slotEl = slotEl;
-                slot.transKnob = transKnob;
-                slot.loopsKnob = loopsKnob;
-                slot.transValueEl = transValue;
-                slot.loopsValueEl = loopsValue;
-                sequence.chainSlotEls[idx] = slotEl;
+        slotEl.appendChild(transWrapper);
+        slotEl.appendChild(loopsWrapper);
+        container.appendChild(slotEl);
 
-                attachChainKnobHandlers(transKnob, seqIndex, idx, 'trans');
-                attachChainKnobHandlers(loopsKnob, seqIndex, idx, 'loops');
-                updateChainSlotVisual(seqIndex, idx);
-            });
+        slot.slotEl = slotEl;
+        slot.transKnob = transKnob;
+        slot.loopsKnob = loopsKnob;
+        slot.transValueEl = transValue;
+        slot.loopsValueEl = loopsValue;
+        sequence.chainSlotEls[idx] = slotEl;
 
-            syncChainEnabledVisuals(seqIndex);
-        }
+        attachChainKnobHandlers(transKnob, seqIndex, idx, 'trans');
+        attachChainKnobHandlers(loopsKnob, seqIndex, idx, 'loops');
+        updateChainSlotVisual(seqIndex, idx);
+    });
+
+    syncChainEnabledVisuals(seqIndex);
+}
 
         function handleChainProgress(seqIndex) {
             const sequence = stepSequences[seqIndex];
@@ -1169,35 +1173,38 @@ function applyMidiControl(ccNumber, val) {
             });
         }
 
-        function buildStepSequencer(seqIndex) {
-            const grids = Array.from(document.querySelectorAll(`[data-sequence-grid="${seqIndex}"]`));
-            const sequence = stepSequences[seqIndex];
-            sequence.knobEls = [];
-            grids.forEach((grid, rowIndex) => {
-                for (let i = 0; i < 8; i++) {
-                    const stepIndex = rowIndex * 8 + i;
-                    const knob = document.createElement('div');
-                    knob.className = 'step-knob inactive';
-                       knob.dataset.seqIdx = seqIndex; 
-knob.dataset.stepIdx = stepIndex; 
-                    knob.dataset.value = `${sequence.steps[stepIndex].value}`;
-                    const indicator = document.createElement('div');
-                    indicator.className = 'step-indicator';
-                    knob.appendChild(indicator);
-                    grid.appendChild(knob);
-                    attachStepKnobHandlers(knob, seqIndex, stepIndex);
-                    sequence.knobEls.push(knob);
-                    updateStepKnobVisual(seqIndex, stepIndex);
-                }
-            });
-            sequence.noteDisplay = document.querySelector(`.step-sequencer[data-sequence-index="${seqIndex}"] .step-note-display`);
-            sequence.lengthKnob = document.querySelector(`[data-sequence-length-knob="${seqIndex}"]`);
-            sequence.lengthValueEl = document.querySelector(`[data-sequence-length="${seqIndex}"] .step-length-value`);
-            if (sequence.lengthKnob) {
-                attachStepLengthHandlers(sequence.lengthKnob, seqIndex);
-            }
-            updateStepLengthVisuals(seqIndex);
+       function buildStepSequencer(seqIndex) {
+    const grids = Array.from(document.querySelectorAll(`[data-sequence-grid="${seqIndex}"]`));
+    const sequence = stepSequences[seqIndex];
+    sequence.knobEls = [];
+    grids.forEach((grid, rowIndex) => {
+        for (let i = 0; i < 8; i++) {
+            const stepIndex = rowIndex * 8 + i;
+            const knob = document.createElement('div');
+            knob.className = 'step-knob inactive';
+            
+            // --- ADD THESE TAGS ---
+            knob.dataset.seqIdx = seqIndex;
+            knob.dataset.stepIdx = stepIndex;
+
+            knob.dataset.value = `${sequence.steps[stepIndex].value}`;
+            const indicator = document.createElement('div');
+            indicator.className = 'step-indicator';
+            knob.appendChild(indicator);
+            grid.appendChild(knob);
+            attachStepKnobHandlers(knob, seqIndex, stepIndex);
+            sequence.knobEls.push(knob);
+            updateStepKnobVisual(seqIndex, stepIndex);
         }
+    });
+    sequence.noteDisplay = document.querySelector(`.step-sequencer[data-sequence-index="${seqIndex}"] .step-note-display`);
+    sequence.lengthKnob = document.querySelector(`[data-sequence-length-knob="${seqIndex}"]`);
+    sequence.lengthValueEl = document.querySelector(`[data-sequence-length="${seqIndex}"] .step-length-value`);
+    if (sequence.lengthKnob) {
+        attachStepLengthHandlers(sequence.lengthKnob, seqIndex);
+    }
+    updateStepLengthVisuals(seqIndex);
+}
 
         function setStepStartButtonLabel(text) {
             if (stepStartButton) {
@@ -7577,6 +7584,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
 midiLearnButton.addEventListener('click', toggleMidiLearnMode);
       }
        init();
+
 
 
 
