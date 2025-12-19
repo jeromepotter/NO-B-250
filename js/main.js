@@ -991,35 +991,31 @@ function handleIncomingMidi(event) {
         }
     }
 }
-// Add these to js/main.js
 function playOscillatorTrigger(oscId) {
     if (!isPowerOn || !synthNode) return;
-
-    // 1. Get the current pitch value from the knob state
-    // We use the same math used for the UI note display
     const knob = knobState[oscId];
     if (!knob) return;
 
+    // This specifically grabs the note the knob is CURRENTLY showing (e.g., "Eb3")
     const currentNoteName = getNoteNameFromAngle(oscId, knob.totalAngle);
     
-    // 2. Start the note in the synth engine
-    // We send a custom 'midi-trigger' type so it doesn't conflict with Arp or Sequencer
     synthNode.port.postMessage({
         type: 'NOTE_ON',
         note: currentNoteName,
-        oscTarget: oscId, // Targets specifically OSC 1 or 2
+        oscTarget: oscId,
         velocity: 1.0,
         source: 'midi-trigger'
     });
-
-    // 3. Update the UI Note Display (Optional, but good for feedback)
+    
+    // Updates the digital readout on the synth for visual confirmation
     updateNoteDisplay(oscId, currentNoteName);
 }
 
 function stopOscillatorTrigger(oscId) {
     if (!synthNode) return;
-
     const knob = knobState[oscId];
+    if (!knob) return;
+
     const currentNoteName = getNoteNameFromAngle(oscId, knob.totalAngle);
 
     synthNode.port.postMessage({
@@ -1030,47 +1026,42 @@ function stopOscillatorTrigger(oscId) {
     });
 }
 function applyMidiControl(target, val) {
-    // 1. TRIGGER MODE: Handle MIDI Notes or CC Buttons (Note-On/Off)
+    // 1. TRIGGER MODE: Handle MIDI Notes or Pads (Play/Stop sound)
     if (target.mode === 'trigger') {
         if (val > 0) {
             playOscillatorTrigger(target.id); 
         } else {
             stopOscillatorTrigger(target.id);
         }
-        return; // Exit early so we don't try to spin the knob with a button press
+        return; // Exit so we don't move the knob visually with a button press
     }
 
-    // 2. VALUE MODE: Handle Continuous Control (Spinning Knobs/Faders)
+    // 2. VALUE MODE: Handle Faders/Knobs (Continuous control)
     switch (target.type) {
         case 'fx': 
-            // Handles all small FX knobs (Filter, Delay, Drum Selection, etc.)
             setFxValue(target.id, val); 
             break;
 
         case 'main': 
-            // Handles the big Oscillator pitch knobs
+            // This makes the big on-screen knob spin
             knobState[target.id].totalAngle = val * MAX_TOTAL_ANGLE;
             updateStateFromTotalAngle(target.id);
             break;
 
         case 'seqStep': 
-            // Handles per-step note values in the sequence grids
             setStepValue(target.seqIdx, target.stepIdx, val * 8); 
             break;
 
         case 'seqLen': 
-            // Handles the sequence length (number of steps)
             const len = val * (STEP_MAX_LENGTH - STEP_MIN_LENGTH) + STEP_MIN_LENGTH;
             setSequenceLength(target.seqIdx, len); 
             break;
 
         case 'chainTrans': 
-            // Handles transposition in the Chain Sequencer
             setChainSlotTransposition(target.seqIdx, target.slotIdx, (val * 24) - 12); 
             break;
 
         case 'chainLoops': 
-            // Handles the repeat count (x1, x2, etc.) in the Chain Sequencer
             setChainSlotLoops(target.seqIdx, target.slotIdx, val * CHAIN_MAX_LOOPS); 
             break;
     }
@@ -7708,6 +7699,7 @@ function sendMidiMessage(message) {
 midiLearnButton.addEventListener('click', toggleMidiLearnMode);
       }
        init();
+
 
 
 
