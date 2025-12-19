@@ -76,6 +76,36 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
         background-color: var(--color-accent-green);
         border-color: var(--color-accent-green);
       }
+/* Update your MIDI Learn classes in style.css */
+
+.blinking-midi-learn {
+    animation: midi-white-blink 1.2s infinite !important;
+    cursor: cell !important;
+    /* Ensure the glow isn't clipped */
+    z-index: 10;
+}
+
+.blinking-midi-learn.learning-focus {
+    outline: 2px solid #ffffff !important;
+    box-shadow: 0 0 25px rgba(255, 255, 255, 0.8), inset 0 0 10px rgba(255, 255, 255, 0.4) !important;
+    animation: none !important;
+    background-color: rgba(255, 255, 255, 0.3) !important;
+    filter: brightness(1.2);
+}
+
+@keyframes midi-white-blink {
+    0% { 
+        box-shadow: 0 0 2px rgba(255, 255, 255, 0.3); 
+    }
+    50% { 
+        box-shadow: 0 0 15px rgba(255, 255, 255, 0.9), inset 0 0 5px rgba(255, 255, 255, 0.2);
+        filter: brightness(1.1);
+    }
+    100% { 
+        box-shadow: 0 0 2px rgba(255, 255, 255, 0.3); 
+    }
+}
+
       .preset-display {
         display: block;
         word-break: break-word;
@@ -933,3 +963,6 @@ animation: note-retrigger 0.08s ease-out;
   font-size: 10px;
   line-height: 1;
 }
+
+
+

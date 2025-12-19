@@ -11,6 +11,12 @@
        const spinIntervals = {};
        const activeKeyControls = {};
        let customScale = [];
+let isMidiLearnActive = false;
+let currentlyLearningTarget = null;
+let midiLearnButton = null;
+let midiAssignments = JSON.parse(localStorage.getItem('midiAssignments')) || {};
+let selectedMidiInput = null;
+let selectedMidiOutput = null;
        const soundfontBank = [];
        let activeSoundfontIndex = -1;
        let isSoundfontMode = false;
@@ -29,8 +35,6 @@
        let midiRecordingStartTime = 0;
        let recordMidiButton = null;
  let midiAccess = null;
-       let selectedMidiOutput = null;
-
        // --- LFO State ---
         const LFO_WAVEFORMS = ['SINE', 'TRI', 'SQUARE', 'SAW UP', 'SAW DN', 'RANDOM'];
         let lfoAnimationId = null;
@@ -679,64 +683,76 @@ function attachChainKnobHandlers(knobEl, seqIndex, slotIndex, type) {
     });
 }
 
-        function buildChainSequencer(seqIndex) {
-            const container = document.querySelector(`[data-chain-grid="${seqIndex}"]`);
-            const sequence = stepSequences[seqIndex];
-            if (!container || !sequence) return;
+      function buildChainSequencer(seqIndex) {
+    const container = document.querySelector(`[data-chain-grid="${seqIndex}"]`);
+    const sequence = stepSequences[seqIndex];
+    if (!container || !sequence) return;
 
-            container.innerHTML = '';
-            sequence.chainSlotEls = [];
-            sequence.chainGrid = container;
-            sequence.chainSection = container.closest('.chain-section');
+    container.innerHTML = '';
+    sequence.chainSlotEls = [];
+    sequence.chainGrid = container; // Added back for state tracking
+    sequence.chainSection = container.closest('.chain-section'); // Added back for layout
 
-            sequence.chainSlots.forEach((slot, idx) => {
-                const slotEl = document.createElement('div');
-                slotEl.className = 'chain-slot';
+    sequence.chainSlots.forEach((slot, idx) => {
+        const slotEl = document.createElement('div');
+        slotEl.className = 'chain-slot';
+        const slotColor = getChainSlotColor(idx);
 
-                const transWrapper = document.createElement('div');
-                const transKnob = document.createElement('div');
-                transKnob.className = 'chain-knob chain-trans-knob';
-                const slotColor = getChainSlotColor(idx);
-                transKnob.style.backgroundColor = slotColor;
-                const transIndicator = document.createElement('div');
-                transIndicator.className = 'chain-indicator';
-                transKnob.appendChild(transIndicator);
-                transWrapper.appendChild(transKnob);
-                const transValue = document.createElement('div');
-                transValue.className = 'chain-value';
-                transWrapper.appendChild(transValue);
+        // 1. Create Knobs First (Resolves the ReferenceError)
+        const transKnob = document.createElement('div');
+        transKnob.className = 'chain-knob chain-trans-knob';
+        transKnob.style.backgroundColor = slotColor;
+        transKnob.dataset.type = 'chainTrans';
+        transKnob.dataset.seqIdx = seqIndex;
+        transKnob.dataset.slotIdx = idx;
 
-                const loopsWrapper = document.createElement('div');
-                const loopsKnob = document.createElement('div');
-                loopsKnob.className = 'chain-knob chain-loops-knob';
-                loopsKnob.style.backgroundColor = slotColor;
-                const loopsIndicator = document.createElement('div');
-                loopsIndicator.className = 'chain-indicator';
-                loopsKnob.appendChild(loopsIndicator);
-                loopsWrapper.appendChild(loopsKnob);
-                const loopsValue = document.createElement('div');
-                loopsValue.className = 'chain-value';
-                loopsWrapper.appendChild(loopsValue);
+        const loopsKnob = document.createElement('div');
+        loopsKnob.className = 'chain-knob chain-loops-knob';
+        loopsKnob.style.backgroundColor = slotColor;
+        loopsKnob.dataset.type = 'chainLoops';
+        loopsKnob.dataset.seqIdx = seqIndex;
+        loopsKnob.dataset.slotIdx = idx;
 
-                slotEl.appendChild(transWrapper);
-                slotEl.appendChild(loopsWrapper);
+        // 2. Build Internal Structure
+        const transWrapper = document.createElement('div');
+        const transIndicator = document.createElement('div');
+        transIndicator.className = 'chain-indicator';
+        transKnob.appendChild(transIndicator);
+        transWrapper.appendChild(transKnob);
+        const transValue = document.createElement('div');
+        transValue.className = 'chain-value';
+        transWrapper.appendChild(transValue);
 
-                container.appendChild(slotEl);
+        const loopsWrapper = document.createElement('div');
+        const loopsIndicator = document.createElement('div');
+        loopsIndicator.className = 'chain-indicator';
+        loopsKnob.appendChild(loopsIndicator);
+        loopsWrapper.appendChild(loopsKnob);
+        const loopsValue = document.createElement('div');
+        loopsValue.className = 'chain-value';
+        loopsWrapper.appendChild(loopsValue);
 
-                slot.slotEl = slotEl;
-                slot.transKnob = transKnob;
-                slot.loopsKnob = loopsKnob;
-                slot.transValueEl = transValue;
-                slot.loopsValueEl = loopsValue;
-                sequence.chainSlotEls[idx] = slotEl;
+        slotEl.appendChild(transWrapper);
+        slotEl.appendChild(loopsWrapper);
+        container.appendChild(slotEl);
 
-                attachChainKnobHandlers(transKnob, seqIndex, idx, 'trans');
-                attachChainKnobHandlers(loopsKnob, seqIndex, idx, 'loops');
-                updateChainSlotVisual(seqIndex, idx);
-            });
+        // 3. Assign Properties Safely (Only after elements are defined)
+        slot.slotEl = slotEl;
+        slot.transKnob = transKnob;
+        slot.loopsKnob = loopsKnob;
+        slot.transValueEl = transValue;
+        slot.loopsValueEl = loopsValue;
+        sequence.chainSlotEls[idx] = slotEl;
 
-            syncChainEnabledVisuals(seqIndex);
-        }
+        // 4. Attach Interaction Handlers
+        attachChainKnobHandlers(transKnob, seqIndex, idx, 'trans');
+        attachChainKnobHandlers(loopsKnob, seqIndex, idx, 'loops');
+        updateChainSlotVisual(seqIndex, idx);
+    });
+
+    // 5. Apply Visual State (Crucial for the "Chain On/Off" switch)
+    syncChainEnabledVisuals(seqIndex);
+}
 
         function handleChainProgress(seqIndex) {
             const sequence = stepSequences[seqIndex];
@@ -893,8 +909,175 @@ function attachChainKnobHandlers(knobEl, seqIndex, slotIndex, type) {
             if (tempoMode === TEMPO_MODE_BPM) return getSharedStepStartDelay();
             return intervalMs;
         }
+function toggleMidiLearnMode() {
+    isMidiLearnActive = !isMidiLearnActive;
+    midiLearnButton.classList.toggle('active', isMidiLearnActive);
+    currentlyLearningTarget = null;
 
-        function stepSequenceTick(seqIndex) {
+    // Target ALL knobs: FX, Main Oscillators, Seq Steps, Seq Lengths, and Chains
+    const allKnobs = document.querySelectorAll('.fx-knob-container, .main-knob, .step-knob, .step-length-knob, .chain-knob');
+
+    allKnobs.forEach(knob => {
+        if (isMidiLearnActive) {
+            // FIX: Remove 'isAssigned' check so everything blinks initially
+            knob.classList.add('blinking-midi-learn');
+            knob.addEventListener('click', handleKnobMidiLearnClick, { capture: true });
+        } else {
+            knob.classList.remove('blinking-midi-learn', 'learning-focus');
+            knob.removeEventListener('click', handleKnobMidiLearnClick, { capture: true });
+        }
+    });
+}
+
+function getTargetFromEl(el) {
+    if (el.classList.contains('fx-knob-container')) return { type: 'fx', id: parseInt(el.dataset.fxId) };
+    if (el.classList.contains('main-knob')) return { type: 'main', id: parseInt(el.dataset.knobId) };
+    if (el.classList.contains('step-knob')) return { type: 'seqStep', seqIdx: parseInt(el.dataset.seqIdx), stepIdx: parseInt(el.dataset.stepIdx) };
+    if (el.classList.contains('step-length-knob')) return { type: 'seqLen', seqIdx: parseInt(el.dataset.sequenceLengthKnob) };
+    if (el.dataset.type === 'chainTrans') return { type: 'chainTrans', seqIdx: parseInt(el.dataset.seqIdx), slotIdx: parseInt(el.dataset.slotIdx) };
+    if (el.dataset.type === 'chainLoops') return { type: 'chainLoops', seqIdx: parseInt(el.dataset.seqIdx), slotIdx: parseInt(el.dataset.slotIdx) };
+    return null;
+}
+
+function isSameTarget(a, b) {
+    if (!a || !b || a.type !== b.type) return false;
+    return a.id === b.id && a.seqIdx === b.seqIdx && a.stepIdx === b.stepIdx && a.slotIdx === b.slotIdx;
+}
+
+function handleKnobMidiLearnClick(e) {
+    if (!isMidiLearnActive) return;
+    e.stopPropagation();
+    e.preventDefault();
+
+    const target = getTargetFromEl(e.currentTarget);
+    if (target) {
+        currentlyLearningTarget = target;
+        document.querySelectorAll('.learning-focus').forEach(el => el.classList.remove('learning-focus'));
+        e.currentTarget.classList.add('learning-focus');
+    }
+}
+
+function handleIncomingMidi(event) {
+    const [status, data1, data2] = event.data;
+    const msgType = status & 0xf0;
+    
+    const isNoteOn = msgType === 0x90 && data2 > 0;
+    const isNoteOff = msgType === 0x80 || (msgType === 0x90 && data2 === 0);
+    const isCC = msgType === 0xB0;
+
+    if (!isCC && !isNoteOn && !isNoteOff) return;
+
+    const midiKey = (isNoteOn || isNoteOff) ? `note_${data1}` : `cc_${data1}`;
+    const normalizedVal = isNoteOff ? 0 : data2 / 127;
+
+    if (isMidiLearnActive && currentlyLearningTarget) {
+        // Tag correctly
+        midiAssignments[midiKey] = { 
+            ...currentlyLearningTarget, 
+            mode: (isNoteOn || isNoteOff) ? 'trigger' : 'value' 
+        };
+        localStorage.setItem('midiAssignments', JSON.stringify(midiAssignments));
+        
+        document.querySelector('.learning-focus')?.classList.remove('blinking-midi-learn', 'learning-focus');
+        currentlyLearningTarget = null;
+    } else {
+        const assignment = midiAssignments[midiKey];
+        if (assignment) {
+            applyMidiControl(assignment, normalizedVal);
+        } else if (isNoteOn || isNoteOff) {
+            // CRITICAL: Block any MIDI note that isn't mapped.
+            // This stops the C0/C8 sounds from MDPX.
+            return; 
+        }
+    }
+}
+function playOscillatorTrigger(oscId) {
+    if (!isPowerOn || !synthNode) return;
+    
+    const knob = knobState[oscId];
+    if (!knob) return;
+
+    // 1. Get the note name (e.g. "C3") based on the knob's position
+    const currentNoteName = getNoteNameFromAngle(oscId, knob.totalAngle);
+    
+    console.log(`MIDI Trigger OSC ${oscId + 1}: Playing ${currentNoteName}`);
+
+    // 2. Send to the engine. 
+    // We use 'source: "keyboard"' to mimic the Spacebar exactly.
+    synthNode.port.postMessage({
+        type: 'NOTE_ON',
+        note: currentNoteName,
+        oscTarget: oscId,
+        velocity: 1.0,
+        source: 'keyboard' 
+    });
+
+    // 3. Visual Feedback
+    updateNoteDisplay(oscId, currentNoteName);
+    const knobEl = document.querySelector(`[data-knob-id="${oscId}"]`);
+    if (knobEl) knobEl.classList.add('active-trigger');
+}
+
+function stopOscillatorTrigger(oscId) {
+    if (!synthNode) return;
+    
+    const knob = knobState[oscId];
+    const currentNoteName = getNoteNameFromAngle(oscId, knob.totalAngle);
+
+    synthNode.port.postMessage({
+        type: 'NOTE_OFF',
+        note: currentNoteName,
+        oscTarget: oscId,
+        source: 'keyboard'
+    });
+
+    const knobEl = document.querySelector(`[data-knob-id="${oscId}"]`);
+    if (knobEl) knobEl.classList.remove('active-trigger');
+}
+function applyMidiControl(target, val) {
+    // TRIGGER MODE (Notes/Pads)
+    if (target.mode === 'trigger') {
+        const oscId = target.id;
+        const knob = knobState[oscId];
+        
+        // Use the math to get the current pitch from the knob's angle
+        const currentNote = getNoteNameFromAngle(oscId, knob.totalAngle);
+
+        if (val > 0) {
+            synthNode.port.postMessage({
+                type: 'NOTE_ON',
+                note: currentNote,
+                oscTarget: oscId,
+                velocity: 1.0,
+                source: 'midi-trigger'
+            });
+            updateNoteDisplay(oscId, currentNote);
+        } else {
+            synthNode.port.postMessage({
+                type: 'NOTE_OFF',
+                note: currentNote,
+                oscTarget: oscId,
+                source: 'midi-trigger'
+            });
+        }
+        return; 
+    }
+
+    // VALUE MODE (CC/Knobs)
+    switch (target.type) {
+        case 'main': 
+            knobState[target.id].totalAngle = val * MAX_TOTAL_ANGLE;
+            updateStateFromTotalAngle(target.id);
+            break;
+        case 'fx': 
+            setFxValue(target.id, val); 
+            break;
+        case 'seqStep': setStepValue(target.seqIdx, target.stepIdx, val * 8); break;
+        case 'seqLen': setSequenceLength(target.seqIdx, val * (STEP_MAX_LENGTH - STEP_MIN_LENGTH) + STEP_MIN_LENGTH); break;
+        case 'chainTrans': setChainSlotTransposition(target.seqIdx, target.slotIdx, (val * 24) - 12); break;
+        case 'chainLoops': setChainSlotLoops(target.seqIdx, target.slotIdx, val * CHAIN_MAX_LOOPS); break;
+    }
+}        function stepSequenceTick(seqIndex) {
             const sequence = stepSequences[seqIndex];
             if (!sequence) return;
             const totalSteps = getSequenceLength(seqIndex);
@@ -1069,33 +1252,38 @@ function attachChainKnobHandlers(knobEl, seqIndex, slotIndex, type) {
             });
         }
 
-        function buildStepSequencer(seqIndex) {
-            const grids = Array.from(document.querySelectorAll(`[data-sequence-grid="${seqIndex}"]`));
-            const sequence = stepSequences[seqIndex];
-            sequence.knobEls = [];
-            grids.forEach((grid, rowIndex) => {
-                for (let i = 0; i < 8; i++) {
-                    const stepIndex = rowIndex * 8 + i;
-                    const knob = document.createElement('div');
-                    knob.className = 'step-knob inactive';
-                    knob.dataset.value = `${sequence.steps[stepIndex].value}`;
-                    const indicator = document.createElement('div');
-                    indicator.className = 'step-indicator';
-                    knob.appendChild(indicator);
-                    grid.appendChild(knob);
-                    attachStepKnobHandlers(knob, seqIndex, stepIndex);
-                    sequence.knobEls.push(knob);
-                    updateStepKnobVisual(seqIndex, stepIndex);
-                }
-            });
-            sequence.noteDisplay = document.querySelector(`.step-sequencer[data-sequence-index="${seqIndex}"] .step-note-display`);
-            sequence.lengthKnob = document.querySelector(`[data-sequence-length-knob="${seqIndex}"]`);
-            sequence.lengthValueEl = document.querySelector(`[data-sequence-length="${seqIndex}"] .step-length-value`);
-            if (sequence.lengthKnob) {
-                attachStepLengthHandlers(sequence.lengthKnob, seqIndex);
-            }
-            updateStepLengthVisuals(seqIndex);
+       function buildStepSequencer(seqIndex) {
+    const grids = Array.from(document.querySelectorAll(`[data-sequence-grid="${seqIndex}"]`));
+    const sequence = stepSequences[seqIndex];
+    sequence.knobEls = [];
+    grids.forEach((grid, rowIndex) => {
+        for (let i = 0; i < 8; i++) {
+            const stepIndex = rowIndex * 8 + i;
+            const knob = document.createElement('div');
+            knob.className = 'step-knob inactive';
+            
+            // --- ADD THESE TAGS ---
+            knob.dataset.seqIdx = seqIndex;
+            knob.dataset.stepIdx = stepIndex;
+
+            knob.dataset.value = `${sequence.steps[stepIndex].value}`;
+            const indicator = document.createElement('div');
+            indicator.className = 'step-indicator';
+            knob.appendChild(indicator);
+            grid.appendChild(knob);
+            attachStepKnobHandlers(knob, seqIndex, stepIndex);
+            sequence.knobEls.push(knob);
+            updateStepKnobVisual(seqIndex, stepIndex);
         }
+    });
+    sequence.noteDisplay = document.querySelector(`.step-sequencer[data-sequence-index="${seqIndex}"] .step-note-display`);
+    sequence.lengthKnob = document.querySelector(`[data-sequence-length-knob="${seqIndex}"]`);
+    sequence.lengthValueEl = document.querySelector(`[data-sequence-length="${seqIndex}"] .step-length-value`);
+    if (sequence.lengthKnob) {
+        attachStepLengthHandlers(sequence.lengthKnob, seqIndex);
+    }
+    updateStepLengthVisuals(seqIndex);
+}
 
         function setStepStartButtonLabel(text) {
             if (stepStartButton) {
@@ -3870,47 +4058,88 @@ function generateComplexRandomLfoState(includeArpTargets = true) {
                 midiEventsTrack2.push(event);
             }
        }
-async function setupMidiOutput() {
-           const midiOutputSelector = document.getElementById('midi-output-selector');
-           if (!midiOutputSelector) return;
+async function setupMidiAccess() {
+    const inputSelector = document.getElementById('midi-input-selector');
+    const outputSelector = document.getElementById('midi-output-selector');
+    const selectorsRow = document.getElementById('midi-selectors-row');
+    if (!inputSelector || !outputSelector || !selectorsRow) return;
 
-           try {
-               midiAccess = await navigator.requestMIDIAccess({ sysex: true });
-               
-               // Clear previous options
-               midiOutputSelector.innerHTML = '';
-               
-               if (midiAccess.outputs.size > 0) {
-                   midiAccess.outputs.forEach(output => {
-                       const option = document.createElement('option');
-                       option.value = output.id;
-                       option.textContent = output.name;
-                       midiOutputSelector.appendChild(option);
-                   });
-                   midiOutputSelector.disabled = false;
-                   
-                   // Automatically select the first output
-                   selectedMidiOutput = midiAccess.outputs.values().next().value;
+    try {
+        midiAccess = await navigator.requestMIDIAccess({ sysex: true });
+        
+        // Show the selector rows now that we've initiated a connection
+        selectorsRow.classList.remove('hidden');
+        selectorsRow.classList.add('flex');
 
-                   // Listen for changes
-                   midiOutputSelector.addEventListener('change', () => {
-                       selectedMidiOutput = midiAccess.outputs.get(midiOutputSelector.value);
-                       console.log(`MIDI Output set to: ${selectedMidiOutput.name}`);
-                   });
+        // --- 1. POPULATE INPUTS ---
+        inputSelector.innerHTML = '';
+        if (midiAccess.inputs.size > 0) {
+            midiAccess.inputs.forEach(input => {
+                const opt = document.createElement('option');
+                opt.value = input.id;
+                opt.textContent = input.name;
+                inputSelector.appendChild(opt);
+            });
+            inputSelector.disabled = false;
+            updateMidiInputSelection(inputSelector.value);
+            inputSelector.addEventListener('change', () => updateMidiInputSelection(inputSelector.value));
+        } else {
+            inputSelector.innerHTML = '<option>NO INPUTS FOUND</option>';
+            inputSelector.disabled = true;
+            // Ensure Learn is disabled if no inputs found during connect
+            updateMidiLearnButtonState(false);
+        }
 
-               } else {
-                   const option = document.createElement('option');
-                   option.textContent = 'No MIDI Outputs Found';
-                   midiOutputSelector.appendChild(option);
-                   midiOutputSelector.disabled = true;
-               }
+        // --- 2. POPULATE OUTPUTS ---
+        outputSelector.innerHTML = '';
+        if (midiAccess.outputs.size > 0) {
+            midiAccess.outputs.forEach(output => {
+                const opt = document.createElement('option');
+                opt.value = output.id;
+                opt.textContent = output.name;
+                outputSelector.appendChild(opt);
+            });
+            outputSelector.disabled = false;
+            selectedMidiOutput = midiAccess.outputs.get(outputSelector.value);
+            outputSelector.addEventListener('change', () => {
+                selectedMidiOutput = midiAccess.outputs.get(outputSelector.value);
+            });
+        } else {
+            outputSelector.innerHTML = '<option>NO OUTPUTS FOUND</option>';
+            outputSelector.disabled = true;
+        }
 
-           } catch (err) {
-               console.error('MIDI Access Denied or Failed:', err);
-               midiOutputSelector.innerHTML = '<option>MIDI Access Denied</option>';
-               midiOutputSelector.disabled = true;
-           }
-       }
+    } catch (err) {
+        console.error('MIDI Access Denied or Failed', err);
+    }
+}
+
+// Helper to manage Midi Learn button state
+function updateMidiLearnButtonState(enabled) {
+    if (!midiLearnButton) return;
+    if (enabled) {
+        midiLearnButton.classList.remove('disabled', 'opacity-30');
+        midiLearnButton.disabled = false;
+    } else {
+        midiLearnButton.classList.add('disabled', 'opacity-30');
+        midiLearnButton.disabled = true;
+        // Turn off learn mode if it was active but input was lost
+        if (isMidiLearnActive) toggleMidiLearnMode();
+    }
+}
+
+function updateMidiInputSelection(id) {
+    if (selectedMidiInput) selectedMidiInput.onmidimessage = null;
+    
+    selectedMidiInput = midiAccess.inputs.get(id);
+    
+    if (selectedMidiInput) {
+        selectedMidiInput.onmidimessage = handleIncomingMidi;
+        updateMidiLearnButtonState(true); // Enable Learn when an input is active
+    } else {
+        updateMidiLearnButtonState(false); // Grey out if no input is selected
+    }
+}
 
        function toggleMidiRecording() {
             if (isRecordingMidi) {
@@ -7009,11 +7238,22 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
          refreshSoundfontListUI();
          toggleSoundfontUiVisibility(false);
 
-           const midiConnectButton = document.getElementById('midi-connect-button');
-           midiConnectButton?.addEventListener('click', () => {
-               setupMidiOutput();
-               midiConnectButton.textContent = 'RESCAN';
-           });
+         const midiConnectButton = document.getElementById('midi-connect-button');
+midiConnectButton?.addEventListener('click', () => {
+    setupMidiAccess(); // Now calls the bidirectional function
+    midiConnectButton.textContent = 'RESCAN';
+});
+
+// Update sendMidiMessage to be safer
+function sendMidiMessage(message) {
+    if (selectedMidiOutput) {
+        try {
+            selectedMidiOutput.send(message);
+        } catch (e) {
+            console.warn("MIDI Send Failed", e);
+        }
+    }
+}
 
            const midiClockToggle = document.getElementById('midi-clock-toggle');
            midiClockToggle?.addEventListener('change', () => {
@@ -7466,8 +7706,28 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
               knobState.forEach(k => updateStateFromTotalAngle(k.id));
           }
           updateRateButtonLockState();
+              midiLearnButton = document.getElementById('midi-learn-button');
+midiLearnButton.addEventListener('click', toggleMidiLearnMode);
       }
        init();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
