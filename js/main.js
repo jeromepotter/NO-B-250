@@ -919,11 +919,8 @@ function toggleMidiLearnMode() {
 
     allKnobs.forEach(knob => {
         if (isMidiLearnActive) {
-            // Check if this specific knob is already assigned
-            const isAssigned = Object.values(midiAssignments).some(a => isSameTarget(a, getTargetFromEl(knob)));
-            if (!isAssigned) {
-                knob.classList.add('blinking-midi-learn');
-            }
+            // FIX: Remove 'isAssigned' check so everything blinks initially
+            knob.classList.add('blinking-midi-learn');
             knob.addEventListener('click', handleKnobMidiLearnClick, { capture: true });
         } else {
             knob.classList.remove('blinking-midi-learn', 'learning-focus');
@@ -7620,6 +7617,7 @@ function sendMidiMessage(message) {
 midiLearnButton.addEventListener('click', toggleMidiLearnMode);
       }
        init();
+
 
 
 
