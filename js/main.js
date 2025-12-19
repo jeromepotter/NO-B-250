@@ -2536,7 +2536,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             }
         }
 
-      function setBreakSampleIndex(index, { progressNormalized = 0, normalizedValue, forceImmediate = false } = {}) {
+function setBreakSampleIndex(index, { progressNormalized = 0, normalizedValue, forceImmediate = false } = {}) {
     const clamped = clamp(index ?? breakSampleIndex, BREAK_SAMPLE_MIN_INDEX, BREAK_SAMPLE_MAX_INDEX);
 
     if (Number.isFinite(normalizedValue)) {
@@ -2569,16 +2569,17 @@ let liveLfoOutputs = [0, 0, 0, 0];
         const currentCycle = Math.floor(sourceStepCounter / patternLen);
         const currentStep = sourceStepCounter % patternLen;
 
-        // FIX: Use the existing start-step (the anchor) instead of hardcoding 0
+        // FIX: Use the anchor (the step the loop started on) instead of hardcoding 0
         const anchor = (breakQueueTargetStep !== null) ? breakQueueTargetStep : 0;
         
-        // Determine if the anchor step in the current bar has already passed
-        if (currentStep >= anchor) {
-            breakQueueTargetCycle = currentCycle + 1;
-        } else {
+        // If we haven't reached the anchor step in the current cycle yet, 
+        // we can switch in this cycle. Otherwise, wait for the next cycle.
+        if (currentStep < anchor) {
             breakQueueTargetCycle = currentCycle;
+        } else {
+            breakQueueTargetCycle = currentCycle + 1;
         }
-        breakQueueTargetStep = anchor; // Preserve the anchor for the switch
+        breakQueueTargetStep = anchor;
         
     } else {
         // --- IMMEDIATE SWITCH ---
@@ -2623,21 +2624,24 @@ let liveLfoOutputs = [0, 0, 0, 0];
             }
         }
 
-  function beginBreakPlayback() {
+function beginBreakPlayback() {
     breakStartTimeoutId = null;
     if (!breakPlayRequested || !breakBufferLoaded) return false;
+    
     breakRunning = true;
     breakPlaybackRate = getBreakPlaybackRate();
     breakPlaybackStartTime = audioContext ? audioContext.currentTime : (performance.now() / 1000);
     breakSlipWindowSeconds = Number.NaN; 
     sendBreakSlipWindow();
     refreshBreakSlipAnchor();
+    
     synthNode?.port.postMessage({ type: 'startBreakLoop', data: { playbackRate: breakPlaybackRate } });
     startBreakWaveformAnimation();
 
-    // FIX: Clear the "Wait for Bar" trigger, but KEEP the Step Anchor
-    breakQueueTargetCycle = null; 
-    // We no longer set breakQueueTargetStep = 0 here.
+    // FIX: Clear the "Wait for Bar" timer, but DO NOT reset breakQueueTargetStep to 0.
+    // We keep the start-step (e.g. 6) as the anchor for future switches.
+    breakQueueTargetCycle = null;
+    
     return true;
 }
 
@@ -2670,30 +2674,30 @@ async function toggleBreakPlayback(options = {}) {
         return;
     }
     
+    // If already playing, Stop is immediate
     if (breakPlayRequested) {
         stopBreakPlaybackImmediate();
         stopMasterClockIfIdle();
         return;
     }
 
+    // Queue Start
     breakPlayRequested = true;
     updateBreakPlayUi();
 
-    // FIX: Only initialize defaults if a knob-turn hasn't already set a specific target
-    if (pendingBreakIndex === null) {
-        breakQueueTargetCycle = null;
-        breakQueueTargetStep = 0;
-    }
+    // Initialize defaults
+    breakQueueTargetCycle = null;
+    breakQueueTargetStep = 0;
 
     // --- BPM MODE (Grid Locked) ---
     if (!isFreeTiming) {
         const tempoSource = getTempoSourceState();
         if (tempoSource) {
             const patternLen = 16;
-            // Target the very next 16th note
+            // Target the very next 1/16th note
             const targetStepCounter = tempoSource.euclideanStepCounter + 1;
             
-            // Define the Grid Anchor for this drum session
+            // This captures the "Anchor" (e.g. Step 6)
             breakQueueTargetCycle = Math.floor(targetStepCounter / patternLen);
             breakQueueTargetStep = targetStepCounter % patternLen;
         } else if (isStepsMode) {
@@ -7475,6 +7479,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
