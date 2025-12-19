@@ -17,6 +17,9 @@ let midiLearnButton = null;
 let midiAssignments = JSON.parse(localStorage.getItem('midiAssignments')) || {};
 let selectedMidiInput = null;
 let selectedMidiOutput = null;
+let midiClearButton = null;
+let midiClockToggle = null;
+let midiClockToggleLabel = null;
        const soundfontBank = [];
        let activeSoundfontIndex = -1;
        let isSoundfontMode = false;
@@ -977,6 +980,7 @@ function handleIncomingMidi(event) {
             mode: (isNoteOn || isNoteOff) ? 'trigger' : 'value' 
         };
         localStorage.setItem('midiAssignments', JSON.stringify(midiAssignments));
+        updateMidiClearButtonState();
         
         document.querySelector('.learning-focus')?.classList.remove('blinking-midi-learn', 'learning-focus');
         currentlyLearningTarget = null;
@@ -4103,10 +4107,13 @@ async function setupMidiAccess() {
             selectedMidiOutput = midiAccess.outputs.get(outputSelector.value);
             outputSelector.addEventListener('change', () => {
                 selectedMidiOutput = midiAccess.outputs.get(outputSelector.value);
+                updateMidiClockToggleAvailability(Boolean(selectedMidiOutput));
             });
+            updateMidiClockToggleAvailability(Boolean(selectedMidiOutput));
         } else {
             outputSelector.innerHTML = '<option>NO OUTPUTS FOUND</option>';
             outputSelector.disabled = true;
+            updateMidiClockToggleAvailability(false);
         }
 
     } catch (err) {
@@ -4139,6 +4146,28 @@ function updateMidiInputSelection(id) {
     } else {
         updateMidiLearnButtonState(false); // Grey out if no input is selected
     }
+}
+
+function updateMidiClockToggleAvailability(hasOutput) {
+    if (!midiClockToggle || !midiClockToggleLabel) return;
+    midiClockToggle.disabled = !hasOutput;
+    midiClockToggleLabel.classList.toggle('opacity-50', !hasOutput);
+    midiClockToggleLabel.classList.toggle('cursor-not-allowed', !hasOutput);
+    midiClockToggleLabel.classList.toggle('pointer-events-none', !hasOutput);
+
+    if (!hasOutput) {
+        midiClockToggle.checked = false;
+        midiClockEnabled = false;
+        updateMidiClockState();
+    }
+}
+
+function updateMidiClearButtonState() {
+    if (!midiClearButton) return;
+    const hasAssignments = Object.keys(midiAssignments || {}).length > 0;
+    midiClearButton.disabled = !hasAssignments;
+    midiClearButton.classList.toggle('disabled', !hasAssignments);
+    midiClearButton.classList.toggle('opacity-30', !hasAssignments);
 }
 
        function toggleMidiRecording() {
@@ -7255,11 +7284,21 @@ function sendMidiMessage(message) {
     }
 }
 
-           const midiClockToggle = document.getElementById('midi-clock-toggle');
+           midiClockToggle = document.getElementById('midi-clock-toggle');
+           midiClockToggleLabel = document.getElementById('midi-clock-toggle-label');
            midiClockToggle?.addEventListener('change', () => {
                midiClockEnabled = midiClockToggle.checked;
                updateMidiClockState();
            });
+           updateMidiClockToggleAvailability(Boolean(selectedMidiOutput));
+
+           midiClearButton = document.getElementById('midi-clear-button');
+           midiClearButton?.addEventListener('click', () => {
+               midiAssignments = {};
+               localStorage.setItem('midiAssignments', JSON.stringify(midiAssignments));
+               updateMidiClearButtonState();
+           });
+           updateMidiClearButtonState();
 
            // --- 10. ARP & SYNTH CONTROLS ---
            arpSyncSwitch = document.getElementById('arp-sync-switch');
