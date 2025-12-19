@@ -76,28 +76,30 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
         background-color: var(--color-accent-green);
         border-color: var(--color-accent-green);
       }
+/* Update your MIDI Learn classes in style.css */
+
 .blinking-midi-learn {
-    animation: midi-green-blink 1.2s infinite;
+    animation: midi-white-blink 1.2s infinite; /* Changed from green to white */
     cursor: cell !important;
 }
 
 .blinking-midi-learn.learning-focus {
-    outline: 3px solid #00ff00;
-    box-shadow: 0 0 20px #00ff00;
-    animation: none; /* Stop blinking once selected to show focus */
-    background-color: rgba(0, 255, 0, 0.4) !important;
+    outline: 2px solid #ffffff; /* Clean white outline */
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+    animation: none;
+    background-color: rgba(255, 255, 255, 0.2) !important;
 }
 
-@keyframes midi-green-blink {
-    0% { filter: drop-shadow(0 0 2px rgba(0, 255, 0, 0.4)); }
-    50% { filter: drop-shadow(0 0 10px rgba(0, 255, 0, 0.9)); opacity: 0.7; }
-    100% { filter: drop-shadow(0 0 2px rgba(0, 255, 0, 0.4)); }
+@keyframes midi-white-blink {
+    0% { filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.4)); }
+    50% { filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.8)); opacity: 0.8; }
+    100% { filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.4)); }
 }
 
 #midi-learn-button.active {
-    background-color: #00ff00;
-    color: black;
-    box-shadow: 0 0 15px #00ff00;
+    background-color: #ffffff; /* Button turns white when active */
+    color: #000000;
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
 }
       .preset-display {
         display: block;
@@ -956,4 +958,5 @@ animation: note-retrigger 0.08s ease-out;
   font-size: 10px;
   line-height: 1;
 }
+
 
