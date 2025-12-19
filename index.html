@@ -768,17 +768,18 @@
         </div>
       </div>
 
-      <div id="midi-output-container" class="flex justify-center items-center p-2 space-x-2 mt-10">
-        <select id="midi-output-selector" class="retro-select text-xs" disabled>
-          <option>NO MIDI OUTPUTS</option>
-        </select>
-        <button id="midi-connect-button" class="retro-button text-xs font-bold">CONNECT MIDI</button>
-        <label class="flex items-center space-x-2 text-xs font-bold tracking-wider">
-          <input type="checkbox" id="midi-clock-toggle" class="retro-checkbox">
-          <span>SEND CLOCK</span>
-        </label>
-      </div>
-
+   <div id="midi-output-container" class="flex justify-center items-center p-2 space-x-2 mt-10">
+  <select id="midi-output-selector" class="retro-select text-xs" disabled>
+    <option>NO MIDI OUTPUTS</option>
+  </select>
+  <button id="midi-connect-button" class="retro-button text-xs font-bold">CONNECT MIDI</button>
+  <button id="midi-learn-button" class="retro-button text-xs font-bold disabled" disabled>MIDI LEARN</button>
+  
+  <label class="flex items-center space-x-2 text-xs font-bold tracking-wider">
+    <input type="checkbox" id="midi-clock-toggle" class="retro-checkbox">
+    <span>SEND CLOCK</span>
+  </label>
+</div>
       <div id="soundfont-upload-container" class="flex flex-col items-center p-2 space-y-2 mt-4 text-[10px] sm:text-xs soundfont-locked">
         <div class="font-bold tracking-widest">UPLOAD SOUNDFONT (.SF2)</div>
         <input type="file" id="soundfont-file-input" class="hidden" accept=".sf2">
@@ -851,4 +852,5 @@
     <div class="h-24"></div>
   </body>
 </html>
+
 
