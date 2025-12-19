@@ -1772,7 +1772,6 @@ let liveLfoOutputs = [0, 0, 0, 0];
                         if (started) {
                             breakPlayQueued = false;
                             breakQueueTargetCycle = null;
-                            breakQueueTargetStep = 0;
                         }
                     }
                 }
@@ -2536,17 +2535,15 @@ let liveLfoOutputs = [0, 0, 0, 0];
             }
         }
 
-       function setBreakSampleIndex(index, { progressNormalized = 0, normalizedValue, forceImmediate = false } = {}) {
+function setBreakSampleIndex(index, { progressNormalized = 0, normalizedValue, forceImmediate = false } = {}) {
     const clamped = clamp(index ?? breakSampleIndex, BREAK_SAMPLE_MIN_INDEX, BREAK_SAMPLE_MAX_INDEX);
 
-    // 1. Update Visual Variable first
     if (Number.isFinite(normalizedValue)) {
         breakSelectionNormalized = Math.max(0, Math.min(1, normalizedValue));
     } else {
         breakSelectionNormalized = breakIndexToValue(clamped);
     }
     
-    // 2. Performance Guard
     if (clamped === breakSampleIndex && !forceImmediate) {
         syncBreakSelectionKnob();
         return; 
@@ -2554,21 +2551,14 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
     syncBreakSelectionKnob();
 
-    // 3. Determine if we should Queue
     const tempoSource = getTempoSourceState();
-    
-    // FIX: Check if break is Running OR Requested (this catches the preset load state)
     const isBreakActive = breakRunning || breakPlayRequested || breakPlayQueued;
-    
-    // FIX: Allow queue if Arp is running OR if the Master Clock is running (e.g. during preset swap)
-    // This ensures we don't fall back to "Instant" just because applyPreset stopped the arp for 10ms.
     const isGridActive = (tempoSource && tempoSource.arpRunning) || masterClockRunning;
 
     const shouldQueueChange = (isBreakActive && !forceImmediate && tempoMode === TEMPO_MODE_BPM && tempoSource && isGridActive)
         || (isStepsMode && isBreakActive && !forceImmediate && tempoMode === TEMPO_MODE_BPM);
 
     if (shouldQueueChange) {
-        // --- QUEUED SWITCH (BPM Mode) ---
         pendingBreakIndex = clamped;
         updateBreakSelectionUi(clamped);
         fetchBreakSampleData(clamped);
@@ -2576,32 +2566,26 @@ let liveLfoOutputs = [0, 0, 0, 0];
         const patternLen = 16;
         const sourceStepCounter = tempoSource?.euclideanStepCounter ?? sharedStepCounter;
         const currentCycle = Math.floor(sourceStepCounter / patternLen);
+        const currentStep = sourceStepCounter % patternLen;
 
-        breakQueueTargetCycle = currentCycle + 1;
-        breakQueueTargetStep = 0;
+        // --- THE FIX: Use the existing Anchor Step ---
+        const anchor = breakQueueTargetStep ?? 0;
+        
+        if (currentStep < anchor) {
+            // Target step is later in the CURRENT bar
+            breakQueueTargetCycle = currentCycle;
+        } else {
+            // Target step has passed, wait for NEXT bar
+            breakQueueTargetCycle = currentCycle + 1;
+        }
+        breakQueueTargetStep = anchor; // Keep the anchor consistent
         
     } else {
-        // --- IMMEDIATE SWITCH ---
         breakSampleIndex = clamped;
         updateBreakSelectionUi(clamped);
         pendingBreakIndex = null; 
         breakQueueTargetCycle = null;
-
-        const loadPromise = ensureBreakSampleLoaded(clamped, progressNormalized);
-
-        if (!breakRunning) {
-            const applyPreview = () => {
-                if (!breakRunning && breakSampleIndex === clamped && breakWaveformPeaks?.length) {
-                    drawBreakWaveform(progressNormalized);
-                }
-            };
-
-            if (loadPromise?.then) {
-                loadPromise.then(applyPreview);
-            } else {
-                applyPreview();
-            }
-        }
+        ensureBreakSampleLoaded(clamped, progressNormalized);
     }
 }
         function sendBreakPlaybackRate() {
@@ -2628,21 +2612,22 @@ let liveLfoOutputs = [0, 0, 0, 0];
             }
         }
 
-        function beginBreakPlayback() {
-            breakStartTimeoutId = null;
-            if (!breakPlayRequested || !breakBufferLoaded) return false;
-            breakRunning = true;
-            breakPlaybackRate = getBreakPlaybackRate();
-            breakPlaybackStartTime = audioContext ? audioContext.currentTime : (performance.now() / 1000);
-            breakSlipWindowSeconds = Number.NaN; // Force re-send of current slip window
-            sendBreakSlipWindow();
-            refreshBreakSlipAnchor();
-            synthNode?.port.postMessage({ type: 'startBreakLoop', data: { playbackRate: breakPlaybackRate } });
-            startBreakWaveformAnimation();
-            breakQueueTargetCycle = null;
-            breakQueueTargetStep = 0;
-            return true;
-        }
+function beginBreakPlayback() {
+    breakStartTimeoutId = null;
+    if (!breakPlayRequested || !breakBufferLoaded) return false;
+    breakRunning = true;
+    breakPlaybackRate = getBreakPlaybackRate();
+    breakPlaybackStartTime = audioContext ? audioContext.currentTime : (performance.now() / 1000);
+    breakSlipWindowSeconds = Number.NaN; 
+    sendBreakSlipWindow();
+    refreshBreakSlipAnchor();
+    synthNode?.port.postMessage({ type: 'startBreakLoop', data: { playbackRate: breakPlaybackRate } });
+    startBreakWaveformAnimation();
+
+    // --- THE FIX: Clear the "Wait for Bar" timer, but DO NOT reset the Step Anchor ---
+    breakQueueTargetCycle = null;
+    return true;
+}
 
         function stopBreakPlaybackImmediate() {
             clearBreakStartTimer();
@@ -2673,40 +2658,26 @@ async function toggleBreakPlayback(options = {}) {
         return;
     }
     
-    // If already playing, Stop is immediate
     if (breakPlayRequested) {
         stopBreakPlaybackImmediate();
         stopMasterClockIfIdle();
         return;
     }
 
-    // Queue Start
     breakPlayRequested = true;
     updateBreakPlayUi();
-    breakQueueTargetCycle = null;
-    breakQueueTargetStep = 0;
 
-    // --- BPM MODE (Grid Locked) ---
+    // --- THE FIX: Initialize and capture the Anchor ---
     if (!isFreeTiming) {
         const tempoSource = getTempoSourceState();
         if (tempoSource) {
             const patternLen = 16;
-
-            // Start on the very next step so the first trigger aligns to the
-            // sequencer grid instead of floating somewhere inside the current
-            // step.
             const targetStepCounter = tempoSource.euclideanStepCounter + 1;
             breakQueueTargetCycle = Math.floor(targetStepCounter / patternLen);
-            breakQueueTargetStep = targetStepCounter % patternLen;
-        } else if (isStepsMode) {
-            const delay = getNextStepDelayMs();
-            clearBreakStartTimer();
-            breakStartTimeoutId = setTimeout(async () => {
-                await ensureBreakSampleLoaded();
-                beginBreakPlayback();
-            }, delay);
-            ensureMasterClock();
-            return;
+            breakQueueTargetStep = targetStepCounter % patternLen; // This is your Anchor
+        } else {
+            breakQueueTargetCycle = null;
+            breakQueueTargetStep = 0;
         }
     }
 
@@ -2717,11 +2688,8 @@ async function toggleBreakPlayback(options = {}) {
         return;
     }
 
-    ensureMasterClock(); // Ensure the clock is ticking so it can trigger us!
-
-    // Queue the command
+    ensureMasterClock();
     breakPlayQueued = true;
-
     await ensureBreakSampleLoaded();
 }
 
@@ -7480,6 +7448,12 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
+
+
+
+
+
 
 
 
