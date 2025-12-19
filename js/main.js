@@ -3980,12 +3980,17 @@ function generateComplexRandomLfoState(includeArpTargets = true) {
 async function setupMidiAccess() {
     const inputSelector = document.getElementById('midi-input-selector');
     const outputSelector = document.getElementById('midi-output-selector');
-    if (!inputSelector || !outputSelector) return;
+    const selectorsRow = document.getElementById('midi-selectors-row');
+    if (!inputSelector || !outputSelector || !selectorsRow) return;
 
     try {
         midiAccess = await navigator.requestMIDIAccess({ sysex: true });
         
-        // --- 1. POPULATE INPUTS (RECEIVE) ---
+        // Show the selector rows now that we've initiated a connection
+        selectorsRow.classList.remove('hidden');
+        selectorsRow.classList.add('flex');
+
+        // --- 1. POPULATE INPUTS ---
         inputSelector.innerHTML = '';
         if (midiAccess.inputs.size > 0) {
             midiAccess.inputs.forEach(input => {
@@ -3996,14 +4001,15 @@ async function setupMidiAccess() {
             });
             inputSelector.disabled = false;
             updateMidiInputSelection(inputSelector.value);
-            
             inputSelector.addEventListener('change', () => updateMidiInputSelection(inputSelector.value));
         } else {
             inputSelector.innerHTML = '<option>NO INPUTS FOUND</option>';
             inputSelector.disabled = true;
+            // Ensure Learn is disabled if no inputs found during connect
+            updateMidiLearnButtonState(false);
         }
 
-        // --- 2. POPULATE OUTPUTS (SEND) ---
+        // --- 2. POPULATE OUTPUTS ---
         outputSelector.innerHTML = '';
         if (midiAccess.outputs.size > 0) {
             midiAccess.outputs.forEach(output => {
@@ -4014,7 +4020,6 @@ async function setupMidiAccess() {
             });
             outputSelector.disabled = false;
             selectedMidiOutput = midiAccess.outputs.get(outputSelector.value);
-            
             outputSelector.addEventListener('change', () => {
                 selectedMidiOutput = midiAccess.outputs.get(outputSelector.value);
             });
@@ -4023,28 +4028,35 @@ async function setupMidiAccess() {
             outputSelector.disabled = true;
         }
 
-        // --- 3. UI STATE ---
-        if (midiLearnButton) {
-            midiLearnButton.classList.remove('disabled');
-            midiLearnButton.disabled = false;
-        }
-
     } catch (err) {
-        console.error('MIDI Access Denied', err);
+        console.error('MIDI Access Denied or Failed', err);
     }
 }
 
-// Helper to switch which device we are listening to
-function updateMidiInputSelection(id) {
-    // Stop listening to old input
-    if (selectedMidiInput) {
-        selectedMidiInput.onmidimessage = null;
+// Helper to manage Midi Learn button state
+function updateMidiLearnButtonState(enabled) {
+    if (!midiLearnButton) return;
+    if (enabled) {
+        midiLearnButton.classList.remove('disabled', 'opacity-30');
+        midiLearnButton.disabled = false;
+    } else {
+        midiLearnButton.classList.add('disabled', 'opacity-30');
+        midiLearnButton.disabled = true;
+        // Turn off learn mode if it was active but input was lost
+        if (isMidiLearnActive) toggleMidiLearnMode();
     }
-    // Start listening to new input
+}
+
+function updateMidiInputSelection(id) {
+    if (selectedMidiInput) selectedMidiInput.onmidimessage = null;
+    
     selectedMidiInput = midiAccess.inputs.get(id);
+    
     if (selectedMidiInput) {
         selectedMidiInput.onmidimessage = handleIncomingMidi;
-        console.log(`Receiving MIDI from: ${selectedMidiInput.name}`);
+        updateMidiLearnButtonState(true); // Enable Learn when an input is active
+    } else {
+        updateMidiLearnButtonState(false); // Grey out if no input is selected
     }
 }
 
@@ -7617,6 +7629,7 @@ function sendMidiMessage(message) {
 midiLearnButton.addEventListener('click', toggleMidiLearnMode);
       }
        init();
+
 
 
 
