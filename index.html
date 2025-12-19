@@ -770,23 +770,25 @@
 
 <div id="midi-output-container" class="flex flex-col justify-center items-center p-4 space-y-3 mt-10 border-t border-white/10">
   
-  <div class="flex items-center space-x-2 w-full max-w-sm">
-    <label class="text-[10px] font-bold tracking-tighter w-20 opacity-70">MIDI IN (CC):</label>
-    <select id="midi-input-selector" class="retro-select text-xs flex-grow" disabled>
-      <option>NO INPUTS FOUND</option>
-    </select>
-  </div>
+  <div id="midi-selectors-row" class="hidden flex flex-col space-y-3 w-full items-center">
+      <div class="flex items-center space-x-2 w-full max-w-sm">
+        <label class="text-[10px] font-bold tracking-tighter w-24 opacity-70">MIDI IN:</label>
+        <select id="midi-input-selector" class="retro-select text-xs flex-grow" disabled>
+          <option>NO INPUTS FOUND</option>
+        </select>
+      </div>
 
-  <div class="flex items-center space-x-2 w-full max-w-sm">
-    <label class="text-[10px] font-bold tracking-tighter w-20 opacity-70">MIDI OUT:</label>
-    <select id="midi-output-selector" class="retro-select text-xs flex-grow" disabled>
-      <option>NO OUTPUTS FOUND</option>
-    </select>
+      <div class="flex items-center space-x-2 w-full max-w-sm">
+        <label class="text-[10px] font-bold tracking-tighter w-24 opacity-70">MIDI OUT:</label>
+        <select id="midi-output-selector" class="retro-select text-xs flex-grow" disabled>
+          <option>NO OUTPUTS FOUND</option>
+        </select>
+      </div>
   </div>
 
   <div class="flex justify-center items-center space-x-2">
     <button id="midi-connect-button" class="retro-button text-xs font-bold px-4">CONNECT MIDI</button>
-    <button id="midi-learn-button" class="retro-button text-xs font-bold disabled" disabled>MIDI LEARN</button>
+    <button id="midi-learn-button" class="retro-button text-xs font-bold disabled opacity-30" disabled>MIDI LEARN</button>
     
     <label class="flex items-center space-x-2 text-xs font-bold tracking-wider ml-4">
       <input type="checkbox" id="midi-clock-toggle" class="retro-checkbox">
@@ -866,6 +868,7 @@
     <div class="h-24"></div>
   </body>
 </html>
+
 
 
 
