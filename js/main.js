@@ -967,22 +967,20 @@ function handleIncomingMidi(event) {
 
     if (!isCC && !isNoteOn && !isNoteOff) return;
 
-    // Prefix prevents CC #60 and Note #60 from conflicting
     const midiKey = (isNoteOn || isNoteOff) ? `note_${data1}` : `cc_${data1}`;
     const normalizedVal = isNoteOff ? 0 : data2 / 127;
 
     if (isMidiLearnActive && currentlyLearningTarget) {
-        // --- LEARN MODE ---
+        // Tag as 'trigger' for Notes/Pads, 'value' for Knobs/Faders
         midiAssignments[midiKey] = { 
             ...currentlyLearningTarget, 
-            mode: (isNoteOn || isNoteOff) ? 'trigger' : 'value' // Note = Trigger, CC = Value
+            mode: (isNoteOn || isNoteOff) ? 'trigger' : 'value' 
         };
         
         localStorage.setItem('midiAssignments', JSON.stringify(midiAssignments));
         document.querySelector('.learning-focus')?.classList.remove('blinking-midi-learn', 'learning-focus');
         currentlyLearningTarget = null;
     } else {
-        // --- CONTROL MODE ---
         const assignment = midiAssignments[midiKey];
         if (assignment) {
             applyMidiControl(assignment, normalizedVal);
@@ -1022,45 +1020,23 @@ function stopOscillatorTrigger(oscId) {
     });
 }
 function applyMidiControl(target, val) {
-    // --- MODE 1: TRIGGER (Buttons/Pads) ---
-    // If target.mode is 'trigger', we ignore 'val' except to check if it's > 0 (Press)
     if (target.mode === 'trigger') {
-        if (val > 0) {
-            playOscillatorTrigger(target.id); 
-        } else {
-            stopOscillatorTrigger(target.id);
-        }
-        return; // Exit so we don't try to move the knob with a button press
+        // This ignores the MIDI key number and plays the Pitch of the Knob
+        if (val > 0) playOscillatorTrigger(target.id); 
+        else stopOscillatorTrigger(target.id);
+        return; 
     }
 
-    // --- MODE 2: VALUE (Faders/Hardware Knobs) ---
     switch (target.type) {
-        case 'fx': 
-            setFxValue(target.id, val); 
-            break;
-
+        case 'fx': setFxValue(target.id, val); break;
         case 'main': 
-            // This is the CC mapping that makes the knob spin visually
             knobState[target.id].totalAngle = val * MAX_TOTAL_ANGLE;
             updateStateFromTotalAngle(target.id);
             break;
-
-        case 'seqStep': 
-            setStepValue(target.seqIdx, target.stepIdx, val * 8); 
-            break;
-
-        case 'seqLen': 
-            const len = val * (STEP_MAX_LENGTH - STEP_MIN_LENGTH) + STEP_MIN_LENGTH;
-            setSequenceLength(target.seqIdx, len); 
-            break;
-
-        case 'chainTrans': 
-            setChainSlotTransposition(target.seqIdx, target.slotIdx, (val * 24) - 12); 
-            break;
-
-        case 'chainLoops': 
-            setChainSlotLoops(target.seqIdx, target.slotIdx, val * CHAIN_MAX_LOOPS); 
-            break;
+        case 'seqStep': setStepValue(target.seqIdx, target.stepIdx, val * 8); break;
+        case 'seqLen': setSequenceLength(target.seqIdx, val * (STEP_MAX_LENGTH - STEP_MIN_LENGTH) + STEP_MIN_LENGTH); break;
+        case 'chainTrans': setChainSlotTransposition(target.seqIdx, target.slotIdx, (val * 24) - 12); break;
+        case 'chainLoops': setChainSlotLoops(target.seqIdx, target.slotIdx, val * CHAIN_MAX_LOOPS); break;
     }
 }
         function stepSequenceTick(seqIndex) {
@@ -7696,6 +7672,7 @@ function sendMidiMessage(message) {
 midiLearnButton.addEventListener('click', toggleMidiLearnMode);
       }
        init();
+
 
 
 
