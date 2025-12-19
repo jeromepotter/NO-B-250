@@ -249,12 +249,14 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
       }
 
       .step-length-control,
-      .step-octave-control {
+      .step-base-control,
+      .step-range-control {
         gap: 0.25rem;
       }
 
       .step-length-knob,
-      .step-octave-knob {
+      .step-base-knob,
+      .step-range-knob {
         width: 36px;
         height: 36px;
         border-radius: 9999px;
@@ -266,7 +268,8 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
       }
 
       .step-length-indicator,
-      .step-octave-indicator {
+      .step-base-indicator,
+      .step-range-indicator {
         position: absolute;
         width: 4px;
         height: 11px;
@@ -279,13 +282,15 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
       }
 
       .step-length-label,
-      .step-octave-label {
+      .step-base-label,
+      .step-range-label {
         text-align: center;
         letter-spacing: 0.18em;
       }
 
       .step-length-value,
-      .step-octave-value {
+      .step-base-value,
+      .step-range-value {
         letter-spacing: 0.12em;
       }
 
