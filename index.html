@@ -768,17 +768,31 @@
         </div>
       </div>
 
-<div id="midi-output-container" class="flex justify-center items-center p-2 space-x-2 mt-10">
-  <select id="midi-output-selector" class="retro-select text-xs" disabled>
-    <option>NO MIDI OUTPUTS</option>
-  </select>
-  <button id="midi-connect-button" class="retro-button text-xs font-bold">CONNECT MIDI</button>
-  <button id="midi-learn-button" class="retro-button text-xs font-bold disabled" disabled>MIDI LEARN</button>
+<div id="midi-output-container" class="flex flex-col justify-center items-center p-4 space-y-3 mt-10 border-t border-white/10">
   
-  <label class="flex items-center space-x-2 text-xs font-bold tracking-wider">
-    <input type="checkbox" id="midi-clock-toggle" class="retro-checkbox">
-    <span>SEND CLOCK</span>
-  </label>
+  <div class="flex items-center space-x-2 w-full max-w-sm">
+    <label class="text-[10px] font-bold tracking-tighter w-20 opacity-70">MIDI IN (CTRL):</label>
+    <select id="midi-input-selector" class="retro-select text-xs flex-grow" disabled>
+      <option>NO INPUTS FOUND</option>
+    </select>
+  </div>
+
+  <div class="flex items-center space-x-2 w-full max-w-sm">
+    <label class="text-[10px] font-bold tracking-tighter w-20 opacity-70">MIDI OUT (NOTES):</label>
+    <select id="midi-output-selector" class="retro-select text-xs flex-grow" disabled>
+      <option>NO OUTPUTS FOUND</option>
+    </select>
+  </div>
+
+  <div class="flex justify-center items-center space-x-2">
+    <button id="midi-connect-button" class="retro-button text-xs font-bold px-4">CONNECT MIDI</button>
+    <button id="midi-learn-button" class="retro-button text-xs font-bold disabled" disabled>MIDI LEARN</button>
+    
+    <label class="flex items-center space-x-2 text-xs font-bold tracking-wider ml-4">
+      <input type="checkbox" id="midi-clock-toggle" class="retro-checkbox">
+      <span>SEND CLOCK</span>
+    </label>
+  </div>
 </div>
       <div id="soundfont-upload-container" class="flex flex-col items-center p-2 space-y-2 mt-4 text-[10px] sm:text-xs soundfont-locked">
         <div class="font-bold tracking-widest">UPLOAD SOUNDFONT (.SF2)</div>
@@ -852,6 +866,7 @@
     <div class="h-24"></div>
   </body>
 </html>
+
 
 
 
