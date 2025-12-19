@@ -155,10 +155,13 @@ let liveLfoOutputs = [0, 0, 0, 0];
         const stepRandomBaseOctaves = [2, 4];
         const STEP_MIN_LENGTH = 1;
         const STEP_MAX_LENGTH = 16;
+        const STEP_MIN_OCTAVE_SPAN = 1;
+        const STEP_MAX_OCTAVE_SPAN = 8;
         const STEP_LENGTH_MIN_ANGLE = -135;
         const STEP_LENGTH_MAX_ANGLE = 135;
         const STEP_LENGTH_ANGLE_RANGE = STEP_LENGTH_MAX_ANGLE - STEP_LENGTH_MIN_ANGLE;
         const STEP_LENGTH_KNOB_SENSITIVITY = 1.5;
+        const STEP_OCTAVE_KNOB_SENSITIVITY = 1.5;
         const CHAIN_SLOT_COUNT = 8;
         const CHAIN_MIN_TRANSPOSE = -12;
         const CHAIN_MAX_TRANSPOSE = 12;
@@ -191,8 +194,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
         }
 
         const stepSequences = [
-            { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[0] })), knobEls: [], noteDisplay: null, length: STEP_MAX_LENGTH, lengthDialValue: STEP_MAX_LENGTH, lengthKnob: null, lengthValueEl: null, chainSlots: createDefaultChainSlots(), chainSlotEls: [], chainBarCounter: 0, currentChainSlot: 0, chainEnabled: false, chainSwitch: null, chainGrid: null, chainSection: null },
-            { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[1] })), knobEls: [], noteDisplay: null, length: STEP_MAX_LENGTH, lengthDialValue: STEP_MAX_LENGTH, lengthKnob: null, lengthValueEl: null, chainSlots: createDefaultChainSlots(), chainSlotEls: [], chainBarCounter: 0, currentChainSlot: 0, chainEnabled: false, chainSwitch: null, chainGrid: null, chainSection: null },
+            { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[0] })), knobEls: [], noteDisplay: null, length: STEP_MAX_LENGTH, lengthDialValue: STEP_MAX_LENGTH, octaveSpan: STEP_MAX_OCTAVE_SPAN, octaveDialValue: STEP_MAX_OCTAVE_SPAN, lengthKnob: null, lengthValueEl: null, octaveKnob: null, octaveValueEl: null, chainSlots: createDefaultChainSlots(), chainSlotEls: [], chainBarCounter: 0, currentChainSlot: 0, chainEnabled: false, chainSwitch: null, chainGrid: null, chainSection: null },
+            { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[1] })), knobEls: [], noteDisplay: null, length: STEP_MAX_LENGTH, lengthDialValue: STEP_MAX_LENGTH, octaveSpan: STEP_MAX_OCTAVE_SPAN, octaveDialValue: STEP_MAX_OCTAVE_SPAN, lengthKnob: null, lengthValueEl: null, octaveKnob: null, octaveValueEl: null, chainSlots: createDefaultChainSlots(), chainSlotEls: [], chainBarCounter: 0, currentChainSlot: 0, chainEnabled: false, chainSwitch: null, chainGrid: null, chainSection: null },
         ];
         let sharedStepCounter = 0;
         let sharedStepNextTickTime = null;
@@ -257,7 +260,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
         }
 
         function getStepMidiNote(seqIndex, value) {
-            const angle = Math.max(0, Math.min(8, value)) * 360;
+            const angle = clampStepValue(seqIndex, value) * 360;
             const baseNote = getMidiNoteFromAngle(seqIndex, angle);
             return applySmartTranspose(seqIndex, baseNote);
         }
@@ -270,12 +273,16 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const indicator = knobEl.querySelector('.step-indicator');
 
             knobEl.classList.toggle('inactive', !step.active);
-            knobEl.dataset.value = step.value.toFixed(2);
+            const clampedValue = clampStepValue(seqIndex, step.value);
+            if (clampedValue !== step.value) {
+                step.value = clampedValue;
+            }
+            knobEl.dataset.value = clampedValue.toFixed(2);
             if (indicator) {
-                const rotation = step.value * 360;
+                const rotation = clampedValue * 360;
                 indicator.style.transform = `translate(-50%, 0) rotate(${rotation}deg)`;
             }
-            const midiNote = getStepMidiNote(seqIndex, step.value);
+            const midiNote = getStepMidiNote(seqIndex, clampedValue);
             const color = getArpNoteColor(midiNote);
             knobEl.style.backgroundColor = `rgb(${color.r}, ${color.g}, ${color.b})`;
         }
@@ -302,6 +309,16 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const sequence = stepSequences[seqIndex];
             if (!sequence) return STEP_MAX_LENGTH;
             const clamped = Math.max(STEP_MIN_LENGTH, Math.min(STEP_MAX_LENGTH, sequence.length ?? STEP_MAX_LENGTH));
+            return clamped;
+        }
+
+        function getSequenceOctaveSpan(seqIndex) {
+            const sequence = stepSequences[seqIndex];
+            if (!sequence) return STEP_MAX_OCTAVE_SPAN;
+            const clamped = Math.max(
+                STEP_MIN_OCTAVE_SPAN,
+                Math.min(STEP_MAX_OCTAVE_SPAN, sequence.octaveSpan ?? STEP_MAX_OCTAVE_SPAN),
+            );
             return clamped;
         }
 
@@ -342,6 +359,58 @@ let liveLfoOutputs = [0, 0, 0, 0];
             }
         }
 
+        function octaveSpanToAngle(value) {
+            const normalized = (Math.max(STEP_MIN_OCTAVE_SPAN, Math.min(STEP_MAX_OCTAVE_SPAN, value)) - STEP_MIN_OCTAVE_SPAN)
+                / (STEP_MAX_OCTAVE_SPAN - STEP_MIN_OCTAVE_SPAN);
+            return STEP_LENGTH_MIN_ANGLE + normalized * STEP_LENGTH_ANGLE_RANGE;
+        }
+
+        function angleToOctaveSpan(angle) {
+            const clampedAngle = Math.max(STEP_LENGTH_MIN_ANGLE, Math.min(STEP_LENGTH_MAX_ANGLE, angle));
+            const normalized = (clampedAngle - STEP_LENGTH_MIN_ANGLE) / STEP_LENGTH_ANGLE_RANGE;
+            return STEP_MIN_OCTAVE_SPAN + normalized * (STEP_MAX_OCTAVE_SPAN - STEP_MIN_OCTAVE_SPAN);
+        }
+
+        function updateStepOctaveVisuals(seqIndex) {
+            const sequence = stepSequences[seqIndex];
+            if (!sequence) return;
+            const octaveSpan = getSequenceOctaveSpan(seqIndex);
+            const dialValue = Math.max(
+                STEP_MIN_OCTAVE_SPAN,
+                Math.min(STEP_MAX_OCTAVE_SPAN, sequence.octaveDialValue ?? octaveSpan),
+            );
+
+            if (sequence.octaveKnob) {
+                sequence.octaveKnob.setAttribute('aria-valuenow', String(octaveSpan));
+                const indicator = sequence.octaveKnob.querySelector('.step-octave-indicator');
+                if (indicator) {
+                    const rotation = octaveSpanToAngle(dialValue);
+                    indicator.style.transform = `translate(-50%, 0) rotate(${rotation}deg)`;
+                }
+            }
+
+            if (sequence.octaveValueEl) {
+                sequence.octaveValueEl.textContent = octaveSpan;
+            }
+        }
+
+        function clampStepValue(seqIndex, value) {
+            const maxSpan = getSequenceOctaveSpan(seqIndex);
+            return Math.max(0, Math.min(maxSpan, value));
+        }
+
+        function clampSequenceStepsToOctaveSpan(seqIndex) {
+            const sequence = stepSequences[seqIndex];
+            if (!sequence) return;
+            sequence.steps.forEach((step, idx) => {
+                const clampedValue = clampStepValue(seqIndex, step.value);
+                if (clampedValue !== step.value) {
+                    step.value = clampedValue;
+                    updateStepKnobVisual(seqIndex, idx);
+                }
+            });
+        }
+
         function setSequenceLength(seqIndex, length) {
             const sequence = stepSequences[seqIndex];
             if (!sequence) return;
@@ -355,8 +424,29 @@ let liveLfoOutputs = [0, 0, 0, 0];
             }
         }
 
+        function setSequenceOctaveSpan(seqIndex, span) {
+            const sequence = stepSequences[seqIndex];
+            if (!sequence) return;
+            const prevSpan = getSequenceOctaveSpan(seqIndex);
+            const clampedDial = Math.max(STEP_MIN_OCTAVE_SPAN, Math.min(STEP_MAX_OCTAVE_SPAN, span));
+            sequence.octaveDialValue = clampedDial;
+            sequence.octaveSpan = Math.round(clampedDial);
+            clampSequenceStepsToOctaveSpan(seqIndex);
+            updateStepOctaveVisuals(seqIndex);
+            if (sequence.octaveSpan !== prevSpan) {
+                refreshSequenceStepColors(seqIndex);
+            }
+            const firstActiveStep = sequence.steps.find((step, idx) => step.active && idx < getSequenceLength(seqIndex));
+            if (firstActiveStep) {
+                const midiNote = getStepMidiNote(seqIndex, firstActiveStep.value);
+                updateStepNoteDisplay(seqIndex, midiToNoteName(midiNote));
+            } else {
+                updateStepNoteDisplay(seqIndex, '--');
+            }
+        }
+
         function setStepValue(seqIndex, stepIndex, value) {
-            const clamped = Math.max(0, Math.min(8, value));
+            const clamped = clampStepValue(seqIndex, value);
             stepSequences[seqIndex].steps[stepIndex].value = clamped;
             updateStepKnobVisual(seqIndex, stepIndex);
         }
@@ -377,7 +467,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 const baseOctave = stepRandomBaseOctaves[seqIndex] ?? defaultStepOctaves[seqIndex] ?? 0;
                 sequence.steps.forEach((step, idx) => {
                     step.active = false;
-                    step.value = baseOctave + Math.random();
+                    step.value = clampStepValue(seqIndex, baseOctave + Math.random());
                     updateStepKnobVisual(seqIndex, idx);
                 });
                 updateStepNoteDisplay(seqIndex, '--');
@@ -402,6 +492,13 @@ let liveLfoOutputs = [0, 0, 0, 0];
                     updateStepLengthVisuals(seqIndex);
                 }
 
+                const presetOctaveSpan = presetSeq.octaveSpan ?? presetSeq.octs ?? presetSeq.octaves;
+                if (presetOctaveSpan !== undefined) {
+                    setSequenceOctaveSpan(seqIndex, presetOctaveSpan);
+                } else {
+                    updateStepOctaveVisuals(seqIndex);
+                }
+
                 if (!Array.isArray(presetSeq.steps)) return;
 
                 presetSeq.steps.forEach((presetStep, stepIndex) => {
@@ -410,8 +507,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
                     if (presetStep.value !== undefined) {
                         const parsedValue = parseFloat(presetStep.value);
-                        const clampedValue = Math.max(0, Math.min(8, Number.isFinite(parsedValue) ? parsedValue : targetStep.value));
-                        targetStep.value = clampedValue;
+                        const safeValue = Number.isFinite(parsedValue) ? parsedValue : targetStep.value;
+                        targetStep.value = clampStepValue(seqIndex, safeValue);
                     }
 
                     if (presetStep.active !== undefined) {
@@ -918,7 +1015,7 @@ function toggleMidiLearnMode() {
     currentlyLearningTarget = null;
 
     // Target ALL knobs: FX, Main Oscillators, Seq Steps, Seq Lengths, and Chains
-    const allKnobs = document.querySelectorAll('.fx-knob-container, .main-knob, .step-knob, .step-length-knob, .chain-knob');
+    const allKnobs = document.querySelectorAll('.fx-knob-container, .main-knob, .step-knob, .step-length-knob, .step-octave-knob, .chain-knob');
 
     allKnobs.forEach(knob => {
         if (isMidiLearnActive) {
@@ -937,6 +1034,7 @@ function getTargetFromEl(el) {
     if (el.classList.contains('main-knob')) return { type: 'main', id: parseInt(el.dataset.knobId) };
     if (el.classList.contains('step-knob')) return { type: 'seqStep', seqIdx: parseInt(el.dataset.seqIdx), stepIdx: parseInt(el.dataset.stepIdx) };
     if (el.classList.contains('step-length-knob')) return { type: 'seqLen', seqIdx: parseInt(el.dataset.sequenceLengthKnob) };
+    if (el.classList.contains('step-octave-knob')) return { type: 'seqOcts', seqIdx: parseInt(el.dataset.sequenceOctavesKnob) };
     if (el.dataset.type === 'chainTrans') return { type: 'chainTrans', seqIdx: parseInt(el.dataset.seqIdx), slotIdx: parseInt(el.dataset.slotIdx) };
     if (el.dataset.type === 'chainLoops') return { type: 'chainLoops', seqIdx: parseInt(el.dataset.seqIdx), slotIdx: parseInt(el.dataset.slotIdx) };
     return null;
@@ -1071,8 +1169,9 @@ function applyMidiControl(target, val) {
         case 'fx': 
             setFxValue(target.id, val); 
             break;
-        case 'seqStep': setStepValue(target.seqIdx, target.stepIdx, val * 8); break;
+        case 'seqStep': setStepValue(target.seqIdx, target.stepIdx, val * getSequenceOctaveSpan(target.seqIdx)); break;
         case 'seqLen': setSequenceLength(target.seqIdx, val * (STEP_MAX_LENGTH - STEP_MIN_LENGTH) + STEP_MIN_LENGTH); break;
+        case 'seqOcts': setSequenceOctaveSpan(target.seqIdx, val * (STEP_MAX_OCTAVE_SPAN - STEP_MIN_OCTAVE_SPAN) + STEP_MIN_OCTAVE_SPAN); break;
         case 'chainTrans': setChainSlotTransposition(target.seqIdx, target.slotIdx, (val * 24) - 12); break;
         case 'chainLoops': setChainSlotLoops(target.seqIdx, target.slotIdx, val * CHAIN_MAX_LOOPS); break;
     }
@@ -1188,6 +1287,66 @@ function applyMidiControl(target, val) {
             });
         }
 
+        function attachStepOctaveHandlers(knobEl, seqIndex) {
+            let activePointerId = null;
+            let lastY = 0;
+
+            const onPointerMove = (event) => {
+                if (event.pointerId !== activePointerId) return;
+                event.preventDefault();
+                const deltaAngle = (lastY - event.clientY) * STEP_OCTAVE_KNOB_SENSITIVITY;
+                lastY = event.clientY;
+                const sequence = stepSequences[seqIndex];
+                const currentDial = sequence?.octaveDialValue ?? getSequenceOctaveSpan(seqIndex);
+                const currentAngle = octaveSpanToAngle(currentDial);
+                const nextAngle = Math.max(STEP_LENGTH_MIN_ANGLE, Math.min(STEP_LENGTH_MAX_ANGLE, currentAngle + deltaAngle));
+                const nextValue = angleToOctaveSpan(nextAngle);
+                setSequenceOctaveSpan(seqIndex, nextValue);
+            };
+
+            const release = (event) => {
+                if (event.pointerId !== activePointerId) return;
+                knobEl.releasePointerCapture(event.pointerId);
+                document.removeEventListener('pointermove', onPointerMove);
+                document.removeEventListener('pointerup', release);
+                activePointerId = null;
+            };
+
+            knobEl.addEventListener('pointerdown', (event) => {
+                event.preventDefault();
+                activePointerId = event.pointerId;
+                lastY = event.clientY;
+                knobEl.setPointerCapture(event.pointerId);
+                document.addEventListener('pointermove', onPointerMove);
+                document.addEventListener('pointerup', release);
+            });
+
+            knobEl.addEventListener('wheel', (event) => {
+                event.preventDefault();
+                const direction = event.deltaY < 0 ? 0.25 : -0.25;
+                const sequence = stepSequences[seqIndex];
+                const currentDial = sequence?.octaveDialValue ?? getSequenceOctaveSpan(seqIndex);
+                setSequenceOctaveSpan(seqIndex, currentDial + direction);
+            });
+
+            knobEl.addEventListener('keydown', (event) => {
+                if (['ArrowUp', 'ArrowRight', 'ArrowDown', 'ArrowLeft', 'Home', 'End'].includes(event.key)) {
+                    event.preventDefault();
+                    const current = getSequenceOctaveSpan(seqIndex);
+                    const delta = event.key === 'ArrowUp' || event.key === 'ArrowRight' ? 0.25
+                        : event.key === 'ArrowDown' || event.key === 'ArrowLeft' ? -0.25
+                        : 0;
+                    if (event.key === 'Home') {
+                        setSequenceOctaveSpan(seqIndex, STEP_MIN_OCTAVE_SPAN);
+                    } else if (event.key === 'End') {
+                        setSequenceOctaveSpan(seqIndex, STEP_MAX_OCTAVE_SPAN);
+                    } else {
+                        setSequenceOctaveSpan(seqIndex, current + delta);
+                    }
+                }
+            });
+        }
+
         function attachStepKnobHandlers(knobEl, seqIndex, stepIndex) {
             let startY = 0;
             let startValue = 0;
@@ -1274,14 +1433,20 @@ function applyMidiControl(target, val) {
             sequence.knobEls.push(knob);
             updateStepKnobVisual(seqIndex, stepIndex);
         }
-    });
+    }); 
     sequence.noteDisplay = document.querySelector(`.step-sequencer[data-sequence-index="${seqIndex}"] .step-note-display`);
     sequence.lengthKnob = document.querySelector(`[data-sequence-length-knob="${seqIndex}"]`);
     sequence.lengthValueEl = document.querySelector(`[data-sequence-length="${seqIndex}"] .step-length-value`);
+    sequence.octaveKnob = document.querySelector(`[data-sequence-octaves-knob="${seqIndex}"]`);
+    sequence.octaveValueEl = document.querySelector(`[data-sequence-octaves="${seqIndex}"] .step-octave-value`);
     if (sequence.lengthKnob) {
         attachStepLengthHandlers(sequence.lengthKnob, seqIndex);
     }
+    if (sequence.octaveKnob) {
+        attachStepOctaveHandlers(sequence.octaveKnob, seqIndex);
+    }
     updateStepLengthVisuals(seqIndex);
+    updateStepOctaveVisuals(seqIndex);
 }
 
         function setStepStartButtonLabel(text) {
@@ -3530,6 +3695,7 @@ function generateComplexRandomLfoState(includeArpTargets = true) {
                isStepsMode: isStepsMode,
                 stepSequences: stepSequences.map((seq, idx) => ({
                     length: getSequenceLength(idx),
+                    octaveSpan: getSequenceOctaveSpan(idx),
                     steps: seq.steps.map(step => ({
                         active: !!step.active,
                         value: trim(step.value ?? 0),
