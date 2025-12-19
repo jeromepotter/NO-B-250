@@ -1033,7 +1033,8 @@ function stopOscillatorTrigger(oscId) {
 
     const knobEl = document.querySelector(`[data-knob-id="${oscId}"]`);
     if (knobEl) knobEl.classList.remove('active-trigger');
-}ion applyMidiControl(target, val) {
+}
+function applyMidiControl(target, val) {
     // TRIGGER MODE (Notes/Pads)
     if (target.mode === 'trigger') {
         const oscId = target.id;
@@ -7709,6 +7710,7 @@ function sendMidiMessage(message) {
 midiLearnButton.addEventListener('click', toggleMidiLearnMode);
       }
        init();
+
 
 
 
