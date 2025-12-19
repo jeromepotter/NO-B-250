@@ -967,24 +967,22 @@ function handleIncomingMidi(event) {
 
     if (!isCC && !isNoteOn && !isNoteOff) return;
 
-    // Use specific prefixes so CC 60 and Note 60 can both exist
+    // Prefix prevents CC #60 and Note #60 from conflicting
     const midiKey = (isNoteOn || isNoteOff) ? `note_${data1}` : `cc_${data1}`;
     const normalizedVal = isNoteOff ? 0 : data2 / 127;
 
     if (isMidiLearnActive && currentlyLearningTarget) {
-        // Store the assignment with a 'mode' so we know how to use it later
+        // --- LEARN MODE ---
         midiAssignments[midiKey] = { 
             ...currentlyLearningTarget, 
-            mode: (isNoteOn || isNoteOff) ? 'trigger' : 'value' 
+            mode: (isNoteOn || isNoteOff) ? 'trigger' : 'value' // Note = Trigger, CC = Value
         };
         
         localStorage.setItem('midiAssignments', JSON.stringify(midiAssignments));
-        
-        // Visual feedback
-        const focusEl = document.querySelector('.learning-focus');
-        focusEl?.classList.remove('blinking-midi-learn', 'learning-focus');
+        document.querySelector('.learning-focus')?.classList.remove('blinking-midi-learn', 'learning-focus');
         currentlyLearningTarget = null;
     } else {
+        // --- CONTROL MODE ---
         const assignment = midiAssignments[midiKey];
         if (assignment) {
             applyMidiControl(assignment, normalizedVal);
@@ -996,7 +994,8 @@ function playOscillatorTrigger(oscId) {
     const knob = knobState[oscId];
     if (!knob) return;
 
-    // This specifically grabs the note the knob is CURRENTLY showing (e.g., "Eb3")
+    // IMPORTANT: This ignores the MIDI note from your controller 
+    // and gets the note name from the ON-SCREEN knob angle.
     const currentNoteName = getNoteNameFromAngle(oscId, knob.totalAngle);
     
     synthNode.port.postMessage({
@@ -1004,18 +1003,15 @@ function playOscillatorTrigger(oscId) {
         note: currentNoteName,
         oscTarget: oscId,
         velocity: 1.0,
-        source: 'midi-trigger'
+        source: 'midi-trigger' // Labelled so it doesn't fight the arpeggiator
     });
     
-    // Updates the digital readout on the synth for visual confirmation
     updateNoteDisplay(oscId, currentNoteName);
 }
 
 function stopOscillatorTrigger(oscId) {
     if (!synthNode) return;
     const knob = knobState[oscId];
-    if (!knob) return;
-
     const currentNoteName = getNoteNameFromAngle(oscId, knob.totalAngle);
 
     synthNode.port.postMessage({
@@ -1026,24 +1022,25 @@ function stopOscillatorTrigger(oscId) {
     });
 }
 function applyMidiControl(target, val) {
-    // 1. TRIGGER MODE: Handle MIDI Notes or Pads (Play/Stop sound)
+    // --- MODE 1: TRIGGER (Buttons/Pads) ---
+    // If target.mode is 'trigger', we ignore 'val' except to check if it's > 0 (Press)
     if (target.mode === 'trigger') {
         if (val > 0) {
             playOscillatorTrigger(target.id); 
         } else {
             stopOscillatorTrigger(target.id);
         }
-        return; // Exit so we don't move the knob visually with a button press
+        return; // Exit so we don't try to move the knob with a button press
     }
 
-    // 2. VALUE MODE: Handle Faders/Knobs (Continuous control)
+    // --- MODE 2: VALUE (Faders/Hardware Knobs) ---
     switch (target.type) {
         case 'fx': 
             setFxValue(target.id, val); 
             break;
 
         case 'main': 
-            // This makes the big on-screen knob spin
+            // This is the CC mapping that makes the knob spin visually
             knobState[target.id].totalAngle = val * MAX_TOTAL_ANGLE;
             updateStateFromTotalAngle(target.id);
             break;
@@ -7699,6 +7696,7 @@ function sendMidiMessage(message) {
 midiLearnButton.addEventListener('click', toggleMidiLearnMode);
       }
        init();
+
 
 
 
