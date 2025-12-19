@@ -508,30 +508,21 @@ let liveLfoOutputs = [0, 0, 0, 0];
             updateChainPlayingState(seqIndex);
         }
 
-       function updateChainPlayingState(seqIndex) {
-    const sequence = stepSequences[seqIndex];
-    if (!sequence?.chainSlots?.length) return;
-    const chainEnabled = isChainModeEnabled(seqIndex);
-
-    sequence.chainSlots.forEach((slot, idx) => {
-        const slotEl = slot.slotEl || sequence.chainSlotEls[idx];
-        const isActive = !!slot.active && (slot.loops ?? 0) > 0;
-
-        // NEW: Calculate if this slot is "locked" because the previous slot is inactive
-        const isLocked = idx > 0 && !sequence.chainSlots[idx - 1].active;
-
-        if (slotEl) {
-            slotEl.classList.toggle('active', isActive);
-            slotEl.classList.toggle('playing', chainEnabled && idx === sequence.currentChainSlot && isActive);
-            
-            // Apply a CSS class to grey out non-subsequent chains
-            slotEl.classList.toggle('chain-locked', isLocked); 
+        function updateChainPlayingState(seqIndex) {
+            const sequence = stepSequences[seqIndex];
+            if (!sequence?.chainSlots?.length) return;
+            const chainEnabled = isChainModeEnabled(seqIndex);
+            sequence.chainSlots.forEach((slot, idx) => {
+                const slotEl = slot.slotEl || sequence.chainSlotEls[idx];
+                const isActive = !!slot.active && (slot.loops ?? 0) > 0;
+                if (slotEl) {
+                    slotEl.classList.toggle('active', isActive);
+                    slotEl.classList.toggle('playing', chainEnabled && idx === sequence.currentChainSlot && isActive);
+                }
+            });
+            syncChainEnabledVisuals(seqIndex);
+            refreshSequenceStepColors(seqIndex);
         }
-    });
-
-    syncChainEnabledVisuals(seqIndex);
-    refreshSequenceStepColors(seqIndex);
-}
 
         function updateChainSlotVisual(seqIndex, slotIndex) {
             const sequence = stepSequences[seqIndex];
@@ -646,34 +637,27 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 document.removeEventListener('pointerup', release);
             };
 
-           knobEl.addEventListener('pointerdown', (event) => {
-    event.preventDefault();
-    const sequence = stepSequences[seqIndex];
-    const slot = sequence?.chainSlots?.[slotIndex];
-    if (!slot) return;
+            knobEl.addEventListener('pointerdown', (event) => {
+                event.preventDefault();
+                const sequence = stepSequences[seqIndex];
+                const slot = sequence?.chainSlots?.[slotIndex];
+                if (!slot) return;
+                startY = event.clientY;
+                startValue = isTransKnob ? (slot.trans ?? 0) : (slot.loops ?? (slotIndex === 0 ? 1 : 0));
+                knobEl.setPointerCapture(event.pointerId);
 
-    // --- NEW: DEPENDENCY CHECK ---
-    // If the slot is currently inactive, only allow activation if it's the 
-    // first slot OR the previous slot is active.
-    if (!slot.active && slotIndex > 0 && !sequence.chainSlots[slotIndex - 1].active) {
-        return; // Block interaction entirely for non-subsequent steps
-    }
+                if (!slot.active) {
+                    slot.active = true;
+                    if (!isTransKnob && slot.loops === 0 && slotIndex !== 0) {
+                        slot.loops = 1;
+                    }
+                    updateChainSlotVisual(seqIndex, slotIndex);
+                }
 
-    startY = event.clientY;
-    startValue = isTransKnob ? (slot.trans ?? 0) : (slot.loops ?? (slotIndex === 0 ? 1 : 0));
-    knobEl.setPointerCapture(event.pointerId);
-
-    if (!slot.active) {
-        slot.active = true;
-        if (!isTransKnob && slot.loops === 0 && slotIndex !== 0) {
-            slot.loops = 1;
+                document.addEventListener('pointermove', onPointerMove);
+                document.addEventListener('pointerup', release);
+            });
         }
-        updateChainSlotVisual(seqIndex, slotIndex);
-    }
-
-    document.addEventListener('pointermove', onPointerMove);
-    document.addEventListener('pointerup', release);
-});
 
         function buildChainSequencer(seqIndex) {
             const container = document.querySelector(`[data-chain-grid="${seqIndex}"]`);
@@ -7464,7 +7448,6 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
-
 
 
 
