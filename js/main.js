@@ -323,11 +323,12 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
         function getSequenceRange(seqIndex) {
             const sequence = stepSequences[seqIndex];
+            const base = getSequenceBaseOctave(seqIndex);
             if (!sequence) return STEP_MAX_RANGE;
-            const maxRangeForBase = STEP_MAX_BASE_OCTAVE - getSequenceBaseOctave(seqIndex) + 1;
+            const maxRangeForBase = Math.max(STEP_MIN_RANGE, Math.min(STEP_MAX_RANGE, STEP_MAX_BASE_OCTAVE + 1 - base));
             const clampedRange = Math.max(
                 STEP_MIN_RANGE,
-                Math.min(Math.min(STEP_MAX_RANGE, maxRangeForBase), sequence.rangeSpan ?? STEP_MAX_RANGE),
+                Math.min(maxRangeForBase, sequence.rangeSpan ?? STEP_MAX_RANGE),
             );
             return clampedRange;
         }
@@ -376,7 +377,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
         }
 
         function rangeToAngle(value, seqIndex) {
-            const maxRangeForBase = STEP_MAX_BASE_OCTAVE - getSequenceBaseOctave(seqIndex) + 1;
+            const base = getSequenceBaseOctave(seqIndex);
+            const maxRangeForBase = Math.max(STEP_MIN_RANGE, Math.min(STEP_MAX_RANGE, STEP_MAX_BASE_OCTAVE + 1 - base));
             const clampedMax = Math.max(STEP_MIN_RANGE, Math.min(STEP_MAX_RANGE, maxRangeForBase));
             const normalized = (Math.max(STEP_MIN_RANGE, Math.min(clampedMax, value)) - STEP_MIN_RANGE)
                 / (clampedMax - STEP_MIN_RANGE || 1);
@@ -392,7 +394,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
         function angleToRange(angle, seqIndex) {
             const clampedAngle = Math.max(STEP_LENGTH_MIN_ANGLE, Math.min(STEP_LENGTH_MAX_ANGLE, angle));
             const normalized = (clampedAngle - STEP_LENGTH_MIN_ANGLE) / STEP_LENGTH_ANGLE_RANGE;
-            const maxRangeForBase = STEP_MAX_BASE_OCTAVE - getSequenceBaseOctave(seqIndex) + 1;
+            const base = getSequenceBaseOctave(seqIndex);
+            const maxRangeForBase = Math.max(STEP_MIN_RANGE, Math.min(STEP_MAX_RANGE, STEP_MAX_BASE_OCTAVE + 1 - base));
             const clampedMax = Math.max(STEP_MIN_RANGE, Math.min(STEP_MAX_RANGE, maxRangeForBase));
             return STEP_MIN_RANGE + normalized * (clampedMax - STEP_MIN_RANGE);
         }
@@ -424,8 +427,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
             const sequence = stepSequences[seqIndex];
             if (!sequence) return;
             const rangeSpan = getSequenceRange(seqIndex);
-            const maxRangeForBase = STEP_MAX_BASE_OCTAVE - getSequenceBaseOctave(seqIndex) + 1;
-            const allowedMax = Math.max(STEP_MIN_RANGE, Math.min(STEP_MAX_RANGE, maxRangeForBase));
+            const base = getSequenceBaseOctave(seqIndex);
+            const allowedMax = Math.max(STEP_MIN_RANGE, Math.min(STEP_MAX_RANGE, STEP_MAX_BASE_OCTAVE + 1 - base));
             const dialValue = Math.max(
                 STEP_MIN_RANGE,
                 Math.min(allowedMax, sequence.rangeDialValue ?? rangeSpan),
@@ -447,7 +450,10 @@ let liveLfoOutputs = [0, 0, 0, 0];
 
         function clampStepValue(seqIndex, value) {
             const minAllowed = getSequenceBaseOctave(seqIndex);
-            const maxAllowed = Math.min(STEP_MAX_BASE_OCTAVE, minAllowed + getSequenceRange(seqIndex) - 1);
+            const maxAllowed = Math.min(
+                STEP_MAX_BASE_OCTAVE + 0.999,
+                minAllowed + getSequenceRange(seqIndex) - Number.EPSILON,
+            );
             return Math.max(minAllowed, Math.min(maxAllowed, value));
         }
 
@@ -506,8 +512,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
         function setSequenceRange(seqIndex, span) {
             const sequence = stepSequences[seqIndex];
             if (!sequence) return;
-            const maxRangeForBase = STEP_MAX_BASE_OCTAVE - getSequenceBaseOctave(seqIndex) + 1;
-            const allowedMax = Math.max(STEP_MIN_RANGE, Math.min(STEP_MAX_RANGE, maxRangeForBase));
+            const base = getSequenceBaseOctave(seqIndex);
+            const allowedMax = Math.max(STEP_MIN_RANGE, Math.min(STEP_MAX_RANGE, STEP_MAX_BASE_OCTAVE + 1 - base));
             const clampedDial = Math.max(STEP_MIN_RANGE, Math.min(allowedMax, span));
             sequence.rangeDialValue = clampedDial;
             sequence.rangeSpan = Math.max(STEP_MIN_RANGE, Math.round(clampedDial));
@@ -543,9 +549,10 @@ let liveLfoOutputs = [0, 0, 0, 0];
         function randomizeStepSequences() {
             stepSequences.forEach((sequence, seqIndex) => {
                 const baseOctave = getSequenceBaseOctave(seqIndex);
+                const range = Math.max(STEP_MIN_RANGE, getSequenceRange(seqIndex));
                 sequence.steps.forEach((step, idx) => {
                     step.active = false;
-                    step.value = clampStepValue(seqIndex, baseOctave + Math.random() * Math.max(1, getSequenceRange(seqIndex)));
+                    step.value = clampStepValue(seqIndex, baseOctave + Math.random() * range);
                     updateStepKnobVisual(seqIndex, idx);
                 });
                 updateStepNoteDisplay(seqIndex, '--');
@@ -1257,15 +1264,14 @@ function applyMidiControl(target, val) {
             break;
         case 'seqStep': {
             const base = getSequenceBaseOctave(target.seqIdx);
-            const range = Math.max(1, getSequenceRange(target.seqIdx));
-            setStepValue(target.seqIdx, target.stepIdx, base + val * (range - 1));
+            const range = Math.max(STEP_MIN_RANGE, getSequenceRange(target.seqIdx));
+            setStepValue(target.seqIdx, target.stepIdx, base + val * range);
             break;
         }
         case 'seqLen': setSequenceLength(target.seqIdx, val * (STEP_MAX_LENGTH - STEP_MIN_LENGTH) + STEP_MIN_LENGTH); break;
         case 'seqBase': setSequenceBaseOctave(target.seqIdx, val * (STEP_MAX_BASE_OCTAVE - STEP_MIN_BASE_OCTAVE) + STEP_MIN_BASE_OCTAVE); break;
         case 'seqRange': {
-            const maxRangeForBase = STEP_MAX_BASE_OCTAVE - getSequenceBaseOctave(target.seqIdx) + 1;
-            const allowedMax = Math.max(STEP_MIN_RANGE, Math.min(STEP_MAX_RANGE, maxRangeForBase));
+            const allowedMax = Math.max(STEP_MIN_RANGE, Math.min(STEP_MAX_RANGE, STEP_MAX_BASE_OCTAVE + 1 - getSequenceBaseOctave(target.seqIdx)));
             setSequenceRange(target.seqIdx, val * (allowedMax - STEP_MIN_RANGE) + STEP_MIN_RANGE);
             break;
         }
