@@ -960,30 +960,52 @@ function handleKnobMidiLearnClick(e) {
 function handleIncomingMidi(event) {
     const [status, data1, data2] = event.data;
     const msgType = status & 0xf0;
+    
+    const isNoteOn = msgType === 0x90 && data2 > 0;
+    const isNoteOff = msgType === 0x80 || (msgType === 0x90 && data2 === 0);
+    const isCC = msgType === 0xB0;
 
-    if (msgType === 0xB0) { // CC Message
-        const ccNumber = data1;
-        const normalizedValue = data2 / 127;
+    if (!isCC && !isNoteOn && !isNoteOff) return;
 
-        if (isMidiLearnActive && currentlyLearningTarget) {
-            // PAIRING
-            midiAssignments[ccNumber] = currentlyLearningTarget;
-            localStorage.setItem('midiAssignments', JSON.stringify(midiAssignments));
-            
-            // UI Feedback: Stop blinking for this specific knob
-            document.querySelector('.learning-focus')?.classList.remove('blinking-midi-learn', 'learning-focus');
-            currentlyLearningTarget = null;
-        } else {
-            // CONTROL
-            applyMidiControl(ccNumber, normalizedValue);
+    // Use specific prefixes so CC 60 and Note 60 can both exist
+    const midiKey = (isNoteOn || isNoteOff) ? `note_${data1}` : `cc_${data1}`;
+    const normalizedVal = isNoteOff ? 0 : data2 / 127;
+
+    if (isMidiLearnActive && currentlyLearningTarget) {
+        // Store the assignment with a 'mode' so we know how to use it later
+        midiAssignments[midiKey] = { 
+            ...currentlyLearningTarget, 
+            mode: (isNoteOn || isNoteOff) ? 'trigger' : 'value' 
+        };
+        
+        localStorage.setItem('midiAssignments', JSON.stringify(midiAssignments));
+        
+        // Visual feedback
+        const focusEl = document.querySelector('.learning-focus');
+        focusEl?.classList.remove('blinking-midi-learn', 'learning-focus');
+        currentlyLearningTarget = null;
+    } else {
+        const assignment = midiAssignments[midiKey];
+        if (assignment) {
+            applyMidiControl(assignment, normalizedVal);
         }
     }
 }
 
-function applyMidiControl(ccNumber, val) {
-    const target = midiAssignments[ccNumber];
-    if (!target) return;
+function applyMidiControl(target, val) {
+    // If this assignment was mapped from a Note, play/stop the oscillator
+    if (target.mode === 'trigger') {
+        if (val > 0) {
+            // Fires the sound (matches spacebar/B logic)
+            // Assuming target.id 0 = OSC 1, id 1 = OSC 2
+            playOscillator(target.id); 
+        } else {
+            stopOscillator(target.id);
+        }
+        return; // Don't move the knob if it's a trigger
+    }
 
+    // Standard Knob movement logic (CC mode)
     switch (target.type) {
         case 'fx': setFxValue(target.id, val); break;
         case 'main': 
@@ -7629,6 +7651,7 @@ function sendMidiMessage(message) {
 midiLearnButton.addEventListener('click', toggleMidiLearnMode);
       }
        init();
+
 
 
 
