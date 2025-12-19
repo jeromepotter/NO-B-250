@@ -965,14 +965,13 @@ function handleIncomingMidi(event) {
     const isNoteOff = msgType === 0x80 || (msgType === 0x90 && data2 === 0);
     const isCC = msgType === 0xB0;
 
-    // BLOCK everything that isn't a Note or CC
     if (!isCC && !isNoteOn && !isNoteOff) return;
 
     const midiKey = (isNoteOn || isNoteOff) ? `note_${data1}` : `cc_${data1}`;
     const normalizedVal = isNoteOff ? 0 : data2 / 127;
 
     if (isMidiLearnActive && currentlyLearningTarget) {
-        // SAVE the assignment with the specific 'mode'
+        // Tag correctly
         midiAssignments[midiKey] = { 
             ...currentlyLearningTarget, 
             mode: (isNoteOn || isNoteOff) ? 'trigger' : 'value' 
@@ -984,36 +983,44 @@ function handleIncomingMidi(event) {
     } else {
         const assignment = midiAssignments[midiKey];
         if (assignment) {
-            // ONLY execute if there is a mapping
             applyMidiControl(assignment, normalizedVal);
         } else if (isNoteOn || isNoteOff) {
-            // STOP raw notes from playing if they aren't mapped
-            // This stops the C0 / C8 ghost notes!
+            // CRITICAL: Block any MIDI note that isn't mapped.
+            // This stops the C0/C8 sounds from MDPX.
             return; 
         }
     }
 }
 function playOscillatorTrigger(oscId) {
     if (!isPowerOn || !synthNode) return;
+    
     const knob = knobState[oscId];
     if (!knob) return;
 
-    // This grabs the ACTUAL note name from the screen (e.g., "Eb3")
+    // 1. Get the note name (e.g. "C3") based on the knob's position
     const currentNoteName = getNoteNameFromAngle(oscId, knob.totalAngle);
     
+    console.log(`MIDI Trigger OSC ${oscId + 1}: Playing ${currentNoteName}`);
+
+    // 2. Send to the engine. 
+    // We use 'source: "keyboard"' to mimic the Spacebar exactly.
     synthNode.port.postMessage({
         type: 'NOTE_ON',
         note: currentNoteName,
         oscTarget: oscId,
         velocity: 1.0,
-        source: 'midi-trigger'
+        source: 'keyboard' 
     });
-    
+
+    // 3. Visual Feedback
     updateNoteDisplay(oscId, currentNoteName);
+    const knobEl = document.querySelector(`[data-knob-id="${oscId}"]`);
+    if (knobEl) knobEl.classList.add('active-trigger');
 }
 
 function stopOscillatorTrigger(oscId) {
     if (!synthNode) return;
+    
     const knob = knobState[oscId];
     const currentNoteName = getNoteNameFromAngle(oscId, knob.totalAngle);
 
@@ -1021,10 +1028,12 @@ function stopOscillatorTrigger(oscId) {
         type: 'NOTE_OFF',
         note: currentNoteName,
         oscTarget: oscId,
-        source: 'midi-trigger'
+        source: 'keyboard'
     });
-}
-function applyMidiControl(target, val) {
+
+    const knobEl = document.querySelector(`[data-knob-id="${oscId}"]`);
+    if (knobEl) knobEl.classList.remove('active-trigger');
+}ion applyMidiControl(target, val) {
     // TRIGGER MODE (Notes/Pads)
     if (target.mode === 'trigger') {
         const oscId = target.id;
@@ -7700,6 +7709,7 @@ function sendMidiMessage(message) {
 midiLearnButton.addEventListener('click', toggleMidiLearnMode);
       }
        init();
+
 
 
 
