@@ -141,11 +141,25 @@
         <div class="step-sequencer" data-sequence-index="0">
           <div class="flex justify-between items-center mb-3 step-sequencer-header">
             <div class="text-[10px] sm:text-xs font-bold tracking-wider">SEQ A</div>
-            <div class="flex flex-col items-center step-length-control" data-sequence-length="0">
-              <div class="step-length-knob" data-sequence-length-knob="0" role="slider" aria-label="Sequence A length" aria-valuemin="1" aria-valuemax="16" aria-valuenow="16" tabindex="0">
-                <div class="step-length-indicator"></div>
+            <div class="flex items-center space-x-3 step-header-controls">
+              <div class="flex flex-col items-center step-length-control" data-sequence-length="0">
+                <div class="step-length-knob" data-sequence-length-knob="0" role="slider" aria-label="Sequence A length" aria-valuemin="1" aria-valuemax="16" aria-valuenow="16" tabindex="0">
+                  <div class="step-length-indicator"></div>
+                </div>
+                <div class="text-[9px] sm:text-[10px] font-bold tracking-[0.18em] uppercase step-length-label">LEN <span class="step-length-value">16</span></div>
               </div>
-              <div class="text-[9px] sm:text-[10px] font-bold tracking-[0.18em] uppercase step-length-label">LEN <span class="step-length-value">16</span></div>
+              <div class="flex flex-col items-center step-base-control" data-sequence-base="0">
+                <div class="step-base-knob" data-sequence-base-knob="0" role="slider" aria-label="Sequence A base octave" aria-valuemin="1" aria-valuemax="8" aria-valuenow="2" tabindex="0">
+                  <div class="step-base-indicator"></div>
+                </div>
+                <div class="text-[9px] sm:text-[10px] font-bold tracking-[0.18em] uppercase step-base-label">OCT <span class="step-base-value">2</span></div>
+              </div>
+              <div class="flex flex-col items-center step-range-control" data-sequence-range="0">
+                <div class="step-range-knob" data-sequence-range-knob="0" role="slider" aria-label="Sequence A octave range" aria-valuemin="1" aria-valuemax="8" aria-valuenow="8" tabindex="0">
+                  <div class="step-range-indicator"></div>
+                </div>
+                <div class="text-[9px] sm:text-[10px] font-bold tracking-[0.18em] uppercase step-range-label">RANGE <span class="step-range-value">8</span></div>
+              </div>
             </div>
           </div>
           <div class="grid grid-cols-8 gap-2 step-knob-grid" data-sequence-grid="0"></div>
@@ -170,11 +184,25 @@
         <div class="step-sequencer" data-sequence-index="1">
           <div class="flex justify-between items-center mb-3 step-sequencer-header">
             <div class="text-[10px] sm:text-xs font-bold tracking-wider">SEQ B</div>
-            <div class="flex flex-col items-center step-length-control" data-sequence-length="1">
-              <div class="step-length-knob" data-sequence-length-knob="1" role="slider" aria-label="Sequence B length" aria-valuemin="1" aria-valuemax="16" aria-valuenow="16" tabindex="0">
-                <div class="step-length-indicator"></div>
+            <div class="flex items-center space-x-3 step-header-controls">
+              <div class="flex flex-col items-center step-length-control" data-sequence-length="1">
+                <div class="step-length-knob" data-sequence-length-knob="1" role="slider" aria-label="Sequence B length" aria-valuemin="1" aria-valuemax="16" aria-valuenow="16" tabindex="0">
+                  <div class="step-length-indicator"></div>
+                </div>
+                <div class="text-[9px] sm:text-[10px] font-bold tracking-[0.18em] uppercase step-length-label">LEN <span class="step-length-value">16</span></div>
               </div>
-              <div class="text-[9px] sm:text-[10px] font-bold tracking-[0.18em] uppercase step-length-label">LEN <span class="step-length-value">16</span></div>
+              <div class="flex flex-col items-center step-base-control" data-sequence-base="1">
+                <div class="step-base-knob" data-sequence-base-knob="1" role="slider" aria-label="Sequence B base octave" aria-valuemin="1" aria-valuemax="8" aria-valuenow="4" tabindex="0">
+                  <div class="step-base-indicator"></div>
+                </div>
+                <div class="text-[9px] sm:text-[10px] font-bold tracking-[0.18em] uppercase step-base-label">OCT <span class="step-base-value">4</span></div>
+              </div>
+              <div class="flex flex-col items-center step-range-control" data-sequence-range="1">
+                <div class="step-range-knob" data-sequence-range-knob="1" role="slider" aria-label="Sequence B octave range" aria-valuemin="1" aria-valuemax="8" aria-valuenow="8" tabindex="0">
+                  <div class="step-range-indicator"></div>
+                </div>
+                <div class="text-[9px] sm:text-[10px] font-bold tracking-[0.18em] uppercase step-range-label">RANGE <span class="step-range-value">8</span></div>
+              </div>
             </div>
           </div>
           <div class="grid grid-cols-8 gap-2 step-knob-grid" data-sequence-grid="1"></div>
