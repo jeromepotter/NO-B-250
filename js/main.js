@@ -15,6 +15,8 @@ let isMidiLearnActive = false;
 let currentlyLearningTarget = null;
 let midiLearnButton = null;
 let midiAssignments = JSON.parse(localStorage.getItem('midiAssignments')) || {};
+let selectedMidiInput = null;
+let selectedMidiOutput = null;
        const soundfontBank = [];
        let activeSoundfontIndex = -1;
        let isSoundfontMode = false;
@@ -683,23 +685,20 @@ function attachChainKnobHandlers(knobEl, seqIndex, slotIndex, type) {
     });
 }
 
-        function buildChainSequencer(seqIndex) {
+      function buildChainSequencer(seqIndex) {
     const container = document.querySelector(`[data-chain-grid="${seqIndex}"]`);
     const sequence = stepSequences[seqIndex];
     if (!container || !sequence) return;
 
     container.innerHTML = '';
     sequence.chainSlotEls = [];
-    sequence.chainGrid = container;
-    sequence.chainSection = container.closest('.chain-section');
 
     sequence.chainSlots.forEach((slot, idx) => {
         const slotEl = document.createElement('div');
         slotEl.className = 'chain-slot';
         const slotColor = getChainSlotColor(idx);
 
-        // 1. Create Transposition Knob
-        const transWrapper = document.createElement('div');
+        // 1. Create Knobs First
         const transKnob = document.createElement('div');
         transKnob.className = 'chain-knob chain-trans-knob';
         transKnob.style.backgroundColor = slotColor;
@@ -707,6 +706,15 @@ function attachChainKnobHandlers(knobEl, seqIndex, slotIndex, type) {
         transKnob.dataset.seqIdx = seqIndex;
         transKnob.dataset.slotIdx = idx;
 
+        const loopsKnob = document.createElement('div');
+        loopsKnob.className = 'chain-knob chain-loops-knob';
+        loopsKnob.style.backgroundColor = slotColor;
+        loopsKnob.dataset.type = 'chainLoops';
+        loopsKnob.dataset.seqIdx = seqIndex;
+        loopsKnob.dataset.slotIdx = idx;
+
+        // 2. Build Internal Structure
+        const transWrapper = document.createElement('div');
         const transIndicator = document.createElement('div');
         transIndicator.className = 'chain-indicator';
         transKnob.appendChild(transIndicator);
@@ -715,15 +723,7 @@ function attachChainKnobHandlers(knobEl, seqIndex, slotIndex, type) {
         transValue.className = 'chain-value';
         transWrapper.appendChild(transValue);
 
-        // 2. Create Loops/Repeats Knob
         const loopsWrapper = document.createElement('div');
-        const loopsKnob = document.createElement('div');
-        loopsKnob.className = 'chain-knob chain-loops-knob';
-        loopsKnob.style.backgroundColor = slotColor;
-        loopsKnob.dataset.type = 'chainLoops';
-        loopsKnob.dataset.seqIdx = seqIndex;
-        loopsKnob.dataset.slotIdx = idx;
-
         const loopsIndicator = document.createElement('div');
         loopsIndicator.className = 'chain-indicator';
         loopsKnob.appendChild(loopsIndicator);
@@ -732,12 +732,11 @@ function attachChainKnobHandlers(knobEl, seqIndex, slotIndex, type) {
         loopsValue.className = 'chain-value';
         loopsWrapper.appendChild(loopsValue);
 
-        // 3. Append to UI
         slotEl.appendChild(transWrapper);
         slotEl.appendChild(loopsWrapper);
         container.appendChild(slotEl);
 
-        // 4. Assign to state object (Safe initialization)
+        // 3. Assign Properties safely
         slot.slotEl = slotEl;
         slot.transKnob = transKnob;
         slot.loopsKnob = loopsKnob;
@@ -745,13 +744,10 @@ function attachChainKnobHandlers(knobEl, seqIndex, slotIndex, type) {
         slot.loopsValueEl = loopsValue;
         sequence.chainSlotEls[idx] = slotEl;
 
-        // 5. Attach interaction handlers
         attachChainKnobHandlers(transKnob, seqIndex, idx, 'trans');
         attachChainKnobHandlers(loopsKnob, seqIndex, idx, 'loops');
         updateChainSlotVisual(seqIndex, idx);
     });
-
-    syncChainEnabledVisuals(seqIndex);
 }
 
         function handleChainProgress(seqIndex) {
@@ -3981,48 +3977,73 @@ function generateComplexRandomLfoState(includeArpTargets = true) {
             }
        }
 async function setupMidiAccess() {
-    const midiOutputSelector = document.getElementById('midi-output-selector');
-    if (!midiOutputSelector) return;
+    const inputSelector = document.getElementById('midi-input-selector');
+    const outputSelector = document.getElementById('midi-output-selector');
+    if (!inputSelector || !outputSelector) return;
 
     try {
         midiAccess = await navigator.requestMIDIAccess({ sysex: true });
         
-        // --- 1. HANDLE OUTPUTS (To Ableton/External Synths) ---
-        midiOutputSelector.innerHTML = '';
-        if (midiAccess.outputs.size > 0) {
-            midiAccess.outputs.forEach(output => {
-                const option = document.createElement('option');
-                option.value = output.id;
-                option.textContent = output.name;
-                midiOutputSelector.appendChild(option);
+        // --- 1. POPULATE INPUTS (RECEIVE) ---
+        inputSelector.innerHTML = '';
+        if (midiAccess.inputs.size > 0) {
+            midiAccess.inputs.forEach(input => {
+                const opt = document.createElement('option');
+                opt.value = input.id;
+                opt.textContent = input.name;
+                inputSelector.appendChild(opt);
             });
-            midiOutputSelector.disabled = false;
-            // Auto-select the first output
-            selectedMidiOutput = midiAccess.outputs.values().next().value;
+            inputSelector.disabled = false;
+            updateMidiInputSelection(inputSelector.value);
             
-            midiOutputSelector.addEventListener('change', () => {
-                selectedMidiOutput = midiAccess.outputs.get(midiOutputSelector.value);
-            });
+            inputSelector.addEventListener('change', () => updateMidiInputSelection(inputSelector.value));
         } else {
-            midiOutputSelector.innerHTML = '<option>NO MIDI OUTPUTS FOUND</option>';
-            midiOutputSelector.disabled = true;
+            inputSelector.innerHTML = '<option>NO INPUTS FOUND</option>';
+            inputSelector.disabled = true;
         }
 
-        // --- 2. HANDLE INPUTS (From Controller for Learn/Control) ---
-        midiAccess.inputs.forEach(input => {
-            input.onmidimessage = handleIncomingMidi;
-        });
+        // --- 2. POPULATE OUTPUTS (SEND) ---
+        outputSelector.innerHTML = '';
+        if (midiAccess.outputs.size > 0) {
+            midiAccess.outputs.forEach(output => {
+                const opt = document.createElement('option');
+                opt.value = output.id;
+                opt.textContent = output.name;
+                outputSelector.appendChild(opt);
+            });
+            outputSelector.disabled = false;
+            selectedMidiOutput = midiAccess.outputs.get(outputSelector.value);
+            
+            outputSelector.addEventListener('change', () => {
+                selectedMidiOutput = midiAccess.outputs.get(outputSelector.value);
+            });
+        } else {
+            outputSelector.innerHTML = '<option>NO OUTPUTS FOUND</option>';
+            outputSelector.disabled = true;
+        }
 
         // --- 3. UI STATE ---
         if (midiLearnButton) {
             midiLearnButton.classList.remove('disabled');
             midiLearnButton.disabled = false;
         }
-        
-        console.log("MIDI Connected: Inputs Listening, Output Selectable.");
 
     } catch (err) {
         console.error('MIDI Access Denied', err);
+    }
+}
+
+// Helper to switch which device we are listening to
+function updateMidiInputSelection(id) {
+    // Stop listening to old input
+    if (selectedMidiInput) {
+        selectedMidiInput.onmidimessage = null;
+    }
+    // Start listening to new input
+    selectedMidiInput = midiAccess.inputs.get(id);
+    if (selectedMidiInput) {
+        selectedMidiInput.onmidimessage = handleIncomingMidi;
+        console.log(`Receiving MIDI from: ${selectedMidiInput.name}`);
     }
 }
 
@@ -7595,6 +7616,7 @@ function sendMidiMessage(message) {
 midiLearnButton.addEventListener('click', toggleMidiLearnMode);
       }
        init();
+
 
 
 
