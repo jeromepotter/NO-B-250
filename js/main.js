@@ -2688,6 +2688,7 @@ async function toggleBreakPlayback(options = {}) {
     if (pendingBreakIndex === null) {
     breakQueueTargetCycle = null;
     breakQueueTargetStep = 0;
+    }
 
     // --- BPM MODE (Grid Locked) ---
     if (!isFreeTiming) {
@@ -7483,6 +7484,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
           updateRateButtonLockState();
       }
        init();
+
 
 
 
