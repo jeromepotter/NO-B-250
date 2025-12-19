@@ -692,13 +692,15 @@ function attachChainKnobHandlers(knobEl, seqIndex, slotIndex, type) {
 
     container.innerHTML = '';
     sequence.chainSlotEls = [];
+    sequence.chainGrid = container; // Added back for state tracking
+    sequence.chainSection = container.closest('.chain-section'); // Added back for layout
 
     sequence.chainSlots.forEach((slot, idx) => {
         const slotEl = document.createElement('div');
         slotEl.className = 'chain-slot';
         const slotColor = getChainSlotColor(idx);
 
-        // 1. Create Knobs First
+        // 1. Create Knobs First (Resolves the ReferenceError)
         const transKnob = document.createElement('div');
         transKnob.className = 'chain-knob chain-trans-knob';
         transKnob.style.backgroundColor = slotColor;
@@ -736,7 +738,7 @@ function attachChainKnobHandlers(knobEl, seqIndex, slotIndex, type) {
         slotEl.appendChild(loopsWrapper);
         container.appendChild(slotEl);
 
-        // 3. Assign Properties safely
+        // 3. Assign Properties Safely (Only after elements are defined)
         slot.slotEl = slotEl;
         slot.transKnob = transKnob;
         slot.loopsKnob = loopsKnob;
@@ -744,10 +746,14 @@ function attachChainKnobHandlers(knobEl, seqIndex, slotIndex, type) {
         slot.loopsValueEl = loopsValue;
         sequence.chainSlotEls[idx] = slotEl;
 
+        // 4. Attach Interaction Handlers
         attachChainKnobHandlers(transKnob, seqIndex, idx, 'trans');
         attachChainKnobHandlers(loopsKnob, seqIndex, idx, 'loops');
         updateChainSlotVisual(seqIndex, idx);
     });
+
+    // 5. Apply Visual State (Crucial for the "Chain On/Off" switch)
+    syncChainEnabledVisuals(seqIndex);
 }
 
         function handleChainProgress(seqIndex) {
@@ -7616,6 +7622,7 @@ function sendMidiMessage(message) {
 midiLearnButton.addEventListener('click', toggleMidiLearnMode);
       }
        init();
+
 
 
 
