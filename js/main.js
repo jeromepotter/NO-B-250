@@ -1638,7 +1638,6 @@ function applyMidiControl(target, val) {
             stepsModeSwitch.classList.toggle('on', enabled);
             const sequencersWrapper = document.getElementById('step-sequencers');
             sequencersWrapper?.classList.toggle('hidden', !enabled);
-            document.querySelectorAll('.oscillator-visual').forEach(el => el.classList.toggle('hidden', enabled));
 
             if (enabled) {
                
