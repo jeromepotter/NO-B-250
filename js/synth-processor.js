@@ -333,8 +333,8 @@ const LFO_DEST_NONE = -1;
                    this.soundfontSamples = [];
                    this.soundfontActiveIndex = -1;
                    this.soundfontVoices = [
-                       { position: 0, fadeRemaining: 0 },
-                       { position: 0, fadeRemaining: 0 },
+                       { position: 0, fadeRemaining: 0, fadeStart: 0, fadeMode: 'attack', pendingRestart: false, pendingFadeSamples: 0 },
+                       { position: 0, fadeRemaining: 0, fadeStart: 0, fadeMode: 'attack', pendingRestart: false, pendingFadeSamples: 0 },
                    ];
                    this.breakBypassL = new Float32Array(128);
                    this.breakBypassR = new Float32Array(128);
@@ -385,8 +385,13 @@ const LFO_DEST_NONE = -1;
         this.targetFrequency1 = freq;
         if (this.params[0] < 0.01) this.currentFrequency1 = freq;
         if (this.soundfontVoices[0]) {
-            this.soundfontVoices[0].position = 0;
-            this.soundfontVoices[0].fadeRemaining = 100;
+            const fadeSamples = this.computeSoundfontFadeSamples(freq);
+            const envActive = this.envStage1 !== 'off' && this.envValue1 > 0.05;
+            if (envActive && !this.soundfontVoices[0].pendingRestart) {
+                this.queueSoundfontRestart(0, fadeSamples);
+            } else {
+                this.startSoundfontAttack(0, fadeSamples);
+            }
         }
         this.envStage1 = 'attack';
     }
@@ -395,18 +400,37 @@ const LFO_DEST_NONE = -1;
         this.targetFrequency2 = freq;
         if (this.params[0] < 0.01) this.currentFrequency2 = freq;
         if (this.soundfontVoices[1]) {
-            this.soundfontVoices[1].position = 0;
-            this.soundfontVoices[1].fadeRemaining = 100;
+            const fadeSamples = this.computeSoundfontFadeSamples(freq);
+            const envActive = this.envStage2 !== 'off' && this.envValue2 > 0.05;
+            if (envActive && !this.soundfontVoices[1].pendingRestart) {
+                this.queueSoundfontRestart(1, fadeSamples);
+            } else {
+                this.startSoundfontAttack(1, fadeSamples);
+            }
         }
         this.envStage2 = 'attack';
     }
     break;
-                           case 'noteOff': 
-    if (voice === 0) { 
-        this.envStage1 = 'release'; 
-    } else { 
-        this.envStage2 = 'release'; 
-    } 
+                           case 'noteOff':
+    if (voice === 0) {
+        this.envStage1 = 'release';
+        if (this.soundfontVoices[0]) {
+            this.soundfontVoices[0].fadeMode = 'release';
+            this.soundfontVoices[0].fadeStart = 64;
+            this.soundfontVoices[0].fadeRemaining = 64;
+            this.soundfontVoices[0].pendingRestart = false;
+            this.soundfontVoices[0].pendingFadeSamples = 0;
+        }
+    } else {
+        this.envStage2 = 'release';
+        if (this.soundfontVoices[1]) {
+            this.soundfontVoices[1].fadeMode = 'release';
+            this.soundfontVoices[1].fadeStart = 64;
+            this.soundfontVoices[1].fadeRemaining = 64;
+            this.soundfontVoices[1].pendingRestart = false;
+            this.soundfontVoices[1].pendingFadeSamples = 0;
+        }
+    }
     break;
                         case 'setBreakSlipMode':
     this.slipAnchorMode = !!(data && data.enabled);
@@ -623,7 +647,45 @@ case 'ping':
                }
 
                resetSoundfontVoices() {
-                   this.soundfontVoices.forEach(v => { v.position = 0; v.fadeRemaining = 0; });
+                   this.soundfontVoices.forEach(v => {
+                       v.position = 0;
+                       v.fadeRemaining = 0;
+                       v.fadeStart = 0;
+                       v.fadeMode = 'attack';
+                       v.pendingRestart = false;
+                       v.pendingFadeSamples = 0;
+                   });
+               }
+
+               computeSoundfontFadeSamples(frequency) {
+                   const BASE_FADE_SAMPLES = 256;
+                   const EXTRA_PER_OCT = 128;
+                   const midiRef = 60;
+                   const midiNote = 69 + 12 * Math.log2(Math.max(frequency, 1) / 440);
+                   const octDiff = (midiNote - midiRef) / 12;
+                   const fadeSamples = Math.max(128, Math.min(1024, BASE_FADE_SAMPLES - EXTRA_PER_OCT * octDiff));
+                   return Math.floor(fadeSamples);
+               }
+
+               startSoundfontAttack(voiceIndex, fadeSamples, resetPosition = true) {
+                   const voiceState = this.soundfontVoices[voiceIndex];
+                   if (!voiceState) return;
+                   if (resetPosition) voiceState.position = 0;
+                   voiceState.fadeMode = 'attack';
+                   voiceState.fadeStart = fadeSamples;
+                   voiceState.fadeRemaining = fadeSamples;
+                   voiceState.pendingRestart = false;
+                   voiceState.pendingFadeSamples = 0;
+               }
+
+               queueSoundfontRestart(voiceIndex, fadeSamples) {
+                   const voiceState = this.soundfontVoices[voiceIndex];
+                   if (!voiceState) return;
+                   voiceState.fadeMode = 'release';
+                   voiceState.fadeStart = 64;
+                   voiceState.fadeRemaining = Math.max(voiceState.fadeRemaining, 64);
+                   voiceState.pendingRestart = true;
+                   voiceState.pendingFadeSamples = fadeSamples;
                }
 
                getSoundfontVoiceSample(voiceIndex, frequency) {
@@ -637,6 +699,10 @@ case 'ping':
 
                    const voiceState = this.soundfontVoices[voiceIndex];
                    voiceState.fadeRemaining = voiceState.fadeRemaining || 0;
+                   if (voiceState.fadeRemaining <= 0 && voiceState.pendingRestart) {
+                       const pendingFade = voiceState.pendingFadeSamples || this.computeSoundfontFadeSamples(frequency);
+                       this.startSoundfontAttack(voiceIndex, pendingFade);
+                   }
                    const hasLoop = sample.loopEnd > sample.loopStart;
                    const loopStart = hasLoop ? sample.loopStart : 0;
                    const loopEnd = hasLoop ? Math.min(sample.loopEnd, sample.data.length) : sample.data.length;
@@ -646,7 +712,10 @@ case 'ping':
                        const loopLen = Math.max(1, loopEnd - loopStart);
                        pos = loopStart + ((pos - loopStart) % loopLen);
                        if (pos < voiceState.position) {
-                            voiceState.fadeRemaining = Math.max(voiceState.fadeRemaining, 100);
+                           const loopFade = Math.max(voiceState.fadeRemaining, 100);
+                           voiceState.fadeMode = 'attack';
+                           voiceState.fadeStart = Math.max(loopFade, voiceState.fadeStart || 0);
+                           voiceState.fadeRemaining = loopFade;
                        }
                    } else if (!hasLoop && pos >= loopEnd) {
                        // Hold the tail steady instead of wrapping to the start to avoid clicks
@@ -658,17 +727,25 @@ case 'ping':
                    // 1. Calculate the raw sample value
                    const value = (sample.data[idxA] * (1 - frac)) + (sample.data[idxB] * frac);
 
-                   // 2. Apply a micro-fade when starting or after any position jump (including loop wrap)
-                   if (voiceState.fadeRemaining > 0) {
-                        const gain = 1 - (voiceState.fadeRemaining / 100);
+                   // 2. Apply adaptive fades for attack/release and handle pending restarts
+                   let sfGain = 1;
+                   if (voiceState.fadeRemaining > 0 && voiceState.fadeStart > 0) {
+                        const t = voiceState.fadeRemaining / voiceState.fadeStart;
+                        if (voiceState.fadeMode === 'release') {
+                            sfGain *= t;
+                        } else {
+                            sfGain *= (1 - t);
+                        }
                         voiceState.fadeRemaining -= 1;
-                        voiceState.position = pos + rate;
-                        return value * gain;
+                        if (voiceState.fadeRemaining <= 0 && voiceState.pendingRestart) {
+                            const pendingFade = voiceState.pendingFadeSamples || this.computeSoundfontFadeSamples(frequency);
+                            this.startSoundfontAttack(voiceIndex, pendingFade);
+                        }
                    }
 
                    // 3. Advance the cursor, pinning at the end for one-shots
                    voiceState.position = hasLoop ? (pos + rate) : Math.min(pos + rate, loopEnd - 0.0001);
-                   return value;
+                   return value * sfGain;
                }
 
                process(i,o,p){
