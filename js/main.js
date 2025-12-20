@@ -1640,17 +1640,6 @@ function applyMidiControl(target, val) {
             sequencersWrapper?.classList.toggle('hidden', !enabled);
             document.querySelectorAll('.oscillator-visual').forEach(el => el.classList.toggle('hidden', enabled));
 
-            const lockSelectors = [
-                '#arp-mode-switch-0', '#arp-mode-switch-1',
-                '#arp-hold-switch-0', '#arp-hold-switch-1',
-                '[data-fx-id="22"]', '[data-fx-id="23"]',
-                '[data-fx-id="18"]', '[data-fx-id="19"]',
-            ];
-            const lockAction = enabled ? 'add' : 'remove';
-            lockSelectors.forEach(sel => {
-                document.querySelectorAll(sel).forEach(el => el.classList[lockAction]('arp-disabled'));
-            });
-
             if (enabled) {
                
                 [0, 1].forEach(id => {
@@ -1670,11 +1659,8 @@ function applyMidiControl(target, val) {
                 isArpLockEnabled = true;
                 isArpRateSynced = true;
                 if (arpLockSwitch) {
-                    arpLockSwitch.classList.add('on', 'arp-disabled');
-                    arpLockSwitch.parentElement?.classList.add('arp-disabled');
+                    arpLockSwitch.classList.add('on');
                 }
-                const syncContainer = document.getElementById('rate-sync-container') || arpSyncSwitch?.parentElement;
-                if (syncContainer) syncContainer.classList.add('arp-disabled');
                 if (arpSyncSwitch) arpSyncSwitch.classList.add('on');
 
                 stepsModePreviousArpState = knobState.map(state => state?.isArpOn);
@@ -1697,15 +1683,11 @@ function applyMidiControl(target, val) {
                 isArpLockEnabled = stepsModePreviousArpLock;
                 if (arpLockSwitch) {
                     arpLockSwitch.classList.toggle('on', isArpLockEnabled);
-                    arpLockSwitch.classList.remove('arp-disabled');
-                    arpLockSwitch.parentElement?.classList.remove('arp-disabled');
                 }
                 isArpRateSynced = stepsModePreviousRateSync;
                 if (arpSyncSwitch) {
                     arpSyncSwitch.classList.toggle('on', isArpRateSynced);
                 }
-                const syncContainer = document.getElementById('rate-sync-container') || arpSyncSwitch?.parentElement;
-                if (syncContainer) syncContainer.classList.remove('arp-disabled');
                 knobState.forEach((state, idx) => {
                     if (!state) return;
                     const shouldRestoreOff = stepsModePreviousArpState[idx] === false;
@@ -6051,29 +6033,25 @@ lfoState.forEach((lfo, lfoIndex) => {
            if (!knobState || !arpSyncSwitch || !arpOrderSelector) return;
            const bothOn = knobState.every(k => k.isArpOn);
            const syncCont = document.getElementById('rate-sync-container') || arpSyncSwitch.parentElement;
-           if(syncCont){
-               syncCont.classList[bothOn?'remove':'add']('arp-disabled');
-               if(!bothOn&&isArpRateSynced){
-                   isArpRateSynced=false;
-                   arpSyncSwitch.classList.remove('on');
+            if(syncCont){
+                syncCont.classList[bothOn?'remove':'add']('arp-disabled');
+                if(!bothOn&&isArpRateSynced){
+                    isArpRateSynced=false;
+                    arpSyncSwitch.classList.remove('on');
                    updateRateButtonLockState();
                    updateLfoTempoSwitchStates();
                }
            }
-            const anyOn = knobState.some(k => k.isArpOn);
+           const anyOn = knobState.some(k => k.isArpOn);
             const orderCont = arpOrderSelector.parentElement;
             if(orderCont){
-                const disableOrder = isStepsMode || !anyOn;
+                const disableOrder = !anyOn;
                 orderCont.classList[disableOrder?'add':'remove']('arp-disabled');
             }
 
             updateRateButtonLockState();
             updateLfoTempoSwitchStates();
 
-            if (isStepsMode && syncCont) {
-                syncCont.classList.add('arp-disabled');
-                arpSyncSwitch?.classList.add('on');
-            }
        }
         function updateLfoVisuals(lfoOutputs) {
     const modulatedValues = {}; // key: destination id, value: total modulation amount
