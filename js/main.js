@@ -150,6 +150,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             { intervalId: null, startTimeout: null },
         ];
         const stepLastMidi = [null, null];
+        const stepLastNoteIds = [null, null];
         const stepPreviewTimeouts = [null, null];
         const defaultStepOctaves = [2, 4];
         const stepRandomBaseOctaves = [2, 4];
@@ -200,6 +201,9 @@ let liveLfoOutputs = [0, 0, 0, 0];
             { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[0] })), knobEls: [], noteDisplay: null, length: STEP_MAX_LENGTH, lengthDialValue: STEP_MAX_LENGTH, baseOctave: defaultStepOctaves[0], baseDialValue: defaultStepOctaves[0], rangeSpan: STEP_MAX_RANGE, rangeDialValue: STEP_MAX_RANGE, lengthKnob: null, lengthValueEl: null, baseKnob: null, baseValueEl: null, rangeKnob: null, rangeValueEl: null, chainSlots: createDefaultChainSlots(), chainSlotEls: [], chainBarCounter: 0, currentChainSlot: 0, chainEnabled: false, chainSwitch: null, chainGrid: null, chainSection: null },
             { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[1] })), knobEls: [], noteDisplay: null, length: STEP_MAX_LENGTH, lengthDialValue: STEP_MAX_LENGTH, baseOctave: defaultStepOctaves[1], baseDialValue: defaultStepOctaves[1], rangeSpan: STEP_MAX_RANGE, rangeDialValue: STEP_MAX_RANGE, lengthKnob: null, lengthValueEl: null, baseKnob: null, baseValueEl: null, rangeKnob: null, rangeValueEl: null, chainSlots: createDefaultChainSlots(), chainSlotEls: [], chainBarCounter: 0, currentChainSlot: 0, chainEnabled: false, chainSwitch: null, chainGrid: null, chainSection: null },
         ];
+        let nextNoteId = 1;
+        const oscillatorPolyModes = [false, false];
+        let polyModeSwitches = [];
         let sharedStepCounter = 0;
         let sharedStepNextTickTime = null;
         let stepsModePreviousArpState = [false, false];
@@ -663,6 +667,23 @@ let liveLfoOutputs = [0, 0, 0, 0];
             }
         }
 
+        function syncPolySwitchVisual(seqIndex) {
+            const enabled = !!oscillatorPolyModes[seqIndex];
+            const switchEl = polyModeSwitches[seqIndex];
+            if (switchEl) {
+                switchEl.classList.toggle('on', enabled);
+                switchEl.setAttribute('aria-checked', enabled ? 'true' : 'false');
+            }
+        }
+
+        function setOscillatorPolyMode(seqIndex, enabled) {
+            oscillatorPolyModes[seqIndex] = !!enabled;
+            syncPolySwitchVisual(seqIndex);
+            if (synthNode) {
+                synthNode.port.postMessage({ type: 'setPolyMode', data: { osc: seqIndex, enabled: oscillatorPolyModes[seqIndex] } });
+            }
+        }
+
         function setChainEnabled(seqIndex, enabled) {
             const sequence = stepSequences[seqIndex];
             if (!sequence) return;
@@ -982,15 +1003,31 @@ function attachChainKnobHandlers(knobEl, seqIndex, slotIndex, type) {
             if (display) display.textContent = text;
         }
 
+        function generateNoteId(prefix, oscIndex) {
+            nextNoteId = (nextNoteId % 1e9) + 1;
+            return `${prefix}-${oscIndex}-${nextNoteId}`;
+        }
+
+        function postNoteOn(oscIndex, freq, noteId) {
+            if (synthNode) {
+                synthNode.port.postMessage({ type: 'noteOn', data: { voice: oscIndex, freq, noteId } });
+            }
+        }
+
+        function postNoteOff(oscIndex, noteId) {
+            if (synthNode) {
+                synthNode.port.postMessage({ type: 'noteOff', data: { voice: oscIndex, noteId } });
+            }
+        }
+
         function sendStepNoteOff(seqIndex) {
             const lastMidi = stepLastMidi[seqIndex];
             if (!isPowerOn || lastMidi === null) return;
-            if (synthNode) {
-                synthNode.port.postMessage({ type: 'noteOff', data: { voice: seqIndex } });
-            }
+            postNoteOff(seqIndex, stepLastNoteIds[seqIndex]);
             captureMidiEvent(seqIndex, 'noteOff', lastMidi, 0);
             sendMidiMessage([0x80 + seqIndex, lastMidi, 0]);
             stepLastMidi[seqIndex] = null;
+            stepLastNoteIds[seqIndex] = null;
             const state = knobState[seqIndex];
             if (state) {
                 state.isNoteOn = false;
@@ -1002,12 +1039,12 @@ function attachChainKnobHandlers(knobEl, seqIndex, slotIndex, type) {
             if (!isPowerOn || midiNote === null || !isFinite(midiNote)) return;
             sendStepNoteOff(seqIndex);
             const freq = getNoteFrequency(midiNote);
-            if (synthNode) {
-                synthNode.port.postMessage({ type: 'noteOn', data: { voice: seqIndex, freq } });
-            }
+            const noteId = generateNoteId('step', seqIndex);
+            postNoteOn(seqIndex, freq, noteId);
             captureMidiEvent(seqIndex, 'noteOn', midiNote, 100);
             sendMidiMessage([0x90 + seqIndex, midiNote, 100]);
             stepLastMidi[seqIndex] = midiNote;
+            stepLastNoteIds[seqIndex] = noteId;
             const state = knobState[seqIndex];
             if (state) {
                 state.isNoteOn = true;
@@ -1731,6 +1768,16 @@ function applyMidiControl(target, val) {
             syncChainEnabledVisuals(seqIndex);
         }
 
+        function initPolyModeSwitch(seqIndex) {
+            const switchEl = document.querySelector(`[data-poly-switch="${seqIndex}"]`);
+            polyModeSwitches[seqIndex] = switchEl;
+            if (!switchEl) return;
+            switchEl.addEventListener('click', () => {
+                setOscillatorPolyMode(seqIndex, !oscillatorPolyModes[seqIndex]);
+            });
+            syncPolySwitchVisual(seqIndex);
+        }
+
         function initStepSequencers() {
             stepsModeContainer = document.getElementById('steps-mode-bar');
             stepsModeSwitch = document.getElementById('steps-mode-switch');
@@ -1743,6 +1790,8 @@ function applyMidiControl(target, val) {
 
             initChainModeSwitch(0);
             initChainModeSwitch(1);
+            initPolyModeSwitch(0);
+            initPolyModeSwitch(1);
 
             stepsModeSwitch.addEventListener('click', () => {
                 setStepsMode(!isStepsMode);
@@ -3694,10 +3743,10 @@ async function toggleBreakPlayback(options = {}) {
      const knobState = [
     { id: 0, isNoteOn: false, isHeld: false, totalAngle: Math.random()*MAX_TOTAL_ANGLE, lastDragAngle: 0, currentOctave: 3, dom: {}, touchId: null, baseColor: [0,0,0],
       isArpOn: false, isSweepMode: true, arpNotes: [], isArpHoldOn: false, arpRateBpm: DEFAULT_ARP_RATE_BPM, arpRateMs: DEFAULT_ARP_RATE_MS, arpOctaveRange: 0, feelKnobValue: 0.0, currentFeelPattern: EUCLIDEAN_PATTERNS[0], euclideanStepCounter: 0,
-      arpTranspose: 0, arpRunning: false, nextArpStepTime: 0, lastArpStepTime: 0, arpRafId: null, currentArpNoteIndex: 0, currentOctaveStep: 0, arpDirection: 1, arpUpDownState: 0, lastPlayedMidi: null, arpLastVisualIndex: -1, lastNoteOnTime: 0, lastVisualMidi: null },
+      arpTranspose: 0, arpRunning: false, nextArpStepTime: 0, lastArpStepTime: 0, arpRafId: null, currentArpNoteIndex: 0, currentOctaveStep: 0, arpDirection: 1, arpUpDownState: 0, lastPlayedMidi: null, arpLastVisualIndex: -1, lastNoteOnTime: 0, lastVisualMidi: null, activeNoteId: null, activeArpNoteId: null },
     { id: 1, isNoteOn: false, isHeld: false, totalAngle: Math.random()*MAX_TOTAL_ANGLE, lastDragAngle: 0, currentOctave: 3, dom: {}, touchId: null, baseColor: [0,0,0],
       isArpOn: false, isSweepMode: true, arpNotes: [], isArpHoldOn: false, arpRateBpm: DEFAULT_ARP_RATE_BPM, arpRateMs: DEFAULT_ARP_RATE_MS, arpOctaveRange: 0, feelKnobValue: 0.0, currentFeelPattern: EUCLIDEAN_PATTERNS[0], euclideanStepCounter: 0,
-      arpTranspose: 0, arpRunning: false, nextArpStepTime: 0, lastArpStepTime: 0, arpRafId: null, currentArpNoteIndex: 0, currentOctaveStep: 0, arpDirection: 1, arpUpDownState: 0, lastPlayedMidi: null, arpLastVisualIndex: -1, lastNoteOnTime: 0, lastVisualMidi: null }
+      arpTranspose: 0, arpRunning: false, nextArpStepTime: 0, lastArpStepTime: 0, arpRafId: null, currentArpNoteIndex: 0, currentOctaveStep: 0, arpDirection: 1, arpUpDownState: 0, lastPlayedMidi: null, arpLastVisualIndex: -1, lastNoteOnTime: 0, lastVisualMidi: null, activeNoteId: null, activeArpNoteId: null }
 ];
       
        // --- Global Arp State ---
@@ -3859,6 +3908,7 @@ function generateComplexRandomLfoState(includeArpTargets = true) {
                breakSelectionNormalized: trim(breakSelectionNormalized),
                isStepsMode: isStepsMode,
                stepPlayActive: areStepSequencesRunning(),
+               polyModes: oscillatorPolyModes.slice(),
                 stepSequences: stepSequences.map((seq, idx) => ({
                     length: getSequenceLength(idx),
                     baseOctave: getSequenceBaseOctave(idx),
@@ -4709,6 +4759,7 @@ for (const event of events) {
                    if (synthNode && ((d.id <= 29 && d.id !== 1) || d.id === 30 || d.id === 31)) { synthNode.port.postMessage({type:'setFx', data:{id:d.id, value:d.value}}); }
                    if (synthNode && d.id === 7) { synthNode.port.postMessage({type:'setFx', data:{id:d.id, value:d.value}}); }
                });
+               oscillatorPolyModes.forEach((enabled, idx) => setOscillatorPolyMode(idx, enabled));
                await ensureBreakSampleLoaded();
                setBreakFxAmount(breakFxSendAmount, { syncKnob: false });
            })();
@@ -4882,9 +4933,11 @@ function sendMidiMessage(message) {
             
             // --- Re-trigger envelope logic ---
             if (!state.isArpOn && state.lastPlayedMidi !== baseMidi) {
-                synthNode.port.postMessage({ type: 'noteOff', data: { voice: knobId } });
+                postNoteOff(knobId, state.activeNoteId);
                 const freq = getNoteFrequency(baseMidi);
-                synthNode.port.postMessage({ type: 'noteOn', data: { voice: knobId, freq: freq } });
+                const noteId = generateNoteId('manual', knobId);
+                state.activeNoteId = noteId;
+                postNoteOn(knobId, freq, noteId);
                 
                 if (state.lastPlayedMidi !== null) {
                     sendMidiMessage([0x80 + knobId, state.lastPlayedMidi, 0]);
@@ -5323,7 +5376,9 @@ else if(id===22||id===23){fxKnobData[id].value=0.0;} else if(id===24||id===25){f
         const midiNote = getMidiNote(knobId);
         const freq = getNoteFrequency(midiNote);
         state.lastPlayedMidi = midiNote;
-        if(synthNode) synthNode.port.postMessage({type:'noteOn',data:{voice:knobId,freq:freq}});
+        const noteId = generateNoteId('manual', knobId);
+        state.activeNoteId = noteId;
+        postNoteOn(knobId, freq, noteId);
         captureMidiEvent(knobId, 'noteOn', midiNote, 100); 
         sendMidiMessage([0x90 + knobId, midiNote, 100]);
         updateKnobColor(knobId);
@@ -5346,9 +5401,7 @@ else if(id===22||id===23){fxKnobData[id].value=0.0;} else if(id===24||id===25){f
         } 
     } else { 
         if (state.isNoteOn || force) { 
-            if (synthNode) {
-                synthNode.port.postMessage({ type: 'noteOff', data: { voice: knobId } });
-            }
+            postNoteOff(knobId, state.activeNoteId);
             
             state.isNoteOn = false;
             
@@ -5356,9 +5409,10 @@ else if(id===22||id===23){fxKnobData[id].value=0.0;} else if(id===24||id===25){f
             captureMidiEvent(knobId, 'noteOff', noteToStop, 0);
             sendMidiMessage([0x80 + knobId, noteToStop, 0]); 
             state.lastPlayedMidi = null;
+            state.activeNoteId = null;
             updateKnobColor(knobId); 
         }
-    }
+    } 
 }
 
       
@@ -5398,12 +5452,11 @@ else if(id===22||id===23){fxKnobData[id].value=0.0;} else if(id===24||id===25){f
           }
 
           if (state.isNoteOn && state.lastPlayedMidi !== null) {
-               if (synthNode) {
-                   synthNode.port.postMessage({ type: 'noteOff', data: { voice: knobId } });
-               }
+               postNoteOff(knobId, state.activeArpNoteId);
                captureMidiEvent(knobId, 'noteOff', state.lastPlayedMidi, 0);
                sendMidiMessage([0x80 + knobId, state.lastPlayedMidi, 0]); 
                state.isNoteOn = false;
+               state.activeArpNoteId = null;
            }
 
            state.currentArpNoteIndex = 0;
@@ -5427,6 +5480,7 @@ else if(id===22||id===23){fxKnobData[id].value=0.0;} else if(id===24||id===25){f
            if (state.dom.indicator) {
                applyIndicatorTransform(state.dom.indicator, displayAngle);
            }
+           state.activeArpNoteId = null;
        }
       
          function updateArpeggiator(knobId, timestamp) {
@@ -5591,10 +5645,11 @@ lfoState.forEach((lfo, lfoIndex) => {
                const shouldPlay = modulatedFeelPattern[state.euclideanStepCounter % modulatedFeelPattern.length] === 1 && baseNoteObject && baseNoteObject.active;
 
                if (state.isNoteOn) {
-                   synthNode.port.postMessage({ type: 'noteOff', data: { voice: knobId } });
+                   postNoteOff(knobId, state.activeArpNoteId);
                    captureMidiEvent(knobId, 'noteOff', state.lastPlayedMidi, 0);
                     sendMidiMessage([0x80 + knobId, state.lastPlayedMidi, 0]);
                    state.isNoteOn = false;
+                   state.activeArpNoteId = null;
                    if (!shouldPlay) updateKnobColor(knobId);
                }
     
@@ -5659,7 +5714,9 @@ lfoState.forEach((lfo, lfoIndex) => {
                if (shouldPlay) {
                    if (finalMidiNote !== null && isFinite(finalMidiNote)) {
                        state.isNoteOn = true;
-                       synthNode.port.postMessage({ type: 'noteOn', data: { voice: knobId, freq: getNoteFrequency(finalMidiNote) } });
+                       const noteId = generateNoteId('arp', knobId);
+                       state.activeArpNoteId = noteId;
+                       postNoteOn(knobId, getNoteFrequency(finalMidiNote), noteId);
                        captureMidiEvent(knobId, 'noteOn', finalMidiNote, 100);
                        sendMidiMessage([0x90 + knobId, finalMidiNote, 100]);
                        state.lastPlayedMidi = finalMidiNote;
@@ -6475,6 +6532,16 @@ async function applyPreset(p, isArpCategoryPreset = false, options = {}) {
         if (p.allowDuplicateNotesMode !== undefined) {
             allowDuplicateNotesMode = p.allowDuplicateNotesMode;
             document.body.classList.toggle('easter-egg-mode', allowDuplicateNotesMode);
+        }
+
+        if (Array.isArray(p.polyModes)) {
+            p.polyModes.forEach((enabled, idx) => {
+                if (idx < oscillatorPolyModes.length) {
+                    setOscillatorPolyMode(idx, !!enabled);
+                }
+            });
+        } else {
+            oscillatorPolyModes.forEach((_, idx) => setOscillatorPolyMode(idx, false));
         }
 
         if (p.breakModeActive !== undefined) {
@@ -7868,8 +7935,8 @@ function sendMidiMessage(message) {
 
                    updateGlobalArpVisibility();
                    updateFeelPatternPreview(s.id);
-                   if (!s.isArpOn) { stopArpeggiator(s.id); if(s.isHeld) { s.isNoteOn = true; const freq = calculateNote(s.id, false); if(synthNode) synthNode.port.postMessage({type:'noteOn',data:{voice:s.id,freq:freq}}); } s.arpNotes = []; updateSequenceDisplay(s.id);if(s.dom.arpNoteDisplay)s.dom.arpNoteDisplay.textContent="--"; }
-                   else { if(s.isHeld) { if (s.isNoteOn) { if(synthNode) synthNode.port.postMessage({type:'noteOff', data:{voice:s.id}}); s.isNoteOn = false; } playNote(s.id); } }
+                   if (!s.isArpOn) { stopArpeggiator(s.id); if(s.isHeld) { s.isNoteOn = true; const freq = calculateNote(s.id, false); const noteId = generateNoteId('manual', s.id); s.activeNoteId = noteId; postNoteOn(s.id, freq, noteId); } s.arpNotes = []; updateSequenceDisplay(s.id);if(s.dom.arpNoteDisplay)s.dom.arpNoteDisplay.textContent="--"; }
+                   else { if(s.isHeld) { if (s.isNoteOn) { postNoteOff(s.id, s.activeNoteId); s.isNoteOn = false; s.activeNoteId = null; } playNote(s.id); } }
                    updateStateFromTotalAngle(s.id);
                });
 

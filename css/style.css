@@ -363,6 +363,15 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
         display: inline-block;
       }
 
+      .poly-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 0.35rem;
+        margin-bottom: 0.35rem;
+      }
+
       .chain-section:not(.chain-enabled) .chain-grid {
         display: none;
       }

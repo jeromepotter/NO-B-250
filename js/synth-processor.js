@@ -261,15 +261,19 @@ const MIN_LFO_RATE_HZ = 0.01;
 const MAX_LFO_RATE_HZ = 100;
 const LFO_RATE_RANGE_RATIO = MAX_LFO_RATE_HZ / MIN_LFO_RATE_HZ;
 const LFO_DEST_NONE = -1;
+const MAX_POLY_VOICES = 4;
 
            class SynthProcessor extends AudioWorkletProcessor {
                constructor() {
                    super();
                    // Core oscillator state
-                   this.phase1_1=0; this.phase2_1=0; this.phase3_1=0; this.targetFrequency1=440; this.currentFrequency1=440; this.noteOn1=false;
-                   this.phase1_2=0; this.phase2_2=0; this.phase3_2=0; this.targetFrequency2=440; this.currentFrequency2=440; this.noteOn2=false;
-                   // Envelope state
-                   this.envStage1='off'; this.envValue1=0.0; this.envStage2='off'; this.envValue2=0.0;
+                   this.voiceCounter = 0;
+                   this.polyMode = [false, false];
+                   this.voiceStates = [
+                       [this.createVoiceState('mono-0')],
+                       [this.createVoiceState('mono-1')],
+                   ];
+                   this.envMeters = [0, 0];
                    // FX params (from main thread)
                    this.params=new Array(36).fill(0.0);
                    // Envelope times
@@ -332,10 +336,6 @@ const LFO_DEST_NONE = -1;
                    // --- Soundfont State ---
                    this.soundfontSamples = [];
                    this.soundfontActiveIndex = -1;
-                   this.soundfontVoices = [
-                       { position: 0, fadeRemaining: 0 },
-                       { position: 0, fadeRemaining: 0 },
-                   ];
                    this.breakBypassL = new Float32Array(128);
                    this.breakBypassR = new Float32Array(128);
 
@@ -380,39 +380,34 @@ const LFO_DEST_NONE = -1;
                        const { voice, freq, id, value, lfoId, param } = data || {};
                        switch (type) {
                            case 'noteOn':
-    if (voice === 0) {
-        this.noteOn1 = true;
-        this.targetFrequency1 = freq;
-        if (this.params[0] < 0.01) this.currentFrequency1 = freq;
-        if (this.soundfontVoices[0]) {
-            this.soundfontVoices[0].position = 0;
-            this.soundfontVoices[0].fadeRemaining = 100;
-        }
-        this.envStage1 = 'attack';
-    }
-    else {
-        this.noteOn2 = true;
-        this.targetFrequency2 = freq;
-        if (this.params[0] < 0.01) this.currentFrequency2 = freq;
-        if (this.soundfontVoices[1]) {
-            this.soundfontVoices[1].position = 0;
-            this.soundfontVoices[1].fadeRemaining = 100;
-        }
-        this.envStage2 = 'attack';
-    }
+    this.triggerNoteOn(voice ?? 0, freq, data?.noteId);
     break;
                            case 'noteOff': 
-    if (voice === 0) { 
-        this.envStage1 = 'release'; 
-    } else { 
-        this.envStage2 = 'release'; 
-    } 
+    this.triggerNoteOff(voice ?? 0, data?.noteId); 
     break;
                         case 'setBreakSlipMode':
     this.slipAnchorMode = !!(data && data.enabled);
     break;
 
-                           case 'setFreq': if (voice === 0) { this.targetFrequency1 = freq; } else { this.targetFrequency2 = freq; } break;
+                           case 'setFreq': {
+                               const oscIndex = voice ?? 0;
+                               const targets = this.voiceStates[oscIndex] || [];
+                               targets.forEach(v => {
+                                   v.targetFrequency = freq;
+                                   if ((this.params[0] ?? 0) < 0.01) {
+                                       v.currentFrequency = freq;
+                                   }
+                               });
+                               break;
+                           }
+                           case 'setPolyMode': {
+                               const oscIndex = Math.max(0, Math.min(1, data?.osc ?? 0));
+                               this.polyMode[oscIndex] = !!data?.enabled;
+                               if (!this.polyMode[oscIndex] && this.voiceStates[oscIndex]?.length) {
+                                   this.voiceStates[oscIndex] = [this.createVoiceState(`mono-${oscIndex}`)];
+                               }
+                               break;
+                           }
                            case 'setFx':
                                if (id >= 0 && id < this.params.length) { this.params[id] = value; }
                                if(id===2){ this.updateFilterCoefficients(this.filterCoeffs, value, 0.0); }
@@ -622,11 +617,93 @@ case 'ping':
                    return this.soundfontSamples[this.soundfontActiveIndex];
                }
 
-               resetSoundfontVoices() {
-                   this.soundfontVoices.forEach(v => { v.position = 0; v.fadeRemaining = 0; });
+               createVoiceState(noteId = null, frequency = 440) {
+                   return {
+                       noteId,
+                       targetFrequency: frequency,
+                       currentFrequency: frequency,
+                       envStage: 'off',
+                       envValue: 0,
+                       noteOn: false,
+                       phaseMain: 0,
+                       phaseDetune: 0,
+                       phaseSub: 0,
+                       sfState: { position: 0, fadeRemaining: 0 },
+                       startTime: ++this.voiceCounter,
+                   };
                }
 
-               getSoundfontVoiceSample(voiceIndex, frequency) {
+               resetVoiceSoundfontState(voiceState) {
+                   if (!voiceState?.sfState) return;
+                   voiceState.sfState.position = 0;
+                   voiceState.sfState.fadeRemaining = 100;
+               }
+
+               acquireVoice(oscIndex, noteId, frequency = 440) {
+                   const polyEnabled = !!this.polyMode[oscIndex];
+                   const targetId = noteId ?? `mono-${oscIndex}`;
+                   if (!this.voiceStates[oscIndex]) this.voiceStates[oscIndex] = [];
+                   const voices = this.voiceStates[oscIndex];
+
+                   if (!polyEnabled) {
+                       if (!voices.length) voices.push(this.createVoiceState(targetId, frequency));
+                       return voices[0];
+                   }
+
+                   let voice = voices.find(v => v.noteId === targetId);
+                   if (!voice) {
+                       voice = voices.find(v => v.envStage === 'off' && !v.noteOn);
+                   }
+                   if (!voice && voices.length < MAX_POLY_VOICES) {
+                       voice = this.createVoiceState(targetId, frequency);
+                       voices.push(voice);
+                   }
+                   if (!voice) {
+                       voice = voices.reduce((oldest, current) => {
+                           if (!oldest) return current;
+                           return (current.startTime ?? 0) < (oldest.startTime ?? 0) ? current : oldest;
+                       }, voices[0]);
+                   }
+                   return voice;
+               }
+
+               triggerNoteOn(oscIndex, frequency, noteId) {
+                   const voice = this.acquireVoice(oscIndex, noteId, frequency);
+                   voice.noteId = noteId ?? voice.noteId ?? `mono-${oscIndex}`;
+                   voice.targetFrequency = frequency;
+                   if ((this.params[0] ?? 0) < 0.01 || voice.envStage === 'off') {
+                       voice.currentFrequency = frequency;
+                   }
+                   voice.envStage = 'attack';
+                   voice.noteOn = true;
+                   voice.envValue = Math.max(0, voice.envValue);
+                   voice.startTime = ++this.voiceCounter;
+                   voice.phaseMain = voice.phaseMain || 0;
+                   voice.phaseDetune = voice.phaseDetune || 0;
+                   voice.phaseSub = voice.phaseSub || 0;
+                   this.resetVoiceSoundfontState(voice);
+                   return voice;
+               }
+
+               triggerNoteOff(oscIndex, noteId) {
+                   const voices = this.voiceStates[oscIndex] || [];
+                   let targets = noteId ? voices.filter(v => v.noteId === noteId) : voices;
+                   if (noteId && targets.length === 0 && voices.length) {
+                       targets = [voices[voices.length - 1]];
+                   }
+                   targets.forEach(v => {
+                       v.envStage = 'release';
+                       v.noteOn = false;
+                   });
+               }
+
+               resetSoundfontVoices() {
+                   this.voiceStates.forEach(voices => {
+                       voices.forEach(v => this.resetVoiceSoundfontState(v));
+                   });
+               }
+
+               getSoundfontVoiceSample(voiceState, frequency) {
                    const sample = this.getActiveSoundfontSample();
                    if (!sample || !sample.data || !sample.data.length) return 0;
 
@@ -635,7 +712,6 @@ case 'ping':
                    const rateBase = sample.sampleRate ? (sample.sampleRate / sampleRate) : 1;
                    const rate = baseFreq > 0 ? (frequency / baseFreq) * rateBase : rateBase;
 
-                   const voiceState = this.soundfontVoices[voiceIndex];
                    voiceState.fadeRemaining = voiceState.fadeRemaining || 0;
                    const hasLoop = sample.loopEnd > sample.loopStart;
                    const loopStart = hasLoop ? sample.loopStart : 0;
@@ -844,64 +920,69 @@ const waveType2 = Math.min(3, Math.max(0, Math.floor((currentParams[31] || 0) * 
 // Update filter once per block to avoid zipper noise on master
 this.updateFilterCoefficients(this.filterCoeffs, currentParams[2], 0.0);
 const cM=this.filterCoeffs;
+const glideAmount = currentParams[0];
+const glideFactor = (glideAmount < 0.01) ? 1.0 : 1.0 - Math.exp(-2 * Math.PI / (Math.pow(glideAmount, 3) * sr));
+// --- VOICE VARIANCE LOGIC ---
+const dA1 = 1.0 + currentParams[4] * 0.01;
+const dA2 = 1.0 + currentParams[4] * 0.013;
+const hasSoundfont = !!this.getActiveSoundfontSample();
+this.envMeters = [0, 0];
 
 // --- BLOCK PROCESSING LOOP 1: Synthesis & Pre-Reverb FX ---
 for(let i=0;i<blockSize;i++){
 
-    // Envelopes
-    switch(this.envStage1){ case 'attack':this.envValue1+=1.0/(this.attackTime*sr);if(this.envValue1>=1.0){this.envValue1=1.0;this.envStage1='decay';}break; case 'decay':this.envValue1-=(1.0-this.sustainLevel)/(this.decayTime*sr);if(this.envValue1<=this.sustainLevel){this.envValue1=this.sustainLevel;this.envStage1='sustain';}break; case 'release':this.envValue1*=this.releaseRate;if(this.envValue1<=0.0001){this.envValue1=0;this.envStage1='off';this.noteOn1=false;}break; }
-    switch(this.envStage2){ case 'attack':this.envValue2+=1.0/(this.attackTime*sr);if(this.envValue2>=1.0){this.envValue2=1.0;this.envStage2='decay';}break; case 'decay':this.envValue2-=(1.0-this.sustainLevel)/(this.decayTime*sr);if(this.envValue2<=this.sustainLevel){this.envValue2=this.sustainLevel;this.envStage2='sustain';}break; case 'release':this.envValue2*=this.releaseRate;if(this.envValue2<=0.0001){this.envValue2=0;this.envStage2='off';this.noteOn2=false;}break; }
-    
-    const g=currentParams[0]; const pt=(g<0.01)?1.0:1.0-Math.exp(-2*Math.PI/(Math.pow(g,3)*sr)); 
-    
-    this.currentFrequency1+=(this.targetFrequency1-this.currentFrequency1)*pt; 
-    this.currentFrequency2+=(this.targetFrequency2-this.currentFrequency2)*pt;
-    
-    // --- VOICE VARIANCE LOGIC ---
-    const dA1 = 1.0 + currentParams[4] * 0.01;
-    const dA2 = 1.0 + currentParams[4] * 0.013;
+    const oscOutputs = [0, 0];
+    const oscActive = [false, false];
 
-    let s1=0, s2=0;
-    const hasSoundfont = !!this.getActiveSoundfontSample();
+    for (let osc = 0; osc < 2; osc++) {
+        const voices = this.voiceStates[osc] || [];
+        const waveType = osc === 0 ? waveType1 : waveType2;
+        const detune = osc === 0 ? dA1 : dA2;
 
-    if (hasSoundfont) {
-        if (this.noteOn1 || this.envStage1 === 'release') {
-            s1 = this.getSoundfontVoiceSample(0, this.currentFrequency1 || this.targetFrequency1);
-        }
-        if (this.noteOn2 || this.envStage2 === 'release') {
-            s2 = this.getSoundfontVoiceSample(1, this.currentFrequency2 || this.targetFrequency2);
-        }
-    } else {
-        // --- VOICE 1 (Standard Detune, Uses dA1) ---
-        if(this.noteOn1 || this.envStage1 === 'release'){
-            const o1_1=getWaveSample(this.phase1_1, waveType1);
-            this.phase1_1=(this.phase1_1+2*Math.PI*this.currentFrequency1/sr)%(2*Math.PI);
+        for (const voice of voices) {
+            switch(voice.envStage){
+                case 'attack':
+                    voice.envValue += 1.0 / (this.attackTime * sr);
+                    if (voice.envValue >= 1.0){ voice.envValue = 1.0; voice.envStage = 'decay'; }
+                    break;
+                case 'decay':
+                    voice.envValue -= (1.0 - this.sustainLevel) / (this.decayTime * sr);
+                    if (voice.envValue <= this.sustainLevel){ voice.envValue = this.sustainLevel; voice.envStage = 'sustain'; }
+                    break;
+                case 'release':
+                    voice.envValue *= this.releaseRate;
+                    if (voice.envValue <= 0.0001){ voice.envValue = 0; voice.envStage = 'off'; voice.noteOn = false; }
+                    break;
+            }
 
-            const o2_1=getWaveSample(this.phase2_1, waveType1);
-            this.phase2_1=(this.phase2_1+2*Math.PI*this.currentFrequency1*dA1/sr)%(2*Math.PI);
+            if (voice.envStage === 'off') continue;
+            voice.currentFrequency += (voice.targetFrequency - voice.currentFrequency) * glideFactor;
 
-            const o3_1=getWaveSample(this.phase3_1, waveType1);
-            this.phase3_1=(this.phase3_1+2*Math.PI*(this.currentFrequency1/2)/sr)%(2*Math.PI);
+            let voiceSample = 0;
+            if (hasSoundfont) {
+                voiceSample = this.getSoundfontVoiceSample(voice.sfState, voice.currentFrequency || voice.targetFrequency);
+            } else {
+                const o1 = getWaveSample(voice.phaseMain, waveType);
+                voice.phaseMain = (voice.phaseMain + 2 * Math.PI * voice.currentFrequency / sr) % (2 * Math.PI);
 
-            s1=(o1_1+o2_1)*0.5;
-            s1 = (s1 + (o3_1 * currentParams[3])) * 0.8;
-        }
+                const o2 = getWaveSample(voice.phaseDetune, waveType);
+                voice.phaseDetune = (voice.phaseDetune + 2 * Math.PI * voice.currentFrequency * detune / sr) % (2 * Math.PI);
 
-        // --- VOICE 2 (Drifty Detune, Uses dA2) ---
-        if(this.noteOn2 || this.envStage2 === 'release'){
-            const o1_2=getWaveSample(this.phase1_2, waveType2);
-            this.phase1_2=(this.phase1_2+2*Math.PI*this.currentFrequency2/sr)%(2*Math.PI);
+                const o3 = getWaveSample(voice.phaseSub, waveType);
+                voice.phaseSub = (voice.phaseSub + 2 * Math.PI * (voice.currentFrequency / 2) / sr) % (2 * Math.PI);
 
-            const o2_2=getWaveSample(this.phase2_2, waveType2);
-            this.phase2_2=(this.phase2_2+2*Math.PI*this.currentFrequency2*dA2/sr)%(2*Math.PI);
+                voiceSample = (o1 + o2) * 0.5;
+                voiceSample = (voiceSample + (o3 * currentParams[3])) * 0.8;
+            }
 
-            const o3_2=getWaveSample(this.phase3_2, waveType2);
-            this.phase3_2=(this.phase3_2+2*Math.PI*(this.currentFrequency2/2)/sr)%(2*Math.PI);
-
-            s2=(o1_2+o2_2)*0.5;
-            s2 = (s2 + (o3_2 * currentParams[3])) * 0.8;
+            oscOutputs[osc] += voiceSample * voice.envValue;
+            oscActive[osc] = true;
+            this.envMeters[osc] = Math.max(this.envMeters[osc], voice.envValue);
         }
     }
+
+    let s1 = oscOutputs[0];
+    let s2 = oscOutputs[1];
 
     let sampleVal = 0;
     if (this.samplerPlayback.active && this.sampleBuffer) {
@@ -958,8 +1039,8 @@ for(let i=0;i<blockSize;i++){
     
     // Analog Drive: Boost (1.5x) and Saturate (tanh) before the filter
     const drive = 1.5; 
-    const s1_e = Math.tanh(s1 * this.envValue1 * drive);
-    const s2_e = Math.tanh(s2 * this.envValue2 * drive);
+    const s1_e = Math.tanh(s1 * drive);
+    const s2_e = Math.tanh(s2 * drive);
     
     this.smoothedCutoff1 += (currentParams[20] - this.smoothedCutoff1) * 0.05;
     this.smoothedRes1 += (currentParams[28] - this.smoothedRes1) * 0.05; // Smooth Res
@@ -967,7 +1048,7 @@ for(let i=0;i<blockSize;i++){
     // Pass BOTH smoothed values
     this.updateDjFilterCoefficients(this.filterOsc1Coeffs, this.smoothedCutoff1, this.smoothedRes1);
 
-    let s1_f=0; if (this.envStage1 !== 'off'){ const c1=this.filterOsc1Coeffs; s1_f=c1.b0*s1_e+c1.b1*this.filter_osc1_x1+c1.b2*this.filter_osc1_x2-c1.a1*this.filter_osc1_y1-c1.a2*this.filter_osc1_y2; this.filter_osc1_x2=this.filter_osc1_x1;this.filter_osc1_x1=s1_e;this.filter_osc1_y2=this.filter_osc1_y1;this.filter_osc1_y1=s1_f; } else { this.filter_osc1_x1=0;this.filter_osc1_x2=0;this.filter_osc1_y1=0;this.filter_osc1_y2=0; }
+    let s1_f=0; if (oscActive[0]){ const c1=this.filterOsc1Coeffs; s1_f=c1.b0*s1_e+c1.b1*this.filter_osc1_x1+c1.b2*this.filter_osc1_x2-c1.a1*this.filter_osc1_y1-c1.a2*this.filter_osc1_y2; this.filter_osc1_x2=this.filter_osc1_x1;this.filter_osc1_x1=s1_e;this.filter_osc1_y2=this.filter_osc1_y1;this.filter_osc1_y1=s1_f; } else { this.filter_osc1_x1=0;this.filter_osc1_x2=0;this.filter_osc1_y1=0;this.filter_osc1_y2=0; }
     
     // Voice 2: Smooth Cutoff AND Resonance
     this.smoothedCutoff2 += (currentParams[21] - this.smoothedCutoff2) * 0.05;
@@ -975,7 +1056,7 @@ for(let i=0;i<blockSize;i++){
 
     // Pass BOTH smoothed values
     this.updateDjFilterCoefficients(this.filterOsc2Coeffs, this.smoothedCutoff2, this.smoothedRes2);
-    let s2_f=0; if (this.envStage2 !== 'off'){ const c2=this.filterOsc2Coeffs; s2_f=c2.b0*s2_e+c2.b1*this.filter_osc2_x1+c2.b2*this.filter_osc2_x2-c2.a1*this.filter_osc2_y1-c2.a2*this.filter_osc2_y2; this.filter_osc2_x2=this.filter_osc2_x1;this.filter_osc2_x1=s2_e;this.filter_osc2_y2=this.filter_osc2_y1;this.filter_osc2_y1=s2_f; } else { this.filter_osc2_x1=0;this.filter_osc2_x2=0;this.filter_osc2_y1=0;this.filter_osc2_y2=0; }
+    let s2_f=0; if (oscActive[1]){ const c2=this.filterOsc2Coeffs; s2_f=c2.b0*s2_e+c2.b1*this.filter_osc2_x1+c2.b2*this.filter_osc2_x2-c2.a1*this.filter_osc2_y1-c2.a2*this.filter_osc2_y2; this.filter_osc2_x2=this.filter_osc2_x1;this.filter_osc2_x1=s2_e;this.filter_osc2_y2=this.filter_osc2_y1;this.filter_osc2_y1=s2_f; } else { this.filter_osc2_x1=0;this.filter_osc2_x2=0;this.filter_osc2_y1=0;this.filter_osc2_y2=0; }
     
     s1_f *= currentParams[26] * 2.0; s2_f *= currentParams[27] * 2.0;
     // "Discrete Circuit" Panning
@@ -1170,7 +1251,7 @@ for(let i=0; i<blockSize; i++) {
 }
 
 if(++this.sampleCounter>128){
-    this.port.postMessage({type:'envUpdate',data:{v0:this.envValue1,v1:this.envValue2}});
+    this.port.postMessage({type:'envUpdate',data:{v0:this.envMeters[0] || 0,v1:this.envMeters[1] || 0}});
     this.sampleCounter=0;
 }
 return true;
