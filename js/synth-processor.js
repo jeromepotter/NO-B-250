@@ -261,7 +261,7 @@ const MIN_LFO_RATE_HZ = 0.01;
 const MAX_LFO_RATE_HZ = 100;
 const LFO_RATE_RANGE_RATIO = MAX_LFO_RATE_HZ / MIN_LFO_RATE_HZ;
 const LFO_DEST_NONE = -1;
-const MAX_POLY_VOICES = 4;
+const MAX_POLY_VOICES = 2; // Duo mode: one slot for sequence, one for arp/manual
 
            class SynthProcessor extends AudioWorkletProcessor {
                constructor() {
@@ -617,9 +617,17 @@ case 'ping':
                    return this.soundfontSamples[this.soundfontActiveIndex];
                }
 
-               createVoiceState(noteId = null, frequency = 440) {
+               getVoiceGroup(oscIndex, noteId) {
+                   if (typeof noteId === 'string' && noteId.includes('-')) {
+                       return noteId.split('-')[0];
+                   }
+                   return `mono-${oscIndex}`;
+               }
+
+               createVoiceState(noteId = null, frequency = 440, group = null) {
                    return {
                        noteId,
+                       group,
                        targetFrequency: frequency,
                        currentFrequency: frequency,
                        envStage: 'off',
@@ -642,20 +650,21 @@ case 'ping':
                acquireVoice(oscIndex, noteId, frequency = 440) {
                    const polyEnabled = !!this.polyMode[oscIndex];
                    const targetId = noteId ?? `mono-${oscIndex}`;
+                   const targetGroup = this.getVoiceGroup(oscIndex, noteId);
                    if (!this.voiceStates[oscIndex]) this.voiceStates[oscIndex] = [];
                    const voices = this.voiceStates[oscIndex];
 
                    if (!polyEnabled) {
-                       if (!voices.length) voices.push(this.createVoiceState(targetId, frequency));
+                       if (!voices.length) voices.push(this.createVoiceState(targetId, frequency, targetGroup));
                        return voices[0];
                    }
 
-                   let voice = voices.find(v => v.noteId === targetId);
+                   let voice = voices.find(v => v.noteId === targetId || v.group === targetGroup);
                    if (!voice) {
                        voice = voices.find(v => v.envStage === 'off' && !v.noteOn);
                    }
                    if (!voice && voices.length < MAX_POLY_VOICES) {
-                       voice = this.createVoiceState(targetId, frequency);
+                       voice = this.createVoiceState(targetId, frequency, targetGroup);
                        voices.push(voice);
                    }
                    if (!voice) {
@@ -668,8 +677,10 @@ case 'ping':
                }
 
                triggerNoteOn(oscIndex, frequency, noteId) {
+                   const targetGroup = this.getVoiceGroup(oscIndex, noteId);
                    const voice = this.acquireVoice(oscIndex, noteId, frequency);
                    voice.noteId = noteId ?? voice.noteId ?? `mono-${oscIndex}`;
+                   voice.group = targetGroup;
                    voice.targetFrequency = frequency;
                    if ((this.params[0] ?? 0) < 0.01 || voice.envStage === 'off') {
                        voice.currentFrequency = frequency;
@@ -688,7 +699,11 @@ case 'ping':
                triggerNoteOff(oscIndex, noteId) {
                    const voices = this.voiceStates[oscIndex] || [];
                    let targets = noteId ? voices.filter(v => v.noteId === noteId) : voices;
-                   if (noteId && targets.length === 0 && voices.length) {
+                   if (noteId && targets.length === 0) {
+                       const targetGroup = this.getVoiceGroup(oscIndex, noteId);
+                       targets = voices.filter(v => v.group === targetGroup);
+                   }
+                   if (!targets.length && voices.length) {
                        targets = [voices[voices.length - 1]];
                    }
                    targets.forEach(v => {
