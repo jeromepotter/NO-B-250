@@ -1056,6 +1056,14 @@ function attachChainKnobHandlers(knobEl, seqIndex, slotIndex, type) {
             return sharedStepNextTickTime !== null;
         }
 
+        function hasActiveStepContent() {
+            return stepSequences.some((sequence, seqIndex) => {
+                if (!sequence || !Array.isArray(sequence.steps)) return false;
+                const totalSteps = getSequenceLength(seqIndex);
+                return sequence.steps.some((step, stepIdx) => step.active && stepIdx < totalSteps);
+            });
+        }
+
         function clearSharedStepTimer() {
             sharedStepNextTickTime = null;
             sharedStepTimer.intervalId = null;
@@ -3850,6 +3858,7 @@ function generateComplexRandomLfoState(includeArpTargets = true) {
                breakSampleIndex: breakSampleIndex,
                breakSelectionNormalized: trim(breakSelectionNormalized),
                isStepsMode: isStepsMode,
+               stepPlayActive: areStepSequencesRunning(),
                 stepSequences: stepSequences.map((seq, idx) => ({
                     length: getSequenceLength(idx),
                     baseOctave: getSequenceBaseOctave(idx),
@@ -6504,6 +6513,7 @@ async function applyPreset(p, isArpCategoryPreset = false, options = {}) {
     }
 
     const presetHasStepSequences = Array.isArray(p.stepSequences) && p.stepSequences.some(seq => Array.isArray(seq?.steps) && seq.steps.length);
+    const presetShouldAutoPlaySteps = p.stepPlayActive !== undefined ? !!p.stepPlayActive : presetHasStepSequences;
     const targetStepsMode = presetHasStepSequences ? true : (p.isStepsMode ?? isStepsMode);
     if (targetStepsMode !== isStepsMode) {
         setStepsMode(targetStepsMode, { skipRandomize: presetHasStepSequences });
@@ -6707,6 +6717,17 @@ async function applyPreset(p, isArpCategoryPreset = false, options = {}) {
            }
        }
     });
+
+    if (!presetShouldAutoPlaySteps && areStepSequencesRunning()) {
+        stopAllStepSequences();
+        setStepStartButtonLabel('START');
+    }
+
+    if (presetShouldAutoPlaySteps && isStepsMode && hasActiveStepContent()) {
+        const sharedDelay = getSharedStepStartDelay();
+        startAllStepSequences({ sharedDelay });
+        setStepStartButtonLabel('RESTART');
+    }
 
     if (presetBreakShouldPlay && !breakPlayRequested) {
        toggleBreakPlayback({ allowArplessStart: true });
