@@ -363,6 +363,13 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
         display: inline-block;
       }
 
+      .chain-footer .chain-header-label {
+        font-size: 10px;
+        letter-spacing: 0.12em;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+
       .chain-section:not(.chain-enabled) .chain-grid {
         display: none;
       }
