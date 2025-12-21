@@ -275,6 +275,7 @@ const LFO_DEST_NONE = -1;
                        [createSlot(), createSlot()],
                        [createSlot(), createSlot()],
                    ];
+                   this.duoMode = [false, false]; // Track DUO state per oscillator
                    this.envValue1 = 0.0;
                    this.envValue2 = 0.0;
                    // FX params (from main thread)
@@ -408,6 +409,13 @@ const LFO_DEST_NONE = -1;
                                const slotIndex = Math.max(0, Math.min(this.voiceSlots[voiceIndex].length - 1, data?.slot || 0));
                                const slotState = this.voiceSlots[voiceIndex][slotIndex];
                                slotState.envStage = 'release';
+                               break;
+                           }
+                           case 'setDuoMode': {
+                               if (data) {
+                                   const vIdx = Math.max(0, Math.min(1, data.voice || 0));
+                                   this.duoMode[vIdx] = !!data.enabled;
+                               }
                                break;
                            }
                         case 'setBreakSlipMode':
@@ -971,6 +979,14 @@ for(let i=0;i<blockSize;i++){
     }
     if (osc2SlotCount > 1) {
         s2 /= osc2SlotCount;
+    }
+
+    // Duo headroom compensation (pre-drive) to avoid extra distortion when layering slots.
+    if (this.duoMode[0]) {
+        s1 *= 0.65;
+    }
+    if (this.duoMode[1]) {
+        s2 *= 0.65;
     }
 
     let sampleVal = 0;

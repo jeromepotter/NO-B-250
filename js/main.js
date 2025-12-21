@@ -1073,6 +1073,14 @@ function attachChainKnobHandlers(knobEl, seqIndex, slotIndex, type) {
                 switchEl.classList.toggle('on', enabled);
                 switchEl.setAttribute('aria-checked', enabled ? 'true' : 'false');
             }
+
+            // Inform the audio engine so it can apply headroom compensation.
+            if (synthNode) {
+                synthNode.port.postMessage({
+                    type: 'setDuoMode',
+                    data: { voice: seqIndex, enabled }
+                });
+            }
             if (!enabled) {
                 if (state.slotLastMidi?.[1] !== null && state.slotLastMidi?.[1] !== undefined) {
                     sendVoiceNoteOff(seqIndex, 1);
