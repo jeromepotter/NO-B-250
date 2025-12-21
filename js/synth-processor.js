@@ -870,6 +870,8 @@ for(let i=0;i<blockSize;i++){
     // Track per-oscillator activity for filter resets
     let osc1Active = false;
     let osc2Active = false;
+    let osc1SlotCount = 0;
+    let osc2SlotCount = 0;
 
     // Process oscillator 0 slots
     let envMax1 = 0;
@@ -912,6 +914,7 @@ for(let i=0;i<blockSize;i++){
             }
             s1 += sample * slot.envValue;
             osc1Active = osc1Active || slot.envStage !== 'off';
+            osc1SlotCount++;
         }
     }
     this.envValue1 = envMax1;
@@ -957,9 +960,18 @@ for(let i=0;i<blockSize;i++){
             }
             s2 += sample * slot.envValue;
             osc2Active = osc2Active || slot.envStage !== 'off';
+            osc2SlotCount++;
         }
     }
     this.envValue2 = envMax2;
+
+    // Normalize summed slots to avoid paraphonic overload
+    if (osc1SlotCount > 1) {
+        s1 /= osc1SlotCount;
+    }
+    if (osc2SlotCount > 1) {
+        s2 /= osc2SlotCount;
+    }
 
     let sampleVal = 0;
     if (this.samplerPlayback.active && this.sampleBuffer) {
