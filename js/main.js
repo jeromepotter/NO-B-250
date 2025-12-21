@@ -1069,6 +1069,12 @@ function attachChainKnobHandlers(knobEl, seqIndex, slotIndex, type) {
             const switchEl = duoModeSwitches[seqIndex];
             if (!state) return;
             state.isDuoMode = enabled;
+            if (synthNode) {
+                synthNode.port.postMessage({
+                    type: 'setDuoMode',
+                    data: { voice: seqIndex, enabled: enabled }
+                });
+            }
             if (switchEl) {
                 switchEl.classList.toggle('on', enabled);
                 switchEl.setAttribute('aria-checked', enabled ? 'true' : 'false');
@@ -1277,7 +1283,7 @@ function playOscillatorTrigger(oscId) {
     // 2. Send to the engine. 
     // We use 'source: "keyboard"' to mimic the Spacebar exactly.
     synthNode.port.postMessage({
-        type: 'NOTE_ON',
+        type: 'noteOn',
         note: currentNoteName,
         oscTarget: oscId,
         velocity: 1.0,
@@ -1297,7 +1303,7 @@ function stopOscillatorTrigger(oscId) {
     const currentNoteName = getNoteNameFromAngle(oscId, knob.totalAngle);
 
     synthNode.port.postMessage({
-        type: 'NOTE_OFF',
+        type: 'noteOff',
         note: currentNoteName,
         oscTarget: oscId,
         source: 'keyboard'

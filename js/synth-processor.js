@@ -322,6 +322,9 @@ const LFO_DEST_NONE = -1;
                    ];
                    this.lfoOutputs = [0,0,0,0];
 
+                   // --- Duo Mode State ---
+                   this.duoMode = [false, false];
+
                    // --- Sampler State ---
                    this.sampleBuffer = null;
                    this.sampleSourceRate = sampleRate;
@@ -408,6 +411,13 @@ const LFO_DEST_NONE = -1;
                                const slotIndex = Math.max(0, Math.min(this.voiceSlots[voiceIndex].length - 1, data?.slot || 0));
                                const slotState = this.voiceSlots[voiceIndex][slotIndex];
                                slotState.envStage = 'release';
+                               break;
+                           }
+                           case 'setDuoMode': {
+                               if (data) {
+                                   const vIdx = Math.max(0, Math.min(1, data.voice || 0));
+                                   this.duoMode[vIdx] = !!data.enabled;
+                               }
                                break;
                            }
                         case 'setBreakSlipMode':
@@ -1013,6 +1023,10 @@ for(let i=0;i<blockSize;i++){
     const sampleGain = Math.max(0, Math.min(1.5, currentParams[34] ?? 0));
     const sampleMixL = sampleFiltered * sampleGain;
     const sampleMixR = sampleFiltered * sampleGain;
+
+    // Duo headroom compensation before drive/saturation
+    if (this.duoMode[0]) s1 *= 0.65;
+    if (this.duoMode[1]) s2 *= 0.65;
 
     const dither = (Math.random() - 0.5) * 0.00001;
     s1 += dither;
