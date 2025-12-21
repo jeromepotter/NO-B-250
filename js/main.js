@@ -137,12 +137,13 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakSlipAnchorHoldEnabled = true;
         const BREAK_SLIP_DIVISIONS = [4, 1, 0.5, 0.25, 0.125, 0.0625, 0.03125];
         let breakSelectionDisplay = null;
-       let breakQueueTargetCycle = null;
+        let breakQueueTargetCycle = null;
        let breakQueueTargetStep = 0;
 
         let isStepsMode = false;
         let stepsModeContainer = null;
         let stepsModeSwitch = null;
+        let duoModeSwitches = [];
         const stepPlayheads = [0, 0];
         const sharedStepTimer = { intervalId: null, startTimeout: null };
         const stepTimers = [
@@ -150,6 +151,7 @@ let liveLfoOutputs = [0, 0, 0, 0];
             { intervalId: null, startTimeout: null },
         ];
         const stepLastMidi = [null, null];
+        const stepLastSlots = [0, 0];
         const stepPreviewTimeouts = [null, null];
         const defaultStepOctaves = [2, 4];
         const stepRandomBaseOctaves = [2, 4];
@@ -984,16 +986,16 @@ function attachChainKnobHandlers(knobEl, seqIndex, slotIndex, type) {
 
         function sendStepNoteOff(seqIndex) {
             const lastMidi = stepLastMidi[seqIndex];
+            const slot = stepLastSlots[seqIndex] ?? getStepVoiceSlot(seqIndex);
             if (!isPowerOn || lastMidi === null) return;
-            if (synthNode) {
-                synthNode.port.postMessage({ type: 'noteOff', data: { voice: seqIndex } });
-            }
+            sendVoiceNoteOff(seqIndex, slot);
             captureMidiEvent(seqIndex, 'noteOff', lastMidi, 0);
             sendMidiMessage([0x80 + seqIndex, lastMidi, 0]);
             stepLastMidi[seqIndex] = null;
             const state = knobState[seqIndex];
             if (state) {
-                state.isNoteOn = false;
+                if (Array.isArray(state.slotLastMidi)) state.slotLastMidi[slot] = null;
+                setSlotActiveState(seqIndex, slot, false);
                 updateKnobColor(seqIndex);
             }
         }
@@ -1002,16 +1004,17 @@ function attachChainKnobHandlers(knobEl, seqIndex, slotIndex, type) {
             if (!isPowerOn || midiNote === null || !isFinite(midiNote)) return;
             sendStepNoteOff(seqIndex);
             const freq = getNoteFrequency(midiNote);
-            if (synthNode) {
-                synthNode.port.postMessage({ type: 'noteOn', data: { voice: seqIndex, freq } });
-            }
+            const slot = getStepVoiceSlot(seqIndex);
+            stepLastSlots[seqIndex] = slot;
+            sendVoiceNoteOn(seqIndex, freq, slot);
             captureMidiEvent(seqIndex, 'noteOn', midiNote, 100);
             sendMidiMessage([0x90 + seqIndex, midiNote, 100]);
             stepLastMidi[seqIndex] = midiNote;
             const state = knobState[seqIndex];
             if (state) {
-                state.isNoteOn = true;
+                if (Array.isArray(state.slotLastMidi)) state.slotLastMidi[slot] = midiNote;
                 state.lastPlayedMidi = midiNote;
+                setSlotActiveState(seqIndex, slot, true);
                 updateKnobColor(seqIndex);
             }
         }
@@ -1054,6 +1057,54 @@ function attachChainKnobHandlers(knobEl, seqIndex, slotIndex, type) {
 
         function areStepSequencesRunning() {
             return sharedStepNextTickTime !== null;
+        }
+
+        function getStepVoiceSlot(seqIndex) {
+            const state = knobState[seqIndex];
+            return state?.isDuoMode ? 1 : 0;
+        }
+
+        function setDuoMode(seqIndex, enabled) {
+            const state = knobState[seqIndex];
+            const switchEl = duoModeSwitches[seqIndex];
+            if (!state) return;
+            state.isDuoMode = enabled;
+            if (switchEl) {
+                switchEl.classList.toggle('on', enabled);
+                switchEl.setAttribute('aria-checked', enabled ? 'true' : 'false');
+            }
+            if (!enabled) {
+                if (state.slotLastMidi?.[1] !== null && state.slotLastMidi?.[1] !== undefined) {
+                    sendVoiceNoteOff(seqIndex, 1);
+                    captureMidiEvent(seqIndex, 'noteOff', state.slotLastMidi[1], 0);
+                    sendMidiMessage([0x80 + seqIndex, state.slotLastMidi[1], 0]);
+                }
+                if (Array.isArray(state.activeSlots)) state.activeSlots[1] = false;
+                if (Array.isArray(state.slotLastMidi)) state.slotLastMidi[1] = null;
+                setSlotActiveState(seqIndex, 1, false);
+                stepLastSlots[seqIndex] = 0;
+
+                // If a step is currently sustaining, re-route it to slot 0 to avoid level drops.
+                if (stepLastMidi[seqIndex] !== null) {
+                    const sustainingMidi = stepLastMidi[seqIndex];
+                    sendVoiceNoteOn(seqIndex, getNoteFrequency(sustainingMidi), 0);
+                    if (Array.isArray(state.slotLastMidi)) state.slotLastMidi[0] = sustainingMidi;
+                    setSlotActiveState(seqIndex, 0, true);
+                }
+            } else if (stepLastMidi[seqIndex] !== null) {
+                sendVoiceNoteOff(seqIndex, stepLastSlots[seqIndex] || 0);
+                stepLastMidi[seqIndex] = null;
+            }
+        }
+
+        function initDuoSwitch(seqIndex) {
+            const switchEl = document.querySelector(`[data-duo-switch=\"${seqIndex}\"]`);
+            if (!switchEl) return;
+            duoModeSwitches[seqIndex] = switchEl;
+            switchEl.addEventListener('click', () => {
+                setDuoMode(seqIndex, !knobState[seqIndex]?.isDuoMode);
+            });
+            setDuoMode(seqIndex, knobState[seqIndex]?.isDuoMode || false);
         }
 
         function hasActiveStepContent() {
@@ -1742,7 +1793,9 @@ function applyMidiControl(target, val) {
             buildChainSequencer(1);
 
             initChainModeSwitch(0);
+            initDuoSwitch(0);
             initChainModeSwitch(1);
+            initDuoSwitch(1);
 
             stepsModeSwitch.addEventListener('click', () => {
                 setStepsMode(!isStepsMode);
@@ -3694,10 +3747,10 @@ async function toggleBreakPlayback(options = {}) {
      const knobState = [
     { id: 0, isNoteOn: false, isHeld: false, totalAngle: Math.random()*MAX_TOTAL_ANGLE, lastDragAngle: 0, currentOctave: 3, dom: {}, touchId: null, baseColor: [0,0,0],
       isArpOn: false, isSweepMode: true, arpNotes: [], isArpHoldOn: false, arpRateBpm: DEFAULT_ARP_RATE_BPM, arpRateMs: DEFAULT_ARP_RATE_MS, arpOctaveRange: 0, feelKnobValue: 0.0, currentFeelPattern: EUCLIDEAN_PATTERNS[0], euclideanStepCounter: 0,
-      arpTranspose: 0, arpRunning: false, nextArpStepTime: 0, lastArpStepTime: 0, arpRafId: null, currentArpNoteIndex: 0, currentOctaveStep: 0, arpDirection: 1, arpUpDownState: 0, lastPlayedMidi: null, arpLastVisualIndex: -1, lastNoteOnTime: 0, lastVisualMidi: null },
+      arpTranspose: 0, arpRunning: false, nextArpStepTime: 0, lastArpStepTime: 0, arpRafId: null, currentArpNoteIndex: 0, currentOctaveStep: 0, arpDirection: 1, arpUpDownState: 0, lastPlayedMidi: null, arpLastVisualIndex: -1, lastNoteOnTime: 0, lastVisualMidi: null, activeSlots: [false, false], slotLastMidi: [null, null], isDuoMode: false },
     { id: 1, isNoteOn: false, isHeld: false, totalAngle: Math.random()*MAX_TOTAL_ANGLE, lastDragAngle: 0, currentOctave: 3, dom: {}, touchId: null, baseColor: [0,0,0],
       isArpOn: false, isSweepMode: true, arpNotes: [], isArpHoldOn: false, arpRateBpm: DEFAULT_ARP_RATE_BPM, arpRateMs: DEFAULT_ARP_RATE_MS, arpOctaveRange: 0, feelKnobValue: 0.0, currentFeelPattern: EUCLIDEAN_PATTERNS[0], euclideanStepCounter: 0,
-      arpTranspose: 0, arpRunning: false, nextArpStepTime: 0, lastArpStepTime: 0, arpRafId: null, currentArpNoteIndex: 0, currentOctaveStep: 0, arpDirection: 1, arpUpDownState: 0, lastPlayedMidi: null, arpLastVisualIndex: -1, lastNoteOnTime: 0, lastVisualMidi: null }
+      arpTranspose: 0, arpRunning: false, nextArpStepTime: 0, lastArpStepTime: 0, arpRafId: null, currentArpNoteIndex: 0, currentOctaveStep: 0, arpDirection: 1, arpUpDownState: 0, lastPlayedMidi: null, arpLastVisualIndex: -1, lastNoteOnTime: 0, lastVisualMidi: null, activeSlots: [false, false], slotLastMidi: [null, null], isDuoMode: false }
 ];
       
        // --- Global Arp State ---
@@ -4780,6 +4833,28 @@ function sendMidiMessage(message) {
                selectedMidiOutput.send(message);
            }
        }
+
+       function sendVoiceNoteOn(voiceId, freq, slot = 0) {
+           if (!synthNode) return;
+           const safeSlot = Math.max(0, Math.min(1, slot | 0));
+           synthNode.port.postMessage({ type: 'noteOn', data: { voice: voiceId, slot: safeSlot, freq } });
+       }
+
+       function sendVoiceNoteOff(voiceId, slot = 0) {
+           if (!synthNode) return;
+           const safeSlot = Math.max(0, Math.min(1, slot | 0));
+           synthNode.port.postMessage({ type: 'noteOff', data: { voice: voiceId, slot: safeSlot } });
+       }
+
+       function setSlotActiveState(oscId, slot, isActive) {
+           const state = knobState[oscId];
+           if (!state) return;
+           if (!Array.isArray(state.activeSlots)) {
+               state.activeSlots = [false, false];
+           }
+           state.activeSlots[Math.max(0, Math.min(1, slot))] = isActive;
+           state.isNoteOn = state.activeSlots.some(Boolean);
+       }
       
        function getKnobColor(angle) {
            const pos = angle / 360; let c1, c2, p;
@@ -4882,9 +4957,9 @@ function sendMidiMessage(message) {
             
             // --- Re-trigger envelope logic ---
             if (!state.isArpOn && state.lastPlayedMidi !== baseMidi) {
-                synthNode.port.postMessage({ type: 'noteOff', data: { voice: knobId } });
+                sendVoiceNoteOff(knobId, 0);
                 const freq = getNoteFrequency(baseMidi);
-                synthNode.port.postMessage({ type: 'noteOn', data: { voice: knobId, freq: freq } });
+                sendVoiceNoteOn(knobId, freq, 0);
                 
                 if (state.lastPlayedMidi !== null) {
                     sendMidiMessage([0x80 + knobId, state.lastPlayedMidi, 0]);
@@ -4894,6 +4969,8 @@ function sendMidiMessage(message) {
                 captureMidiEvent(knobId, 'noteOn', baseMidi, 100);
                 
                 state.lastPlayedMidi = baseMidi;
+                if (Array.isArray(state.slotLastMidi)) state.slotLastMidi[0] = baseMidi;
+                setSlotActiveState(knobId, 0, true);
             }
             
             updateKnobColor(knobId);
@@ -5319,11 +5396,12 @@ else if(id===22||id===23){fxKnobData[id].value=0.0;} else if(id===24||id===25){f
             } else { state.arpNotes = [{ midi: newMidi, active: true }]; updateSequenceDisplay(knobId); startArpeggiator(knobId); }
         } else { state.arpNotes = [{ midi: newMidi, active: true }]; updateSequenceDisplay(knobId); if (!state.arpRunning) startArpeggiator(knobId); }
     } else {
-        state.isNoteOn=true; 
         const midiNote = getMidiNote(knobId);
         const freq = getNoteFrequency(midiNote);
         state.lastPlayedMidi = midiNote;
-        if(synthNode) synthNode.port.postMessage({type:'noteOn',data:{voice:knobId,freq:freq}});
+        if (Array.isArray(state.slotLastMidi)) state.slotLastMidi[0] = midiNote;
+        setSlotActiveState(knobId, 0, true);
+        sendVoiceNoteOn(knobId, freq, 0);
         captureMidiEvent(knobId, 'noteOn', midiNote, 100); 
         sendMidiMessage([0x90 + knobId, midiNote, 100]);
         updateKnobColor(knobId);
@@ -5346,19 +5424,17 @@ else if(id===22||id===23){fxKnobData[id].value=0.0;} else if(id===24||id===25){f
         } 
     } else { 
         if (state.isNoteOn || force) { 
-            if (synthNode) {
-                synthNode.port.postMessage({ type: 'noteOff', data: { voice: knobId } });
-            }
+            sendVoiceNoteOff(knobId, 0);
             
-            state.isNoteOn = false;
-            
+            setSlotActiveState(knobId, 0, false);
             const noteToStop = state.lastPlayedMidi !== null ? state.lastPlayedMidi : getMidiNote(knobId);
             captureMidiEvent(knobId, 'noteOff', noteToStop, 0);
             sendMidiMessage([0x80 + knobId, noteToStop, 0]); 
             state.lastPlayedMidi = null;
+            if (Array.isArray(state.slotLastMidi)) state.slotLastMidi[0] = null;
             updateKnobColor(knobId); 
         }
-    }
+    } 
 }
 
       
@@ -5398,12 +5474,11 @@ else if(id===22||id===23){fxKnobData[id].value=0.0;} else if(id===24||id===25){f
           }
 
           if (state.isNoteOn && state.lastPlayedMidi !== null) {
-               if (synthNode) {
-                   synthNode.port.postMessage({ type: 'noteOff', data: { voice: knobId } });
-               }
+               sendVoiceNoteOff(knobId, 0);
                captureMidiEvent(knobId, 'noteOff', state.lastPlayedMidi, 0);
                sendMidiMessage([0x80 + knobId, state.lastPlayedMidi, 0]); 
-               state.isNoteOn = false;
+               setSlotActiveState(knobId, 0, false);
+               if (Array.isArray(state.slotLastMidi)) state.slotLastMidi[0] = null;
            }
 
            state.currentArpNoteIndex = 0;
@@ -5591,10 +5666,10 @@ lfoState.forEach((lfo, lfoIndex) => {
                const shouldPlay = modulatedFeelPattern[state.euclideanStepCounter % modulatedFeelPattern.length] === 1 && baseNoteObject && baseNoteObject.active;
 
                if (state.isNoteOn) {
-                   synthNode.port.postMessage({ type: 'noteOff', data: { voice: knobId } });
+                   sendVoiceNoteOff(knobId, 0);
                    captureMidiEvent(knobId, 'noteOff', state.lastPlayedMidi, 0);
                     sendMidiMessage([0x80 + knobId, state.lastPlayedMidi, 0]);
-                   state.isNoteOn = false;
+                   setSlotActiveState(knobId, 0, false);
                    if (!shouldPlay) updateKnobColor(knobId);
                }
     
@@ -5659,10 +5734,12 @@ lfoState.forEach((lfo, lfoIndex) => {
                if (shouldPlay) {
                    if (finalMidiNote !== null && isFinite(finalMidiNote)) {
                        state.isNoteOn = true;
-                       synthNode.port.postMessage({ type: 'noteOn', data: { voice: knobId, freq: getNoteFrequency(finalMidiNote) } });
+                       sendVoiceNoteOn(knobId, getNoteFrequency(finalMidiNote), 0);
                        captureMidiEvent(knobId, 'noteOn', finalMidiNote, 100);
                        sendMidiMessage([0x90 + knobId, finalMidiNote, 100]);
                        state.lastPlayedMidi = finalMidiNote;
+                       if (Array.isArray(state.slotLastMidi)) state.slotLastMidi[0] = finalMidiNote;
+                       setSlotActiveState(knobId, 0, true);
                        updateKnobColor(knobId);
                        if (state.dom.arpNoteDisplay) state.dom.arpNoteDisplay.textContent = midiToNoteName(finalMidiNote);
                    } else {
@@ -7868,8 +7945,8 @@ function sendMidiMessage(message) {
 
                    updateGlobalArpVisibility();
                    updateFeelPatternPreview(s.id);
-                   if (!s.isArpOn) { stopArpeggiator(s.id); if(s.isHeld) { s.isNoteOn = true; const freq = calculateNote(s.id, false); if(synthNode) synthNode.port.postMessage({type:'noteOn',data:{voice:s.id,freq:freq}}); } s.arpNotes = []; updateSequenceDisplay(s.id);if(s.dom.arpNoteDisplay)s.dom.arpNoteDisplay.textContent="--"; }
-                   else { if(s.isHeld) { if (s.isNoteOn) { if(synthNode) synthNode.port.postMessage({type:'noteOff', data:{voice:s.id}}); s.isNoteOn = false; } playNote(s.id); } }
+                   if (!s.isArpOn) { stopArpeggiator(s.id); if(s.isHeld) { const freq = calculateNote(s.id, false); s.lastPlayedMidi = getMidiNote(s.id); if (Array.isArray(s.slotLastMidi)) s.slotLastMidi[0] = s.lastPlayedMidi; sendVoiceNoteOn(s.id, freq, 0); setSlotActiveState(s.id, 0, true); } s.arpNotes = []; updateSequenceDisplay(s.id);if(s.dom.arpNoteDisplay)s.dom.arpNoteDisplay.textContent="--"; }
+                   else { if(s.isHeld) { if (s.isNoteOn) { sendVoiceNoteOff(s.id, 0); setSlotActiveState(s.id, 0, false); } playNote(s.id); } }
                    updateStateFromTotalAngle(s.id);
                });
 
