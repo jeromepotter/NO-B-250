@@ -1082,6 +1082,15 @@ function attachChainKnobHandlers(knobEl, seqIndex, slotIndex, type) {
                 if (Array.isArray(state.activeSlots)) state.activeSlots[1] = false;
                 if (Array.isArray(state.slotLastMidi)) state.slotLastMidi[1] = null;
                 setSlotActiveState(seqIndex, 1, false);
+                stepLastSlots[seqIndex] = 0;
+
+                // If a step is currently sustaining, re-route it to slot 0 to avoid level drops.
+                if (stepLastMidi[seqIndex] !== null) {
+                    const sustainingMidi = stepLastMidi[seqIndex];
+                    sendVoiceNoteOn(seqIndex, getNoteFrequency(sustainingMidi), 0);
+                    if (Array.isArray(state.slotLastMidi)) state.slotLastMidi[0] = sustainingMidi;
+                    setSlotActiveState(seqIndex, 0, true);
+                }
             } else if (stepLastMidi[seqIndex] !== null) {
                 sendVoiceNoteOff(seqIndex, stepLastSlots[seqIndex] || 0);
                 stepLastMidi[seqIndex] = null;
