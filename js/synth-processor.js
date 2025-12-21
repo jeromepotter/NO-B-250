@@ -265,11 +265,18 @@ const LFO_DEST_NONE = -1;
            class SynthProcessor extends AudioWorkletProcessor {
                constructor() {
                    super();
-                   // Core oscillator state
-                   this.phase1_1=0; this.phase2_1=0; this.phase3_1=0; this.targetFrequency1=440; this.currentFrequency1=440; this.noteOn1=false;
-                   this.phase1_2=0; this.phase2_2=0; this.phase3_2=0; this.targetFrequency2=440; this.currentFrequency2=440; this.noteOn2=false;
-                   // Envelope state
-                   this.envStage1='off'; this.envValue1=0.0; this.envStage2='off'; this.envValue2=0.0;
+                   // Core oscillator state (two slots per oscillator)
+                   const createSlot = () => ({
+                       phase1: 0, phase2: 0, phase3: 0,
+                       targetFrequency: 440, currentFrequency: 440,
+                       noteOn: false, envStage: 'off', envValue: 0.0
+                   });
+                   this.voiceSlots = [
+                       [createSlot(), createSlot()],
+                       [createSlot(), createSlot()],
+                   ];
+                   this.envValue1 = 0.0;
+                   this.envValue2 = 0.0;
                    // FX params (from main thread)
                    this.params=new Array(36).fill(0.0);
                    // Envelope times
@@ -315,6 +322,9 @@ const LFO_DEST_NONE = -1;
                    ];
                    this.lfoOutputs = [0,0,0,0];
 
+                   // --- Duo Mode State ---
+                   this.duoMode = [false, false];
+
                    // --- Sampler State ---
                    this.sampleBuffer = null;
                    this.sampleSourceRate = sampleRate;
@@ -332,10 +342,10 @@ const LFO_DEST_NONE = -1;
                    // --- Soundfont State ---
                    this.soundfontSamples = [];
                    this.soundfontActiveIndex = -1;
-                   this.soundfontVoices = [
-                       { position: 0, fadeRemaining: 0 },
-                       { position: 0, fadeRemaining: 0 },
-                   ];
+                   this.soundfontVoices = Array.from({ length: this.voiceSlots.length * this.voiceSlots[0].length }, () => ({
+                       position: 0,
+                       fadeRemaining: 0
+                   }));
                    this.breakBypassL = new Float32Array(128);
                    this.breakBypassR = new Float32Array(128);
 
@@ -379,40 +389,49 @@ const LFO_DEST_NONE = -1;
                    this.port.onmessage = ({ data: { type, data } }) => {
                        const { voice, freq, id, value, lfoId, param } = data || {};
                        switch (type) {
-                           case 'noteOn':
-    if (voice === 0) {
-        this.noteOn1 = true;
-        this.targetFrequency1 = freq;
-        if (this.params[0] < 0.01) this.currentFrequency1 = freq;
-        if (this.soundfontVoices[0]) {
-            this.soundfontVoices[0].position = 0;
-            this.soundfontVoices[0].fadeRemaining = 100;
-        }
-        this.envStage1 = 'attack';
-    }
-    else {
-        this.noteOn2 = true;
-        this.targetFrequency2 = freq;
-        if (this.params[0] < 0.01) this.currentFrequency2 = freq;
-        if (this.soundfontVoices[1]) {
-            this.soundfontVoices[1].position = 0;
-            this.soundfontVoices[1].fadeRemaining = 100;
-        }
-        this.envStage2 = 'attack';
-    }
-    break;
-                           case 'noteOff': 
-    if (voice === 0) { 
-        this.envStage1 = 'release'; 
-    } else { 
-        this.envStage2 = 'release'; 
-    } 
-    break;
+                           case 'noteOn': {
+                               const voiceIndex = Math.max(0, Math.min(this.voiceSlots.length - 1, voice || 0));
+                               const slotIndex = Math.max(0, Math.min(this.voiceSlots[voiceIndex].length - 1, data?.slot || 0));
+                               const slotState = this.voiceSlots[voiceIndex][slotIndex];
+
+                               slotState.noteOn = true;
+                               slotState.targetFrequency = freq;
+                               if (this.params[0] < 0.01) slotState.currentFrequency = freq;
+
+                               const sfIdx = (voiceIndex * this.voiceSlots[voiceIndex].length) + slotIndex;
+                               if (this.soundfontVoices[sfIdx]) {
+                                   this.soundfontVoices[sfIdx].position = 0;
+                                   this.soundfontVoices[sfIdx].fadeRemaining = 100;
+                               }
+                               slotState.envStage = 'attack';
+                               break;
+                           }
+                           case 'noteOff': {
+                               const voiceIndex = Math.max(0, Math.min(this.voiceSlots.length - 1, voice || 0));
+                               const slotIndex = Math.max(0, Math.min(this.voiceSlots[voiceIndex].length - 1, data?.slot || 0));
+                               const slotState = this.voiceSlots[voiceIndex][slotIndex];
+                               slotState.envStage = 'release';
+                               break;
+                           }
+                           case 'setDuoMode': {
+                               if (data) {
+                                   const vIdx = Math.max(0, Math.min(1, data.voice || 0));
+                                   this.duoMode[vIdx] = !!data.enabled;
+                               }
+                               break;
+                           }
                         case 'setBreakSlipMode':
     this.slipAnchorMode = !!(data && data.enabled);
     break;
 
-                           case 'setFreq': if (voice === 0) { this.targetFrequency1 = freq; } else { this.targetFrequency2 = freq; } break;
+                           case 'setFreq': {
+                               const voiceIndex = Math.max(0, Math.min(this.voiceSlots.length - 1, voice || 0));
+                               const slots = this.voiceSlots[voiceIndex] || [];
+                               slots.forEach(slot => {
+                                   slot.targetFrequency = freq;
+                               });
+                               break;
+                           }
                            case 'setFx':
                                if (id >= 0 && id < this.params.length) { this.params[id] = value; }
                                if(id===2){ this.updateFilterCoefficients(this.filterCoeffs, value, 0.0); }
@@ -636,6 +655,7 @@ case 'ping':
                    const rate = baseFreq > 0 ? (frequency / baseFreq) * rateBase : rateBase;
 
                    const voiceState = this.soundfontVoices[voiceIndex];
+                   if (!voiceState) return 0;
                    voiceState.fadeRemaining = voiceState.fadeRemaining || 0;
                    const hasLoop = sample.loopEnd > sample.loopStart;
                    const loopStart = hasLoop ? sample.loopStart : 0;
@@ -848,14 +868,7 @@ const cM=this.filterCoeffs;
 // --- BLOCK PROCESSING LOOP 1: Synthesis & Pre-Reverb FX ---
 for(let i=0;i<blockSize;i++){
 
-    // Envelopes
-    switch(this.envStage1){ case 'attack':this.envValue1+=1.0/(this.attackTime*sr);if(this.envValue1>=1.0){this.envValue1=1.0;this.envStage1='decay';}break; case 'decay':this.envValue1-=(1.0-this.sustainLevel)/(this.decayTime*sr);if(this.envValue1<=this.sustainLevel){this.envValue1=this.sustainLevel;this.envStage1='sustain';}break; case 'release':this.envValue1*=this.releaseRate;if(this.envValue1<=0.0001){this.envValue1=0;this.envStage1='off';this.noteOn1=false;}break; }
-    switch(this.envStage2){ case 'attack':this.envValue2+=1.0/(this.attackTime*sr);if(this.envValue2>=1.0){this.envValue2=1.0;this.envStage2='decay';}break; case 'decay':this.envValue2-=(1.0-this.sustainLevel)/(this.decayTime*sr);if(this.envValue2<=this.sustainLevel){this.envValue2=this.sustainLevel;this.envStage2='sustain';}break; case 'release':this.envValue2*=this.releaseRate;if(this.envValue2<=0.0001){this.envValue2=0;this.envStage2='off';this.noteOn2=false;}break; }
-    
     const g=currentParams[0]; const pt=(g<0.01)?1.0:1.0-Math.exp(-2*Math.PI/(Math.pow(g,3)*sr)); 
-    
-    this.currentFrequency1+=(this.targetFrequency1-this.currentFrequency1)*pt; 
-    this.currentFrequency2+=(this.targetFrequency2-this.currentFrequency2)*pt;
     
     // --- VOICE VARIANCE LOGIC ---
     const dA1 = 1.0 + currentParams[4] * 0.01;
@@ -864,44 +877,103 @@ for(let i=0;i<blockSize;i++){
     let s1=0, s2=0;
     const hasSoundfont = !!this.getActiveSoundfontSample();
 
-    if (hasSoundfont) {
-        if (this.noteOn1 || this.envStage1 === 'release') {
-            s1 = this.getSoundfontVoiceSample(0, this.currentFrequency1 || this.targetFrequency1);
+    // Track per-oscillator activity for filter resets
+    let osc1Active = false;
+    let osc2Active = false;
+    let osc1SlotCount = 0;
+    let osc2SlotCount = 0;
+
+    // Process oscillator 0 slots
+    let envMax1 = 0;
+    for (let slotIdx = 0; slotIdx < this.voiceSlots[0].length; slotIdx++) {
+        const slot = this.voiceSlots[0][slotIdx];
+        switch (slot.envStage) {
+            case 'attack':
+                slot.envValue += 1.0 / (this.attackTime * sr);
+                if (slot.envValue >= 1.0) { slot.envValue = 1.0; slot.envStage = 'decay'; }
+                break;
+            case 'decay':
+                slot.envValue -= (1.0 - this.sustainLevel) / (this.decayTime * sr);
+                if (slot.envValue <= this.sustainLevel) { slot.envValue = this.sustainLevel; slot.envStage = 'sustain'; }
+                break;
+            case 'release':
+                slot.envValue *= this.releaseRate;
+                if (slot.envValue <= 0.0001) { slot.envValue = 0; slot.envStage = 'off'; slot.noteOn = false; }
+                break;
         }
-        if (this.noteOn2 || this.envStage2 === 'release') {
-            s2 = this.getSoundfontVoiceSample(1, this.currentFrequency2 || this.targetFrequency2);
-        }
-    } else {
-        // --- VOICE 1 (Standard Detune, Uses dA1) ---
-        if(this.noteOn1 || this.envStage1 === 'release'){
-            const o1_1=getWaveSample(this.phase1_1, waveType1);
-            this.phase1_1=(this.phase1_1+2*Math.PI*this.currentFrequency1/sr)%(2*Math.PI);
+        envMax1 = Math.max(envMax1, slot.envValue);
+        slot.currentFrequency += (slot.targetFrequency - slot.currentFrequency) * pt;
 
-            const o2_1=getWaveSample(this.phase2_1, waveType1);
-            this.phase2_1=(this.phase2_1+2*Math.PI*this.currentFrequency1*dA1/sr)%(2*Math.PI);
+        if (slot.noteOn || slot.envStage === 'release') {
+            let sample = 0;
+            if (hasSoundfont) {
+                const sfIdx = slotIdx;
+                sample = this.getSoundfontVoiceSample(sfIdx, slot.currentFrequency || slot.targetFrequency);
+            } else {
+                const o1=getWaveSample(slot.phase1, waveType1);
+                slot.phase1=(slot.phase1+2*Math.PI*slot.currentFrequency/sr)%(2*Math.PI);
 
-            const o3_1=getWaveSample(this.phase3_1, waveType1);
-            this.phase3_1=(this.phase3_1+2*Math.PI*(this.currentFrequency1/2)/sr)%(2*Math.PI);
+                const o2=getWaveSample(slot.phase2, waveType1);
+                slot.phase2=(slot.phase2+2*Math.PI*slot.currentFrequency*dA1/sr)%(2*Math.PI);
 
-            s1=(o1_1+o2_1)*0.5;
-            s1 = (s1 + (o3_1 * currentParams[3])) * 0.8;
-        }
+                const o3=getWaveSample(slot.phase3, waveType1);
+                slot.phase3=(slot.phase3+2*Math.PI*(slot.currentFrequency/2)/sr)%(2*Math.PI);
 
-        // --- VOICE 2 (Drifty Detune, Uses dA2) ---
-        if(this.noteOn2 || this.envStage2 === 'release'){
-            const o1_2=getWaveSample(this.phase1_2, waveType2);
-            this.phase1_2=(this.phase1_2+2*Math.PI*this.currentFrequency2/sr)%(2*Math.PI);
-
-            const o2_2=getWaveSample(this.phase2_2, waveType2);
-            this.phase2_2=(this.phase2_2+2*Math.PI*this.currentFrequency2*dA2/sr)%(2*Math.PI);
-
-            const o3_2=getWaveSample(this.phase3_2, waveType2);
-            this.phase3_2=(this.phase3_2+2*Math.PI*(this.currentFrequency2/2)/sr)%(2*Math.PI);
-
-            s2=(o1_2+o2_2)*0.5;
-            s2 = (s2 + (o3_2 * currentParams[3])) * 0.8;
+                sample=(o1+o2)*0.5;
+                sample = (sample + (o3 * currentParams[3])) * 0.8;
+            }
+            s1 += sample * slot.envValue;
+            osc1Active = osc1Active || slot.envStage !== 'off';
+            osc1SlotCount++;
         }
     }
+    this.envValue1 = envMax1;
+
+    // Process oscillator 1 slots
+    let envMax2 = 0;
+    for (let slotIdx = 0; slotIdx < this.voiceSlots[1].length; slotIdx++) {
+        const slot = this.voiceSlots[1][slotIdx];
+        switch (slot.envStage) {
+            case 'attack':
+                slot.envValue += 1.0 / (this.attackTime * sr);
+                if (slot.envValue >= 1.0) { slot.envValue = 1.0; slot.envStage = 'decay'; }
+                break;
+            case 'decay':
+                slot.envValue -= (1.0 - this.sustainLevel) / (this.decayTime * sr);
+                if (slot.envValue <= this.sustainLevel) { slot.envValue = this.sustainLevel; slot.envStage = 'sustain'; }
+                break;
+            case 'release':
+                slot.envValue *= this.releaseRate;
+                if (slot.envValue <= 0.0001) { slot.envValue = 0; slot.envStage = 'off'; slot.noteOn = false; }
+                break;
+        }
+        envMax2 = Math.max(envMax2, slot.envValue);
+        slot.currentFrequency += (slot.targetFrequency - slot.currentFrequency) * pt;
+
+        if (slot.noteOn || slot.envStage === 'release') {
+            let sample = 0;
+            if (hasSoundfont) {
+                const sfIdx = this.voiceSlots[0].length + slotIdx;
+                sample = this.getSoundfontVoiceSample(sfIdx, slot.currentFrequency || slot.targetFrequency);
+            } else {
+                const o1=getWaveSample(slot.phase1, waveType2);
+                slot.phase1=(slot.phase1+2*Math.PI*slot.currentFrequency/sr)%(2*Math.PI);
+
+                const o2=getWaveSample(slot.phase2, waveType2);
+                slot.phase2=(slot.phase2+2*Math.PI*slot.currentFrequency*dA2/sr)%(2*Math.PI);
+
+                const o3=getWaveSample(slot.phase3, waveType2);
+                slot.phase3=(slot.phase3+2*Math.PI*(slot.currentFrequency/2)/sr)%(2*Math.PI);
+
+                sample=(o1+o2)*0.5;
+                sample = (sample + (o3 * currentParams[3])) * 0.8;
+            }
+            s2 += sample * slot.envValue;
+            osc2Active = osc2Active || slot.envStage !== 'off';
+            osc2SlotCount++;
+        }
+    }
+    this.envValue2 = envMax2;
 
     let sampleVal = 0;
     if (this.samplerPlayback.active && this.sampleBuffer) {
@@ -952,14 +1024,18 @@ for(let i=0;i<blockSize;i++){
     const sampleMixL = sampleFiltered * sampleGain;
     const sampleMixR = sampleFiltered * sampleGain;
 
+    // Duo headroom compensation before drive/saturation
+    if (this.duoMode[0]) s1 *= 0.65;
+    if (this.duoMode[1]) s2 *= 0.65;
+
     const dither = (Math.random() - 0.5) * 0.00001;
     s1 += dither;
     s2 += dither;
     
     // Analog Drive: Boost (1.5x) and Saturate (tanh) before the filter
     const drive = 1.5; 
-    const s1_e = Math.tanh(s1 * this.envValue1 * drive);
-    const s2_e = Math.tanh(s2 * this.envValue2 * drive);
+    const s1_e = Math.tanh(s1 * drive);
+    const s2_e = Math.tanh(s2 * drive);
     
     this.smoothedCutoff1 += (currentParams[20] - this.smoothedCutoff1) * 0.05;
     this.smoothedRes1 += (currentParams[28] - this.smoothedRes1) * 0.05; // Smooth Res
@@ -967,7 +1043,7 @@ for(let i=0;i<blockSize;i++){
     // Pass BOTH smoothed values
     this.updateDjFilterCoefficients(this.filterOsc1Coeffs, this.smoothedCutoff1, this.smoothedRes1);
 
-    let s1_f=0; if (this.envStage1 !== 'off'){ const c1=this.filterOsc1Coeffs; s1_f=c1.b0*s1_e+c1.b1*this.filter_osc1_x1+c1.b2*this.filter_osc1_x2-c1.a1*this.filter_osc1_y1-c1.a2*this.filter_osc1_y2; this.filter_osc1_x2=this.filter_osc1_x1;this.filter_osc1_x1=s1_e;this.filter_osc1_y2=this.filter_osc1_y1;this.filter_osc1_y1=s1_f; } else { this.filter_osc1_x1=0;this.filter_osc1_x2=0;this.filter_osc1_y1=0;this.filter_osc1_y2=0; }
+    let s1_f=0; if (osc1Active){ const c1=this.filterOsc1Coeffs; s1_f=c1.b0*s1_e+c1.b1*this.filter_osc1_x1+c1.b2*this.filter_osc1_x2-c1.a1*this.filter_osc1_y1-c1.a2*this.filter_osc1_y2; this.filter_osc1_x2=this.filter_osc1_x1;this.filter_osc1_x1=s1_e;this.filter_osc1_y2=this.filter_osc1_y1;this.filter_osc1_y1=s1_f; } else { this.filter_osc1_x1=0;this.filter_osc1_x2=0;this.filter_osc1_y1=0;this.filter_osc1_y2=0; }
     
     // Voice 2: Smooth Cutoff AND Resonance
     this.smoothedCutoff2 += (currentParams[21] - this.smoothedCutoff2) * 0.05;
@@ -975,7 +1051,7 @@ for(let i=0;i<blockSize;i++){
 
     // Pass BOTH smoothed values
     this.updateDjFilterCoefficients(this.filterOsc2Coeffs, this.smoothedCutoff2, this.smoothedRes2);
-    let s2_f=0; if (this.envStage2 !== 'off'){ const c2=this.filterOsc2Coeffs; s2_f=c2.b0*s2_e+c2.b1*this.filter_osc2_x1+c2.b2*this.filter_osc2_x2-c2.a1*this.filter_osc2_y1-c2.a2*this.filter_osc2_y2; this.filter_osc2_x2=this.filter_osc2_x1;this.filter_osc2_x1=s2_e;this.filter_osc2_y2=this.filter_osc2_y1;this.filter_osc2_y1=s2_f; } else { this.filter_osc2_x1=0;this.filter_osc2_x2=0;this.filter_osc2_y1=0;this.filter_osc2_y2=0; }
+    let s2_f=0; if (osc2Active){ const c2=this.filterOsc2Coeffs; s2_f=c2.b0*s2_e+c2.b1*this.filter_osc2_x1+c2.b2*this.filter_osc2_x2-c2.a1*this.filter_osc2_y1-c2.a2*this.filter_osc2_y2; this.filter_osc2_x2=this.filter_osc2_x1;this.filter_osc2_x1=s2_e;this.filter_osc2_y2=this.filter_osc2_y1;this.filter_osc2_y1=s2_f; } else { this.filter_osc2_x1=0;this.filter_osc2_x2=0;this.filter_osc2_y1=0;this.filter_osc2_y2=0; }
     
     s1_f *= currentParams[26] * 2.0; s2_f *= currentParams[27] * 2.0;
     // "Discrete Circuit" Panning
