@@ -838,6 +838,19 @@
       </div>
   </div>
 
+  <div id="midi-routing-container" class="hidden w-full max-w-md">
+    <div class="text-[10px] sm:text-xs font-bold tracking-wider text-center mb-2">MIDI ROUTING</div>
+    <table class="midi-routing-table w-full">
+      <thead>
+        <tr>
+          <th class="text-left text-[10px] sm:text-xs font-bold tracking-wider opacity-70">SOURCE</th>
+          <th class="text-right text-[10px] sm:text-xs font-bold tracking-wider opacity-70">CHANNEL</th>
+        </tr>
+      </thead>
+      <tbody id="midi-routing-table-body"></tbody>
+    </table>
+  </div>
+
   <div class="flex justify-center items-center space-x-2">
     <button id="midi-connect-button" class="retro-button text-xs font-bold px-4">CONNECT MIDI</button>
     <button id="midi-learn-button" class="retro-button text-xs font-bold disabled opacity-30" disabled>MIDI LEARN</button>
