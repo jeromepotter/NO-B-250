@@ -45,7 +45,7 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
       }
       .main-knob:active { cursor: grabbing; }
       .fx-knob-container { cursor: ns-resize; aspect-ratio: 1 / 1; transition: background-color 0.1s linear; will-change: transform; }
-      .fx-knob-container.osc-sub-knob { background: var(--color-egg-orange); }
+      .fx-knob-container.osc-sub-knob.duo-volume-active { background: var(--color-egg-orange); box-shadow: 0 0 0 2px var(--color-surface), 0 0 10px var(--color-egg-orange); }
       .retro-select { 
         -webkit-appearance: none;
         -moz-appearance: none;

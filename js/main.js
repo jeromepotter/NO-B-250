@@ -1130,6 +1130,12 @@ function attachChainKnobHandlers(knobEl, seqIndex, slotIndex, type) {
             }
         }
 
+        function updateOscVolumeKnobDuoVisuals(seqIndex, enabled) {
+            const fxId = 26 + seqIndex;
+            const knobEl = fxKnobData[fxId]?.knobEl || document.querySelector(`[data-fx-id="${fxId}"]`);
+            knobEl?.classList.toggle('duo-volume-active', !!enabled);
+        }
+
         function setDuoMode(seqIndex, enabled) {
             const state = knobState[seqIndex];
             const switchEl = duoModeSwitches[seqIndex];
@@ -1146,6 +1152,7 @@ function attachChainKnobHandlers(knobEl, seqIndex, slotIndex, type) {
                 switchEl.setAttribute('aria-checked', enabled ? 'true' : 'false');
             }
             syncSequenceVolumeVisibility(seqIndex);
+            updateOscVolumeKnobDuoVisuals(seqIndex, enabled);
             if (enabled) {
                 sendSequenceVolume(seqIndex, getSequenceVolume(seqIndex));
             }
