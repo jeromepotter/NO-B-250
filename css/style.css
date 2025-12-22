@@ -45,6 +45,7 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
       }
       .main-knob:active { cursor: grabbing; }
       .fx-knob-container { cursor: ns-resize; aspect-ratio: 1 / 1; transition: background-color 0.1s linear; will-change: transform; }
+      .osc-volume-independent { background: var(--color-egg-orange) !important; }
       .retro-select { 
         -webkit-appearance: none;
         -moz-appearance: none;
@@ -295,7 +296,6 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
         letter-spacing: 0.18em;
       }
 
-      .step-volume-value,
       .step-length-value,
       .step-base-value,
       .step-range-value {

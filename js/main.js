@@ -203,8 +203,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
         }
 
         const stepSequences = [
-            { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[0] })), knobEls: [], noteDisplay: null, length: STEP_MAX_LENGTH, lengthDialValue: STEP_MAX_LENGTH, baseOctave: defaultStepOctaves[0], baseDialValue: defaultStepOctaves[0], rangeSpan: STEP_MAX_RANGE, rangeDialValue: STEP_MAX_RANGE, volume: defaultStepVolumes[0], volumeDialValue: defaultStepVolumes[0], volumeKnob: null, volumeValueEl: null, lengthKnob: null, lengthValueEl: null, baseKnob: null, baseValueEl: null, rangeKnob: null, rangeValueEl: null, chainSlots: createDefaultChainSlots(), chainSlotEls: [], chainBarCounter: 0, currentChainSlot: 0, chainEnabled: false, chainSwitch: null, chainGrid: null, chainSection: null },
-            { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[1] })), knobEls: [], noteDisplay: null, length: STEP_MAX_LENGTH, lengthDialValue: STEP_MAX_LENGTH, baseOctave: defaultStepOctaves[1], baseDialValue: defaultStepOctaves[1], rangeSpan: STEP_MAX_RANGE, rangeDialValue: STEP_MAX_RANGE, volume: defaultStepVolumes[1], volumeDialValue: defaultStepVolumes[1], volumeKnob: null, volumeValueEl: null, lengthKnob: null, lengthValueEl: null, baseKnob: null, baseValueEl: null, rangeKnob: null, rangeValueEl: null, chainSlots: createDefaultChainSlots(), chainSlotEls: [], chainBarCounter: 0, currentChainSlot: 0, chainEnabled: false, chainSwitch: null, chainGrid: null, chainSection: null },
+            { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[0] })), knobEls: [], noteDisplay: null, length: STEP_MAX_LENGTH, lengthDialValue: STEP_MAX_LENGTH, baseOctave: defaultStepOctaves[0], baseDialValue: defaultStepOctaves[0], rangeSpan: STEP_MAX_RANGE, rangeDialValue: STEP_MAX_RANGE, volume: defaultStepVolumes[0], volumeDialValue: defaultStepVolumes[0], volumeKnob: null, lengthKnob: null, lengthValueEl: null, baseKnob: null, baseValueEl: null, rangeKnob: null, rangeValueEl: null, chainSlots: createDefaultChainSlots(), chainSlotEls: [], chainBarCounter: 0, currentChainSlot: 0, chainEnabled: false, chainSwitch: null, chainGrid: null, chainSection: null },
+            { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[1] })), knobEls: [], noteDisplay: null, length: STEP_MAX_LENGTH, lengthDialValue: STEP_MAX_LENGTH, baseOctave: defaultStepOctaves[1], baseDialValue: defaultStepOctaves[1], rangeSpan: STEP_MAX_RANGE, rangeDialValue: STEP_MAX_RANGE, volume: defaultStepVolumes[1], volumeDialValue: defaultStepVolumes[1], volumeKnob: null, lengthKnob: null, lengthValueEl: null, baseKnob: null, baseValueEl: null, rangeKnob: null, rangeValueEl: null, chainSlots: createDefaultChainSlots(), chainSlotEls: [], chainBarCounter: 0, currentChainSlot: 0, chainEnabled: false, chainSwitch: null, chainGrid: null, chainSection: null },
         ];
         let sharedStepCounter = 0;
         let sharedStepNextTickTime = null;
@@ -486,9 +486,6 @@ let liveLfoOutputs = [0, 0, 0, 0];
                 }
             }
 
-            if (sequence.volumeValueEl) {
-                sequence.volumeValueEl.textContent = Math.round(volume * 100);
-            }
         }
 
         function clampStepValue(seqIndex, value) {
@@ -1122,6 +1119,17 @@ function attachChainKnobHandlers(knobEl, seqIndex, slotIndex, type) {
             return state?.isDuoMode ? 1 : 0;
         }
 
+        function getOscVolumeKnob(seqIndex) {
+            const fxId = seqIndex === 0 ? 26 : 27;
+            return fxKnobData[fxId]?.knobEl || document.querySelector(`[data-fx-id="${fxId}"]`);
+        }
+
+        function updateOscVolumeIndependenceColor(seqIndex) {
+            const knobEl = getOscVolumeKnob(seqIndex);
+            if (!knobEl) return;
+            knobEl.classList.toggle('osc-volume-independent', !!knobState[seqIndex]?.isDuoMode);
+        }
+
         function syncSequenceVolumeVisibility(seqIndex) {
             const control = document.querySelector(`[data-sequence-volume="${seqIndex}"]`);
             const isVisible = !!knobState[seqIndex]?.isDuoMode;
@@ -1146,6 +1154,7 @@ function attachChainKnobHandlers(knobEl, seqIndex, slotIndex, type) {
                 switchEl.setAttribute('aria-checked', enabled ? 'true' : 'false');
             }
             syncSequenceVolumeVisibility(seqIndex);
+            updateOscVolumeIndependenceColor(seqIndex);
             if (enabled) {
                 sendSequenceVolume(seqIndex, getSequenceVolume(seqIndex));
             }
@@ -1803,7 +1812,6 @@ function applyMidiControl(target, val) {
     sequence.lengthKnob = document.querySelector(`[data-sequence-length-knob="${seqIndex}"]`);
     sequence.lengthValueEl = document.querySelector(`[data-sequence-length="${seqIndex}"] .step-length-value`);
     sequence.volumeKnob = document.querySelector(`[data-sequence-volume-knob="${seqIndex}"]`);
-    sequence.volumeValueEl = document.querySelector(`[data-sequence-volume="${seqIndex}"] .step-volume-value`);
     sequence.baseKnob = document.querySelector(`[data-sequence-base-knob="${seqIndex}"]`);
     sequence.baseValueEl = document.querySelector(`[data-sequence-base="${seqIndex}"] .step-base-value`);
     sequence.rangeKnob = document.querySelector(`[data-sequence-range-knob="${seqIndex}"]`);
@@ -5352,6 +5360,7 @@ else if(id===22||id===23){fxKnobData[id].value=0.0;} else if(id===24||id===25){f
                    else if (id===18||id===19){ knobState[kId].arpOctaveRange = Math.min(3, Math.floor(fxKnobData[id].value * 4)); }
                    else if (id===22||id===23){ const pIdx = Math.min(NUM_FEEL_PATTERNS-1, Math.floor(fxKnobData[id].value*NUM_FEEL_PATTERNS)); knobState[kId].feelKnobValue=fxKnobData[id].value; knobState[kId].currentFeelPattern=EUCLIDEAN_PATTERNS[pIdx]; }
                    else if (id===24||id===25){ knobState[kId].arpTranspose=Math.floor((fxKnobData[id].value - 0.5) * 25); }
+                   else if (id===26||id===27){ updateOscVolumeIndependenceColor(kId); }
                }
                k.addEventListener('mousedown', (e)=>handleFxMouseDown(e, id));
                k.addEventListener('touchstart', handleFxTouchStart, {passive:false});
