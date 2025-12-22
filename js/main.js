@@ -1122,6 +1122,14 @@ function attachChainKnobHandlers(knobEl, seqIndex, slotIndex, type) {
             return state?.isDuoMode ? 1 : 0;
         }
 
+        function syncMainVolumeHighlight(seqIndex) {
+            const knobEl = document.querySelector(`[data-fx-id="${26 + seqIndex}"]`);
+            const isActive = !!knobState[seqIndex]?.isDuoMode;
+            if (knobEl) {
+                knobEl.classList.toggle('duo-volume-active', isActive);
+            }
+        }
+
         function syncSequenceVolumeVisibility(seqIndex) {
             const control = document.querySelector(`[data-sequence-volume="${seqIndex}"]`);
             const isVisible = !!knobState[seqIndex]?.isDuoMode;
@@ -1146,6 +1154,7 @@ function attachChainKnobHandlers(knobEl, seqIndex, slotIndex, type) {
                 switchEl.setAttribute('aria-checked', enabled ? 'true' : 'false');
             }
             syncSequenceVolumeVisibility(seqIndex);
+            syncMainVolumeHighlight(seqIndex);
             if (enabled) {
                 sendSequenceVolume(seqIndex, getSequenceVolume(seqIndex));
             }
@@ -1928,6 +1937,8 @@ function applyMidiControl(target, val) {
             initDuoSwitch(0);
             initChainModeSwitch(1);
             initDuoSwitch(1);
+            syncMainVolumeHighlight(0);
+            syncMainVolumeHighlight(1);
 
             stepsModeSwitch.addEventListener('click', () => {
                 setStepsMode(!isStepsMode);
