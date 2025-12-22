@@ -20,6 +20,8 @@ let selectedMidiOutput = null;
 let midiClearButton = null;
 let midiClockToggle = null;
 let midiClockToggleLabel = null;
+let midiRoutingToggleButton = null;
+let isMidiRoutingExpanded = false;
 const MIDI_ROUTING_SOURCES = {
     OSC1: 'osc1',
     OSC2: 'osc2',
@@ -4717,20 +4719,33 @@ function updateMidiClearButtonState() {
 
 function updateMidiRoutingVisibility(hasOutput) {
     if (!midiRoutingContainer) return;
-    midiRoutingContainer.classList.toggle('hidden', !hasOutput);
+    const shouldShow = hasOutput && isMidiRoutingExpanded;
+    midiRoutingContainer.classList.toggle('hidden', !shouldShow);
+
+    if (midiRoutingToggleButton) {
+        midiRoutingToggleButton.disabled = !hasOutput;
+        midiRoutingToggleButton.classList.toggle('disabled', !hasOutput);
+        midiRoutingToggleButton.classList.toggle('opacity-30', !hasOutput);
+        midiRoutingToggleButton.classList.toggle('active', shouldShow);
+    }
+
+    if (!hasOutput) {
+        isMidiRoutingExpanded = false;
+    }
 }
 
 function initMidiRoutingControls() {
     midiRoutingContainer = document.getElementById('midi-routing-container');
     midiRoutingTableBody = document.getElementById('midi-routing-table-body');
-    if (!midiRoutingContainer || !midiRoutingTableBody) return;
+    midiRoutingToggleButton = document.getElementById('midi-routing-toggle');
+    if (!midiRoutingContainer || !midiRoutingTableBody || !midiRoutingToggleButton) return;
 
     midiRoutingTableBody.innerHTML = '';
     const routingRows = [
         { key: MIDI_ROUTING_SOURCES.OSC1, label: 'OSC 1 / ARP 1' },
         { key: MIDI_ROUTING_SOURCES.OSC2, label: 'OSC 2 / ARP 2' },
-        { key: MIDI_ROUTING_SOURCES.SEQ1, label: 'SEQ 1 (DUO)' },
-        { key: MIDI_ROUTING_SOURCES.SEQ2, label: 'SEQ 2 (DUO)' },
+        { key: MIDI_ROUTING_SOURCES.SEQ1, label: 'SEQ 1' },
+        { key: MIDI_ROUTING_SOURCES.SEQ2, label: 'SEQ 2' },
     ];
 
     routingRows.forEach(row => {
@@ -4760,6 +4775,12 @@ function initMidiRoutingControls() {
         selectTd.appendChild(select);
         tr.appendChild(selectTd);
         midiRoutingTableBody.appendChild(tr);
+    });
+
+    midiRoutingToggleButton.addEventListener('click', () => {
+        if (midiRoutingToggleButton.disabled) return;
+        isMidiRoutingExpanded = !isMidiRoutingExpanded;
+        updateMidiRoutingVisibility(Boolean(selectedMidiOutput));
     });
 
     refreshMidiRoutingSelections();
