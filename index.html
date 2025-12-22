@@ -142,6 +142,12 @@
           <div class="flex justify-between items-center mb-3 step-sequencer-header">
             <div class="text-[10px] sm:text-xs font-bold tracking-wider">SEQ A</div>
             <div class="flex items-center space-x-3 step-header-controls">
+              <div class="flex flex-col items-center step-volume-control hidden" data-sequence-volume="0">
+                <div class="step-volume-knob" data-sequence-volume-knob="0" role="slider" aria-label="Sequence A volume" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" tabindex="0">
+                  <div class="step-volume-indicator"></div>
+                </div>
+                <div class="text-[9px] sm:text-[10px] font-bold tracking-[0.18em] uppercase step-volume-label">VOL <span class="step-volume-value">50</span>%</div>
+              </div>
               <div class="flex flex-col items-center step-length-control" data-sequence-length="0">
                 <div class="step-length-knob" data-sequence-length-knob="0" role="slider" aria-label="Sequence A length" aria-valuemin="1" aria-valuemax="16" aria-valuenow="16" tabindex="0">
                   <div class="step-length-indicator"></div>
@@ -191,6 +197,12 @@
           <div class="flex justify-between items-center mb-3 step-sequencer-header">
             <div class="text-[10px] sm:text-xs font-bold tracking-wider">SEQ B</div>
             <div class="flex items-center space-x-3 step-header-controls">
+              <div class="flex flex-col items-center step-volume-control hidden" data-sequence-volume="1">
+                <div class="step-volume-knob" data-sequence-volume-knob="1" role="slider" aria-label="Sequence B volume" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" tabindex="0">
+                  <div class="step-volume-indicator"></div>
+                </div>
+                <div class="text-[9px] sm:text-[10px] font-bold tracking-[0.18em] uppercase step-volume-label">VOL <span class="step-volume-value">50</span>%</div>
+              </div>
               <div class="flex flex-col items-center step-length-control" data-sequence-length="1">
                 <div class="step-length-knob" data-sequence-length-knob="1" role="slider" aria-label="Sequence B length" aria-valuemin="1" aria-valuemax="16" aria-valuenow="16" tabindex="0">
                   <div class="step-length-indicator"></div>

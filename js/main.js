@@ -155,18 +155,22 @@ let liveLfoOutputs = [0, 0, 0, 0];
         const stepPreviewTimeouts = [null, null];
         const defaultStepOctaves = [2, 4];
         const stepRandomBaseOctaves = [2, 4];
+        const defaultStepVolumes = [0.5, 0.5];
         const STEP_MIN_LENGTH = 1;
         const STEP_MAX_LENGTH = 16;
         const STEP_MIN_BASE_OCTAVE = 1;
         const STEP_MAX_BASE_OCTAVE = 8;
         const STEP_MIN_RANGE = 1;
         const STEP_MAX_RANGE = 8;
+        const STEP_MIN_VOLUME = 0;
+        const STEP_MAX_VOLUME = 1;
         const STEP_LENGTH_MIN_ANGLE = -135;
         const STEP_LENGTH_MAX_ANGLE = 135;
         const STEP_LENGTH_ANGLE_RANGE = STEP_LENGTH_MAX_ANGLE - STEP_LENGTH_MIN_ANGLE;
         const STEP_LENGTH_KNOB_SENSITIVITY = 1.5;
         const STEP_BASE_KNOB_SENSITIVITY = 1.5;
         const STEP_RANGE_KNOB_SENSITIVITY = 1.5;
+        const STEP_VOLUME_KNOB_SENSITIVITY = 1.25;
         const CHAIN_SLOT_COUNT = 8;
         const CHAIN_MIN_TRANSPOSE = -12;
         const CHAIN_MAX_TRANSPOSE = 12;
@@ -199,8 +203,8 @@ let liveLfoOutputs = [0, 0, 0, 0];
         }
 
         const stepSequences = [
-            { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[0] })), knobEls: [], noteDisplay: null, length: STEP_MAX_LENGTH, lengthDialValue: STEP_MAX_LENGTH, baseOctave: defaultStepOctaves[0], baseDialValue: defaultStepOctaves[0], rangeSpan: STEP_MAX_RANGE, rangeDialValue: STEP_MAX_RANGE, lengthKnob: null, lengthValueEl: null, baseKnob: null, baseValueEl: null, rangeKnob: null, rangeValueEl: null, chainSlots: createDefaultChainSlots(), chainSlotEls: [], chainBarCounter: 0, currentChainSlot: 0, chainEnabled: false, chainSwitch: null, chainGrid: null, chainSection: null },
-            { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[1] })), knobEls: [], noteDisplay: null, length: STEP_MAX_LENGTH, lengthDialValue: STEP_MAX_LENGTH, baseOctave: defaultStepOctaves[1], baseDialValue: defaultStepOctaves[1], rangeSpan: STEP_MAX_RANGE, rangeDialValue: STEP_MAX_RANGE, lengthKnob: null, lengthValueEl: null, baseKnob: null, baseValueEl: null, rangeKnob: null, rangeValueEl: null, chainSlots: createDefaultChainSlots(), chainSlotEls: [], chainBarCounter: 0, currentChainSlot: 0, chainEnabled: false, chainSwitch: null, chainGrid: null, chainSection: null },
+            { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[0] })), knobEls: [], noteDisplay: null, length: STEP_MAX_LENGTH, lengthDialValue: STEP_MAX_LENGTH, baseOctave: defaultStepOctaves[0], baseDialValue: defaultStepOctaves[0], rangeSpan: STEP_MAX_RANGE, rangeDialValue: STEP_MAX_RANGE, volume: defaultStepVolumes[0], volumeDialValue: defaultStepVolumes[0], volumeKnob: null, volumeValueEl: null, lengthKnob: null, lengthValueEl: null, baseKnob: null, baseValueEl: null, rangeKnob: null, rangeValueEl: null, chainSlots: createDefaultChainSlots(), chainSlotEls: [], chainBarCounter: 0, currentChainSlot: 0, chainEnabled: false, chainSwitch: null, chainGrid: null, chainSection: null },
+            { steps: Array.from({ length: 16 }, () => ({ active: false, value: defaultStepOctaves[1] })), knobEls: [], noteDisplay: null, length: STEP_MAX_LENGTH, lengthDialValue: STEP_MAX_LENGTH, baseOctave: defaultStepOctaves[1], baseDialValue: defaultStepOctaves[1], rangeSpan: STEP_MAX_RANGE, rangeDialValue: STEP_MAX_RANGE, volume: defaultStepVolumes[1], volumeDialValue: defaultStepVolumes[1], volumeKnob: null, volumeValueEl: null, lengthKnob: null, lengthValueEl: null, baseKnob: null, baseValueEl: null, rangeKnob: null, rangeValueEl: null, chainSlots: createDefaultChainSlots(), chainSlotEls: [], chainBarCounter: 0, currentChainSlot: 0, chainEnabled: false, chainSwitch: null, chainGrid: null, chainSection: null },
         ];
         let sharedStepCounter = 0;
         let sharedStepNextTickTime = null;
@@ -335,6 +339,12 @@ let liveLfoOutputs = [0, 0, 0, 0];
             return clampedRange;
         }
 
+        function getSequenceVolume(seqIndex) {
+            const sequence = stepSequences[seqIndex];
+            if (!sequence) return defaultStepVolumes[seqIndex] ?? 0.5;
+            return Math.max(STEP_MIN_VOLUME, Math.min(STEP_MAX_VOLUME, sequence.volume ?? defaultStepVolumes[seqIndex] ?? 0.5));
+        }
+
         function updateStepLengthVisuals(seqIndex) {
             const sequence = stepSequences[seqIndex];
             if (!sequence) return;
@@ -370,6 +380,17 @@ let liveLfoOutputs = [0, 0, 0, 0];
             if (stepPlayheads[seqIndex] >= length) {
                 stepPlayheads[seqIndex] = 0;
             }
+        }
+
+        function volumeToAngle(value) {
+            const clamped = Math.max(STEP_MIN_VOLUME, Math.min(STEP_MAX_VOLUME, value));
+            return STEP_LENGTH_MIN_ANGLE + clamped * STEP_LENGTH_ANGLE_RANGE;
+        }
+
+        function angleToVolume(angle) {
+            const clampedAngle = Math.max(STEP_LENGTH_MIN_ANGLE, Math.min(STEP_LENGTH_MAX_ANGLE, angle));
+            const normalized = (clampedAngle - STEP_LENGTH_MIN_ANGLE) / STEP_LENGTH_ANGLE_RANGE;
+            return STEP_MIN_VOLUME + normalized * (STEP_MAX_VOLUME - STEP_MIN_VOLUME);
         }
 
         function baseOctaveToAngle(value) {
@@ -450,6 +471,26 @@ let liveLfoOutputs = [0, 0, 0, 0];
             }
         }
 
+        function updateStepVolumeVisuals(seqIndex) {
+            const sequence = stepSequences[seqIndex];
+            if (!sequence) return;
+            const volume = getSequenceVolume(seqIndex);
+            const dialValue = Math.max(STEP_MIN_VOLUME, Math.min(STEP_MAX_VOLUME, sequence.volumeDialValue ?? volume));
+
+            if (sequence.volumeKnob) {
+                sequence.volumeKnob.setAttribute('aria-valuenow', String(Math.round(volume * 100)));
+                const indicator = sequence.volumeKnob.querySelector('.step-volume-indicator');
+                if (indicator) {
+                    const rotation = volumeToAngle(dialValue);
+                    indicator.style.transform = `translate(-50%, 0) rotate(${rotation}deg)`;
+                }
+            }
+
+            if (sequence.volumeValueEl) {
+                sequence.volumeValueEl.textContent = Math.round(volume * 100);
+            }
+        }
+
         function clampStepValue(seqIndex, value) {
             const minAllowed = getSequenceBaseOctave(seqIndex);
             const maxAllowed = Math.min(
@@ -482,6 +523,16 @@ let liveLfoOutputs = [0, 0, 0, 0];
             if (sequence.length !== prevLength && areStepSequencesRunning()) {
                 sequence.knobEls.forEach(knob => knob?.classList.remove('active-step'));
             }
+        }
+
+        function setSequenceVolume(seqIndex, volume) {
+            const sequence = stepSequences[seqIndex];
+            if (!sequence) return;
+            const clamped = Math.max(STEP_MIN_VOLUME, Math.min(STEP_MAX_VOLUME, volume));
+            sequence.volumeDialValue = clamped;
+            sequence.volume = clamped;
+            updateStepVolumeVisuals(seqIndex);
+            sendSequenceVolume(seqIndex, clamped);
         }
 
         function setSequenceBaseOctave(seqIndex, baseOctave) {
@@ -598,6 +649,13 @@ let liveLfoOutputs = [0, 0, 0, 0];
                     setSequenceRange(seqIndex, presetRange);
                 } else {
                     updateStepRangeVisuals(seqIndex);
+                }
+
+                const presetVolume = presetSeq.volume ?? presetSeq.level ?? presetSeq.gain;
+                if (presetVolume !== undefined) {
+                    setSequenceVolume(seqIndex, presetVolume);
+                } else {
+                    updateStepVolumeVisuals(seqIndex);
                 }
 
                 if (!Array.isArray(presetSeq.steps)) return;
@@ -1064,6 +1122,22 @@ function attachChainKnobHandlers(knobEl, seqIndex, slotIndex, type) {
             return state?.isDuoMode ? 1 : 0;
         }
 
+        function syncMainVolumeHighlight(seqIndex) {
+            const knobEl = document.querySelector(`[data-fx-id="${26 + seqIndex}"]`);
+            const isActive = !!knobState[seqIndex]?.isDuoMode;
+            if (knobEl) {
+                knobEl.classList.toggle('duo-volume-active', isActive);
+            }
+        }
+
+        function syncSequenceVolumeVisibility(seqIndex) {
+            const control = document.querySelector(`[data-sequence-volume="${seqIndex}"]`);
+            const isVisible = !!knobState[seqIndex]?.isDuoMode;
+            if (control) {
+                control.classList.toggle('hidden', !isVisible);
+            }
+        }
+
         function setDuoMode(seqIndex, enabled) {
             const state = knobState[seqIndex];
             const switchEl = duoModeSwitches[seqIndex];
@@ -1078,6 +1152,11 @@ function attachChainKnobHandlers(knobEl, seqIndex, slotIndex, type) {
             if (switchEl) {
                 switchEl.classList.toggle('on', enabled);
                 switchEl.setAttribute('aria-checked', enabled ? 'true' : 'false');
+            }
+            syncSequenceVolumeVisibility(seqIndex);
+            syncMainVolumeHighlight(seqIndex);
+            if (enabled) {
+                sendSequenceVolume(seqIndex, getSequenceVolume(seqIndex));
             }
             if (!enabled) {
                 if (state.slotLastMidi?.[1] !== null && state.slotLastMidi?.[1] !== undefined) {
@@ -1582,6 +1661,66 @@ function applyMidiControl(target, val) {
             });
         }
 
+        function attachStepVolumeHandlers(knobEl, seqIndex) {
+            let activePointerId = null;
+            let lastY = 0;
+
+            const onPointerMove = (event) => {
+                if (event.pointerId !== activePointerId) return;
+                event.preventDefault();
+                const deltaAngle = (lastY - event.clientY) * STEP_VOLUME_KNOB_SENSITIVITY;
+                lastY = event.clientY;
+                const sequence = stepSequences[seqIndex];
+                const currentDial = sequence?.volumeDialValue ?? getSequenceVolume(seqIndex);
+                const currentAngle = volumeToAngle(currentDial);
+                const nextAngle = Math.max(STEP_LENGTH_MIN_ANGLE, Math.min(STEP_LENGTH_MAX_ANGLE, currentAngle + deltaAngle));
+                const nextValue = angleToVolume(nextAngle);
+                setSequenceVolume(seqIndex, nextValue);
+            };
+
+            const release = (event) => {
+                if (event.pointerId !== activePointerId) return;
+                knobEl.releasePointerCapture(event.pointerId);
+                document.removeEventListener('pointermove', onPointerMove);
+                document.removeEventListener('pointerup', release);
+                activePointerId = null;
+            };
+
+            knobEl.addEventListener('pointerdown', (event) => {
+                event.preventDefault();
+                activePointerId = event.pointerId;
+                lastY = event.clientY;
+                knobEl.setPointerCapture(event.pointerId);
+                document.addEventListener('pointermove', onPointerMove);
+                document.addEventListener('pointerup', release);
+            });
+
+            knobEl.addEventListener('wheel', (event) => {
+                event.preventDefault();
+                const direction = event.deltaY < 0 ? 0.02 : -0.02;
+                const sequence = stepSequences[seqIndex];
+                const currentDial = sequence?.volumeDialValue ?? getSequenceVolume(seqIndex);
+                setSequenceVolume(seqIndex, currentDial + direction);
+            });
+
+            knobEl.addEventListener('keydown', (event) => {
+                if (['ArrowUp', 'ArrowRight', 'ArrowDown', 'ArrowLeft', 'Home', 'End'].includes(event.key)) {
+                    event.preventDefault();
+                    const current = getSequenceVolume(seqIndex);
+                    const delta = event.key === 'ArrowUp' || event.key === 'ArrowRight' ? 0.02
+                        : event.key === 'ArrowDown' || event.key === 'ArrowLeft' ? -0.02
+                        : 0;
+                    if (event.key === 'Home') {
+                        setSequenceVolume(seqIndex, STEP_MIN_VOLUME);
+                    } else if (event.key === 'End') {
+                        setSequenceVolume(seqIndex, STEP_MAX_VOLUME);
+                    } else {
+                        setSequenceVolume(seqIndex, current + delta);
+                    }
+                }
+            });
+        }
+
         function attachStepKnobHandlers(knobEl, seqIndex, stepIndex) {
             let startY = 0;
             let startValue = 0;
@@ -1672,12 +1811,17 @@ function applyMidiControl(target, val) {
     sequence.noteDisplay = document.querySelector(`.step-sequencer[data-sequence-index="${seqIndex}"] .step-note-display`);
     sequence.lengthKnob = document.querySelector(`[data-sequence-length-knob="${seqIndex}"]`);
     sequence.lengthValueEl = document.querySelector(`[data-sequence-length="${seqIndex}"] .step-length-value`);
+    sequence.volumeKnob = document.querySelector(`[data-sequence-volume-knob="${seqIndex}"]`);
+    sequence.volumeValueEl = document.querySelector(`[data-sequence-volume="${seqIndex}"] .step-volume-value`);
     sequence.baseKnob = document.querySelector(`[data-sequence-base-knob="${seqIndex}"]`);
     sequence.baseValueEl = document.querySelector(`[data-sequence-base="${seqIndex}"] .step-base-value`);
     sequence.rangeKnob = document.querySelector(`[data-sequence-range-knob="${seqIndex}"]`);
     sequence.rangeValueEl = document.querySelector(`[data-sequence-range="${seqIndex}"] .step-range-value`);
     if (sequence.lengthKnob) {
         attachStepLengthHandlers(sequence.lengthKnob, seqIndex);
+    }
+    if (sequence.volumeKnob) {
+        attachStepVolumeHandlers(sequence.volumeKnob, seqIndex);
     }
     if (sequence.baseKnob) {
         attachStepBaseHandlers(sequence.baseKnob, seqIndex);
@@ -1686,6 +1830,7 @@ function applyMidiControl(target, val) {
         attachStepRangeHandlers(sequence.rangeKnob, seqIndex);
     }
     updateStepLengthVisuals(seqIndex);
+    updateStepVolumeVisuals(seqIndex);
     updateStepBaseVisuals(seqIndex);
     updateStepRangeVisuals(seqIndex);
 }
@@ -1792,6 +1937,8 @@ function applyMidiControl(target, val) {
             initDuoSwitch(0);
             initChainModeSwitch(1);
             initDuoSwitch(1);
+            syncMainVolumeHighlight(0);
+            syncMainVolumeHighlight(1);
 
             stepsModeSwitch.addEventListener('click', () => {
                 setStepsMode(!isStepsMode);
@@ -3912,6 +4059,7 @@ function generateComplexRandomLfoState(includeArpTargets = true) {
                     length: getSequenceLength(idx),
                     baseOctave: getSequenceBaseOctave(idx),
                     rangeSpan: getSequenceRange(idx),
+                    volume: getSequenceVolume(idx),
                     steps: seq.steps.map(step => ({
                         active: !!step.active,
                         value: trim(step.value ?? 0),
@@ -4840,6 +4988,12 @@ function sendMidiMessage(message) {
            if (!synthNode) return;
            const safeSlot = Math.max(0, Math.min(1, slot | 0));
            synthNode.port.postMessage({ type: 'noteOff', data: { voice: voiceId, slot: safeSlot } });
+       }
+
+       function sendSequenceVolume(seqIndex, volume) {
+           if (!synthNode) return;
+           const clamped = Math.max(STEP_MIN_VOLUME, Math.min(STEP_MAX_VOLUME, volume));
+           synthNode.port.postMessage({ type: 'setStepVolume', data: { voice: seqIndex, volume: clamped } });
        }
 
        function setSlotActiveState(oscId, slot, isActive) {
