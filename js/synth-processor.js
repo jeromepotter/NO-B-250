@@ -324,6 +324,7 @@ const LFO_DEST_NONE = -1;
 
                    // --- Duo Mode State ---
                    this.duoMode = [false, false];
+                   this.sequenceVolumes = [0.5, 0.5];
 
                    // --- Sampler State ---
                    this.sampleBuffer = null;
@@ -420,7 +421,15 @@ const LFO_DEST_NONE = -1;
                                }
                                break;
                            }
-                        case 'setBreakSlipMode':
+                           case 'setStepVolume': {
+                               if (data) {
+                                   const vIdx = Math.max(0, Math.min(1, data.voice || 0));
+                                   const volume = Math.max(0, Math.min(1, data.volume ?? 0.5));
+                                   this.sequenceVolumes[vIdx] = volume;
+                               }
+                               break;
+                           }
+                       case 'setBreakSlipMode':
     this.slipAnchorMode = !!(data && data.enabled);
     break;
 
@@ -874,7 +883,7 @@ for(let i=0;i<blockSize;i++){
     const dA1 = 1.0 + currentParams[4] * 0.01;
     const dA2 = 1.0 + currentParams[4] * 0.013;
 
-    let s1=0, s2=0;
+    let s1Slots = [0, 0], s2Slots = [0, 0];
     const hasSoundfont = !!this.getActiveSoundfontSample();
 
     // Track per-oscillator activity for filter resets
@@ -922,7 +931,7 @@ for(let i=0;i<blockSize;i++){
                 sample=(o1+o2)*0.5;
                 sample = (sample + (o3 * currentParams[3])) * 0.8;
             }
-            s1 += sample * slot.envValue;
+            s1Slots[slotIdx] += sample * slot.envValue;
             osc1Active = osc1Active || slot.envStage !== 'off';
             osc1SlotCount++;
         }
@@ -968,12 +977,20 @@ for(let i=0;i<blockSize;i++){
                 sample=(o1+o2)*0.5;
                 sample = (sample + (o3 * currentParams[3])) * 0.8;
             }
-            s2 += sample * slot.envValue;
+            s2Slots[slotIdx] += sample * slot.envValue;
             osc2Active = osc2Active || slot.envStage !== 'off';
             osc2SlotCount++;
         }
     }
     this.envValue2 = envMax2;
+
+    const arpGain1 = Math.max(0, Math.min(2, (currentParams[26] ?? 0) * 2));
+    const arpGain2 = Math.max(0, Math.min(2, (currentParams[27] ?? 0) * 2));
+    const seqGain1 = Math.max(0, Math.min(2, (this.sequenceVolumes[0] ?? 0.5) * 2));
+    const seqGain2 = Math.max(0, Math.min(2, (this.sequenceVolumes[1] ?? 0.5) * 2));
+
+    let s1 = (s1Slots[0] * arpGain1) + (s1Slots[1] * seqGain1);
+    let s2 = (s2Slots[0] * arpGain2) + (s2Slots[1] * seqGain2);
 
     let sampleVal = 0;
     if (this.samplerPlayback.active && this.sampleBuffer) {
@@ -1053,7 +1070,6 @@ for(let i=0;i<blockSize;i++){
     this.updateDjFilterCoefficients(this.filterOsc2Coeffs, this.smoothedCutoff2, this.smoothedRes2);
     let s2_f=0; if (osc2Active){ const c2=this.filterOsc2Coeffs; s2_f=c2.b0*s2_e+c2.b1*this.filter_osc2_x1+c2.b2*this.filter_osc2_x2-c2.a1*this.filter_osc2_y1-c2.a2*this.filter_osc2_y2; this.filter_osc2_x2=this.filter_osc2_x1;this.filter_osc2_x1=s2_e;this.filter_osc2_y2=this.filter_osc2_y1;this.filter_osc2_y1=s2_f; } else { this.filter_osc2_x1=0;this.filter_osc2_x2=0;this.filter_osc2_y1=0;this.filter_osc2_y2=0; }
     
-    s1_f *= currentParams[26] * 2.0; s2_f *= currentParams[27] * 2.0;
     // "Discrete Circuit" Panning
     let s_L = (s1_f * 0.8 + s2_f * 0.6) * 0.7;
     let s_R = (s1_f * 0.6 + s2_f * 0.8) * 0.7;

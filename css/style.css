@@ -248,12 +248,17 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
         gap: 0.75rem;
       }
 
+      .step-volume-control {
+        gap: 0.25rem;
+      }
+
       .step-length-control,
       .step-base-control,
       .step-range-control {
         gap: 0.25rem;
       }
 
+      .step-volume-knob,
       .step-length-knob,
       .step-base-knob,
       .step-range-knob {
@@ -267,6 +272,7 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
         touch-action: none;
       }
 
+      .step-volume-indicator,
       .step-length-indicator,
       .step-base-indicator,
       .step-range-indicator {
@@ -281,6 +287,7 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
         transition: transform 0.12s ease-out;
       }
 
+      .step-volume-label,
       .step-length-label,
       .step-base-label,
       .step-range-label {
@@ -288,6 +295,7 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
         letter-spacing: 0.18em;
       }
 
+      .step-volume-value,
       .step-length-value,
       .step-base-value,
       .step-range-value {
