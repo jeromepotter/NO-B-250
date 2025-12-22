@@ -140,6 +140,7 @@
         <li><a href="#drums">9. Break / Drums Loops</a></li>
         <li><a href="#midi-output">10. Connecting to External MIDI</a>
             <ul>
+                <li><a href="#midi-learn">MIDI Learn &amp; Custom Mapping</a></li>
                 <li><a href="#midi-clock-out">MIDI Clock Out</a></li>
             </ul>
         </li>
@@ -634,14 +635,37 @@
         <li><strong>Activate &amp; Preview:</strong> Tap a step knob to toggle it on; the note display will preview the pitch. Drag up or down to change its octave position. Knob colors match the active scale/key, so you always know which note you are placing. A greyed-out knob represents a note-off—tap or click to wake it back up.</li>
         <li><strong>Scale-Aware Pitching:</strong> Each step follows the current <a href="#scale-and-key">Scale and Key</a>. Use the ARP <strong>TRANSPOSE</strong> knobs (and any LFOs routed to transpose) to shift the entire step line up or down musically.</li>
         <li><strong>16 Steps per Voice:</strong> Each sequencer has two rows of eight knobs. SEQ A drives Voice 1, SEQ B drives Voice 2, letting you build harmonized or polyrhythmic lines.</li>
+        <li><strong>Len/Oct/Range Controls:</strong> Each sequencer has <strong>LEN</strong> (1–16 steps), <strong>OCT</strong> (base octave), and <strong>RANGE</strong> (octave span) knobs. Steps are clamped into that span so the color feedback always reflects playable notes.</li>
     </ul>
 
     <h3>Timing &amp; Transport</h3>
     <ul>
-        <li><strong>START:</strong> Launches both sequencers together and snaps the first note to the next sixteenth so both patterns line up.</li>
+        <li><strong>START:</strong> Launches both sequencers together and snaps the first note to the next sixteenth so both patterns line up. Restarting while running also quantizes to the grid to keep chains and steps locked.</li>
         <li><strong>STOP:</strong> Halts playback and clears the step playheads so the next START always begins from step 1.</li>
         <li><strong>Auto-Synced Arps:</strong> Steps Mode locks both arpeggiators on with <strong>RATE SYNC</strong> and <strong>ARP LOCK</strong> so both voices share the same clock. HOLD is disabled to prevent latched notes, and leaving Steps Mode restores your previous arp settings.</li>
         <li><strong>Preset Recall:</strong> Step patterns save with presets. Loading a preset that includes steps automatically re-enables Steps Mode with the stored sequences.</li>
+    </ul>
+
+    <h3>Duo Mode (Per-Sequence Dual Slot)</h3>
+    <ul>
+        <li><strong>DUO Switch:</strong> Each sequencer has a <strong>DUO</strong> toggle that routes its steps to a second voice slot. This is perfect for layering unison lines or splitting octaves within the same pattern.</li>
+        <li><strong>Sequence Volume:</strong> Enabling DUO reveals a per-sequencer <strong>VOL</strong> knob and highlights the corresponding oscillator volume control so you can balance the extra layer quickly.</li>
+        <li><strong>Failsafe Reroute:</strong> Turning DUO off safely moves any sustaining step back to slot 0 to avoid sudden level drops.</li>
+    </ul>
+
+    <h3>Chain Mode (Transposition &amp; Loop Slots)</h3>
+    <ul>
+        <li><strong>Eight Slots:</strong> Turning on <strong>CHAIN</strong> unlocks eight slots per sequencer. Each slot can be set to <strong>±12 semitones</strong> of transposition and up to <strong>16</strong> bar-length loops.</li>
+        <li><strong>Progression:</strong> Slots advance only after their loop count completes. If a later slot is off or empty, the chain resets gracefully to slot 1.</li>
+        <li><strong>Safety Guard:</strong> Slots can only activate after the previous slot is active, preventing skipped or invalid chain states.</li>
+    </ul>
+
+    <h3>Step Parameter Knobs</h3>
+    <ul>
+        <li><strong>LEN:</strong> Sets total steps (1–16) and visually disables out-of-range knobs.</li>
+        <li><strong>OCT:</strong> Defines the base octave for the sequence and shifts all active steps together when adjusted.</li>
+        <li><strong>RANGE:</strong> Sets the octave span above the base. Steps are clamped to stay inside this window.</li>
+        <li><strong>VOL:</strong> Appears when DUO is on, controlling the layered slot’s level per sequencer.</li>
     </ul>
 
     <p class="back-to-index"><a href="#index">↑ Back to Index</a></p>
@@ -668,6 +692,14 @@
     <h2 id="midi-output">10. Connecting to External MIDI</h2>
     <p>The NO-B 250 can send MIDI notes to external hardware synthesizers or software DAWs like Ableton Live, Logic Pro, and FL Studio. This allows you to use its unique note-generation capabilities to control your other instruments.</p>
     <p>To get started, click the <strong>CONNECT MIDI</strong> button at the bottom of the synthesizer. This will scan for available MIDI outputs on your system and populate the dropdown menu next to it.</p>
+
+    <h3 id="midi-learn">MIDI Learn &amp; Custom Mapping</h3>
+    <p>Once MIDI is connected, the selector row appears with <strong>MIDI IN</strong>/<strong>MIDI OUT</strong> dropdowns plus <strong>MIDI LEARN</strong> and <strong>CLEAR MIDI MAP</strong> buttons.</p>
+    <ul>
+        <li><strong>Enable Learn:</strong> Click <strong>MIDI LEARN</strong> to make all controllable knobs blink. Click any control—main knobs, FX, step knobs, length/base/range/volume dials, or chain knobs—then send a MIDI CC or note to bind it.</li>
+        <li><strong>Trigger vs. Value:</strong> Note/CC values of 0/127 on main knobs are treated as triggers; everything else maps as continuous control.</li>
+        <li><strong>Storage:</strong> Assignments are saved locally. <strong>CLEAR MIDI MAP</strong> wipes all mappings and disables the button until a new mapping is learned.</li>
+    </ul>
 
     <h3>How It Works</h3>
     <ul>
@@ -712,6 +744,11 @@
     </ul>
 
     <p class="pro-tip"><strong>Whispered secret:</strong> There's a hidden soundfont loader buried in the instrument. If you dime both DISTORTION and AM, you'll find the doorway.</p>
+    <ul>
+        <li><strong>Upload SF2:</strong> After unlocking, click <strong>CHOOSE FILE</strong> to load a SoundFont 2 file. The file list populates with each bank you add.</li>
+        <li><strong>Pick Samples:</strong> Each soundfont exposes a scrollable list of samples; click one to make it active. The current selection is shown under <strong>ACTIVE</strong>.</li>
+        <li><strong>Swap Fonts:</strong> Use the left list to switch between loaded soundfonts, or <strong>REMOVE ALL</strong> to return to the standard oscillators.</li>
+    </ul>
 
     <p class="back-to-index"><a href="#index">↑ Back to Index</a></p>
 

@@ -2,6 +2,18 @@
 ### Future Plans
 - "Split" Presets, taking advantage of dual voices with independent waveforms
 
+## [12.22] - 2025-12-22
+
+### Added
+- **Step Duo Mode:** Each step sequencer can now drive a second voice slot with a dedicated VOL control, letting patterns layer on top of the main oscillator mix while highlighting the corresponding oscillator volume knob for quick balancing.
+- **Step Chains:** A CHAIN switch unlocks eight transposition/loop slots per sequencer. Each slot can transpose up to ±12 semitones and loop for up to 16 bars before advancing, enabling evolving phrases that reset cleanly when the chain ends.
+- **Step Pitch Controls:** New LEN, OCT, and RANGE knobs per sequencer define total steps (1–16) and octave span, clamping steps into the active scale so grid colors always reflect playable notes.
+- **MIDI Learn & Routing UI:** CONNECT MIDI now exposes input/output selectors, a MIDI LEARN button that maps any oscillator, FX, step, or chain control to incoming CCs/notes, and a CLEAR MIDI MAP action for wiping stored assignments.
+- **Soundfont Loader:** Unlockable soundfont support (via maxing DISTORTION and AM) now includes SF2 upload, per-file/sample lists with scroll buttons, and active-sample selection for the soundfont-driven oscillator mode.
+
+### Changed
+- Step START now quantizes to the master sixteenth-note grid even when re-started, keeping both sequencers and their chains aligned with the BPM clock.
+
 ## [12.10] - 2025-12-10
 
 ### Added
@@ -170,4 +182,3 @@
 - Added LFO capabilities for system presets
 
 ---
-
