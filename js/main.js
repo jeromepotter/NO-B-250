@@ -1252,6 +1252,7 @@ function attachChainKnobHandlers(knobEl, seqIndex, slotIndex, type) {
                     updateChainPlayingState(idx);
                 }
             });
+            updateMidiClockState();
         }
 
         function getSharedStepStartDelay() {
@@ -1493,6 +1494,7 @@ function applyMidiControl(target, val) {
             const now = getNowMs();
             sharedStepNextTickTime = now + delay;
             ensureMasterClock();
+            updateMidiClockState();
         }
 
         function rescheduleRunningStepSequences() {
@@ -2689,7 +2691,9 @@ function applyMidiControl(target, val) {
         }
 
         function updateMidiClockState() {
-            const shouldRun = midiClockEnabled && knobState.some(state => state?.arpRunning);
+            const isArpClockSource = knobState.some(state => state?.arpRunning);
+            const isStepClockSource = isStepsMode && areStepSequencesRunning();
+            const shouldRun = midiClockEnabled && (isArpClockSource || isStepClockSource);
             if (shouldRun && !midiClockRunning) {
                 startMidiClockTransport();
             } else if (!shouldRun && midiClockRunning) {
