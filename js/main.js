@@ -20,6 +20,25 @@ let selectedMidiOutput = null;
 let midiClearButton = null;
 let midiClockToggle = null;
 let midiClockToggleLabel = null;
+let midiRoutingToggleButton = null;
+let isMidiRoutingExpanded = false;
+const MIDI_ROUTING_SOURCES = {
+    OSC1: 'osc1',
+    OSC2: 'osc2',
+    SEQ1: 'seq1',
+    SEQ2: 'seq2',
+};
+const DEFAULT_MIDI_ROUTING = {
+    [MIDI_ROUTING_SOURCES.OSC1]: 1,
+    [MIDI_ROUTING_SOURCES.OSC2]: 2,
+    [MIDI_ROUTING_SOURCES.SEQ1]: 3,
+    [MIDI_ROUTING_SOURCES.SEQ2]: 4,
+};
+const MIDI_ROUTING_STORAGE_KEY = 'midiChannelRouting';
+let midiChannelRouting = loadMidiChannelRouting();
+const midiRoutingSelects = {};
+let midiRoutingContainer = null;
+let midiRoutingTableBody = null;
        const soundfontBank = [];
        let activeSoundfontIndex = -1;
        let isSoundfontMode = false;
@@ -1048,7 +1067,8 @@ function attachChainKnobHandlers(knobEl, seqIndex, slotIndex, type) {
             if (!isPowerOn || lastMidi === null) return;
             sendVoiceNoteOff(seqIndex, slot);
             captureMidiEvent(seqIndex, 'noteOff', lastMidi, 0);
-            sendMidiMessage([0x80 + seqIndex, lastMidi, 0]);
+            const sourceKey = getSequenceMidiSource(seqIndex);
+            sendRoutedNoteOff(sourceKey, lastMidi);
             stepLastMidi[seqIndex] = null;
             const state = knobState[seqIndex];
             if (state) {
@@ -1066,7 +1086,8 @@ function attachChainKnobHandlers(knobEl, seqIndex, slotIndex, type) {
             stepLastSlots[seqIndex] = slot;
             sendVoiceNoteOn(seqIndex, freq, slot);
             captureMidiEvent(seqIndex, 'noteOn', midiNote, 100);
-            sendMidiMessage([0x90 + seqIndex, midiNote, 100]);
+            const sourceKey = getSequenceMidiSource(seqIndex);
+            sendRoutedNoteOn(sourceKey, midiNote, 100);
             stepLastMidi[seqIndex] = midiNote;
             const state = knobState[seqIndex];
             if (state) {
@@ -1160,7 +1181,8 @@ function attachChainKnobHandlers(knobEl, seqIndex, slotIndex, type) {
                 if (state.slotLastMidi?.[1] !== null && state.slotLastMidi?.[1] !== undefined) {
                     sendVoiceNoteOff(seqIndex, 1);
                     captureMidiEvent(seqIndex, 'noteOff', state.slotLastMidi[1], 0);
-                    sendMidiMessage([0x80 + seqIndex, state.slotLastMidi[1], 0]);
+                    const sourceKey = getSequenceMidiSource(seqIndex);
+                    sendRoutedNoteOff(sourceKey, state.slotLastMidi[1]);
                 }
                 if (Array.isArray(state.activeSlots)) state.activeSlots[1] = false;
                 if (Array.isArray(state.slotLastMidi)) state.slotLastMidi[1] = null;
@@ -4629,12 +4651,16 @@ async function setupMidiAccess() {
             outputSelector.addEventListener('change', () => {
                 selectedMidiOutput = midiAccess.outputs.get(outputSelector.value);
                 updateMidiClockToggleAvailability(Boolean(selectedMidiOutput));
+                updateMidiRoutingVisibility(Boolean(selectedMidiOutput));
             });
             updateMidiClockToggleAvailability(Boolean(selectedMidiOutput));
+            updateMidiRoutingVisibility(Boolean(selectedMidiOutput));
         } else {
             outputSelector.innerHTML = '<option>NO OUTPUTS FOUND</option>';
             outputSelector.disabled = true;
+            selectedMidiOutput = null;
             updateMidiClockToggleAvailability(false);
+            updateMidiRoutingVisibility(false);
         }
 
     } catch (err) {
@@ -4689,6 +4715,76 @@ function updateMidiClearButtonState() {
     midiClearButton.disabled = !hasAssignments;
     midiClearButton.classList.toggle('disabled', !hasAssignments);
     midiClearButton.classList.toggle('opacity-30', !hasAssignments);
+}
+
+function updateMidiRoutingVisibility(hasOutput) {
+    if (!midiRoutingContainer) return;
+    const shouldShow = hasOutput && isMidiRoutingExpanded;
+    midiRoutingContainer.classList.toggle('hidden', !shouldShow);
+
+    if (midiRoutingToggleButton) {
+        midiRoutingToggleButton.disabled = !hasOutput;
+        midiRoutingToggleButton.classList.toggle('disabled', !hasOutput);
+        midiRoutingToggleButton.classList.toggle('opacity-30', !hasOutput);
+        midiRoutingToggleButton.classList.toggle('active', shouldShow);
+    }
+
+    if (!hasOutput) {
+        isMidiRoutingExpanded = false;
+    }
+}
+
+function initMidiRoutingControls() {
+    midiRoutingContainer = document.getElementById('midi-routing-container');
+    midiRoutingTableBody = document.getElementById('midi-routing-table-body');
+    midiRoutingToggleButton = document.getElementById('midi-routing-toggle');
+    if (!midiRoutingContainer || !midiRoutingTableBody || !midiRoutingToggleButton) return;
+
+    midiRoutingTableBody.innerHTML = '';
+    const routingRows = [
+        { key: MIDI_ROUTING_SOURCES.OSC1, label: 'OSC 1 / ARP 1' },
+        { key: MIDI_ROUTING_SOURCES.OSC2, label: 'OSC 2 / ARP 2' },
+        { key: MIDI_ROUTING_SOURCES.SEQ1, label: 'SEQ 1' },
+        { key: MIDI_ROUTING_SOURCES.SEQ2, label: 'SEQ 2' },
+    ];
+
+    routingRows.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.classList.add('midi-routing-row');
+
+        const labelTd = document.createElement('td');
+        labelTd.textContent = row.label;
+        labelTd.classList.add('midi-routing-label');
+        tr.appendChild(labelTd);
+
+        const selectTd = document.createElement('td');
+        const select = document.createElement('select');
+        select.className = 'retro-select midi-routing-select text-[10px] sm:text-xs';
+        for (let ch = 1; ch <= 16; ch++) {
+            const opt = document.createElement('option');
+            opt.value = ch;
+            opt.textContent = `CH ${ch}`;
+            select.appendChild(opt);
+        }
+        select.value = getMidiChannelForSource(row.key);
+        select.addEventListener('change', () => {
+            const chosen = parseInt(select.value, 10);
+            setMidiChannelForSource(row.key, chosen);
+        });
+        midiRoutingSelects[row.key] = select;
+        selectTd.appendChild(select);
+        tr.appendChild(selectTd);
+        midiRoutingTableBody.appendChild(tr);
+    });
+
+    midiRoutingToggleButton.addEventListener('click', () => {
+        if (midiRoutingToggleButton.disabled) return;
+        isMidiRoutingExpanded = !isMidiRoutingExpanded;
+        updateMidiRoutingVisibility(Boolean(selectedMidiOutput));
+    });
+
+    refreshMidiRoutingSelections();
+    updateMidiRoutingVisibility(Boolean(selectedMidiOutput));
 }
 
        function toggleMidiRecording() {
@@ -4970,8 +5066,84 @@ function getFullScaleMidi() {
        }
 function sendMidiMessage(message) {
            if (selectedMidiOutput) {
-               selectedMidiOutput.send(message);
+               try {
+                   selectedMidiOutput.send(message);
+               } catch (e) {
+                   console.warn("MIDI Send Failed", e);
+               }
            }
+       }
+
+function clampMidiChannel(channel) {
+           if (!Number.isFinite(channel)) return 1;
+           return Math.max(1, Math.min(16, Math.round(channel)));
+       }
+
+       function loadMidiChannelRouting() {
+           try {
+               const stored = JSON.parse(localStorage.getItem(MIDI_ROUTING_STORAGE_KEY));
+               if (stored && typeof stored === 'object') {
+                   return Object.keys(DEFAULT_MIDI_ROUTING).reduce((acc, key) => {
+                       const value = clampMidiChannel(stored[key] ?? DEFAULT_MIDI_ROUTING[key]);
+                       acc[key] = value;
+                       return acc;
+                   }, {});
+               }
+           } catch (e) {
+               console.warn('Failed to parse MIDI routing config', e);
+           }
+           return { ...DEFAULT_MIDI_ROUTING };
+       }
+
+       function persistMidiChannelRouting() {
+           try {
+               localStorage.setItem(MIDI_ROUTING_STORAGE_KEY, JSON.stringify(midiChannelRouting));
+           } catch (e) {
+               console.warn('Failed to save MIDI routing config', e);
+           }
+       }
+
+       function setMidiChannelForSource(sourceKey, channel) {
+           const clamped = clampMidiChannel(channel);
+           midiChannelRouting[sourceKey] = clamped;
+           persistMidiChannelRouting();
+           updateMidiRoutingSelectValue(sourceKey, clamped);
+       }
+
+       function updateMidiRoutingSelectValue(sourceKey, channel) {
+           const select = midiRoutingSelects[sourceKey];
+           if (select) {
+               select.value = clampMidiChannel(channel ?? midiChannelRouting[sourceKey] ?? DEFAULT_MIDI_ROUTING[sourceKey]);
+           }
+       }
+
+       function refreshMidiRoutingSelections() {
+           Object.keys(DEFAULT_MIDI_ROUTING).forEach(sourceKey => {
+               updateMidiRoutingSelectValue(sourceKey, midiChannelRouting[sourceKey]);
+           });
+       }
+
+       function getMidiChannelForSource(sourceKey) {
+           const fallback = DEFAULT_MIDI_ROUTING[sourceKey] ?? 1;
+           return clampMidiChannel(midiChannelRouting[sourceKey] ?? fallback);
+       }
+
+       function getOscMidiSource(knobId) {
+           return knobId === 0 ? MIDI_ROUTING_SOURCES.OSC1 : MIDI_ROUTING_SOURCES.OSC2;
+       }
+
+       function getSequenceMidiSource(seqIndex) {
+           return seqIndex === 0 ? MIDI_ROUTING_SOURCES.SEQ1 : MIDI_ROUTING_SOURCES.SEQ2;
+       }
+
+       function sendRoutedNoteOn(sourceKey, midiNote, velocity = 100) {
+           const channel = getMidiChannelForSource(sourceKey);
+           sendMidiMessage([0x90 + (channel - 1), midiNote, velocity]);
+       }
+
+       function sendRoutedNoteOff(sourceKey, midiNote) {
+           const channel = getMidiChannelForSource(sourceKey);
+           sendMidiMessage([0x80 + (channel - 1), midiNote, 0]);
        }
 
        function sendVoiceNoteOn(voiceId, freq, slot = 0) {
@@ -5108,10 +5280,12 @@ function sendMidiMessage(message) {
                 sendVoiceNoteOn(knobId, freq, 0);
                 
                 if (state.lastPlayedMidi !== null) {
-                    sendMidiMessage([0x80 + knobId, state.lastPlayedMidi, 0]);
+                    const sourceKey = getOscMidiSource(knobId);
+                    sendRoutedNoteOff(sourceKey, state.lastPlayedMidi);
                     captureMidiEvent(knobId, 'noteOff', state.lastPlayedMidi, 0);
                 }
-                sendMidiMessage([0x90 + knobId, baseMidi, 100]);
+                const sourceKey = getOscMidiSource(knobId);
+                sendRoutedNoteOn(sourceKey, baseMidi, 100);
                 captureMidiEvent(knobId, 'noteOn', baseMidi, 100);
                 
                 state.lastPlayedMidi = baseMidi;
@@ -5549,7 +5723,8 @@ else if(id===22||id===23){fxKnobData[id].value=0.0;} else if(id===24||id===25){f
         setSlotActiveState(knobId, 0, true);
         sendVoiceNoteOn(knobId, freq, 0);
         captureMidiEvent(knobId, 'noteOn', midiNote, 100); 
-        sendMidiMessage([0x90 + knobId, midiNote, 100]);
+        const sourceKey = getOscMidiSource(knobId);
+        sendRoutedNoteOn(sourceKey, midiNote, 100);
         updateKnobColor(knobId);
     }
 }
@@ -5575,7 +5750,8 @@ else if(id===22||id===23){fxKnobData[id].value=0.0;} else if(id===24||id===25){f
             setSlotActiveState(knobId, 0, false);
             const noteToStop = state.lastPlayedMidi !== null ? state.lastPlayedMidi : getMidiNote(knobId);
             captureMidiEvent(knobId, 'noteOff', noteToStop, 0);
-            sendMidiMessage([0x80 + knobId, noteToStop, 0]); 
+            const sourceKey = getOscMidiSource(knobId);
+            sendRoutedNoteOff(sourceKey, noteToStop); 
             state.lastPlayedMidi = null;
             if (Array.isArray(state.slotLastMidi)) state.slotLastMidi[0] = null;
             updateKnobColor(knobId); 
@@ -5622,7 +5798,8 @@ else if(id===22||id===23){fxKnobData[id].value=0.0;} else if(id===24||id===25){f
           if (state.isNoteOn && state.lastPlayedMidi !== null) {
                sendVoiceNoteOff(knobId, 0);
                captureMidiEvent(knobId, 'noteOff', state.lastPlayedMidi, 0);
-               sendMidiMessage([0x80 + knobId, state.lastPlayedMidi, 0]); 
+               const sourceKey = getOscMidiSource(knobId);
+               sendRoutedNoteOff(sourceKey, state.lastPlayedMidi); 
                setSlotActiveState(knobId, 0, false);
                if (Array.isArray(state.slotLastMidi)) state.slotLastMidi[0] = null;
            }
@@ -5808,13 +5985,14 @@ lfoState.forEach((lfo, lfoIndex) => {
                noteIdx = Math.max(0, Math.min(notesForSeq.length - 1, noteIdx));
                
                const baseNoteObject = notesForSeq[noteIdx];
-               
-               const shouldPlay = modulatedFeelPattern[state.euclideanStepCounter % modulatedFeelPattern.length] === 1 && baseNoteObject && baseNoteObject.active;
+              
+              const shouldPlay = modulatedFeelPattern[state.euclideanStepCounter % modulatedFeelPattern.length] === 1 && baseNoteObject && baseNoteObject.active;
+              const sourceKey = getOscMidiSource(knobId);
 
                if (state.isNoteOn) {
                    sendVoiceNoteOff(knobId, 0);
                    captureMidiEvent(knobId, 'noteOff', state.lastPlayedMidi, 0);
-                    sendMidiMessage([0x80 + knobId, state.lastPlayedMidi, 0]);
+                    sendRoutedNoteOff(sourceKey, state.lastPlayedMidi);
                    setSlotActiveState(knobId, 0, false);
                    if (!shouldPlay) updateKnobColor(knobId);
                }
@@ -5882,7 +6060,7 @@ lfoState.forEach((lfo, lfoIndex) => {
                        state.isNoteOn = true;
                        sendVoiceNoteOn(knobId, getNoteFrequency(finalMidiNote), 0);
                        captureMidiEvent(knobId, 'noteOn', finalMidiNote, 100);
-                       sendMidiMessage([0x90 + knobId, finalMidiNote, 100]);
+                       sendRoutedNoteOn(sourceKey, finalMidiNote, 100);
                        state.lastPlayedMidi = finalMidiNote;
                        if (Array.isArray(state.slotLastMidi)) state.slotLastMidi[0] = finalMidiNote;
                        setSlotActiveState(knobId, 0, true);
@@ -6736,7 +6914,7 @@ async function applyPreset(p, isArpCategoryPreset = false, options = {}) {
     }
 
     const presetHasStepSequences = Array.isArray(p.stepSequences) && p.stepSequences.some(seq => Array.isArray(seq?.steps) && seq.steps.length);
-    const presetShouldAutoPlaySteps = p.stepPlayActive !== undefined ? !!p.stepPlayActive : presetHasStepSequences;
+    const presetShouldAutoPlaySteps = presetHasStepSequences || !!p.stepPlayActive;
     const targetStepsMode = presetHasStepSequences ? true : (p.isStepsMode ?? isStepsMode);
     if (targetStepsMode !== isStepsMode) {
         setStepsMode(targetStepsMode, { skipRandomize: presetHasStepSequences });
@@ -7826,22 +8004,13 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
          refreshSoundfontListUI();
          toggleSoundfontUiVisibility(false);
 
+         initMidiRoutingControls();
+
          const midiConnectButton = document.getElementById('midi-connect-button');
 midiConnectButton?.addEventListener('click', () => {
     setupMidiAccess(); // Now calls the bidirectional function
     midiConnectButton.textContent = 'RESCAN';
 });
-
-// Update sendMidiMessage to be safer
-function sendMidiMessage(message) {
-    if (selectedMidiOutput) {
-        try {
-            selectedMidiOutput.send(message);
-        } catch (e) {
-            console.warn("MIDI Send Failed", e);
-        }
-    }
-}
 
            midiClockToggle = document.getElementById('midi-clock-toggle');
            midiClockToggleLabel = document.getElementById('midi-clock-toggle-label');

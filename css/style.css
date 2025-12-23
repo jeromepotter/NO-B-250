@@ -77,6 +77,30 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
         background-color: var(--color-accent-green);
         border-color: var(--color-accent-green);
       }
+.midi-routing-table {
+  border-collapse: collapse;
+}
+.midi-routing-table th,
+.midi-routing-table td {
+  padding: 0.35rem 0.25rem;
+}
+.midi-routing-table th {
+  text-transform: uppercase;
+}
+.midi-routing-row td {
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+.midi-routing-row:not(:last-child) td {
+  border-bottom: 1px solid var(--color-surface);
+}
+.midi-routing-select {
+  width: 100%;
+  min-width: 8rem;
+}
+.midi-routing-label {
+  text-transform: uppercase;
+}
 /* Update your MIDI Learn classes in style.css */
 
 .blinking-midi-learn {
