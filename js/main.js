@@ -1092,7 +1092,6 @@ function attachChainKnobHandlers(knobEl, seqIndex, slotIndex, type) {
             const state = knobState[seqIndex];
             if (state) {
                 if (Array.isArray(state.slotLastMidi)) state.slotLastMidi[slot] = midiNote;
-                state.lastPlayedMidi = midiNote;
                 setSlotActiveState(seqIndex, slot, true);
                 updateKnobColor(seqIndex);
             }
@@ -5212,6 +5211,9 @@ function clampMidiChannel(channel) {
            if (state.arpRunning && state.lastPlayedMidi !== null) {
                midiNote = state.lastPlayedMidi;
            }
+              else if (stepLastMidi[knobId] !== null) {
+        midiNote = stepLastMidi[knobId];
+    }
            const finalRgb = getArpNoteColor(midiNote);
            state.dom.knob.style.backgroundColor = `rgb(${finalRgb.r}, ${finalRgb.g}, ${finalRgb.b})`;
        }
@@ -5799,14 +5801,16 @@ else if(id===22||id===23){fxKnobData[id].value=0.0;} else if(id===24||id===25){f
               updateBreakPlaybackEligibility();
           }
 
-          if (state.isNoteOn && state.lastPlayedMidi !== null) {
-               sendVoiceNoteOff(knobId, 0);
-               captureMidiEvent(knobId, 'noteOff', state.lastPlayedMidi, 0);
-               const sourceKey = getOscMidiSource(knobId);
-               sendRoutedNoteOff(sourceKey, state.lastPlayedMidi); 
-               setSlotActiveState(knobId, 0, false);
-               if (Array.isArray(state.slotLastMidi)) state.slotLastMidi[0] = null;
-           }
+       if (state.lastPlayedMidi !== null) {
+        sendVoiceNoteOff(knobId, 0);
+        captureMidiEvent(knobId, 'noteOff', state.lastPlayedMidi, 0);
+        const sourceKey = getOscMidiSource(knobId);
+        sendRoutedNoteOff(sourceKey, state.lastPlayedMidi);
+        
+        // It's safe to clear these now
+        setSlotActiveState(knobId, 0, false);
+        if (Array.isArray(state.slotLastMidi)) state.slotLastMidi[0] = null;
+    }
 
            state.currentArpNoteIndex = 0;
            state.currentOctaveStep = 0;
@@ -8481,6 +8485,7 @@ midiConnectButton?.addEventListener('click', () => {
 midiLearnButton.addEventListener('click', toggleMidiLearnMode);
       }
        init();
+
 
 
 
