@@ -158,6 +158,9 @@ let liveLfoOutputs = [0, 0, 0, 0];
         let breakSelectionDisplay = null;
         let breakQueueTargetCycle = null;
        let breakQueueTargetStep = 0;
+        let isControllerMode = false;
+        let controllerModeSwitch = null;
+        let controllerModePreviousVolume = null;
 
         let isStepsMode = false;
         let stepsModeContainer = null;
@@ -7496,7 +7499,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
                 }
             });
         }
-        function drawLfoCables() {
+function drawLfoCables() {
     const patchBay = document.getElementById('lfo-patch-bay');
     if (!patchBay) return;
 
@@ -7595,6 +7598,32 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
     });
 }
 
+function applyControllerModeUi() {
+    if (synthContainer) {
+        synthContainer.classList.toggle('controller-mode', isControllerMode);
+    }
+
+    if (controllerModeSwitch) {
+        controllerModeSwitch.classList.toggle('on', isControllerMode);
+        controllerModeSwitch.setAttribute('aria-checked', isControllerMode ? 'true' : 'false');
+    }
+
+    if (isControllerMode) {
+        const masterVolumeKnob = fxKnobData[7];
+        if (masterVolumeKnob) {
+            controllerModePreviousVolume = masterVolumeKnob.value;
+            setFxValue(7, 0, true);
+        }
+    } else if (controllerModePreviousVolume !== null) {
+        setFxValue(7, controllerModePreviousVolume, true);
+    }
+}
+
+function toggleControllerMode() {
+    isControllerMode = !isControllerMode;
+    applyControllerModeUi();
+}
+
 
        async function init(){
            synthContainer = document.getElementById('synth-container');
@@ -7613,6 +7642,7 @@ function generateAndApplyRandomSound(complexity = 'SIMPLE') {
            breakWaveCanvas = document.getElementById('break-waveform');
            breakWaveCtx = breakWaveCanvas ? breakWaveCanvas.getContext('2d') : null;
            breakSelectionDisplay = document.getElementById('break-selection-display');
+           controllerModeSwitch = document.getElementById('controller-mode-switch');
            
            // --- 1. Audio Resume (Touch & Click) ---
            const resumeAudio = () => {
@@ -8032,6 +8062,10 @@ midiConnectButton?.addEventListener('click', () => {
            });
            updateMidiClearButtonState();
 
+           addTouchListener(controllerModeSwitch, () => {
+               toggleControllerMode();
+           });
+
            // --- 10. ARP & SYNTH CONTROLS ---
            arpSyncSwitch = document.getElementById('arp-sync-switch');
            masterArpControls = document.getElementById('master-arp-controls');
@@ -8048,10 +8082,11 @@ midiConnectButton?.addEventListener('click', () => {
                });
                lfoLockSwitch.classList.toggle('on', isLfoLockEnabled);
            }
-            new ResizeObserver(drawLfoCables).observe(synthContainer);
+           new ResizeObserver(drawLfoCables).observe(synthContainer);
       
            populateScales();
            setupFxKnobs();
+           applyControllerModeUi();
 
            lfoRateDisplays = Array.from({ length: 4 }, (_, idx) => document.getElementById(`lfo-rate-display-${idx}`));
            lfoTempoSyncSwitches = Array(LFO_RATE_KNOB_IDS.length).fill(null);

@@ -151,10 +151,10 @@ body { font-family: 'Poppins', sans-serif; background-color: var(--color-bg); to
         -webkit-font-smoothing: antialiased;
         text-rendering: optimizeLegibility;
       }
-      .preset-nav-button:hover {
+.preset-nav-button:hover {
         color: var(--color-accent-yellow);
       }
-      .preset-nav-icon {
+.preset-nav-icon {
         width: 0.9rem;
         height: 0.9rem;
         stroke: currentColor;
@@ -1016,6 +1016,15 @@ animation: note-retrigger 0.08s ease-out;
   font-weight: 700;
   font-size: 10px;
   line-height: 1;
+}
+
+.controller-mode #fx-grid-container,
+.controller-mode .oscillator-subgrid,
+.controller-mode #drums-switch-container,
+.controller-mode #break-grid-container,
+.controller-mode #break-grid-default-slot,
+.controller-mode #break-grid-arp-slot {
+  display: none;
 }
 
 
