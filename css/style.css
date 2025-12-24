@@ -1024,7 +1024,7 @@ animation: note-retrigger 0.08s ease-out;
 .controller-mode #break-grid-container,
 .controller-mode #break-grid-default-slot,
 .controller-mode #break-grid-arp-slot {
-  display: none;
+  display: none !important;
 }
 
 
