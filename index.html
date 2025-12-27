@@ -173,8 +173,14 @@
           <div class="flex justify-center items-center mt-1 text-base sm:text-lg font-bold step-note-display">--</div>
           <div class="chain-section">
             <div class="chain-header">
-              <div class="power-switch small chain-mode-switch on" data-chain-switch="0" role="switch" aria-checked="true">
-                <div class="power-switch-handle"></div>
+              <div class="flex flex-col items-center space-y-1">
+                <div class="flex items-center space-x-1">
+                  <button class="mobile-spin-button step-chain-nudge" data-step-nudge="-1" data-seq-index="0" aria-label="Nudge sequencer A back">&lt;</button>
+                  <button class="mobile-spin-button step-chain-nudge" data-step-nudge="1" data-seq-index="0" aria-label="Nudge sequencer A forward">&gt;</button>
+                </div>
+                <div class="power-switch small chain-mode-switch on" data-chain-switch="0" role="switch" aria-checked="true">
+                  <div class="power-switch-handle"></div>
+                </div>
               </div>
               <span class="chain-header-label">CHAIN</span>
             </div>
@@ -191,6 +197,7 @@
         <div class="col-span-1 sm:col-span-2 flex justify-center items-center space-x-2 step-global-controls">
           <button id="step-start-all" class="retro-button text-[10px] sm:text-xs font-bold" type="button">START</button>
           <button id="step-stop-all" class="retro-button text-[10px] sm:text-xs font-bold" type="button">STOP</button>
+          <button id="step-clone-a-b" class="retro-button text-[10px] sm:text-xs font-bold" type="button">CLONE A→B</button>
         </div>
 
         <div class="step-sequencer" data-sequence-index="1">
@@ -228,8 +235,14 @@
           <div class="flex justify-center items-center mt-1 text-base sm:text-lg font-bold step-note-display">--</div>
           <div class="chain-section">
             <div class="chain-header">
-              <div class="power-switch small chain-mode-switch on" data-chain-switch="1" role="switch" aria-checked="true">
-                <div class="power-switch-handle"></div>
+              <div class="flex flex-col items-center space-y-1">
+                <div class="flex items-center space-x-1">
+                  <button class="mobile-spin-button step-chain-nudge" data-step-nudge="-1" data-seq-index="1" aria-label="Nudge sequencer B back">&lt;</button>
+                  <button class="mobile-spin-button step-chain-nudge" data-step-nudge="1" data-seq-index="1" aria-label="Nudge sequencer B forward">&gt;</button>
+                </div>
+                <div class="power-switch small chain-mode-switch on" data-chain-switch="1" role="switch" aria-checked="true">
+                  <div class="power-switch-handle"></div>
+                </div>
               </div>
               <span class="chain-header-label">CHAIN</span>
             </div>
