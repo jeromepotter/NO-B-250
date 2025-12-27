@@ -343,6 +343,35 @@ let liveLfoOutputs = [0, 0, 0, 0];
             return clamped;
         }
 
+        function cloneStepNotes(sourceIndex, targetIndex) {
+            const source = stepSequences[sourceIndex];
+            const target = stepSequences[targetIndex];
+            if (!source || !target || !Array.isArray(source.steps) || !Array.isArray(target.steps)) return;
+            source.steps.forEach((step, idx) => {
+                if (!target.steps[idx]) return;
+                target.steps[idx].active = !!step.active;
+                target.steps[idx].value = step.value;
+            });
+            refreshSequenceStepColors(targetIndex);
+        }
+
+        function nudgeStepSequence(seqIndex, direction) {
+            const sequence = stepSequences[seqIndex];
+            if (!sequence || !Array.isArray(sequence.steps)) return;
+            const length = getSequenceLength(seqIndex);
+            if (length <= 1) return;
+            const snapshot = sequence.steps.slice(0, length).map(step => ({
+                active: !!step.active,
+                value: step.value,
+            }));
+            for (let i = 0; i < length; i += 1) {
+                const sourceIndex = (i - direction + length) % length;
+                sequence.steps[i].active = snapshot[sourceIndex].active;
+                sequence.steps[i].value = snapshot[sourceIndex].value;
+            }
+            refreshSequenceStepColors(seqIndex);
+        }
+
         function getSequenceBaseOctave(seqIndex) {
             const sequence = stepSequences[seqIndex];
             if (!sequence) return defaultStepOctaves[seqIndex] ?? STEP_MIN_BASE_OCTAVE;
@@ -1969,6 +1998,7 @@ function applyMidiControl(target, val) {
 
             stepStartButton = document.getElementById('step-start-all');
             const stopAllButton = document.getElementById('step-stop-all');
+            const cloneButton = document.getElementById('step-clone-a-b');
             const startBoth = () => {
                 const sharedDelay = getSharedStepStartDelay();
                 startAllStepSequences({ sharedDelay });
@@ -1977,6 +2007,18 @@ function applyMidiControl(target, val) {
             stepStartButton?.addEventListener('click', startBoth);
             stopAllButton?.addEventListener('click', () => {
                 stopAllStepSequences();
+            });
+            cloneButton?.addEventListener('click', () => {
+                cloneStepNotes(0, 1);
+            });
+
+            document.querySelectorAll('.step-chain-nudge').forEach(button => {
+                button.addEventListener('click', () => {
+                    const seqIndex = Number.parseInt(button.dataset.seqIndex, 10);
+                    const direction = Number.parseInt(button.dataset.stepNudge, 10);
+                    if (Number.isNaN(seqIndex) || Number.isNaN(direction)) return;
+                    nudgeStepSequence(seqIndex, direction);
+                });
             });
 
             setStepsMode(false);
